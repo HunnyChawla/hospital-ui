@@ -11,27 +11,38 @@ type AuthState = {
 
 const initialState: AuthState = {
   user: null,
-  token: typeof window !== "undefined" ? localStorage.getItem("auth_token") : null,
+  token: null,
   loading: false,
   error: null,
-  isAuthenticated: typeof window !== "undefined" ? !!localStorage.getItem("auth_token") : false,
+  isAuthenticated: false,
 };
 
 export const login = createAsyncThunk(
   "auth/login",
-  async (credentials: LoginRequest) => {
-    const response = await authApi.login(credentials);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", response.token.access_token);
-      localStorage.setItem("user_id", response.user_id);
-      localStorage.setItem("tenant_id", response.tenant_id);
-      localStorage.setItem("role", response.role);
+  async (credentials: LoginRequest, { rejectWithValue }) => {
+    try {
+      const response = await authApi.login(credentials);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", response.token.access_token);
+        localStorage.setItem("user_id", response.user_id);
+        // Use tenant_id from response, or fallback to default if not provided
+        const tenantId = response.tenant_id || "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1";
+        localStorage.setItem("tenant_id", tenantId);
+        localStorage.setItem("role", response.role);
+      }
+      return response;
+    } catch (error: any) {
+      // Preserve the error structure for proper error handling
+      return rejectWithValue(error);
     }
-    return response;
   }
 );
 
 export const logout = createAsyncThunk("auth/logout", async () => {
+  // Call logout API
+  await authApi.logout();
+  
+  // Clear local storage
   if (typeof window !== "undefined") {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user_id");
@@ -82,7 +93,15 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || "Login failed";
+        // When using rejectWithValue, the error is in action.payload
+        // Otherwise, use action.error.message
+        if (action.payload) {
+          // The payload contains the error object, but we'll let the component handle parsing
+          // For now, set a generic message - the component will use getErrorMessage to parse it
+          state.error = "Login failed";
+        } else {
+          state.error = action.error.message || "Login failed";
+        }
         state.isAuthenticated = false;
       })
       .addCase(logout.fulfilled, (state) => {

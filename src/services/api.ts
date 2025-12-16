@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://mock-hospital-api.local",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000",
   headers: {
     "Content-Type": "application/json",
   },
@@ -18,6 +18,24 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle 401 errors - redirect to login
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("tenant_id");
+        localStorage.removeItem("role");
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Mock call utility for mockData.ts (used by features that don't have real API yet)
 export const wait = (ms = 400) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 

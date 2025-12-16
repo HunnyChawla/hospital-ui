@@ -3,20 +3,20 @@
 import { useEffect } from "react";
 import {
   fetchPatients,
-  removePatient,
   selectPatient,
 } from "@/redux/patientsSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { formatDate, currency } from "@/utils/format";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
-import { toast } from "sonner";
+import { Patient } from "@/types";
 
 interface PatientTableProps {
   onPatientClick?: (patientId: string) => void;
+  onEditClick?: (patient: Patient) => void;
 }
 
-export function PatientTable({ onPatientClick }: PatientTableProps) {
+export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps) {
   const dispatch = useAppDispatch();
   const { list, loading, selected } = useAppSelector((s) => s.patients);
 
@@ -34,9 +34,7 @@ export function PatientTable({ onPatientClick }: PatientTableProps) {
         <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
           <tr>
             <th className="px-4 py-3">Patient</th>
-            <th className="px-4 py-3">ID</th>
             <th className="px-4 py-3">Contact</th>
-            <th className="px-4 py-3">Doctor</th>
             <th className="px-4 py-3">Visit</th>
             <th className="px-4 py-3">Outstanding</th>
             <th className="px-4 py-3 text-right">Actions</th>
@@ -59,16 +57,7 @@ export function PatientTable({ onPatientClick }: PatientTableProps) {
                   </span>
                   <span className="text-xs text-slate-500">
                     {patient.age} • {patient.gender}
-                  </span>
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-col">
-                  <span className="font-semibold text-slate-800">
-                    {patient.id}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {patient.healthId}
+                    {patient.healthId && ` • ${patient.healthId}`}
                   </span>
                 </div>
               </td>
@@ -80,7 +69,6 @@ export function PatientTable({ onPatientClick }: PatientTableProps) {
                   </span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-slate-700">{patient.doctor}</td>
               <td className="px-4 py-3 text-slate-700">
                 {formatDate(patient.lastVisit)}
               </td>
@@ -90,26 +78,20 @@ export function PatientTable({ onPatientClick }: PatientTableProps) {
               <td className="px-4 py-3">
                 <div className="flex justify-end gap-2">
                   <button
-                    className={`rounded-xl px-3 py-1 text-xs font-semibold ${
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditClick?.(patient);
+                    }}
+                    className={`rounded-xl px-3 py-1 text-xs font-semibold transition ${
                       selected?.id === patient.id
-                        ? "bg-sky-100 text-sky-700"
-                        : "bg-slate-100 text-slate-700"
+                        ? "bg-sky-100 text-sky-700 hover:bg-sky-200"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
                     <Edit2 className="mr-1 inline h-4 w-4" />
                     Edit
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatch(removePatient(patient.id));
-                      toast.success("Patient removed");
-                    }}
-                    className="rounded-xl bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
-                  >
-                    <Trash2 className="mr-1 inline h-4 w-4" />
-                    Delete
-                  </button>
+                  {/* Delete functionality not available - API doesn't support patient deletion */}
                 </div>
               </td>
             </tr>

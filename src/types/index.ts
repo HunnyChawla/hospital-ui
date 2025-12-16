@@ -71,5 +71,7 @@ export type QueueEntry = {
   patientName: string;
   status: "Waiting" | "In Consultation" | "Completed";
   etaMinutes: number;
+  visitId?: string; // For OPD visits
+  appointmentId?: string; // For appointments
 };
 

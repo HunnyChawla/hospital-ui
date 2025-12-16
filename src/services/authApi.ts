@@ -1,4 +1,5 @@
 import axios from "axios";
+import { apiClient } from "./api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -29,6 +30,16 @@ export const authApi = {
       credentials
     );
     return response.data;
+  },
+
+  async logout(): Promise<void> {
+    try {
+      // Use apiClient which already includes the Authorization header
+      await apiClient.post("/auth/logout", {});
+    } catch (error) {
+      // Even if logout API fails, we should still clear local storage
+      console.error("Logout API call failed:", error);
+    }
   },
 };
 

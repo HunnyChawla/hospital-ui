@@ -9,23 +9,30 @@ import {
   Home,
   LayoutList,
   Users2,
+  Stethoscope,
+  FlaskConical,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
+import { useTenant } from "@/hooks/useTenant";
 
 const navItems = [
   { label: "Dashboard", href: "#dashboard", icon: Home },
   { label: "Patients", href: "#patients", icon: Users2 },
-  { label: "OPD", href: "#opd", icon: Activity },
+  { label: "Doctors", href: "#doctors", icon: Stethoscope },
+  { label: "Appointments/OPD", href: "#opd", icon: Activity },
+  { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
   { label: "Admissions", href: "#admissions", icon: BedDouble },
   { label: "Billing", href: "#billing", icon: CreditCard },
   { label: "Labs", href: "#labs", icon: Beaker },
   { label: "Queue", href: "#queue", icon: LayoutList },
+  { label: "Manage Users", href: "#users", icon: Users2 },
   { label: "Settings", href: "#settings", icon: Cog },
 ];
 
 export function Sidebar() {
   const [hash, setHash] = useState<string>("#dashboard");
+  const { hospitalName } = useTenant();
 
   useEffect(() => {
     const updateHash = () => setHash(window.location.hash || "#dashboard");
@@ -44,7 +51,7 @@ export function Sidebar() {
           <p className="text-xs uppercase tracking-wide text-slate-500">
             Hospital Portal
           </p>
-          <p className="text-lg font-semibold text-slate-900">Command Center</p>
+          <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
         </div>
       </div>
 

@@ -6,10 +6,17 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatCard } from "@/components/common/StatCard";
 import { Section } from "@/components/common/Section";
-import { PatientForm } from "@/components/patients/PatientForm";
 import { PatientTable } from "@/components/patients/PatientTable";
-import { PatientSearch } from "@/components/patients/PatientSearch";
+import { PatientFormModal } from "@/components/patients/PatientFormModal";
+import { DoctorTable } from "@/components/doctors/DoctorTable";
+import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
 import { OpdForm } from "@/components/opd/OpdForm";
+import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
+import { AppointmentsList } from "@/components/opd/AppointmentsList";
+import { OpdList } from "@/components/opd/OpdList";
+import { OpdFormModal } from "@/components/opd/OpdFormModal";
+import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
+import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
 import { AdmissionPanel } from "@/components/admission/AdmissionPanel";
 import { BedOverview } from "@/components/beds/BedOverview";
 import { BillingPanel } from "@/components/billing/BillingPanel";
@@ -17,6 +24,11 @@ import { TestPanel } from "@/components/tests/TestPanel";
 import { QueueBoard } from "@/components/queue/QueueBoard";
 import { bedData } from "@/components/beds/BedOverview";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
+import { UserTable } from "@/components/users/UserTable";
+import { UserFormModal } from "@/components/users/UserFormModal";
+import { Patient } from "@/types";
+import { Doctor } from "@/services/doctorsApi";
+import { User } from "@/services/usersApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchAdmissions } from "@/redux/admissionsSlice";
 import { fetchBilling } from "@/redux/billingSlice";
@@ -31,6 +43,10 @@ import {
   HeartPulse,
   LayoutList,
   Stethoscope,
+  CalendarPlus,
+  Calendar,
+  Beaker,
+  Users2,
 } from "lucide-react";
 
 export default function Home() {
@@ -44,9 +60,20 @@ export default function Home() {
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
   const [activeSection, setActiveSection] = useState<
-    "dashboard" | "patients" | "opd" | "admissions" | "billing" | "labs" | "queue"
+    "dashboard" | "patients" | "doctors" | "opd" | "lab-bookings" | "admissions" | "billing" | "labs" | "queue" | "users"
   >("dashboard");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [showPatientModal, setShowPatientModal] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [showOpdModal, setShowOpdModal] = useState(false);
+  const [showLabBookingModal, setShowLabBookingModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userActiveTab, setUserActiveTab] = useState<"admin" | "doctor" | "nurse" | "receptionist" | "all">("all");
+  const [opdActiveTab, setOpdActiveTab] = useState<"appointments" | "opd">("appointments");
 
   useEffect(() => {
     // Restore session on mount
@@ -82,7 +109,6 @@ export default function Home() {
     return () => window.removeEventListener("hashchange", syncHash);
   }, []);
 
-  const selectedPatient = useAppSelector((s) => s.patients.selected);
   const admittedCount = admissions.length;
   const pendingBills =
     patients.reduce((sum, p) => sum + p.outstanding, 0) || 0;
@@ -106,7 +132,7 @@ export default function Home() {
     <div className="lg:pl-72">
       <Sidebar />
       <main className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
-        <TopBar />
+        <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
 
         {show("dashboard") && (
           <div className="grid gap-6">
@@ -154,6 +180,8 @@ export default function Home() {
                     onClick={() => {
                       window.location.hash = "patients";
                       setActiveSection("patients");
+                      setEditingPatient(null);
+                      setShowPatientModal(true);
                     }}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-800 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
                   >
@@ -230,105 +258,163 @@ export default function Home() {
 
         {show("patients") && (
           <div className="mt-6 grid gap-6">
-            <Section
-              id="patients"
-              title="Patient Management"
-              description="Add or edit patients, then search and review quick summaries."
-            >
-              <div className="grid gap-5">
-                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <Activity className="h-4 w-4 text-sky-600" />
-                    Add / Edit patient
-                  </div>
-                  <div className="mt-3">
-                    <PatientForm defaultValues={selectedPatient ?? undefined} />
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="grid gap-5">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
-                      Patient lookup
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Search by mobile, Health ID, or name to view summaries.
+                      Patients
                     </p>
                   </div>
-                  <div className="mt-3">
-                    <PatientSearch />
-                  </div>
-                  <div className="mt-4">
-                    <PatientTable
-                      onPatientClick={(id) => setSelectedPatientId(id)}
-                    />
-                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingPatient(null);
+                      setShowPatientModal(true);
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+                  >
+                    <Activity className="h-4 w-4" />
+                    Add Patient
+                  </button>
                 </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        Doctor roster
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Availability snapshot across specialties.
-                      </p>
-                    </div>
-                    <span className="pill bg-sky-50 text-sky-700">
-                      {doctors.length} doctors
-                    </span>
-                  </div>
-                  {doctorsLoading ? (
-                    <div className="mt-3 text-center text-sm text-slate-500">
-                      Loading doctors...
-                    </div>
-                  ) : (
-                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {doctors.length > 0 ? (
-                        doctors.map((doc) => {
-                          const doctorName = doc.name || doc.user?.name || `Dr. ${doc.specialization}`;
-                          return (
-                            <div
-                              key={doc.id}
-                              className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
-                            >
-                              <div>
-                                <p className="text-sm font-semibold text-slate-900">
-                                  {doctorName}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                  {doc.specialization} • {doc.qualification}
-                                </p>
-                              </div>
-                              <span className="pill bg-emerald-50 text-emerald-700">
-                                ₹{doc.consultation_fee}
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <p className="col-span-2 text-center text-sm text-slate-500">
-                          No doctors available
-                        </p>
-                      )}
-                    </div>
-                  )}
+                <div className="mt-4">
+                  <PatientTable
+                    onPatientClick={(id) => setSelectedPatientId(id)}
+                    onEditClick={(patient) => {
+                      setEditingPatient(patient);
+                      setShowPatientModal(true);
+                    }}
+                  />
                 </div>
               </div>
-            </Section>
+            </div>
+          </div>
+        )}
+
+        {show("doctors") && (
+          <div className="mt-6 grid gap-6">
+            <div className="grid gap-5">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Doctors
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingDoctor(null);
+                      setShowDoctorModal(true);
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+                  >
+                    <Stethoscope className="h-4 w-4" />
+                    Add Doctor
+                  </button>
+                </div>
+                <div className="mt-4">
+                  <DoctorTable
+                    onEditClick={(doctor) => {
+                      setEditingDoctor(doctor);
+                      setShowDoctorModal(true);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {show("opd") && (
           <div className="mt-6 grid gap-6">
-            <Section
-              id="opd"
-              title="OPD Slip Generation"
-              description="Generate OPD token, capture symptoms, and print-ready slip."
-            >
-              <OpdForm />
-            </Section>
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+              {/* Tabs */}
+              <div className="flex items-center justify-between border-b border-slate-200 px-6">
+                <div className="flex gap-2">
+                  {[
+                    { id: "appointments", label: "Appointments", icon: Calendar },
+                    { id: "opd", label: "OPD", icon: Stethoscope },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setOpdActiveTab(tab.id as typeof opdActiveTab)}
+                      className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                        opdActiveTab === tab.id
+                          ? "border-sky-500 text-sky-700"
+                          : "border-transparent text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                {opdActiveTab === "appointments" && (
+                  <button
+                    onClick={() => setShowAppointmentModal(true)}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                    Create Appointment
+                  </button>
+                )}
+              </div>
+
+              {/* Tab Content */}
+              <div className="p-6">
+                {opdActiveTab === "appointments" && (
+                  <div>
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold text-slate-900">Appointments List</p>
+                      <p className="text-xs text-slate-500">View and manage appointments by doctor and date</p>
+                    </div>
+                    <AppointmentsList />
+                  </div>
+                )}
+
+                {opdActiveTab === "opd" && (
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">OPD Visits List</p>
+                        <p className="text-xs text-slate-500">View and manage OPD visits by doctor and date</p>
+                      </div>
+                      <button
+                        onClick={() => setShowOpdModal(true)}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                      >
+                        <Stethoscope className="h-4 w-4" />
+                        Create OPD
+                      </button>
+                    </div>
+                    <OpdList />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {show("lab-bookings") && (
+          <div className="mt-6 grid gap-6">
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Lab Test Bookings</p>
+                  <p className="text-xs text-slate-500">Manage lab test bookings for patients</p>
+                </div>
+                <button
+                  onClick={() => setShowLabBookingModal(true)}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                >
+                  <Beaker className="h-4 w-4" />
+                  Create Booking
+                </button>
+              </div>
+              <div className="p-6">
+                <LabBookingsList />
+              </div>
+            </div>
           </div>
         )}
 
@@ -388,12 +474,107 @@ export default function Home() {
         </div>
         )}
 
+        {show("users") && (
+          <div className="mt-6 grid gap-6">
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+              {/* Tabs */}
+              <div className="flex items-center justify-between border-b border-slate-200 px-6">
+                <div className="flex gap-2">
+                  {[
+                    { id: "all", label: "All Users", icon: Users2 },
+                    { id: "admin", label: "Admin", icon: Users2 },
+                    { id: "doctor", label: "Doctors", icon: Stethoscope },
+                    { id: "nurse", label: "Nurses", icon: Users2 },
+                    { id: "receptionist", label: "Receptionists", icon: Users2 },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setUserActiveTab(tab.id as typeof userActiveTab)}
+                      className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                        userActiveTab === tab.id
+                          ? "border-sky-500 text-sky-700"
+                          : "border-transparent text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingUser(null);
+                    setShowUserModal(true);
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                >
+                  <Activity className="h-4 w-4" />
+                  Add User
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="p-6">
+                <UserTable
+                  roleFilter={userActiveTab === "all" ? undefined : userActiveTab}
+                  onEditClick={(user) => {
+                    setEditingUser(user);
+                    setShowUserModal(true);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {selectedPatientId && (
           <PatientDetailView
             patientId={selectedPatientId}
             onClose={() => setSelectedPatientId(null)}
           />
         )}
+
+        <PatientFormModal
+          isOpen={showPatientModal}
+          onClose={() => {
+            setShowPatientModal(false);
+            setEditingPatient(null);
+          }}
+          defaultValues={editingPatient ?? undefined}
+        />
+
+        <DoctorFormModal
+          isOpen={showDoctorModal}
+          onClose={() => {
+            setShowDoctorModal(false);
+            setEditingDoctor(null);
+          }}
+          defaultValues={editingDoctor ?? undefined}
+        />
+
+        <AppointmentFormModal
+          isOpen={showAppointmentModal}
+          onClose={() => setShowAppointmentModal(false)}
+        />
+
+        <OpdFormModal
+          isOpen={showOpdModal}
+          onClose={() => setShowOpdModal(false)}
+        />
+
+        <LabBookingFormModal
+          isOpen={showLabBookingModal}
+          onClose={() => setShowLabBookingModal(false)}
+        />
+
+        <UserFormModal
+          isOpen={showUserModal}
+          onClose={() => {
+            setShowUserModal(false);
+            setEditingUser(null);
+          }}
+          defaultValues={editingUser ?? undefined}
+        />
       </main>
     </div>
   );

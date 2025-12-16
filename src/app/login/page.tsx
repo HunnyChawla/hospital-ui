@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { login, restoreSession } from "@/redux/authSlice";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorHandler";
 import { LogIn, Mail, Lock, Building2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    tenant_id: "",
+    tenant_id: "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1",
   });
 
   useEffect(() => {
@@ -42,8 +43,8 @@ export default function LoginPage() {
       await dispatch(login(formData)).unwrap();
       toast.success("Login successful");
       router.push("/");
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Login failed. Please check your credentials.";
+    } catch (err: any) {
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     }
   };

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { selectPatient, fetchPatients } from "@/redux/patientsSlice";
+import { selectPatient, fetchPatients, getPatientById } from "@/redux/patientsSlice";
 import { fetchAdmissions, dischargePatient, admitPatient } from "@/redux/admissionsSlice";
 import { fetchBilling, createBillingRecord } from "@/redux/billingSlice";
 import { fetchTests } from "@/redux/testsSlice";
 import { fetchQueue } from "@/redux/queueSlice";
-import { PatientForm } from "./PatientForm";
+import { PatientFormModal } from "./PatientFormModal";
 import { OpdForm } from "@/components/opd/OpdForm";
+import { AppointmentForm } from "@/components/opd/AppointmentForm";
 import { currency, formatDate } from "@/utils/format";
 import { nanoid } from "@reduxjs/toolkit";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ import {
   BedDouble,
   Stethoscope,
   TestTube,
+  Calendar,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -28,9 +30,9 @@ interface PatientDetailViewProps {
 
 export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps) {
   const dispatch = useAppDispatch();
-  const patient = useAppSelector((s) =>
-    s.patients.list.find((p) => p.id === patientId)
-  );
+  const patientsList = useAppSelector((s) => s.patients.list);
+  const selectedPatient = useAppSelector((s) => s.patients.selected);
+  const patient = patientsList.find((p) => p.id === patientId) || (selectedPatient?.id === patientId ? selectedPatient : null);
   const admissions = useAppSelector((s) =>
     s.admissions.list.filter((a) => a.patientId === patientId)
   );
@@ -45,9 +47,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   );
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "opd" | "admit" | "billing" | "tests"
+    "overview" | "opd" | "appointment" | "admit" | "billing" | "tests"
   >("overview");
-  const [showEditForm, setShowEditForm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [admitForm, setAdmitForm] = useState({
     doctor: patient?.doctor || "Dr. Mehta",
     reason: "",
@@ -61,12 +63,33 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   useEffect(() => {
     if (patientId) {
-      dispatch(selectPatient(patientId));
+      // Check if patient is in store, if not fetch it
+      const patientInStore = patientsList.find((p) => p.id === patientId);
+      if (!patientInStore) {
+        dispatch(getPatientById({ patientId }));
+      } else {
+        dispatch(selectPatient(patientId));
+      }
       dispatch(fetchAdmissions());
       dispatch(fetchBilling());
       dispatch(fetchTests());
-      dispatch(fetchQueue());
+      // Note: fetchQueue requires doctorId, so we skip it in patient detail view
     }
+  }, [patientId, dispatch, patientsList]);
+
+  // Listen for patient updates to refresh data
+  useEffect(() => {
+    const handlePatientUpdated = () => {
+      if (patientId) {
+        dispatch(getPatientById({ patientId }));
+        dispatch(fetchPatients());
+      }
+    };
+
+    window.addEventListener("patient:created", handlePatientUpdated);
+    return () => {
+      window.removeEventListener("patient:created", handlePatientUpdated);
+    };
   }, [patientId, dispatch]);
 
   if (!patient) {
@@ -145,7 +168,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     setMedications([]);
     dispatch(fetchBilling());
     dispatch(fetchAdmissions());
-    dispatch(fetchPatients());
+    dispatch(fetchPatients({}));
   };
 
   const addMedication = () => {
@@ -196,28 +219,15 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 </p>
               </div>
               <button
-                onClick={() => setShowEditForm(!showEditForm)}
+                onClick={() => setShowEditModal(true)}
                 className="rounded-xl bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
               >
-                {showEditForm ? "Cancel Edit" : "Edit Patient"}
+                Edit Patient
               </button>
             </div>
           </div>
 
           <div className="max-h-[calc(100vh-120px)] overflow-y-auto p-6">
-            {/* Edit Form Toggle */}
-            {showEditForm && (
-              <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <PatientForm
-                  defaultValues={patient}
-                  onSuccess={() => {
-                    setShowEditForm(false);
-                    toast.success("Patient updated");
-                  }}
-                />
-              </div>
-            )}
-
             {/* Patient Info Cards */}
             <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
               <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-sky-50 to-white p-4">
@@ -273,6 +283,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               {[
                 { id: "overview", label: "Overview", icon: FileText },
                 { id: "opd", label: "OPD Slip", icon: Stethoscope },
+                { id: "appointment", label: "Appointment", icon: Calendar },
                 { id: "admit", label: "Admit/Discharge", icon: BedDouble },
                 { id: "billing", label: "Billing", icon: CreditCard },
                 { id: "tests", label: "Tests", icon: TestTube },
@@ -318,7 +329,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                             </div>
                             {!adm.dischargeAt && (
                               <button
-                                onClick={() => handleDischarge(adm.id)}
+                                onClick={handleDischarge}
                                 className="rounded-lg bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600"
                               >
                                 Discharge
@@ -407,6 +418,12 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               {activeTab === "opd" && (
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
                   <OpdForm defaultPatientId={patientId} hidePatientSearch={true} />
+                </div>
+              )}
+
+              {activeTab === "appointment" && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <AppointmentForm defaultPatientId={patientId} hidePatientSearch={true} />
                 </div>
               )}
 
@@ -775,6 +792,19 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           </div>
         </div>
       )}
+
+      {/* Edit Patient Modal */}
+      <PatientFormModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          // Refresh patient data after edit
+          if (patientId) {
+            dispatch(getPatientById({ patientId }));
+          }
+        }}
+        defaultValues={patient}
+      />
     </div>
   );
 }

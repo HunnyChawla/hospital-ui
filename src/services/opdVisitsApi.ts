@@ -1,0 +1,116 @@
+import { apiClient } from "./api";
+
+export type VisitStatus = "checked_in" | "in_consultation" | "completed" | "cancelled";
+export type VisitType = "walk_in" | "appointment";
+export type PaymentMethod = "cash" | "upi" | "card" | "cheque";
+
+export interface Visit {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  patient_name?: string;
+  patient_mobile?: string;
+  doctor_id: string | null;
+  visit_type: VisitType;
+  visit_number: string;
+  status: VisitStatus;
+  appointment_id: string | null;
+  token_number: number | null;
+  chief_complaint: string | null;
+  notes: string | null;
+  checked_in_at: string | null;
+  consultation_started_at: string | null;
+  consultation_ended_at: string | null;
+  invoice_id: string | null;
+  payment_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateVisitRequest {
+  patient_id: string;
+  doctor_id?: string | null;
+  visit_type: VisitType;
+  appointment_id?: string | null;
+  chief_complaint?: string | null;
+  notes?: string | null;
+  payment_method: PaymentMethod;
+  payment_reference?: string | null;
+  consultation_fee?: number | null;
+}
+
+export type SortField = "token_number" | "visit_date" | "created_at" | "checked_in_at" | "visit_number" | "status" | "visit_type";
+export type SortOrder = "asc" | "desc";
+
+export interface OpdVisitsSearchParams {
+  page?: number;
+  page_size?: number;
+  sort_by?: SortField;
+  sort_order?: SortOrder;
+  patient_id?: string;
+  doctor_id?: string;
+  status?: VisitStatus;
+  visit_type?: VisitType;
+  visit_date?: string; // YYYY-MM-DD
+  tenant_id?: string;
+}
+
+export interface OpdVisitsSearchResponse {
+  items: Visit[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export const opdVisitsApi = {
+  async create(visit: CreateVisitRequest, tenantId?: string): Promise<Visit> {
+    const params = tenantId ? { tenant_id: tenantId } : {};
+    const response = await apiClient.post<Visit>("/opd/visits", visit, { params });
+    return response.data;
+  },
+
+  async getById(visitId: string, tenantId?: string): Promise<Visit> {
+    const params = tenantId ? { tenant_id: tenantId } : {};
+    const response = await apiClient.get<Visit>(`/opd/visits/${visitId}`, { params });
+    return response.data;
+  },
+
+  async updateStatus(
+    visitId: string,
+    newStatus: VisitStatus,
+    tenantId?: string
+  ): Promise<Visit> {
+    const params: Record<string, string> = { new_status: newStatus };
+    if (tenantId) {
+      params.tenant_id = tenantId;
+    }
+    const response = await apiClient.patch<Visit>(
+      `/opd/visits/${visitId}/status`,
+      {},
+      { params }
+    );
+    return response.data;
+  },
+
+  async list(params?: OpdVisitsSearchParams): Promise<OpdVisitsSearchResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
+    if (params?.sort_by) queryParams.append("sort_by", params.sort_by);
+    if (params?.sort_order) queryParams.append("sort_order", params.sort_order);
+    if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
+    if (params?.doctor_id) queryParams.append("doctor_id", params.doctor_id);
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.visit_type) queryParams.append("visit_type", params.visit_type);
+    if (params?.visit_date) queryParams.append("visit_date", params.visit_date);
+    if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    
+    const queryString = queryParams.toString();
+    const url = `/opd/visits${queryString ? `?${queryString}` : ""}`;
+    
+    const response = await apiClient.get<OpdVisitsSearchResponse>(url);
+    return response.data;
+  },
+};
+
