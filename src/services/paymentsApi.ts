@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export type PaymentMethod = "cash" | "upi" | "card" | "cheque";
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded";
@@ -44,7 +45,8 @@ export interface PaymentsSearchResponse {
 
 export const paymentsApi = {
   async create(payment: CreatePaymentRequest, tenantId?: string): Promise<Payment> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<Payment>("/payments", payment, { params });
     return response.data;
   },
@@ -54,7 +56,8 @@ export const paymentsApi = {
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.invoice_id) queryParams.append("invoice_id", params.invoice_id);
-    if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const queryString = queryParams.toString();
     const url = `/payments${queryString ? `?${queryString}` : ""}`;
@@ -64,7 +67,8 @@ export const paymentsApi = {
   },
 
   async getById(paymentId: string, tenantId?: string): Promise<Payment> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<Payment>(`/payments/${paymentId}`, { params });
     return response.data;
   },

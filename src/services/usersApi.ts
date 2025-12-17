@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export type UserRole = "admin" | "doctor" | "nurse" | "receptionist";
 export type UserStatus = "active" | "inactive";
@@ -46,7 +47,8 @@ export interface UsersSearchResponse {
 
 export const usersApi = {
   async create(user: CreateUserRequest, tenantId?: string): Promise<User> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<User>("/users", user, { params });
     return response.data;
   },
@@ -57,7 +59,8 @@ export const usersApi = {
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.role) queryParams.append("role", params.role);
     if (params?.status) queryParams.append("status", params.status);
-    if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const queryString = queryParams.toString();
     const url = `/users${queryString ? `?${queryString}` : ""}`;
@@ -67,7 +70,8 @@ export const usersApi = {
   },
 
   async getById(userId: string, tenantId?: string): Promise<User> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<User>(`/users/${userId}`, { params });
     return response.data;
   },
@@ -77,13 +81,15 @@ export const usersApi = {
     updates: UpdateUserRequest,
     tenantId?: string
   ): Promise<User> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<User>(`/users/${userId}`, updates, { params });
     return response.data;
   },
 
   async getDoctorsWithoutDoctorRecord(tenantId?: string): Promise<User[]> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<User[]>("/users/doctors/without-doctor-record", { params });
     return response.data;
   },

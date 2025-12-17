@@ -82,14 +82,26 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                       e.stopPropagation();
                       onEditClick?.(patient);
                     }}
-                    className={`rounded-xl px-3 py-1 text-xs font-semibold transition ${
+                    className={`group relative flex items-center justify-center overflow-hidden rounded-lg p-2 text-xs font-semibold text-white transition-all duration-300 ${
                       selected?.id === patient.id
-                        ? "bg-sky-100 text-sky-700 hover:bg-sky-200"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        ? "bg-sky-500 hover:bg-sky-600"
+                        : "bg-slate-500 hover:bg-slate-600"
                     }`}
+                    style={{ width: "2rem" }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.width = "auto";
+                      e.currentTarget.style.paddingLeft = "0.75rem";
+                      e.currentTarget.style.paddingRight = "0.75rem";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.width = "2rem";
+                      e.currentTarget.style.paddingLeft = "0.5rem";
+                      e.currentTarget.style.paddingRight = "0.5rem";
+                    }}
+                    title="Edit"
                   >
-                    <Edit2 className="mr-1 inline h-4 w-4" />
-                    Edit
+                    <Edit2 className="h-4 w-4 shrink-0" />
+                    <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Edit</span>
                   </button>
                   {/* Delete functionality not available - API doesn't support patient deletion */}
                 </div>

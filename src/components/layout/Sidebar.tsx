@@ -22,11 +22,11 @@ const navItems = [
   { label: "Doctors", href: "#doctors", icon: Stethoscope },
   { label: "Appointments/OPD", href: "#opd", icon: Activity },
   { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
-  { label: "Admissions", href: "#admissions", icon: BedDouble },
+  { label: "Manage IPD", href: "#admissions", icon: BedDouble },
   { label: "Billing", href: "#billing", icon: CreditCard },
   { label: "Labs", href: "#labs", icon: Beaker },
   { label: "Queue", href: "#queue", icon: LayoutList },
-  { label: "Manage Users", href: "#users", icon: Users2 },
+  { label: "Manage Staff", href: "#users", icon: Users2 },
   { label: "Settings", href: "#settings", icon: Cog },
 ];
 

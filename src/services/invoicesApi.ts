@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled";
 
@@ -67,7 +68,8 @@ export interface InvoicesSearchResponse {
 
 export const invoicesApi = {
   async create(invoice: CreateInvoiceRequest, tenantId?: string): Promise<Invoice> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<Invoice>("/invoices", invoice, { params });
     return response.data;
   },
@@ -78,7 +80,8 @@ export const invoicesApi = {
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
     if (params?.status) queryParams.append("status", params.status);
-    if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const queryString = queryParams.toString();
     const url = `/invoices${queryString ? `?${queryString}` : ""}`;
@@ -88,7 +91,8 @@ export const invoicesApi = {
   },
 
   async getById(invoiceId: string, tenantId?: string): Promise<Invoice> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<Invoice>(`/invoices/${invoiceId}`, { params });
     return response.data;
   },

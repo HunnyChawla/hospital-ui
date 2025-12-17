@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export type BookingStatus = "scheduled" | "sample_collected" | "in_progress" | "completed" | "cancelled";
 export type TestPriority = "routine" | "urgent" | "stat";
@@ -64,7 +65,8 @@ export interface LabBookingsSearchResponse {
 
 export const labBookingsApi = {
   async create(booking: CreateLabBookingRequest, tenantId?: string): Promise<LabBooking> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<LabBooking>("/lab-bookings", booking, { params });
     return response.data;
   },
@@ -77,7 +79,8 @@ export const labBookingsApi = {
     if (params?.status) queryParams.append("status", params.status);
     if (params?.scheduled_date) queryParams.append("scheduled_date", params.scheduled_date);
     if (params?.booking_number) queryParams.append("booking_number", params.booking_number);
-    if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const queryString = queryParams.toString();
     const url = `/lab-bookings${queryString ? `?${queryString}` : ""}`;
@@ -87,7 +90,8 @@ export const labBookingsApi = {
   },
 
   async getById(bookingId: string, tenantId?: string): Promise<LabBooking> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<LabBooking>(`/lab-bookings/${bookingId}`, { params });
     return response.data;
   },
@@ -97,9 +101,10 @@ export const labBookingsApi = {
     status: BookingStatus,
     tenantId?: string
   ): Promise<LabBooking> {
+    const apiTenantId = getTenantIdForApi(tenantId);
     const params: Record<string, string> = {};
-    if (tenantId) {
-      params.tenant_id = tenantId;
+    if (apiTenantId) {
+      params.tenant_id = apiTenantId;
     }
     const response = await apiClient.patch<LabBooking>(
       `/lab-bookings/${bookingId}/status`,

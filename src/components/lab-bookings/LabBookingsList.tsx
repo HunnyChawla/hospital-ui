@@ -6,7 +6,7 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
 import { formatDate, currency } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Clock, Printer } from "lucide-react";
+import { Beaker, Search, Calendar, User, Clock, Printer, ChevronLeft, ChevronRight } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -29,6 +29,10 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
   const [searching, setSearching] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   // Set default date on client side only to avoid hydration mismatch
   useEffect(() => {
@@ -51,8 +55,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     setLoading(true);
     try {
       const response = await labBookingsApi.list({
-        page: 1,
-        page_size: 50,
+        page: currentPage,
+        page_size: pageSize,
         patient_id: patientId,
         scheduled_date: selectedDate,
         status: statusFilter !== "all" ? statusFilter : undefined,
@@ -79,12 +83,20 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
       );
 
       setBookings(bookingsWithPatients);
+      setTotalPages(response.total_pages);
+      setTotal(response.total);
     } catch (error: any) {
       console.error("Failed to fetch lab bookings:", error);
       setBookings([]);
+      setTotalPages(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
+  }, [currentPage, pageSize, patientId, selectedDate, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filter changes
   }, [patientId, selectedDate, statusFilter]);
 
   useEffect(() => {
@@ -380,6 +392,64 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
+          <div className="text-sm text-slate-600">
+            Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+            <span className="font-semibold text-slate-900">
+              {Math.min(currentPage * pageSize, total)}
+            </span>{" "}
+            of <span className="font-semibold text-slate-900">{total}</span> bookings
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                      currentPage === pageNum
+                        ? "bg-sky-500 text-white"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 

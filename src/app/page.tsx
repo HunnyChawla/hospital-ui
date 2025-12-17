@@ -17,8 +17,7 @@ import { OpdList } from "@/components/opd/OpdList";
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
-import { AdmissionPanel } from "@/components/admission/AdmissionPanel";
-import { BedOverview } from "@/components/beds/BedOverview";
+import { ManageIPD } from "@/components/ipd/ManageIPD";
 import { BillingPanel } from "@/components/billing/BillingPanel";
 import { TestPanel } from "@/components/tests/TestPanel";
 import { QueueBoard } from "@/components/queue/QueueBoard";
@@ -419,17 +418,8 @@ export default function Home() {
         )}
 
         {show("admissions") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="admissions"
-              title="Admission & Discharge"
-              description="Assign beds, set ward type, discharge with summaries."
-            >
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <AdmissionPanel />
-                <BedOverview />
-              </div>
-            </Section>
+          <div className="mt-6">
+            <ManageIPD />
           </div>
         )}
 

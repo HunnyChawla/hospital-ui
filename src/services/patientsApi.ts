@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import { Patient } from "@/types";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export interface PatientSearchParams {
   mobile?: string;
@@ -106,7 +107,8 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
 
 export const patientsApi = {
   async create(patient: CreatePatientRequest, tenantId?: string): Promise<PatientApiResponse> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<PatientApiResponse>("/patients", patient, { params });
     return response.data;
   },
@@ -116,7 +118,8 @@ export const patientsApi = {
     queryParams.append("q", params.q);
     if (params.page) queryParams.append("page", params.page.toString());
     if (params.page_size) queryParams.append("page_size", params.page_size.toString());
-    if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const response = await apiClient.get<PatientsSearchResponse>(`/patients/search/global?${queryParams.toString()}`);
     return response.data;
@@ -131,7 +134,8 @@ export const patientsApi = {
     if (params.date_of_birth) queryParams.append("date_of_birth", params.date_of_birth);
     if (params.page) queryParams.append("page", params.page.toString());
     if (params.page_size) queryParams.append("page_size", params.page_size.toString());
-    if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const queryString = queryParams.toString();
     const url = `/patients/search${queryString ? `?${queryString}` : ""}`;
@@ -141,19 +145,22 @@ export const patientsApi = {
   },
 
   async getById(patientId: string, tenantId?: string): Promise<PatientApiResponse> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<PatientApiResponse>(`/patients/${patientId}`, { params });
     return response.data;
   },
 
   async getByUhid(uhid: string, tenantId?: string): Promise<PatientApiResponse> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<PatientApiResponse>(`/patients/uhid/${uhid}`, { params });
     return response.data;
   },
 
   async update(patientId: string, updates: UpdatePatientRequest, tenantId?: string): Promise<PatientApiResponse> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<PatientApiResponse>(`/patients/${patientId}`, updates, { params });
     return response.data;
   },

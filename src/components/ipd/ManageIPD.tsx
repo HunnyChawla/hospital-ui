@@ -1,0 +1,163 @@
+"use client";
+
+import { useState } from "react";
+import { WardTable } from "./WardTable";
+import { WardFormModal } from "./WardFormModal";
+import { BedTable } from "./BedTable";
+import { BedFormModal } from "./BedFormModal";
+import { AdmissionTable } from "./AdmissionTable";
+import { AdmissionFormModal } from "./AdmissionFormModal";
+import { Ward } from "@/services/wardsApi";
+import { Bed } from "@/services/bedsApi";
+import { Admission } from "@/services/admissionsApi";
+import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2 } from "lucide-react";
+
+export function ManageIPD() {
+  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">("wards");
+  const [showWardModal, setShowWardModal] = useState(false);
+  const [showBedModal, setShowBedModal] = useState(false);
+  const [showAdmissionModal, setShowAdmissionModal] = useState(false);
+  const [editingWard, setEditingWard] = useState<Ward | null>(null);
+  const [editingBed, setEditingBed] = useState<Bed | null>(null);
+
+  return (
+    <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex items-center justify-between border-b border-slate-200">
+        <div className="flex gap-2">
+          {[
+            { id: "wards", label: "Wards", icon: Building2 },
+            { id: "beds", label: "Beds", icon: LayoutList },
+            { id: "admissions", label: "Admissions", icon: ClipboardList },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                activeTab === tab.id
+                  ? "border-sky-500 text-sky-700"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div>
+          {activeTab === "wards" && (
+            <button
+              onClick={() => {
+                setEditingWard(null);
+                setShowWardModal(true);
+              }}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+            >
+              <div className="relative flex items-center justify-center">
+                <Building2 className="h-4 w-4" />
+                <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+              </div>
+              Add Ward
+            </button>
+          )}
+          {activeTab === "beds" && (
+            <button
+              onClick={() => {
+                setEditingBed(null);
+                setShowBedModal(true);
+              }}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+            >
+              <div className="relative flex items-center justify-center">
+                <BedDouble className="h-4 w-4" />
+                <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+              </div>
+              Add Bed
+            </button>
+          )}
+          {activeTab === "admissions" && (
+            <button
+              onClick={() => setShowAdmissionModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+            >
+              <div className="relative flex items-center justify-center">
+                <BedDouble className="h-4 w-4" />
+                <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+              </div>
+              Admit Patient
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        {activeTab === "wards" && (
+          <div>
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-900">Wards</p>
+              <p className="text-xs text-slate-500">Manage hospital wards and bed capacity</p>
+            </div>
+            <WardTable
+              onEditClick={(ward) => {
+                setEditingWard(ward);
+                setShowWardModal(true);
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === "beds" && (
+          <div>
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-900">Beds</p>
+              <p className="text-xs text-slate-500">Manage beds across all wards</p>
+            </div>
+            <BedTable
+              onEditClick={(bed) => {
+                setEditingBed(bed);
+                setShowBedModal(true);
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === "admissions" && (
+          <div>
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-900">Admissions</p>
+              <p className="text-xs text-slate-500">View and manage patient admissions</p>
+            </div>
+            <AdmissionTable />
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <WardFormModal
+        isOpen={showWardModal}
+        onClose={() => {
+          setShowWardModal(false);
+          setEditingWard(null);
+        }}
+        defaultValues={editingWard ?? undefined}
+      />
+
+      <BedFormModal
+        isOpen={showBedModal}
+        onClose={() => {
+          setShowBedModal(false);
+          setEditingBed(null);
+        }}
+        defaultValues={editingBed ?? undefined}
+      />
+
+      <AdmissionFormModal
+        isOpen={showAdmissionModal}
+        onClose={() => setShowAdmissionModal(false)}
+      />
+    </div>
+  );
+}
+
+

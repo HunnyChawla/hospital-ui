@@ -36,7 +36,7 @@ export function getErrorMessage(error: any): string {
     actualError = error.error;
   }
   
-  // Check if we have a response (API error)
+  // Check if we have a response (API error from axios)
   if (actualError?.response) {
     const response = actualError.response;
     const data = response.data as ApiErrorResponse | undefined;
@@ -79,6 +79,38 @@ export function getErrorMessage(error: any): string {
     // Handle object with message property
     if (typeof detail === "object" && "message" in detail) {
       return (detail as any).message;
+    }
+  }
+
+  // Check if error has data directly (non-axios errors or custom error format)
+  if (actualError?.data) {
+    const data = actualError.data as ApiErrorResponse | undefined;
+    
+    if (data?.detail) {
+      const detail = data.detail;
+      
+      // Handle string error messages
+      if (typeof detail === "string") {
+        return detail;
+      }
+      
+      // Handle array of error details
+      if (Array.isArray(detail) && detail.length > 0) {
+        const messages = detail.map((err: ErrorDetail) => {
+          if (err.msg) {
+            return err.msg;
+          }
+          if (err.ctx) {
+            const { resource_type, field, value } = err.ctx;
+            if (resource_type && field) {
+              return `${resource_type} with ${field} '${value || ""}' already exists`;
+            }
+          }
+          return "Validation error";
+        });
+        
+        return messages.join(", ");
+      }
     }
   }
   

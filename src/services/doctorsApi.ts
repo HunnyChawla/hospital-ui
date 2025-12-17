@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export interface Doctor {
   id: string;
@@ -11,6 +12,7 @@ export interface Doctor {
   created_at: string;
   updated_at: string;
   name?: string; // Optional: if API includes name directly
+  user_name?: string; // User's full name from user API
   user?: {
     name?: string;
     email?: string;
@@ -34,25 +36,29 @@ export interface UpdateDoctorRequest {
 
 export const doctorsApi = {
   async create(doctor: CreateDoctorRequest, tenantId?: string): Promise<Doctor> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<Doctor>("/doctors", doctor, { params });
     return response.data;
   },
 
   async list(tenantId?: string): Promise<Doctor[]> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<Doctor[]>("/doctors", { params });
     return response.data;
   },
 
   async getById(doctorId: string, tenantId?: string): Promise<Doctor> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<Doctor>(`/doctors/${doctorId}`, { params });
     return response.data;
   },
 
   async update(doctorId: string, updates: UpdateDoctorRequest, tenantId?: string): Promise<Doctor> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<Doctor>(`/doctors/${doctorId}`, updates, { params });
     return response.data;
   },
