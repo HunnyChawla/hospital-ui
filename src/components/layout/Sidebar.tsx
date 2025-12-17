@@ -11,6 +11,7 @@ import {
   Users2,
   Stethoscope,
   FlaskConical,
+  BarChart3,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ import { useTenant } from "@/hooks/useTenant";
 
 const navItems = [
   { label: "Dashboard", href: "#dashboard", icon: Home },
+  { label: "Analytics", href: "#analytics", icon: BarChart3 },
   { label: "Patients", href: "#patients", icon: Users2 },
   { label: "Doctors", href: "#doctors", icon: Stethoscope },
   { label: "Appointments/OPD", href: "#opd", icon: Activity },

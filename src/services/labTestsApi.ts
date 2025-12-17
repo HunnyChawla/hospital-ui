@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export interface LabTest {
   id: string;
@@ -48,7 +49,8 @@ export interface LabTestsSearchResponse {
 
 export const labTestsApi = {
   async create(test: CreateLabTestRequest, tenantId?: string): Promise<LabTest> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<LabTest>("/lab-tests", test, { params });
     return response.data;
   },
@@ -60,7 +62,8 @@ export const labTestsApi = {
     if (params?.category) queryParams.append("category", params.category);
     if (params?.is_active !== undefined) queryParams.append("is_active", params.is_active.toString());
     if (params?.search) queryParams.append("search", params.search);
-    if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     
     const queryString = queryParams.toString();
     const url = `/lab-tests${queryString ? `?${queryString}` : ""}`;
@@ -70,13 +73,15 @@ export const labTestsApi = {
   },
 
   async getById(testId: string, tenantId?: string): Promise<LabTest> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<LabTest>(`/lab-tests/${testId}`, { params });
     return response.data;
   },
 
   async update(testId: string, updates: UpdateLabTestRequest, tenantId?: string): Promise<LabTest> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.patch<LabTest>(`/lab-tests/${testId}`, updates, { params });
     return response.data;
   },
