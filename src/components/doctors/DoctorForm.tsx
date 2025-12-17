@@ -15,6 +15,34 @@ interface DoctorFormProps {
   onSuccess?: () => void;
 }
 
+// Common specializations list (hardcoded as requested)
+const SPECIALIZATIONS = [
+  "General Medicine",
+  "Internal Medicine",
+  "Cardiology",
+  "Orthopedics",
+  "Pediatrics",
+  "Gynecology",
+  "Dermatology",
+  "ENT",
+  "Ophthalmology",
+  "Psychiatry",
+  "Neurology",
+  "Nephrology",
+  "Gastroenterology",
+  "Pulmonology",
+  "Endocrinology",
+  "Oncology",
+  "Urology",
+  "Dentistry",
+  "Radiology",
+  "Anesthesiology",
+  "Physiotherapy",
+  "General Surgery",
+  "Plastic Surgery",
+  "Emergency Medicine",
+];
+
 export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
   const dispatch = useAppDispatch();
   
@@ -25,7 +53,12 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const specializationRef = useRef<HTMLDivElement>(null);
+  const specializationButtonRef = useRef<HTMLButtonElement>(null);
+  const [showSpecializationDropdown, setShowSpecializationDropdown] = useState(false);
   const selectedUserId = watch("user_id");
+  const specializationValue = watch("specialization") || "";
   const justSelectedRef = useRef(false);
 
   // Fetch available users (doctors without doctor records) when creating new doctor
@@ -103,6 +136,14 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       return;
     }
 
+    // If a user is already selected and the search text matches that user,
+    // keep the dropdown closed unless the user clears/changes the text.
+    const selectedUser = availableUsers.find((u) => u.id === selectedUserId);
+    if (selectedUser && searchTerm.trim() === selectedUser.full_name) {
+      setShowDropdown(false);
+      return;
+    }
+
     if (searchTerm.trim().length >= 1) {
       const filtered = availableUsers.filter(
         (user) =>
@@ -114,7 +155,7 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       // Show all users when search is empty
       setShowDropdown(availableUsers.length > 0);
     }
-  }, [searchTerm, availableUsers]);
+  }, [searchTerm, availableUsers, selectedUserId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -130,11 +171,24 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [defaultValues]);
 
+  // Close specialization dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (specializationRef.current && !specializationRef.current.contains(event.target as Node)) {
+        setShowSpecializationDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleUserSelect = (user: User) => {
     justSelectedRef.current = true;
     setValue("user_id", user.id);
     setSearchTerm(user.full_name);
     setShowDropdown(false);
+    // Blur input so dropdown does not immediately re-open
+    searchInputRef.current?.blur();
     setTimeout(() => {
       justSelectedRef.current = false;
     }, 100);
@@ -147,6 +201,20 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
           user.email.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : availableUsers;
+
+  const handleSpecializationSelect = (spec: string) => {
+    setValue("specialization", spec, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    setShowSpecializationDropdown(false);
+    // Blur to prevent immediate re-open on focus
+    specializationButtonRef.current?.blur();
+  };
+
+  // Ensure dropdown closes whenever a specialization value is set/changed
+  useEffect(() => {
+    if (specializationValue) {
+      setShowSpecializationDropdown(false);
+    }
+  }, [specializationValue]);
 
   const onSubmit = async (values: CreateDoctorRequest & { user_id: string }) => {
     try {
@@ -218,10 +286,18 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
+                ref={searchInputRef}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  // Clear selection so a new pick can be made and dropdown can reopen.
+                  setValue("user_id", "");
+                  setShowDropdown(true);
+                }}
                 onFocus={() => {
-                  if (availableUsers.length > 0) {
+                  const selectedUser = availableUsers.find((u) => u.id === selectedUserId);
+                  const hasDifferentText = selectedUser ? searchTerm !== selectedUser.full_name : true;
+                  if (availableUsers.length > 0 && hasDifferentText) {
                     setShowDropdown(true);
                   }
                 }}
@@ -230,12 +306,12 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
               />
             </div>
             {showDropdown && filteredUsers.length > 0 && (
-              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+              <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                 {filteredUsers.map((user) => (
                   <div
                     key={user.id}
                     onClick={() => handleUserSelect(user)}
-                    className="cursor-pointer px-4 py-3 hover:bg-sky-50 transition"
+                    className="cursor-pointer px-4 py-2 text-sm hover:bg-sky-50 transition"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -277,11 +353,40 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       {/* Specialization */}
       <label className="space-y-1">
         <span className="text-slate-600">Specialization</span>
-        <input
-          {...register("specialization")}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          placeholder="e.g., Cardiology, General Medicine"
-        />
+        <div className="relative" ref={specializationRef}>
+          <input type="hidden" {...register("specialization")} />
+          <button
+            type="button"
+            ref={specializationButtonRef}
+            onClick={() => setShowSpecializationDropdown((prev) => !prev)}
+            className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left outline-none focus:border-sky-400"
+          >
+            <span className={specializationValue ? "text-slate-900" : "text-slate-400"}>
+              {specializationValue || "Select specialization"}
+            </span>
+            <span className="text-slate-400">▾</span>
+          </button>
+          {showSpecializationDropdown && (
+            <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+              {SPECIALIZATIONS.map((spec) => (
+                <button
+                  key={spec}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // avoid focus/blur races
+                    e.stopPropagation();
+                    handleSpecializationSelect(spec);
+                  }}
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-sky-50 transition ${
+                    specializationValue === spec ? "bg-sky-50 font-semibold text-slate-900" : "text-slate-700"
+                  }`}
+                >
+                  {spec}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </label>
 
       {/* Qualification */}

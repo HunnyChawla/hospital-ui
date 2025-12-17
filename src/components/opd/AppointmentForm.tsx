@@ -51,12 +51,15 @@ export function AppointmentForm({
     }
   }, [dispatch, doctors.length, doctorsLoading]);
 
+  // Do not auto-select the first doctor; require explicit user choice to avoid
+  // submitting an unintended doctor. This prevents the form from silently
+  // resetting to the first doctor in the list.
   useEffect(() => {
-    // Set default doctor when doctors are loaded
-    if (doctors.length > 0 && !doctorId) {
-      setDoctorId(doctors[0].id);
+    if (doctorId && doctors.length === 0) {
+      // Clear stale selection if list empties (e.g., refetch)
+      setDoctorId("");
     }
-  }, [doctors, doctorId]);
+  }, [doctors.length, doctorId]);
 
   useEffect(() => {
     // Set default date to today

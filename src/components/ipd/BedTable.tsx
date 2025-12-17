@@ -158,7 +158,7 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 -mt-2">
       {/* Bed Type Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
         <button

@@ -168,27 +168,15 @@ export function AdmissionForm({
   // Fetch beds when search term changes (with debounce)
   useEffect(() => {
     if (!wardId) return;
-    // Don't trigger search if we're programmatically setting the bed
-    if (isSettingBedProgrammatically.current) {
-      return;
-    }
-    // Don't trigger search if a bed is already selected and search term matches the selected bed
-    if (bedId) {
-      const selectedBed = availableBeds.find(b => b.id === bedId);
-      if (selectedBed && bedSearchTerm === selectedBed.bed_number) {
-        return; // Don't search if the search term matches the selected bed
-      }
-    }
-
+    // Avoid looped searches on render changes to availableBeds/bedId
     const timeoutId = setTimeout(() => {
       setBedCurrentPage(1);
       bedCurrentPageRef.current = 1;
-      setBedId(""); // Clear selection when searching
       fetchBedsForWard(1, false, bedSearchTerm);
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [bedSearchTerm, wardId, fetchBedsForWard, bedId, availableBeds]);
+  }, [bedSearchTerm, wardId, fetchBedsForWard]);
 
   // Handle infinite scroll
   useEffect(() => {
@@ -201,7 +189,15 @@ export function AdmissionForm({
       }
 
       const { scrollTop, scrollHeight, clientHeight } = bedListElement;
-      const isNearBottom = scrollHeight - scrollTop <= clientHeight + 50;
+
+      // If content isn't scrollable, avoid kicking off fetches
+      if (scrollHeight <= clientHeight + 24) return;
+
+      // Only load more after the user has actually scrolled
+      if (scrollTop === 0) return;
+
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+      const isNearBottom = distanceFromBottom <= 50;
       
       if (isNearBottom) {
         const nextPage = bedCurrentPageRef.current + 1;
@@ -510,15 +506,10 @@ export function AdmissionForm({
           <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${bedId ? "text-sky-600" : "text-slate-400"}`} />
           <input
             type="text"
-            value={bedId && !showBedDropdown 
-              ? (availableBeds.find(b => b.id === bedId)?.bed_number || bedSearchTerm)
-              : bedSearchTerm}
+            value={bedSearchTerm}
             onChange={(e) => {
               const value = e.target.value;
               setBedSearchTerm(value);
-              if (bedId) {
-                setBedId(""); // Clear selection when user types
-              }
               setShowBedDropdown(true);
             }}
             onFocus={() => {
@@ -533,12 +524,11 @@ export function AdmissionForm({
             }}
             placeholder={wardId ? "Search bed by number..." : "Select ward first"}
             className={`w-full rounded-xl border pl-10 pr-10 py-2 outline-none transition ${
-              bedId && !showBedDropdown
+              bedId && bedSearchTerm
                 ? "border-sky-400 bg-sky-50 text-slate-900"
                 : "border-slate-200 bg-white focus:border-sky-400"
             } disabled:bg-slate-50 disabled:cursor-not-allowed`}
             disabled={!wardId}
-            readOnly={bedId && !showBedDropdown}
           />
           {bedId && !showBedDropdown && (
             <button
@@ -585,14 +575,9 @@ export function AdmissionForm({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          isSettingBedProgrammatically.current = true;
                           setBedId(bed.id);
                           setBedSearchTerm(bed.bed_number);
                           setShowBedDropdown(false);
-                          // Reset flag after state updates
-                          setTimeout(() => {
-                            isSettingBedProgrammatically.current = false;
-                          }, 100);
                         }}
                           className={`w-full flex items-center gap-2 p-3 text-left text-sm transition ${
                             isSelected
