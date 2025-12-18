@@ -616,7 +616,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-120px)] overflow-y-auto p-6">
+          <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6">
             {/* Action Tabs */}
             <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200">
               {[
@@ -1076,7 +1076,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               {activeTab === "billing" && (
                 <div className="space-y-4">
                   {/* Status Toggle Buttons */}
-                  <div className="flex justify-end">
+                  <div className="flex justify-end -mt-4">
                     <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
                       <button
                         onClick={() => setInvoiceStatusFilter("pending")}
