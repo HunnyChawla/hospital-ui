@@ -25,6 +25,8 @@ import { QueueBoard } from "@/components/queue/QueueBoard";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { UserTable } from "@/components/users/UserTable";
 import { UserFormModal } from "@/components/users/UserFormModal";
+import { PaymentSummaryModal } from "@/components/payments/PaymentSummaryModal";
+import { analyticsApi } from "@/services/analyticsApi";
 import { Patient } from "@/types";
 import { Doctor } from "@/services/doctorsApi";
 import { User } from "@/services/usersApi";
@@ -83,6 +85,10 @@ export default function Home() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userActiveTab, setUserActiveTab] = useState<"admin" | "doctor" | "nurse" | "receptionist" | "all">("all");
   const [opdActiveTab, setOpdActiveTab] = useState<"appointments" | "opd">("appointments");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentModalType, setPaymentModalType] = useState<"collected" | "pending">("collected");
+  const [totalCollected, setTotalCollected] = useState(0);
+  const [totalPending, setTotalPending] = useState(0);
 
   useEffect(() => {
     // Restore session on mount
@@ -103,8 +109,41 @@ export default function Home() {
       dispatch(fetchQueue());
       dispatch(fetchPatients());
       dispatch(fetchDoctors());
+      fetchPaymentTotals();
     }
   }, [dispatch, isAuthenticated]);
+
+  const fetchPaymentTotals = async () => {
+    try {
+      // Use analytics API to get revenue totals - much more efficient!
+      const today = new Date();
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(today.getFullYear() - 1);
+      
+      const revenueData = await analyticsApi.revenue({
+        start_date: oneYearAgo.toISOString().split("T")[0],
+        end_date: today.toISOString().split("T")[0],
+        granularity: "monthly", // Use monthly to get aggregated totals
+      });
+
+      // Sum up all collected and outstanding amounts
+      const collected = revenueData.data.reduce(
+        (sum, point) => sum + point.collected_amount,
+        0
+      );
+      const pending = revenueData.data.reduce(
+        (sum, point) => sum + point.outstanding_amount,
+        0
+      );
+
+      setTotalCollected(collected);
+      setTotalPending(pending);
+    } catch (err) {
+      console.error("Failed to fetch payment totals:", err);
+      // Keep using default values (0) if fetch fails
+      // This won't break the app, just won't show totals until API is available
+    }
+  };
 
   useEffect(() => {
     const syncHash = () => {
@@ -119,23 +158,13 @@ export default function Home() {
   }, []);
 
   const admittedCount = admissions.length;
-  const pendingBills =
-    patients.reduce((sum, p) => sum + p.outstanding, 0) || 0;
   const totalQueue = queue.length;
-  const revenue = useMemo(
-    () => billing.reduce((sum, rec) => sum + rec.total, 0),
-    [billing]
-  );
+  // Use actual invoice totals instead of old billing records
+  const revenue = totalCollected;
+  const pendingBills = totalPending;
   const activeAdmissions = useMemo(
     () => admissions.filter((a) => a.status === "admitted").length,
     [admissions]
-  );
-  const pendingBillingTotal = useMemo(
-    () =>
-      billing
-        .filter((rec) => rec.status === "Pending")
-        .reduce((sum, rec) => sum + rec.total, 0),
-    [billing]
   );
   const recentAdmissions = useMemo(
     () =>
@@ -185,8 +214,8 @@ export default function Home() {
               />
               <StatCard
                 label="Pending billing"
-                value={currency(pendingBillingTotal || pendingBills)}
-                hint={`${billing.length} billing records`}
+                value={currency(totalPending)}
+                hint="Outstanding invoices"
                 icon={Stethoscope}
                 tone="amber"
               />
@@ -259,14 +288,26 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-2 text-sm text-slate-700">
-                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <button
+                    onClick={() => {
+                      setPaymentModalType("collected");
+                      setShowPaymentModal(true);
+                    }}
+                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 transition hover:border-sky-300 hover:bg-sky-50 cursor-pointer"
+                  >
                     <span className="font-semibold text-slate-800">Collected</span>
-                    <span className="text-emerald-600">{currency(revenue)}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-3 py-2">
+                    <span className="text-emerald-600">{currency(totalCollected)}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPaymentModalType("pending");
+                      setShowPaymentModal(true);
+                    }}
+                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 transition hover:border-amber-300 hover:bg-amber-100 cursor-pointer"
+                  >
                     <span className="font-semibold text-slate-800">Pending</span>
-                    <span className="text-amber-700">{currency(pendingBillingTotal || pendingBills)}</span>
-                  </div>
+                    <span className="text-amber-700">{currency(totalPending)}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -671,6 +712,12 @@ export default function Home() {
             setEditingUser(null);
           }}
           defaultValues={editingUser ?? undefined}
+        />
+
+        <PaymentSummaryModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          type={paymentModalType}
         />
       </main>
     </div>
