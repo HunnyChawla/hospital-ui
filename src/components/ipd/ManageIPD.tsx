@@ -94,10 +94,6 @@ export function ManageIPD() {
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         {activeTab === "wards" && (
           <div>
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-900">Wards</p>
-              <p className="text-xs text-slate-500">Manage hospital wards and bed capacity</p>
-            </div>
             <WardTable
               onEditClick={(ward) => {
                 setEditingWard(ward);
@@ -109,10 +105,6 @@ export function ManageIPD() {
 
         {activeTab === "beds" && (
           <div>
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-900">Beds</p>
-              <p className="text-xs text-slate-500">Manage beds across all wards</p>
-            </div>
             <BedTable
               onEditClick={(bed) => {
                 setEditingBed(bed);
@@ -124,10 +116,6 @@ export function ManageIPD() {
 
         {activeTab === "admissions" && (
           <div>
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-900">Admissions</p>
-              <p className="text-xs text-slate-500">View and manage patient admissions</p>
-            </div>
             <AdmissionTable />
           </div>
         )}

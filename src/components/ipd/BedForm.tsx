@@ -6,6 +6,7 @@ import { bedsApi, Bed, CreateBedRequest, UpdateBedRequest, BedStatus, BedType, A
 import { wardsApi, Ward } from "@/services/wardsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { Plus, X } from "lucide-react";
 
 interface BedFormProps {
   defaultValues?: Bed;
@@ -13,8 +14,14 @@ interface BedFormProps {
 }
 
 export function BedForm({ defaultValues, onSuccess }: BedFormProps) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateBedRequest & UpdateBedRequest & AddBulkBedsRequest & { number_of_beds?: number }>();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<
+    CreateBedRequest &
+    UpdateBedRequest &
+    AddBulkBedsRequest &
+    { bed_numbers_input?: string }
+  >();
   const [wards, setWards] = useState<Ward[]>([]);
+  const [bedNumbers, setBedNumbers] = useState<string[]>([""]);
   const originalValuesRef = useRef<Partial<Bed> | null>(null);
 
   useEffect(() => {
@@ -60,13 +67,16 @@ export function BedForm({ defaultValues, onSuccess }: BedFormProps) {
         bed_number: "",
         bed_type: "general",
         daily_rate: 0,
-        number_of_beds: 1,
+        bed_numbers_input: "",
       });
+      setBedNumbers([""]);
       originalValuesRef.current = null;
     }
   }, [defaultValues, reset]);
 
-  const onSubmit = async (values: CreateBedRequest & UpdateBedRequest) => {
+  const onSubmit = async (
+    values: CreateBedRequest & UpdateBedRequest & { bed_numbers_input?: string }
+  ) => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       
@@ -111,9 +121,16 @@ export function BedForm({ defaultValues, onSuccess }: BedFormProps) {
         }
       } else {
         // Create beds using bulk API
+        const cleanedBeds = bedNumbers.map((b) => b.trim()).filter(Boolean);
+        if (cleanedBeds.length === 0) {
+          toast.error("Please enter at least one bed number");
+          return;
+        }
+        const uniqueBedNumbers = Array.from(new Set(cleanedBeds));
+
         const bulkData: AddBulkBedsRequest = {
           ward_id: values.ward_id!,
-          number_of_beds: values.number_of_beds || 1,
+          bed_numbers: uniqueBedNumbers,
           bed_type: values.bed_type!,
           daily_rate: values.daily_rate!,
         };
@@ -152,20 +169,45 @@ export function BedForm({ defaultValues, onSuccess }: BedFormProps) {
 
           <label className="space-y-1">
             <span className="text-slate-600">
-              Number of Beds <span className="text-rose-500">*</span>
+              Bed Numbers <span className="text-rose-500">*</span>
             </span>
-            <input
-              type="number"
-              min="1"
-              {...register("number_of_beds", { 
-                required: "Number of beds is required", 
-                min: { value: 1, message: "Must be at least 1" },
-                valueAsNumber: true 
-              })}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-              placeholder="e.g., 5"
-            />
-            {errors.number_of_beds && <span className="text-xs text-rose-500">{errors.number_of_beds.message}</span>}
+            <div className="space-y-2">
+              {bedNumbers.map((val, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    value={val}
+                    onChange={(e) => {
+                      const next = [...bedNumbers];
+                      next[idx] = e.target.value;
+                      setBedNumbers(next);
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                    placeholder={`e.g., B-${String(idx + 1).padStart(3, "0")}`}
+                  />
+                  {bedNumbers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = bedNumbers.filter((_, i) => i !== idx);
+                        setBedNumbers(next.length ? next : [""]);
+                      }}
+                      className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-rose-200 hover:text-rose-600"
+                      aria-label="Remove bed number"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setBedNumbers((prev) => [...prev, ""])}
+                className="flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700"
+              >
+                <Plus className="h-4 w-4" /> Add bed number
+              </button>
+              <p className="text-xs text-slate-500">Empty rows are ignored and duplicates are removed automatically.</p>
+            </div>
           </label>
         </>
       )}

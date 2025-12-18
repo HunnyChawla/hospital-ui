@@ -4,6 +4,7 @@ import queueReducer from "./queueSlice";
 import admissionsReducer from "./admissionsSlice";
 import billingReducer from "./billingSlice";
 import testsReducer from "./testsSlice";
+import labTestsReducer from "./labTestsSlice";
 import authReducer from "./authSlice";
 import doctorsReducer from "./doctorsSlice";
 
@@ -15,6 +16,7 @@ export const store = configureStore({
     admissions: admissionsReducer,
     billing: billingReducer,
     tests: testsReducer,
+    labTests: labTestsReducer,
     doctors: doctorsReducer,
   },
 });

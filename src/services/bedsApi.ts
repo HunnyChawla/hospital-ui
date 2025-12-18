@@ -60,7 +60,7 @@ export interface BedsSearchResponse {
 
 export interface AddBulkBedsRequest {
   ward_id: string;
-  number_of_beds: number;
+  bed_numbers: string[];
   bed_type: BedType;
   daily_rate: number | string;
 }

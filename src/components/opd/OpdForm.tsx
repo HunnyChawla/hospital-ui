@@ -54,12 +54,6 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
     }
   }, [dispatch, doctors.length, doctorsLoading]);
 
-  // Set default doctor when doctors are loaded
-  useEffect(() => {
-    if (doctors.length > 0 && !doctorId) {
-      setDoctorId(doctors[0].id);
-    }
-  }, [doctors, doctorId]);
 
   // Dropdown search effect
   useEffect(() => {
