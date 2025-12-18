@@ -27,6 +27,14 @@ export interface CreateAppointmentRequest {
   notes?: string;
 }
 
+export interface AppointmentsSearchResponse {
+  items: Appointment[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export const appointmentsApi = {
   async create(appointment: CreateAppointmentRequest, tenantId?: string): Promise<Appointment> {
     const params = tenantId ? { tenant_id: tenantId } : {};
@@ -67,6 +75,31 @@ export const appointmentsApi = {
     const response = await apiClient.patch<Appointment>(
       `/appointments/${appointmentId}/status`,
       {},
+      { params }
+    );
+    return response.data;
+  },
+
+  async getByPatient(
+    patientId: string,
+    options?: {
+      page?: number;
+      page_size?: number;
+      tenantId?: string;
+    }
+  ): Promise<AppointmentsSearchResponse> {
+    const params: Record<string, string> = {};
+    if (options?.page) {
+      params.page = options.page.toString();
+    }
+    if (options?.page_size) {
+      params.page_size = options.page_size.toString();
+    }
+    if (options?.tenantId) {
+      params.tenant_id = options.tenantId;
+    }
+    const response = await apiClient.get<AppointmentsSearchResponse>(
+      `/appointments/patient/${patientId}`,
       { params }
     );
     return response.data;

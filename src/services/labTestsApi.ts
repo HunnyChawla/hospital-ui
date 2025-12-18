@@ -36,6 +36,7 @@ export interface LabTestsSearchParams {
   category?: string;
   is_active?: boolean;
   search?: string;
+  patient_id?: string;
   tenant_id?: string; // PlatformOwner only
 }
 
@@ -62,6 +63,7 @@ export const labTestsApi = {
     if (params?.category) queryParams.append("category", params.category);
     if (params?.is_active !== undefined) queryParams.append("is_active", params.is_active.toString());
     if (params?.search) queryParams.append("search", params.search);
+    if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     

@@ -233,6 +233,20 @@ export function AdmissionForm({
   useEffect(() => {
     if (defaultPatientId) {
       setPatientId(defaultPatientId);
+      // Fetch patient details to display the name in the search field
+      const fetchPatientName = async () => {
+        try {
+          const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+          const patient = await patientsApi.getById(defaultPatientId, tenantId || undefined);
+          const mappedPatient = patientsApi.mapToPatients([patient])[0];
+          if (mappedPatient) {
+            setDropdownSearchTerm(mappedPatient.name);
+          }
+        } catch (error) {
+          console.error("Failed to fetch patient:", error);
+        }
+      };
+      fetchPatientName();
     }
   }, [defaultPatientId]);
 
