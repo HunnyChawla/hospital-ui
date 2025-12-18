@@ -42,6 +42,7 @@ import {
   XCircle,
   Play,
   CheckCircle,
+  Edit2,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -595,9 +596,22 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               </div>
               <button
                 onClick={() => setShowEditModal(true)}
-                className="rounded-xl bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
+                className="group relative flex items-center justify-center overflow-hidden rounded-xl bg-sky-50 p-2 text-sm font-semibold text-sky-700 transition-all duration-300 hover:bg-sky-100"
+                style={{ width: "2rem" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.width = "auto";
+                  e.currentTarget.style.paddingLeft = "0.75rem";
+                  e.currentTarget.style.paddingRight = "0.75rem";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.width = "2rem";
+                  e.currentTarget.style.paddingLeft = "0.5rem";
+                  e.currentTarget.style.paddingRight = "0.5rem";
+                }}
+                title="Edit Patient"
               >
-                Edit Patient
+                <Edit2 className="h-4 w-4 shrink-0" />
+                <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Edit Patient</span>
               </button>
             </div>
           </div>
@@ -1061,28 +1075,30 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
               {activeTab === "billing" && (
                 <div className="space-y-4">
-                  {/* Status Tabs */}
-                  <div className="flex gap-2 border-b border-slate-200">
-                    <button
-                      onClick={() => setInvoiceStatusFilter("pending")}
-                      className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition ${
-                        invoiceStatusFilter === "pending"
-                          ? "border-amber-500 text-amber-700"
-                          : "border-transparent text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      Pending
-                    </button>
-                    <button
-                      onClick={() => setInvoiceStatusFilter("paid")}
-                      className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition ${
-                        invoiceStatusFilter === "paid"
-                          ? "border-emerald-500 text-emerald-700"
-                          : "border-transparent text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      Paid
-                    </button>
+                  {/* Status Toggle Buttons */}
+                  <div className="flex justify-end">
+                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                      <button
+                        onClick={() => setInvoiceStatusFilter("pending")}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+                          invoiceStatusFilter === "pending"
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                        }`}
+                      >
+                        Pending
+                      </button>
+                      <button
+                        onClick={() => setInvoiceStatusFilter("paid")}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+                          invoiceStatusFilter === "paid"
+                            ? "bg-emerald-500 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                        }`}
+                      >
+                        Paid
+                      </button>
+                    </div>
                   </div>
 
                   {invoicesLoading ? (
