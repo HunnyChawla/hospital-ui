@@ -104,7 +104,7 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
           {users.length === 0 ? (
             <tr>
               <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                No users found
+                No staff found
               </td>
             </tr>
           ) : (
@@ -174,7 +174,7 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
             <span className="font-semibold text-slate-900">
               {Math.min(currentPage * pageSize, total)}
             </span>{" "}
-            of <span className="font-semibold text-slate-900">{total}</span> users
+            of <span className="font-semibold text-slate-900">{total}</span> staff
           </div>
           <div className="flex items-center gap-2">
             <button

@@ -15,7 +15,7 @@ export function UserFormModal({ isOpen, onClose, defaultValues }: UserFormModalP
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={defaultValues ? "Edit User" : "Add New User"}
+      title={defaultValues ? "Edit Staff" : "Add New Staff"}
       size="lg"
     >
       <UserForm

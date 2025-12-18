@@ -619,7 +619,7 @@ export default function Home() {
               <div className="flex items-center justify-between border-b border-slate-200 px-6">
                 <div className="flex gap-2">
                   {[
-                    { id: "all", label: "All Users", icon: Users2 },
+                    { id: "all", label: "All Staff", icon: Users2 },
                     { id: "admin", label: "Admin", icon: Users2 },
                     { id: "doctor", label: "Doctors", icon: Stethoscope },
                     { id: "nurse", label: "Nurses", icon: Users2 },
@@ -647,7 +647,7 @@ export default function Home() {
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
                 >
                   <Activity className="h-4 w-4" />
-                  Add User
+                  Add Staff
                 </button>
               </div>
 
