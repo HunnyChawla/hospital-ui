@@ -312,7 +312,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
               <th className="px-4 py-3">Ward / Bed</th>
               <th className="px-4 py-3">Doctor</th>
               <th className="px-4 py-3">Admission Date</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-center">Status</th>
               <th className="px-4 py-3 text-right min-w-[200px]">Actions</th>
             </tr>
           </thead>
@@ -358,7 +358,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
                   <td className="px-4 py-3 text-slate-700">
                     {formatDate(admission.admission_date)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
                     <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(admission.status)}`}>
                       {formatStatus(admission.status)}
                     </span>

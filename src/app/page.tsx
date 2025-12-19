@@ -50,6 +50,35 @@ import {
   Users2,
 } from "lucide-react";
 
+function BillingSection() {
+  const [searchBox, setSearchBox] = useState<React.ReactNode>(null);
+  const [filterToggle, setFilterToggle] = useState<React.ReactNode>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid">("all");
+
+  return (
+    <div className="mt-6 grid gap-6">
+      <Section
+        id="billing"
+        title="Billing & Receipts"
+        description="Manage invoices and payment receipts for patients."
+        action={
+          <div className="flex items-center gap-3">
+            {searchBox}
+            {filterToggle}
+          </div>
+        }
+      >
+        <BillingManagement 
+          renderSearchInHeader={setSearchBox}
+          renderFilterInHeader={setFilterToggle}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+        />
+      </Section>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -571,17 +600,7 @@ export default function Home() {
           </div>
         )}
 
-        {show("billing") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="billing"
-              title="Billing & Receipts"
-              description="Manage invoices and payment receipts for patients."
-            >
-              <BillingManagement />
-            </Section>
-        </div>
-        )}
+        {show("billing") && <BillingSection />}
 
         {show("labs") && (
           <div className="mt-6 grid gap-6">

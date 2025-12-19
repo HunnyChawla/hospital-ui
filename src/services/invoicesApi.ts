@@ -34,6 +34,7 @@ export interface Invoice {
   balance_amount?: number;
   status: InvoiceStatus;
   invoice_type?: string;
+  payment_id?: string | null;
   gst_number: string | null;
   notes: string | null;
   created_at: string;
