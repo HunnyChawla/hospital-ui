@@ -210,7 +210,9 @@ export function OpdList({ doctorId }: OpdListProps) {
           />
         </label>
         <label className="space-y-1">
-          <span className="text-slate-600">Sort By</span>
+          <span className="text-slate-600 flex items-center gap-1">
+            Sort By
+          </span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
@@ -226,7 +228,9 @@ export function OpdList({ doctorId }: OpdListProps) {
           </select>
         </label>
         <label className="space-y-1">
-          <span className="text-slate-600">Order</span>
+          <span className="text-slate-600 flex items-center gap-1">
+            Order
+          </span>
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}

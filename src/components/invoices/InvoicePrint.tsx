@@ -113,18 +113,30 @@ export function InvoicePrint({ invoice, patientName, patientMobile, tests, booki
                   <th className="pb-2 text-left font-semibold text-slate-900">Description</th>
                   <th className="pb-2 text-center font-semibold text-slate-900">Quantity</th>
                   <th className="pb-2 text-right font-semibold text-slate-900">Unit Price</th>
+                  <th className="pb-2 text-right font-semibold text-slate-900">Discount</th>
                   <th className="pb-2 text-right font-semibold text-slate-900">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {invoice.line_items.map((item, index) => (
-                  <tr key={index} className="border-b border-slate-100">
-                    <td className="py-2 text-slate-900">{item.description}</td>
-                    <td className="py-2 text-center text-slate-900">{item.quantity}</td>
-                    <td className="py-2 text-right text-slate-900">{currency(item.unit_price)}</td>
-                    <td className="py-2 text-right font-semibold text-slate-900">{currency(item.total)}</td>
-                  </tr>
-                ))}
+                {invoice.line_items.map((item, index) => {
+                  const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+                  const unitPrice = typeof item.unit_price === "string" ? parseFloat(item.unit_price) : item.unit_price;
+                  const discount = item.discount !== undefined 
+                    ? (typeof item.discount === "string" ? parseFloat(item.discount) : item.discount)
+                    : 0;
+                  const total = item.total_price !== undefined 
+                    ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                    : (item.total || quantity * unitPrice);
+                  return (
+                    <tr key={item.id || index} className="border-b border-slate-100">
+                      <td className="py-2 text-slate-900">{item.description}</td>
+                      <td className="py-2 text-center text-slate-900">{quantity}</td>
+                      <td className="py-2 text-right text-slate-900">{currency(unitPrice)}</td>
+                      <td className="py-2 text-right text-slate-900">{discount > 0 ? currency(discount) : "-"}</td>
+                      <td className="py-2 text-right font-semibold text-slate-900">{currency(total)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

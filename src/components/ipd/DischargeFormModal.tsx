@@ -8,10 +8,11 @@ interface DischargeFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   admissionId: string;
+  admissionStatus?: string;
   onSubmit: (admissionId: string, dischargeData: DischargeRequest) => Promise<void>;
 }
 
-export function DischargeFormModal({ isOpen, onClose, admissionId, onSubmit }: DischargeFormModalProps) {
+export function DischargeFormModal({ isOpen, onClose, admissionId, admissionStatus, onSubmit }: DischargeFormModalProps) {
   const handleSubmit = async (data: DischargeRequest) => {
     await onSubmit(admissionId, data);
   };
@@ -26,6 +27,8 @@ export function DischargeFormModal({ isOpen, onClose, admissionId, onSubmit }: D
       <DischargeForm
         onSuccess={onClose}
         onSubmit={handleSubmit}
+        admissionId={admissionId}
+        admissionStatus={admissionStatus}
       />
     </Modal>
   );

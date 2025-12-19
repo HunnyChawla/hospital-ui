@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { Modal } from "@/components/common/Modal";
-import { admissionsApi, Admission } from "@/services/admissionsApi";
+import { admissionsApi, Admission, AmountDueResponse } from "@/services/admissionsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
 import { currency } from "@/utils/format";
@@ -12,13 +12,11 @@ import {
   User, 
   Stethoscope, 
   BedDouble, 
-  Calendar, 
   FileText, 
   CreditCard,
   Phone,
   Building2,
   ClipboardList,
-  AlertCircle,
   Printer
 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
@@ -26,6 +24,8 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { getTenantIdForApi } from "@/utils/auth";
+import { ServiceChargesModal } from "./ServiceChargesModal";
+import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
 
 interface AdmissionDetailModalProps {
   isOpen: boolean;
@@ -36,15 +36,29 @@ interface AdmissionDetailModalProps {
 export function AdmissionDetailModal({ isOpen, onClose, admissionId }: AdmissionDetailModalProps) {
   const [admission, setAdmission] = useState<Admission | null>(null);
   const [loading, setLoading] = useState(false);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+  const [amountDue, setAmountDue] = useState<AmountDueResponse | null>(null);
+  const [loadingAmountDue, setLoadingAmountDue] = useState(false);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<Payment | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
+  const [showServiceChargesModal, setShowServiceChargesModal] = useState(false);
+  const [showInitiateDischargeModal, setShowInitiateDischargeModal] = useState(false);
+  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const printPaymentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
+  });
+
+  const handlePrintPayment = useReactToPrint({
+    contentRef: printPaymentRef,
+    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
   });
 
   useEffect(() => {
@@ -53,6 +67,8 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     } else {
       setAdmission(null);
       setPaymentDetails(null);
+      setInvoice(null);
+      setAmountDue(null);
     }
   }, [isOpen, admissionId]);
 
@@ -63,6 +79,22 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       setPaymentDetails(null);
     }
   }, [admission?.payment_id]);
+
+  useEffect(() => {
+    if (admission?.invoice_id) {
+      fetchInvoiceDetails(admission.invoice_id);
+    } else {
+      setInvoice(null);
+    }
+  }, [admission?.invoice_id]);
+
+  useEffect(() => {
+    if (admission?.status === "admitted" && !admission.invoice_id) {
+      fetchAmountDue();
+    } else {
+      setAmountDue(null);
+    }
+  }, [admission?.status, admission?.invoice_id, admissionId]);
 
   const fetchAdmissionDetails = async () => {
     setLoading(true);
@@ -96,6 +128,36 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     }
   };
 
+  const fetchInvoiceDetails = async (invoiceId: string) => {
+    setLoadingInvoice(true);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      const invoiceData = await invoicesApi.getById(invoiceId, apiTenantId);
+      setInvoice(invoiceData);
+    } catch (error) {
+      console.error("Failed to fetch invoice details:", error);
+      setInvoice(null);
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
+
+  const fetchAmountDue = async () => {
+    if (!admissionId) return;
+    setLoadingAmountDue(true);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const data = await admissionsApi.getAmountDue(admissionId, tenantId || undefined);
+      setAmountDue(data);
+    } catch (error) {
+      console.error("Failed to fetch amount due:", error);
+      setAmountDue(null);
+    } finally {
+      setLoadingAmountDue(false);
+    }
+  };
+
   const handlePrintInvoice = async (invoiceId: string) => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -116,6 +178,40 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     }
   };
 
+  const handlePrintPaymentReceipt = async (paymentId: string) => {
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      const payment = await paymentsApi.getById(paymentId, apiTenantId);
+      
+      // Get invoice number if available
+      let invoiceNumber: string | undefined;
+      if (payment.invoice_id) {
+        try {
+          const invoice = await invoicesApi.getById(payment.invoice_id, apiTenantId);
+          invoiceNumber = invoice.invoice_number;
+        } catch (error) {
+          console.error("Failed to fetch invoice for receipt:", error);
+        }
+      }
+      
+      // Use patient name from admission if available
+      const patientName = admission?.patient_name || "Unknown";
+      const patientMobile = undefined; // Could fetch from patient if needed
+      
+      setPrintPaymentData({
+        payment,
+        patientName,
+        patientMobile,
+        invoiceNumber,
+      });
+      setShouldPrintPayment(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to fetch payment details");
+    }
+  };
+
   // Trigger print when printInvoiceData is set and shouldPrint is true
   useEffect(() => {
     if (printInvoiceData && shouldPrint && printRef.current) {
@@ -127,6 +223,16 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       return () => clearTimeout(timeoutId);
     }
   }, [printInvoiceData, shouldPrint, handlePrint]);
+
+  useEffect(() => {
+    if (shouldPrintPayment && printPaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintPayment();
+        setShouldPrintPayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintPayment, handlePrintPayment]);
 
   const formatDateTime = (dateTime: string | null) => {
     if (!dateTime) return "N/A";
@@ -148,6 +254,8 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     switch (status) {
       case "admitted":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "discharge_initiated":
+        return "bg-purple-50 text-purple-700 border-purple-200";
       case "discharged":
         return "bg-slate-50 text-slate-700 border-slate-200";
       case "transferred":
@@ -156,6 +264,13 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
         return "bg-rose-50 text-rose-700 border-rose-200";
       case "cancelled":
         return "bg-slate-50 text-slate-700 border-slate-200";
+      case "paid":
+      case "completed":
+        return "bg-emerald-50 text-emerald-700";
+      case "partial":
+        return "bg-amber-50 text-amber-700";
+      case "pending":
+        return "bg-amber-50 text-amber-700";
       default:
         return "bg-slate-50 text-slate-700 border-slate-200";
     }
@@ -238,295 +353,343 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Admission Details" size="xl">
-      <div className="space-y-3">
-        {/* Header with Admission Number and Status */}
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div>
-            <h3 className="text-base font-semibold text-slate-900">Admission #{admission.admission_number}</h3>
-            <p className="text-xs text-slate-500">ID: {admission.id.slice(0, 8)}...</p>
-          </div>
-          <span className={`pill px-2.5 py-1 text-xs font-semibold border ${getStatusColor(admission.status)}`}>
-            {admission.status.toUpperCase()}
-          </span>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {/* Left Column */}
-          <div className="space-y-3">
-            {/* Patient & Admission Info */}
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <User className="h-3.5 w-3.5 text-sky-600" />
-                <h4 className="text-xs font-semibold text-slate-900">Patient & Admission</h4>
+      <div className="space-y-4 -mx-6 -mb-6 px-6 pb-6">
+        {/* Patient & Admission Information */}
+        <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-sky-50 via-sky-50/80 to-teal-50/50 p-3 shadow-sm">
+          <div className="mb-2 flex items-center justify-between border-b border-slate-200/50 pb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-teal-500 text-white shadow-md">
+                <User className="h-4 w-4" />
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Patient:</span>
-                  <span className="font-medium text-slate-900">{admission.patient_name || "N/A"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Date:</span>
-                  <span className="font-medium text-slate-900">{formatDate(admission.admission_date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Time:</span>
-                  <span className="font-medium text-slate-900">{formatDateTime(admission.admission_time)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Type:</span>
-                  <span className="font-medium text-slate-900">{getAdmissionTypeLabel(admission.admission_type)}</span>
-                </div>
-                {admission.visit_id && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">OPD Visit:</span>
-                    <span className="font-medium text-slate-900">{admission.visit_id}</span>
-                  </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Patient</p>
+                <p className="mt-0.5 text-sm font-bold text-slate-900">{admission.patient_name || "N/A"}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Doctor</p>
+              <p className="mt-0.5 text-sm font-bold text-slate-900">{admission.doctor_name || "N/A"}</p>
+            </div>
+          </div>
+          <div className={`grid grid-cols-2 gap-2.5 ${
+            (admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 0
+              ? 'md:grid-cols-4'
+              : (admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 1
+              ? 'md:grid-cols-5'
+              : 'md:grid-cols-6'
+          }`}>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admission #</p>
+              <p className="text-xs font-bold text-slate-900 truncate">{admission.admission_number}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admitted at</p>
+              <p className="text-xs font-bold text-slate-900">{formatDateTime(admission.admission_time || `${admission.admission_date}T00:00:00`)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Status</p>
+              <p className="text-xs font-bold text-slate-900">{admission.status.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Ward / Bed</p>
+              <p className="text-xs font-bold text-slate-900">{admission.ward_name && admission.bed_number ? `${admission.ward_name} / ${admission.bed_number}` : admission.ward_name || admission.bed_number || "N/A"}</p>
+            </div>
+            {admission.discharge_time && (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Discharged at</p>
+                <p className="text-xs font-bold text-slate-900">{formatDateTime(admission.discharge_time)}</p>
+              </div>
+            )}
+            {admission.payment_id && (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Payment #</p>
+                {loadingPayment ? (
+                  <p className="text-xs font-bold text-slate-900">Loading...</p>
+                ) : paymentDetails ? (
+                  <p className="text-xs font-bold text-slate-900">{paymentDetails.payment_number}</p>
+                ) : (
+                  <p className="text-xs font-bold text-slate-900">N/A</p>
                 )}
               </div>
-            </div>
-
-            {/* Doctor & Bed Info */}
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <Stethoscope className="h-3.5 w-3.5 text-sky-600" />
-                <h4 className="text-xs font-semibold text-slate-900">Doctor & Bed</h4>
-              </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Doctor:</span>
-                  <span className="font-medium text-slate-900">{admission.doctor_name || "N/A"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Ward:</span>
-                  <span className="font-medium text-slate-900">{admission.ward_name || "N/A"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Bed:</span>
-                  <span className="font-medium text-slate-900">{admission.bed_number || "N/A"}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Medical Information */}
-            {(admission.reason_for_admission || admission.diagnosis || admission.final_diagnosis) && (
-              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <FileText className="h-3.5 w-3.5 text-sky-600" />
-                  <h4 className="text-xs font-semibold text-slate-900">Medical Info</h4>
-                </div>
-                <div className="space-y-2 text-xs">
-                  {admission.reason_for_admission && (
-                    <div>
-                      <span className="text-slate-500">Reason:</span>
-                      <p className="mt-0.5 font-medium text-slate-900">{admission.reason_for_admission}</p>
-                    </div>
-                  )}
-                  {admission.diagnosis && (
-                    <div>
-                      <span className="text-slate-500">Initial Diagnosis:</span>
-                      <p className="mt-0.5 font-medium text-slate-900">{admission.diagnosis}</p>
-                    </div>
-                  )}
-                  {admission.final_diagnosis && (
-                    <div>
-                      <span className="text-slate-500">Final Diagnosis:</span>
-                      <p className="mt-0.5 font-medium text-slate-900">{admission.final_diagnosis}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Insurance Information */}
-            {(admission.insurance_provider || admission.insurance_policy_number) && (
-              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <CreditCard className="h-3.5 w-3.5 text-sky-600" />
-                  <h4 className="text-xs font-semibold text-slate-900">Insurance</h4>
-                </div>
-                <div className="space-y-2 text-xs">
-                  {admission.insurance_provider && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Provider:</span>
-                      <span className="font-medium text-slate-900">{admission.insurance_provider}</span>
-                    </div>
-                  )}
-                  {admission.insurance_policy_number && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Policy #:</span>
-                      <span className="font-medium text-slate-900">{admission.insurance_policy_number}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
             )}
           </div>
+        </div>
 
-          {/* Right Column */}
-          <div className="space-y-3">
-            {/* Next of Kin */}
-            {(admission.next_of_kin_name || admission.next_of_kin_relation || admission.next_of_kin_contact) && (
-              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <Phone className="h-3.5 w-3.5 text-sky-600" />
-                  <h4 className="text-xs font-semibold text-slate-900">Next of Kin</h4>
-                </div>
-                <div className="space-y-2 text-xs">
-                  {admission.next_of_kin_name && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Name:</span>
-                      <span className="font-medium text-slate-900">{admission.next_of_kin_name}</span>
-                    </div>
-                  )}
-                  {admission.next_of_kin_relation && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Relation:</span>
-                      <span className="font-medium text-slate-900">{admission.next_of_kin_relation}</span>
-                    </div>
-                  )}
-                  {admission.next_of_kin_contact && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Contact:</span>
-                      <span className="font-medium text-slate-900">{admission.next_of_kin_contact}</span>
-                    </div>
-                  )}
-                </div>
+        {/* Invoice Details */}
+        {admission.invoice_id && (
+          <div className="space-y-2.5">
+            {loadingInvoice ? (
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <SkeletonRow rows={3} />
               </div>
-            )}
+            ) : invoice ? (
+              <>
+                {/* Line Items Table - Compact */}
+                {invoice.line_items && invoice.line_items.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Description</th>
+                            <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Discount</th>
+                            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {invoice.line_items.map((item, index) => {
+                            const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+                            const unitPrice = typeof item.unit_price === "string" ? parseFloat(item.unit_price) : item.unit_price;
+                            const discount = item.discount !== undefined
+                              ? (typeof item.discount === "string" ? parseFloat(item.discount) : item.discount)
+                              : 0;
+                            const total = item.total_price !== undefined
+                              ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                              : (item.total || quantity * unitPrice);
+                            return (
+                              <tr key={item.id || index} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-3 py-2 text-xs text-slate-900 font-medium">{item.description}</td>
+                                <td className="px-2 py-2 text-center text-xs text-slate-700">{quantity}</td>
+                                <td className="px-2 py-2 text-right text-xs text-slate-700">{currency(unitPrice)}</td>
+                                <td className="px-2 py-2 text-right text-xs text-slate-700">{discount > 0 ? currency(discount) : "-"}</td>
+                                <td className="px-3 py-2 text-right text-xs font-bold text-slate-900">{currency(total)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-            {/* Discharge Information */}
-            {admission.status !== "admitted" && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <div className="mb-2 flex items-center gap-1.5 border-b border-amber-200 pb-2">
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-700" />
-                  <h4 className="text-xs font-semibold text-amber-900">Discharge Info</h4>
-                </div>
-                <div className="space-y-2 text-xs">
-                  {admission.discharge_date && (
-                    <div className="flex justify-between">
-                      <span className="text-amber-700">Date:</span>
-                      <span className="font-medium text-amber-900">{formatDate(admission.discharge_date)}</span>
-                    </div>
-                  )}
-                  {admission.discharge_time && (
-                    <div className="flex justify-between">
-                      <span className="text-amber-700">Time:</span>
-                      <span className="font-medium text-amber-900">{formatDateTime(admission.discharge_time)}</span>
-                    </div>
-                  )}
-                  {admission.discharge_type && (
-                    <div className="flex justify-between">
-                      <span className="text-amber-700">Type:</span>
-                      <span className="font-medium text-amber-900">{getDischargeTypeLabel(admission.discharge_type)}</span>
-                    </div>
-                  )}
-                  {admission.discharge_summary && (
-                    <div className="mt-2 pt-2 border-t border-amber-200">
-                      <span className="text-amber-700">Summary:</span>
-                      <p className="mt-0.5 font-medium text-amber-900">{admission.discharge_summary}</p>
-                    </div>
-                  )}
-                  {admission.discharge_instructions && (
-                    <div className="mt-2 pt-2 border-t border-amber-200">
-                      <span className="text-amber-700">Instructions:</span>
-                      <p className="mt-0.5 font-medium text-amber-900">{admission.discharge_instructions}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Billing Information */}
-            {(admission.invoice_id || admission.payment_id) && (
-              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <Building2 className="h-3.5 w-3.5 text-sky-600" />
-                  <h4 className="text-xs font-semibold text-slate-900">Billing</h4>
-                </div>
-                <div className="space-y-3">
-                  {admission.invoice_id && (
-                    <button
-                      onClick={() => handlePrintInvoice(admission.invoice_id!)}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-200"
-                    >
-                      <Printer className="h-3 w-3" />
-                      Print Invoice
-                    </button>
-                  )}
-
-                  {admission.payment_id && (
-                    <div>
-                      {loadingPayment ? (
-                        <div className="py-2">
-                          <SkeletonRow rows={2} />
+                {/* Financial Summary - Compact */}
+                {invoice.subtotal !== undefined && (
+                  <div className="rounded-lg border-2 border-slate-200 bg-gradient-to-br from-white to-slate-50/30 p-3 shadow-sm">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-slate-600">Subtotal</span>
+                        <span className="text-xs font-semibold text-slate-900">{currency(invoice.subtotal)}</span>
+                      </div>
+                      {invoice.tax_rate > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-slate-600">Tax ({invoice.tax_rate}%)</span>
+                          <span className="text-xs font-semibold text-slate-900">{currency(invoice.tax_amount)}</span>
                         </div>
-                      ) : paymentDetails ? (
-                        <div className="space-y-2 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Payment #:</span>
-                            <span className="font-medium text-slate-900">{paymentDetails.payment_number}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Status:</span>
-                            <span className={`pill px-1.5 py-0.5 text-xs font-semibold border ${getPaymentStatusColor(paymentDetails.status)}`}>
-                              {paymentDetails.status.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Amount:</span>
-                            <span className="text-sm font-bold text-emerald-600">{currency(paymentDetails.amount)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Method:</span>
-                            <span className="font-medium text-slate-900">{getPaymentMethodLabel(paymentDetails.payment_method)}</span>
-                          </div>
-                          {paymentDetails.payment_reference && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">Reference:</span>
-                              <span className="font-medium text-slate-900">{paymentDetails.payment_reference}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Date:</span>
-                            <span className="font-medium text-slate-900">{formatDateTime(paymentDetails.payment_date)}</span>
-                          </div>
-                          {paymentDetails.notes && (
-                            <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-2">
-                              <span className="text-slate-500">Notes:</span>
-                              <p className="mt-0.5 text-slate-900">{paymentDetails.notes}</p>
-                            </div>
-                          )}
+                      )}
+                      {invoice.discount > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-slate-600">Discount</span>
+                          <span className="text-xs font-bold text-emerald-600">-{currency(invoice.discount)}</span>
                         </div>
-                      ) : (
-                        <div className="py-2 text-center text-xs text-slate-500">
-                          Failed to load payment details
+                      )}
+                      <div className="border-t border-slate-300 pt-1.5 mt-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-900">Total Amount</span>
+                          <span className="text-base font-bold text-slate-900">{currency(invoice.total_amount)}</span>
+                        </div>
+                      </div>
+                      {invoice.paid_amount > 0 && (
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-200">
+                          <span className="text-xs font-medium text-slate-600">Paid</span>
+                          <span className="text-xs font-bold text-emerald-600">{currency(invoice.paid_amount)}</span>
+                        </div>
+                      )}
+                      {invoice.balance_amount !== undefined && invoice.balance_amount > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-slate-600">Balance</span>
+                          <span className="text-xs font-bold text-amber-600">{currency(invoice.balance_amount)}</span>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
 
-            {/* Timestamps */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="mb-2 flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                <Calendar className="h-3.5 w-3.5 text-slate-600" />
-                <h4 className="text-xs font-semibold text-slate-900">Timestamps</h4>
+        {/* Amount Due Details - for admitted admissions */}
+        {admission.status === "admitted" && !admission.invoice_id && (
+          <div className="space-y-2.5">
+            {loadingAmountDue ? (
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <SkeletonRow rows={3} />
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Created:</span>
-                  <span className="font-medium text-slate-900">{formatDateTime(admission.created_at)}</span>
+            ) : amountDue ? (
+              <>
+                {/* Line Items Table - Compact */}
+                {amountDue.charges && amountDue.charges.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Description</th>
+                            <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Discount</th>
+                            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {amountDue.charges.map((charge, index) => {
+                            const quantity = typeof charge.quantity === "string" ? parseFloat(charge.quantity) : charge.quantity;
+                            const unitPrice = typeof charge.unit_price === "string" ? parseFloat(charge.unit_price) : charge.unit_price;
+                            const discount = typeof charge.discount === "string" ? parseFloat(charge.discount) : parseFloat(charge.discount || "0");
+                            const total = typeof charge.total_amount === "string" ? parseFloat(charge.total_amount) : charge.total_amount;
+                            return (
+                              <tr key={charge.charge_id || index} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-3 py-2 text-xs text-slate-900 font-medium">{charge.service_name}</td>
+                                <td className="px-2 py-2 text-center text-xs text-slate-700">{quantity}</td>
+                                <td className="px-2 py-2 text-right text-xs text-slate-700">{currency(unitPrice)}</td>
+                                <td className="px-2 py-2 text-right text-xs text-slate-700">{discount > 0 ? currency(discount) : "-"}</td>
+                                <td className="px-3 py-2 text-right text-xs font-bold text-slate-900">{currency(total)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Financial Summary - Compact */}
+                {amountDue.subtotal !== undefined && (
+                  <div className="rounded-lg border-2 border-slate-200 bg-gradient-to-br from-white to-slate-50/30 p-3 shadow-sm">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-slate-600">Subtotal</span>
+                        <span className="text-xs font-semibold text-slate-900">{currency(parseFloat(amountDue.subtotal))}</span>
+                      </div>
+                      {parseFloat(amountDue.total_discounts) > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-slate-600">Total Discounts</span>
+                          <span className="text-xs font-bold text-emerald-600">-{currency(parseFloat(amountDue.total_discounts))}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-slate-300 pt-1.5 mt-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-900">Amount Due</span>
+                          <span className="text-base font-bold text-slate-900">{currency(parseFloat(amountDue.amount_due))}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
+
+        {/* Admission Details Grid */}
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+          {(admission.next_of_kin_name || admission.next_of_kin_relation || admission.next_of_kin_contact) && (
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Next of Kin</p>
+              <p className="text-sm font-bold text-slate-900">{admission.next_of_kin_name || "N/A"}</p>
+              {admission.next_of_kin_relation && (
+                <p className="text-xs text-slate-500 mt-0.5">{admission.next_of_kin_relation}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Additional Information Grid */}
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+          {(admission.insurance_provider || admission.insurance_policy_number) && (
+            <>
+              {admission.insurance_provider && (
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Insurance Provider</p>
+                  <p className="text-sm font-bold text-slate-900">{admission.insurance_provider}</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Updated:</span>
-                  <span className="font-medium text-slate-900">{formatDateTime(admission.updated_at)}</span>
+              )}
+              {admission.insurance_policy_number && (
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Policy #</p>
+                  <p className="text-sm font-bold text-slate-900">{admission.insurance_policy_number}</p>
                 </div>
-              </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Medical Information */}
+        {(admission.reason_for_admission || admission.diagnosis || admission.final_diagnosis) && (
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+              {admission.reason_for_admission && (
+                <div className="p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Reason for Admission</p>
+                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.reason_for_admission}</p>
+                </div>
+              )}
+              {admission.diagnosis && (
+                <div className="p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Initial Diagnosis</p>
+                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.diagnosis}</p>
+                </div>
+              )}
+              {admission.final_diagnosis && (
+                <div className="p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Final Diagnosis</p>
+                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.final_diagnosis}</p>
+                </div>
+              )}
             </div>
           </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          {admission.status === "admitted" && (
+            <button
+              onClick={() => setShowServiceChargesModal(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+            >
+              <CreditCard className="h-4 w-4" />
+              Service Charges
+            </button>
+          )}
+          {admission.status === "discharged" && (
+            <>
+              {admission.invoice_id && (
+                <button
+                  onClick={() => handlePrintInvoice(admission.invoice_id!)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print Invoice
+                </button>
+              )}
+              {admission.payment_id && (
+                <button
+                  onClick={() => handlePrintPaymentReceipt(admission.payment_id!)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print Payment Receipt
+                </button>
+              )}
+            </>
+          )}
+          {admission.status !== "discharged" && admission.invoice_id && (
+            <button
+              onClick={() => handlePrintInvoice(admission.invoice_id!)}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+            >
+              <Printer className="h-4 w-4" />
+              Print Invoice
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow-sm"
+          >
+            Close
+          </button>
         </div>
       </div>
 
@@ -542,6 +705,39 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           </div>
         </div>
       )}
+
+      {/* Hidden printable payment receipt */}
+      {printPaymentData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printPaymentRef} className="print-content">
+            <PaymentReceiptPrint
+              payment={printPaymentData.payment}
+              patientName={printPaymentData.patientName}
+              patientMobile={printPaymentData.patientMobile}
+              invoiceNumber={printPaymentData.invoiceNumber}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Service Charges Modal */}
+      <ServiceChargesModal
+        isOpen={showServiceChargesModal}
+        onClose={() => setShowServiceChargesModal(false)}
+        admissionId={admissionId}
+      />
+
+      {/* Initiate Discharge Modal */}
+      <InitiateDischargeFormModal
+        isOpen={showInitiateDischargeModal}
+        onClose={() => setShowInitiateDischargeModal(false)}
+        admissionId={admissionId}
+        onSuccess={async (updatedAdmission) => {
+          // Refresh admission details to show updated status
+          await fetchAdmissionDetails();
+          setShowInitiateDischargeModal(false);
+        }}
+      />
     </Modal>
   );
 }

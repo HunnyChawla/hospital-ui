@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type AdmissionStatus = "admitted" | "discharged" | "transferred" | "deceased" | "cancelled";
+export type AdmissionStatus = "admitted" | "discharge_initiated" | "discharged" | "transferred" | "deceased" | "cancelled";
 export type AdmissionType = "emergency" | "planned" | "transfer" | "day_care";
 export type DischargeType = "normal" | "ama" | "transfer" | "deceased" | "lama";
 
@@ -85,6 +85,32 @@ export interface TransferBedRequest {
   reason: string;
 }
 
+export interface InitiateDischargeRequest {
+  tax_rate: number;
+  discount: number;
+  gst_number?: string | null;
+  notes?: string | null;
+}
+
+export interface AmountDueCharge {
+  charge_id: string;
+  service_name: string;
+  service_category: string;
+  quantity: number;
+  unit_price: string;
+  discount: string;
+  total_amount: string;
+}
+
+export interface AmountDueResponse {
+  admission_id: string;
+  charges: AmountDueCharge[];
+  subtotal: string;
+  total_discounts: string;
+  amount_due: string;
+  charge_count: number;
+}
+
 export interface AdmissionsSearchParams {
   page?: number;
   page_size?: number;
@@ -158,6 +184,20 @@ export const admissionsApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<Admission>(`/admissions/${admissionId}/transfer`, transferData, { params });
+    return response.data;
+  },
+
+  async initiateDischarge(admissionId: string, initiateData: InitiateDischargeRequest, tenantId?: string): Promise<Admission> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<Admission>(`/admissions/${admissionId}/initiate-discharge`, initiateData, { params });
+    return response.data;
+  },
+
+  async getAmountDue(admissionId: string, tenantId?: string): Promise<AmountDueResponse> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<AmountDueResponse>(`/admissions/${admissionId}/amount-due`, { params });
     return response.data;
   },
 };

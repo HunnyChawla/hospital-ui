@@ -4,16 +4,23 @@ import { getTenantIdForApi } from "@/utils/auth";
 export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled";
 
 export interface InvoiceLineItem {
+  id?: string;
+  billing_item_id?: string | null;
   description: string;
-  quantity: number;
-  unit_price: number;
-  total: number;
+  quantity: number | string;
+  unit_price: number | string;
+  discount?: number | string;
+  total?: number;
+  total_price?: number | string;
+  created_at?: string;
 }
 
 export interface Invoice {
   id: string;
   tenant_id: string;
   patient_id: string;
+  patient_name?: string;
+  patient_mobile?: string;
   visit_id: string | null;
   invoice_number: string;
   invoice_date: string; // YYYY-MM-DD
@@ -24,8 +31,9 @@ export interface Invoice {
   discount: number;
   total_amount: number;
   paid_amount: number;
-  balance_amount: number;
+  balance_amount?: number;
   status: InvoiceStatus;
+  invoice_type?: string;
   gst_number: string | null;
   notes: string | null;
   created_at: string;

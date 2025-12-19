@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchAdmissions, dischargePatient } from "@/redux/admissionsSlice";
 import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
@@ -8,13 +8,21 @@ import { wardsApi, Ward } from "@/services/wardsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
 import { doctorsApi } from "@/services/doctorsApi";
 import { formatDate } from "@/utils/format";
-import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle } from "lucide-react";
+import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { DischargeFormModal } from "./DischargeFormModal";
 import { AdmissionDetailModal } from "./AdmissionDetailModal";
 import { TransferBedFormModal } from "./TransferBedFormModal";
+import { ServiceChargesModal } from "./ServiceChargesModal";
+import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
+import { invoicesApi, Invoice } from "@/services/invoicesApi";
+import { paymentsApi, Payment } from "@/services/paymentsApi";
+import { InvoicePrint } from "@/components/invoices/InvoicePrint";
+import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { useReactToPrint } from "react-to-print";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface AdmissionTableProps {
   patientId?: string;
@@ -37,6 +45,11 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferringAdmissionId, setTransferringAdmissionId] = useState<string | null>(null);
   const [transferringBedId, setTransferringBedId] = useState<string | null>(null);
+  const [showServiceChargesModal, setShowServiceChargesModal] = useState(false);
+  const [selectedAdmissionIdForCharges, setSelectedAdmissionIdForCharges] = useState<string | null>(null);
+  const [showInitiateDischargeModal, setShowInitiateDischargeModal] = useState(false);
+  const [initiatingAdmissionId, setInitiatingAdmissionId] = useState<string | null>(null);
+  const [dischargingAdmissionStatus, setDischargingAdmissionStatus] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -132,9 +145,10 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     };
   }, [fetchAdmissionsList]);
 
-  const handleDischargeClick = (e: React.MouseEvent, admissionId: string) => {
+  const handleDischargeClick = (e: React.MouseEvent, admissionId: string, admissionStatus?: string) => {
     e.stopPropagation(); // Prevent row click
     setDischargingAdmissionId(admissionId);
+    setDischargingAdmissionStatus(admissionStatus);
     setShowDischargeModal(true);
   };
 
@@ -157,6 +171,25 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     } else {
       handleRowClick(admission.id);
     }
+  };
+
+  const handleServiceChargesClick = (e: React.MouseEvent, admissionId: string) => {
+    e.stopPropagation(); // Prevent row click
+    setSelectedAdmissionIdForCharges(admissionId);
+    setShowServiceChargesModal(true);
+  };
+
+  const handleInitiateDischargeClick = (e: React.MouseEvent, admissionId: string) => {
+    e.stopPropagation(); // Prevent row click
+    setInitiatingAdmissionId(admissionId);
+    setShowInitiateDischargeModal(true);
+  };
+
+  const handleInitiateDischargeSuccess = async (updatedAdmission: Admission) => {
+    // Refresh the admissions list to show updated status
+    await fetchAdmissionsList();
+    setShowInitiateDischargeModal(false);
+    setInitiatingAdmissionId(null);
   };
 
   const handleDischargeSubmit = async (admissionId: string, dischargeData: DischargeRequest) => {
@@ -212,6 +245,8 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     switch (status) {
       case "admitted":
         return "bg-emerald-50 text-emerald-700";
+      case "discharge_initiated":
+        return "bg-purple-50 text-purple-700";
       case "discharged":
         return "bg-slate-50 text-slate-700";
       case "transferred":
@@ -223,6 +258,10 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
       default:
         return "bg-slate-50 text-slate-700";
     }
+  };
+
+  const formatStatus = (status: string) => {
+    return status.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
 
   if (loading && admissions.length === 0) {
@@ -274,7 +313,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
               <th className="px-4 py-3">Doctor</th>
               <th className="px-4 py-3">Admission Date</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3 text-right min-w-[200px]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -321,55 +360,100 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
                   </td>
                   <td className="px-4 py-3">
                     <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(admission.status)}`}>
-                      {admission.status}
+                      {formatStatus(admission.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 min-w-[200px]">
                     <div className="flex justify-end gap-2">
                       {admission.status === "admitted" && (
-                        <>
-                          <button
-                            onClick={(e) => handleTransferClick(e, admission)}
-                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
-                            style={{ width: "2rem" }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.width = "auto";
-                              e.currentTarget.style.paddingLeft = "0.75rem";
-                              e.currentTarget.style.paddingRight = "0.75rem";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.width = "2rem";
-                              e.currentTarget.style.paddingLeft = "0.5rem";
-                              e.currentTarget.style.paddingRight = "0.5rem";
-                            }}
-                            title="Transfer Bed"
-                          >
-                            <ArrowRightLeft className="h-4 w-4 shrink-0" />
-                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Transfer Bed</span>
-                          </button>
-                          <button
-                            onClick={(e) => handleDischargeClick(e, admission.id)}
-                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                            style={{ width: "2rem" }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.width = "auto";
-                              e.currentTarget.style.paddingLeft = "0.75rem";
-                              e.currentTarget.style.paddingRight = "0.75rem";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.width = "2rem";
-                              e.currentTarget.style.paddingLeft = "0.5rem";
-                              e.currentTarget.style.paddingRight = "0.5rem";
-                            }}
-                            title="Discharge"
-                          >
-                            <div className="relative flex items-center justify-center shrink-0">
-                              <BedDouble className="h-4 w-4" />
-                              <MinusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
-                            </div>
-                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Discharge</span>
-                          </button>
-                        </>
+                        <button
+                          onClick={(e) => handleServiceChargesClick(e, admission.id)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Service Charges"
+                        >
+                          <CreditCard className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Service Charges</span>
+                        </button>
+                      )}
+                      {admission.status === "admitted" && (
+                        <button
+                          onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Initiate Discharge"
+                        >
+                          <FileText className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Initiate Discharge</span>
+                        </button>
+                      )}
+                      {admission.status === "admitted" && (
+                        <button
+                          onClick={(e) => handleTransferClick(e, admission)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Transfer Bed"
+                        >
+                          <ArrowRightLeft className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Transfer Bed</span>
+                        </button>
+                      )}
+                      {admission.status === "discharge_initiated" && (
+                        <button
+                          onClick={(e) => handleDischargeClick(e, admission.id, admission.status)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Discharge"
+                        >
+                          <div className="relative flex items-center justify-center shrink-0">
+                            <BedDouble className="h-4 w-4" />
+                            <MinusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
+                          </div>
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Discharge</span>
+                        </button>
+                      )}
+                      {admission.status === "discharged" && (
+                        <PrintButtonsGroup admission={admission} />
                       )}
                       {onEditClick && (
                         <button
@@ -465,8 +549,10 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
           onClose={() => {
             setShowDischargeModal(false);
             setDischargingAdmissionId(null);
+            setDischargingAdmissionStatus(undefined);
           }}
           admissionId={dischargingAdmissionId}
+          admissionStatus={dischargingAdmissionStatus}
           onSubmit={handleDischargeSubmit}
         />
       )}
@@ -495,7 +581,247 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
           onSubmit={handleTransferSubmit}
         />
       )}
+
+      {selectedAdmissionIdForCharges && (
+        <ServiceChargesModal
+          isOpen={showServiceChargesModal}
+          onClose={() => {
+            setShowServiceChargesModal(false);
+            setSelectedAdmissionIdForCharges(null);
+          }}
+          admissionId={selectedAdmissionIdForCharges}
+        />
+      )}
+
+      {initiatingAdmissionId && (
+        <InitiateDischargeFormModal
+          isOpen={showInitiateDischargeModal}
+          onClose={() => {
+            setShowInitiateDischargeModal(false);
+            setInitiatingAdmissionId(null);
+          }}
+          admissionId={initiatingAdmissionId}
+          onSuccess={handleInitiateDischargeSuccess}
+        />
+      )}
     </div>
+  );
+}
+
+// Print Buttons Group Component for Discharged Admissions
+function PrintButtonsGroup({ admission }: { admission: Admission }) {
+  const [showPrintDropdown, setShowPrintDropdown] = useState(false);
+  const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
+  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
+  const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const printInvoiceRef = useRef<HTMLDivElement>(null);
+  const printPaymentRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const handlePrintInvoiceAction = useReactToPrint({
+    contentRef: printInvoiceRef,
+    documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
+  });
+
+  const handlePrintPaymentAction = useReactToPrint({
+    contentRef: printPaymentRef,
+    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+  });
+
+  useEffect(() => {
+    if (shouldPrintInvoice && printInvoiceRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintInvoiceAction();
+        setShouldPrintInvoice(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintInvoice, handlePrintInvoiceAction]);
+
+  useEffect(() => {
+    if (shouldPrintPayment && printPaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintPaymentAction();
+        setShouldPrintPayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintPayment, handlePrintPaymentAction]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showPrintDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowPrintDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPrintDropdown]);
+
+  const handlePrintInvoice = async () => {
+    if (!admission.invoice_id) {
+      toast.error("Invoice ID not available for this admission");
+      return;
+    }
+    
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const invoice = await invoicesApi.getById(admission.invoice_id, getTenantIdForApi(tenantId || undefined));
+      
+      const patientName = invoice.patient_name || admission.patient_name || "Unknown";
+      const patientMobile = invoice.patient_mobile;
+      
+      setPrintInvoiceData({
+        invoice,
+        patientName,
+        patientMobile,
+      });
+      setShouldPrintInvoice(true);
+      setShowPrintDropdown(false);
+    } catch (error) {
+      console.error("Failed to fetch invoice:", error);
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to fetch invoice details");
+    }
+  };
+
+  const handlePrintPaymentReceipt = async () => {
+    if (!admission.payment_id) {
+      toast.error("Payment ID not available for this admission");
+      return;
+    }
+    
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const payment = await paymentsApi.getById(admission.payment_id, getTenantIdForApi(tenantId || undefined));
+      
+      // Get invoice number if available
+      let invoiceNumber: string | undefined;
+      if (payment.invoice_id) {
+        try {
+          const invoice = await invoicesApi.getById(payment.invoice_id, getTenantIdForApi(tenantId || undefined));
+          invoiceNumber = invoice.invoice_number;
+        } catch (error) {
+          console.error("Failed to fetch invoice for receipt:", error);
+        }
+      }
+      
+      const patientName = admission.patient_name || "Unknown";
+      
+      setPrintPaymentData({
+        payment,
+        patientName,
+        invoiceNumber,
+      });
+      setShouldPrintPayment(true);
+      setShowPrintDropdown(false);
+    } catch (error) {
+      console.error("Failed to fetch payment:", error);
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to fetch payment details");
+    }
+  };
+
+  const hasInvoice = !!admission.invoice_id;
+  const hasPayment = !!admission.payment_id;
+  
+  // Always show print button for discharged admissions
+  // Show options in dropdown based on available IDs
+
+  return (
+    <>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowPrintDropdown(!showPrintDropdown);
+          }}
+          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+          style={{ width: "2rem" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.width = "auto";
+            e.currentTarget.style.paddingLeft = "0.75rem";
+            e.currentTarget.style.paddingRight = "0.75rem";
+          }}
+          onMouseLeave={(e) => {
+            if (!showPrintDropdown) {
+              e.currentTarget.style.width = "2rem";
+              e.currentTarget.style.paddingLeft = "0.5rem";
+              e.currentTarget.style.paddingRight = "0.5rem";
+            }
+          }}
+          title="Print"
+        >
+          <Printer className="h-4 w-4 shrink-0" />
+          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print</span>
+        </button>
+
+        {showPrintDropdown && (
+          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
+            {hasInvoice ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrintInvoice();
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+              >
+                <Printer className="h-4 w-4" />
+                Print Invoice
+              </button>
+            ) : (
+              <div className="px-4 py-2 text-xs text-slate-500">No invoice available</div>
+            )}
+            {hasPayment ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrintPaymentReceipt();
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+              >
+                <Printer className="h-4 w-4" />
+                Print Payment Receipt
+              </button>
+            ) : (
+              <div className="px-4 py-2 text-xs text-slate-500">No payment receipt available</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Hidden printable invoice */}
+      {printInvoiceData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printInvoiceRef} className="print-content">
+            <InvoicePrint
+              invoice={printInvoiceData.invoice}
+              patientName={printInvoiceData.patientName}
+              patientMobile={printInvoiceData.patientMobile}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable payment receipt */}
+      {printPaymentData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printPaymentRef} className="print-content">
+            <PaymentReceiptPrint
+              payment={printPaymentData.payment}
+              patientName={printPaymentData.patientName}
+              patientMobile={printPaymentData.patientMobile}
+              invoiceNumber={printPaymentData.invoiceNumber}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

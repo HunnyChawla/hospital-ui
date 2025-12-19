@@ -32,6 +32,9 @@ export interface PaymentsSearchParams {
   page?: number;
   page_size?: number;
   invoice_id?: string;
+  patient_id?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
   tenant_id?: string; // PlatformOwner only
 }
 
@@ -56,6 +59,9 @@ export const paymentsApi = {
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.invoice_id) queryParams.append("invoice_id", params.invoice_id);
+    if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
+    if (params?.sort_by) queryParams.append("sort_by", params.sort_by);
+    if (params?.sort_order) queryParams.append("sort_order", params.sort_order);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     

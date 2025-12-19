@@ -18,7 +18,7 @@ import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
 import { ManageIPD } from "@/components/ipd/ManageIPD";
-import { BillingPanel } from "@/components/billing/BillingPanel";
+import { BillingManagement } from "@/components/billing/BillingManagement";
 import { LabTestsPanel } from "@/components/lab-tests/LabTestsPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { QueueBoard } from "@/components/queue/QueueBoard";
@@ -575,10 +575,10 @@ export default function Home() {
           <div className="mt-6 grid gap-6">
             <Section
               id="billing"
-              title="Billing & Receipt"
-              description="Itemized charges, real-time totals, and printable receipts."
+              title="Billing & Receipts"
+              description="Manage invoices and payment receipts for patients."
             >
-              <BillingPanel />
+              <BillingManagement />
             </Section>
         </div>
         )}

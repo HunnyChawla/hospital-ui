@@ -542,7 +542,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     const handlePatientUpdated = () => {
       if (patientId) {
         dispatch(getPatientById({ patientId }));
-        dispatch(fetchPatients());
+        dispatch(fetchPatients({}));
       }
     };
 
@@ -1529,9 +1529,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       </Modal>
 
       {/* Print Invoice (Hidden) */}
-      <div style={{ display: "none" }}>
-        <div ref={printRef}>
-          {printInvoiceData && (
+      {printInvoiceData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printRef} className="print-content">
             <InvoicePrint
               invoice={printInvoiceData.invoice}
               patientName={printInvoiceData.patientName}
@@ -1539,9 +1539,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               tests={printInvoiceData.tests}
               bookingNumber={printInvoiceData.bookingNumber}
             />
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Print OPD Slip (Hidden) */}
       {printOpdSlipData && (
