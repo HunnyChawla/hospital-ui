@@ -46,7 +46,6 @@ type AnalyticsData = {
   doctorUtilization: Awaited<ReturnType<typeof analyticsApi.doctorUtilization>> | null;
   revenue: Awaited<ReturnType<typeof analyticsApi.revenue>> | null;
   appointmentSummary: Awaited<ReturnType<typeof analyticsApi.appointmentSummary>> | null;
-  pharmacyUsage: Awaited<ReturnType<typeof analyticsApi.pharmacyUsage>> | null;
   diagnosticsUsage: Awaited<ReturnType<typeof analyticsApi.diagnosticsUsage>> | null;
   efficiencyScore: Awaited<ReturnType<typeof analyticsApi.efficiencyScore>> | null;
 };
@@ -78,7 +77,6 @@ export function AnalyticsDashboard() {
     doctorUtilization: null,
     revenue: null,
     appointmentSummary: null,
-    pharmacyUsage: null,
     diagnosticsUsage: null,
     efficiencyScore: null,
   });
@@ -115,7 +113,6 @@ export function AnalyticsDashboard() {
         doctorUtilization,
         revenue,
         appointmentSummary,
-        pharmacyUsage,
         diagnosticsUsage,
         efficiencyScore,
       ] = await Promise.all([
@@ -124,7 +121,6 @@ export function AnalyticsDashboard() {
         analyticsApi.doctorUtilization(currentFilters),
         analyticsApi.revenue(currentFilters),
         analyticsApi.appointmentSummary(currentFilters),
-        analyticsApi.pharmacyUsage(currentFilters),
         analyticsApi.diagnosticsUsage(currentFilters),
         analyticsApi.efficiencyScore(currentFilters),
       ]);
@@ -135,7 +131,6 @@ export function AnalyticsDashboard() {
         doctorUtilization,
         revenue,
         appointmentSummary,
-        pharmacyUsage,
         diagnosticsUsage,
         efficiencyScore,
       });
@@ -174,7 +169,6 @@ export function AnalyticsDashboard() {
     const revenue = data.revenue?.data ?? [];
     const appointments = data.appointmentSummary?.data ?? [];
     const efficiency = data.efficiencyScore?.data ?? [];
-    const pharmacy = data.pharmacyUsage?.data ?? [];
     const diagnostics = data.diagnosticsUsage?.data ?? [];
 
     const latestOccupancy = occupancy.length > 0 ? occupancy[occupancy.length - 1] : null;
@@ -225,8 +219,7 @@ export function AnalyticsDashboard() {
       // Efficiency
       efficiencyScore: latestEfficiency?.efficiency_score || 0,
       
-      // Pharmacy & Diagnostics
-      pharmacyRevenue: sum(pharmacy.map((p) => p.revenue)),
+      // Diagnostics
       diagnosticsRevenue: sum(diagnostics.map((p) => p.revenue)),
       totalLabOrders: sum(diagnostics.map((p) => p.orders)),
       completedLabOrders: sum(diagnostics.map((p) => p.completed)),
@@ -447,7 +440,7 @@ export function AnalyticsDashboard() {
       </div>
 
       {/* Revenue Insights */}
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-2">
         <RevenueInsightCard
           title="Total Revenue"
           collected={summary.revenueCollected}
@@ -460,21 +453,6 @@ export function AnalyticsDashboard() {
           periods={data.revenue?.data.map(d => d.period_start) || []}
           onChartClick={(data, chartType, color, formatValue) => {
             setChartModalData({ title: "Total Revenue - Detailed View", data, chartType, color, formatValue });
-            setShowChartModal(true);
-          }}
-        />
-        <RevenueInsightCard
-          title="Pharmacy Revenue"
-          collected={summary.pharmacyRevenue}
-          invoiced={summary.pharmacyRevenue}
-          outstanding={0}
-          collectionRate={100}
-          avgDaily={summary.pharmacyRevenue / (data.revenue?.data.length || 1)}
-          loading={loading}
-          chartData={data.pharmacyUsage?.data.map((p) => p.revenue) || []}
-          periods={data.pharmacyUsage?.data.map(d => d.period_start) || []}
-          onChartClick={(data, chartType, color, formatValue) => {
-            setChartModalData({ title: "Pharmacy Revenue - Detailed View", data, chartType, color, formatValue });
             setShowChartModal(true);
           }}
         />
@@ -796,14 +774,12 @@ function RevenueInsightCard({ title, collected, invoiced, outstanding, collectio
                     value: chartData[idx] || 0,
                   })).filter(d => d.period); // Filter out empty periods
                   const chartType = title.includes('Diagnostics') ? 'area' : 'line';
-                  const color = title.includes('Pharmacy') ? 'purple' : title.includes('Diagnostics') ? 'indigo' : 'sky';
+                  const color = title.includes('Diagnostics') ? 'indigo' : 'sky';
                   onChartClick(fullData, chartType, color, currency);
                 }
               }}
             >
-              {title.includes('Pharmacy') ? (
-                <RevenueLineChart data={chartData.slice(-14)} maxValue={maxValue} color="purple" />
-              ) : title.includes('Diagnostics') ? (
+              {title.includes('Diagnostics') ? (
                 <OccupancyAreaChart data={chartData.slice(-14)} maxValue={maxValue} color="indigo" />
               ) : (
                 <RevenueLineChart data={chartData.slice(-14)} maxValue={maxValue} color="sky" />

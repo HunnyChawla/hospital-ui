@@ -52,12 +52,6 @@ export type AppointmentSummaryPoint = {
   no_show: number;
 };
 
-export type PharmacyUsagePoint = {
-  period_start: string;
-  total_units: number;
-  revenue: number;
-};
-
 export type DiagnosticsUsagePoint = {
   period_start: string;
   orders: number;
@@ -123,11 +117,6 @@ export const analyticsApi = {
   ): Promise<SeriesResponse<AppointmentSummaryPoint>> => {
     const params = withTenantParam(filters);
     const response = await apiClient.get("/analytics/appointments/summary", { params });
-    return response.data;
-  },
-  pharmacyUsage: async (filters: AnalyticsFilters): Promise<SeriesResponse<PharmacyUsagePoint>> => {
-    const params = withTenantParam(filters);
-    const response = await apiClient.get("/analytics/pharmacy/usage", { params });
     return response.data;
   },
   diagnosticsUsage: async (
