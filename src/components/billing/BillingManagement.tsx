@@ -23,6 +23,7 @@ import {
   X,
   CreditCard,
   Receipt,
+  Clock,
 } from "lucide-react";
 
 interface BillingManagementProps {
@@ -276,6 +277,19 @@ export function BillingManagement({
     }
   };
 
+  const calculateDaysSince = (invoiceDate: string) => {
+    if (!invoiceDate) return "N/A";
+    const date = new Date(invoiceDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    const diffTime = Math.abs(today.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "1 day";
+    return `${diffDays} days`;
+  };
+
 
   const selectedPatient = searchResults.find((p) => p.id === selectedPatientId) || 
     (searchTerm && selectedPatientId ? { name: searchTerm } : null);
@@ -465,6 +479,11 @@ export function BillingManagement({
                                   <span className="text-amber-600">Balance: {currency(invoice.balance_amount)}</span>
                                 </>
                               )}
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                <span>{calculateDaysSince(invoice.invoice_date)}</span>
+                              </span>
                             </div>
                           </div>
                           <div className="absolute right-3 top-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>

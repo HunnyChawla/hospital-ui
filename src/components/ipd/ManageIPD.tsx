@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WardTable } from "./WardTable";
 import { WardFormModal } from "./WardFormModal";
 import { BedTable } from "./BedTable";
@@ -12,8 +12,19 @@ import { Bed } from "@/services/bedsApi";
 import { Admission } from "@/services/admissionsApi";
 import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2 } from "lucide-react";
 
-export function ManageIPD() {
-  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">("wards");
+interface ManageIPDProps {
+  defaultTab?: "wards" | "beds" | "admissions";
+}
+
+export function ManageIPD({ defaultTab = "wards" }: ManageIPDProps) {
+  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">(defaultTab);
+
+  // Update tab when defaultTab prop changes
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
   const [showWardModal, setShowWardModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatCard } from "@/components/common/StatCard";
+import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
 import { Section } from "@/components/common/Section";
 import { PatientTable } from "@/components/patients/PatientTable";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
@@ -18,6 +19,7 @@ import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
 import { ManageIPD } from "@/components/ipd/ManageIPD";
+import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { BillingManagement } from "@/components/billing/BillingManagement";
 import { LabTestsPanel } from "@/components/lab-tests/LabTestsPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
@@ -25,7 +27,10 @@ import { QueueBoard } from "@/components/queue/QueueBoard";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { UserTable } from "@/components/users/UserTable";
 import { UserFormModal } from "@/components/users/UserFormModal";
-import { PaymentSummaryModal } from "@/components/payments/PaymentSummaryModal";
+import { DailyRevenueCard } from "@/components/dashboard/DailyRevenueCard";
+import { DashboardBillingList } from "@/components/dashboard/DashboardBillingList";
+import { RecentAdmissionsList } from "@/components/dashboard/RecentAdmissionsList";
+import { AdmissionDetailModal } from "@/components/ipd/AdmissionDetailModal";
 import { analyticsApi } from "@/services/analyticsApi";
 import { Patient } from "@/types";
 import { Doctor } from "@/services/doctorsApi";
@@ -48,6 +53,8 @@ import {
   Calendar,
   Beaker,
   Users2,
+  CreditCard,
+  BarChart3,
 } from "lucide-react";
 
 function BillingSection() {
@@ -110,14 +117,20 @@ export default function Home() {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showOpdModal, setShowOpdModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
+  const [showAdmissionModal, setShowAdmissionModal] = useState(false);
+  const [ipdDefaultTab, setIpdDefaultTab] = useState<"wards" | "beds" | "admissions">("wards");
+  const [dashboardBillingFilter, setDashboardBillingFilter] = useState<"pending" | "paid">("pending");
+  const [showAdmissionDetailModal, setShowAdmissionDetailModal] = useState(false);
+  const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userActiveTab, setUserActiveTab] = useState<"admin" | "doctor" | "nurse" | "receptionist" | "all">("all");
   const [opdActiveTab, setOpdActiveTab] = useState<"appointments" | "opd">("appointments");
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentModalType, setPaymentModalType] = useState<"collected" | "pending">("collected");
   const [totalCollected, setTotalCollected] = useState(0);
   const [totalPending, setTotalPending] = useState(0);
+  const [bedOccupancy, setBedOccupancy] = useState<{ occupied: number; total: number; occupancy: number } | null>(null);
+  const [appointmentInsights, setAppointmentInsights] = useState<{ today: number; completed: number; scheduled: number } | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(true);
 
   useEffect(() => {
     // Restore session on mount
@@ -139,6 +152,7 @@ export default function Home() {
       dispatch(fetchPatients());
       dispatch(fetchDoctors());
       fetchPaymentTotals();
+      fetchDashboardInsights();
     }
   }, [dispatch, isAuthenticated]);
 
@@ -174,12 +188,69 @@ export default function Home() {
     }
   };
 
+  const fetchDashboardInsights = async () => {
+    setInsightsLoading(true);
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
+      const oneWeekAgo = new Date(today);
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const oneWeekAgoStr = oneWeekAgo.toISOString().split("T")[0];
+
+      // Fetch bed occupancy
+      try {
+        const bedData = await analyticsApi.bedOccupancy({
+          start_date: todayStr,
+          end_date: todayStr,
+          granularity: "daily",
+        });
+        const todayBedData = bedData.data[0];
+        if (todayBedData) {
+          setBedOccupancy({
+            occupied: Math.round(todayBedData.avg_occupied_beds),
+            total: todayBedData.total_beds,
+            occupancy: Math.round(todayBedData.occupancy_pct),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch bed occupancy:", err);
+      }
+
+      // Fetch appointment summary for today
+      try {
+        const appointmentData = await analyticsApi.appointmentSummary({
+          start_date: todayStr,
+          end_date: todayStr,
+          granularity: "daily",
+        });
+        const todayAppointmentData = appointmentData.data[0];
+        if (todayAppointmentData) {
+          setAppointmentInsights({
+            today: todayAppointmentData.scheduled + todayAppointmentData.confirmed,
+            completed: todayAppointmentData.completed,
+            scheduled: todayAppointmentData.scheduled,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch appointment summary:", err);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard insights:", err);
+    } finally {
+      setInsightsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const syncHash = () => {
       const raw = window.location.hash.replace("#", "");
       const hash =
         raw === "lookup" ? "patients" : (raw as typeof activeSection);
       setActiveSection(hash || "dashboard");
+      // Reset IPD tab to wards when navigating away from admissions
+      if (hash !== "admissions") {
+        setIpdDefaultTab("wards");
+      }
     };
     syncHash();
     window.addEventListener("hashchange", syncHash);
@@ -202,14 +273,6 @@ export default function Home() {
         .slice(0, 5),
     [admissions]
   );
-  const pendingBillingRecords = useMemo(
-    () =>
-      billing
-        .filter((rec) => rec.status === "Pending")
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5),
-    [billing]
-  );
 
   const show = (tab: typeof activeSection) => activeSection === tab;
 
@@ -221,200 +284,243 @@ export default function Home() {
   return (
     <div className="lg:pl-72">
       <Sidebar />
-      <main className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
         <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
 
         {show("dashboard") && (
-          <div className="grid gap-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard
+          <div className="grid gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <EnhancedStatCard
                 label="Total patients"
                 value={patients.length}
-                hint="Managed today"
+                hint="Registered patients"
                 icon={HeartPulse}
                 tone="sky"
+                insights={appointmentInsights ? [
+                  {
+                    label: "Appointments today",
+                    value: appointmentInsights.today,
+                    trend: appointmentInsights.today > 0 ? "up" : "neutral",
+                  },
+                  {
+                    label: "Completed",
+                    value: appointmentInsights.completed,
+                    trend: appointmentInsights.completed > 0 ? "up" : "neutral",
+                  },
+                ] : undefined}
+                loading={insightsLoading}
               />
-              <StatCard
+              <EnhancedStatCard
                 label="Active admissions"
                 value={activeAdmissions}
-                hint={`${admittedCount} total admissions loaded`}
+                hint={`${admittedCount} total admissions`}
                 icon={BedDouble}
                 tone="emerald"
+                insights={bedOccupancy ? [
+                  {
+                    label: "Beds occupied",
+                    value: `${bedOccupancy.occupied}/${bedOccupancy.total}`,
+                    trend: bedOccupancy.occupancy > 80 ? "up" : bedOccupancy.occupancy < 50 ? "down" : "neutral",
+                  },
+                  {
+                    label: "Occupancy rate",
+                    value: `${bedOccupancy.occupancy}%`,
+                    trend: bedOccupancy.occupancy > 80 ? "up" : "neutral",
+                  },
+                ] : undefined}
+                loading={insightsLoading}
               />
-              <StatCard
+              <EnhancedStatCard
                 label="Pending billing"
                 value={currency(totalPending)}
                 hint="Outstanding invoices"
                 icon={Stethoscope}
                 tone="amber"
+                insights={[
+                  {
+                    label: "Total collected",
+                    value: currency(totalCollected),
+                    trend: totalCollected > 0 ? "up" : "neutral",
+                  },
+                ]}
+                loading={false}
               />
-              <StatCard
-                label="OPD queue"
-                value={totalQueue}
-                hint="Tokens live"
-                icon={LayoutList}
-                tone="fuchsia"
-              />
+              <DailyRevenueCard />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="card col-span-2 p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900">
-                    Quick actions
-                  </p>
-                  <span className="pill bg-sky-50 text-sky-700">Today</span>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
-                  <button
-                    onClick={() => {
-                      window.location.hash = "patients";
-                      setActiveSection("patients");
-                      setEditingPatient(null);
-                      setShowPatientModal(true);
-                    }}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-800 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
-                  >
-                    + Add patient
-                  </button>
-                  <button
-                    onClick={() => {
-                      window.location.hash = "opd";
-                      setActiveSection("opd");
-                    }}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-800 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
-                  >
-                    Generate OPD
-                  </button>
-                  <button
-                    onClick={() => {
-                      window.location.hash = "admissions";
-                      setActiveSection("admissions");
-                    }}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-800 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
-                  >
-                    Admit patient
-                  </button>
-                  <button
-                    onClick={() => {
-                      window.location.hash = "billing";
-                      setActiveSection("billing");
-                    }}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-800 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
-                  >
-                    Collect payment
-                  </button>
-                </div>
+            {/* Quick Actions - Enhanced for Hospital Staff */}
+            <div className="card p-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                {/* Patient Management */}
+                <button
+                  onClick={() => {
+                    window.location.hash = "patients";
+                    setActiveSection("patients");
+                    setEditingPatient(null);
+                    setShowPatientModal(true);
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-transform group-hover:scale-110 group-hover:bg-sky-200">
+                    <HeartPulse className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Add Patient</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Register new</p>
+                </button>
+
+                {/* Appointment Booking */}
+                <button
+                  onClick={() => {
+                    window.location.hash = "opd";
+                    setActiveSection("opd");
+                    setOpdActiveTab("appointments");
+                    setShowAppointmentModal(true);
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
+                    <CalendarPlus className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Book Appointment</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Schedule visit</p>
+                </button>
+
+                {/* OPD Visit */}
+                <button
+                  onClick={() => {
+                    window.location.hash = "opd";
+                    setActiveSection("opd");
+                    setOpdActiveTab("opd");
+                    setShowOpdModal(true);
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 group-hover:bg-blue-200">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">OPD Visit</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Walk-in patient</p>
+                </button>
+
+                {/* Lab Booking */}
+                <button
+                  onClick={() => {
+                    window.location.hash = "lab-bookings";
+                    setActiveSection("lab-bookings");
+                    setShowLabBookingModal(true);
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition-transform group-hover:scale-110 group-hover:bg-purple-200">
+                    <Beaker className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Lab Booking</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Test request</p>
+                </button>
+
+                {/* Billing */}
+                <button
+                  onClick={() => {
+                    window.location.hash = "billing";
+                    setActiveSection("billing");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 transition-transform group-hover:scale-110 group-hover:bg-amber-200">
+                    <CreditCard className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Billing</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Invoices & payments</p>
+                </button>
+
+                {/* Admissions */}
+                <button
+                  onClick={() => {
+                    window.location.hash = "admissions";
+                    setActiveSection("admissions");
+                    setIpdDefaultTab("admissions");
+                    setShowAdmissionModal(true);
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
+                    <BedDouble className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Admit Patient</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">IPD admission</p>
+                </button>
               </div>
 
-              <div className="card p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900">
-                    Revenue snapshot
-                  </p>
-                  <span className="pill bg-emerald-50 text-emerald-700">
-                    {billing.length} records
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2 text-sm text-slate-700">
-                  <button
-                    onClick={() => {
-                      setPaymentModalType("collected");
-                      setShowPaymentModal(true);
-                    }}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 transition hover:border-sky-300 hover:bg-sky-50 cursor-pointer"
-                  >
-                    <span className="font-semibold text-slate-800">Collected</span>
-                    <span className="text-emerald-600">{currency(totalCollected)}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPaymentModalType("pending");
-                      setShowPaymentModal(true);
-                    }}
-                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 transition hover:border-amber-300 hover:bg-amber-100 cursor-pointer"
-                  >
-                    <span className="font-semibold text-slate-800">Pending</span>
-                    <span className="text-amber-700">{currency(totalPending)}</span>
-                  </button>
-                </div>
+              {/* Additional Quick Links */}
+              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-4">
+                <button
+                  onClick={() => {
+                    window.location.hash = "queue";
+                    setActiveSection("queue");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <LayoutList className="h-4 w-4" />
+                  <span>View Queue</span>
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.hash = "patients";
+                    setActiveSection("patients");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <Users2 className="h-4 w-4" />
+                  <span>All Patients</span>
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.hash = "analytics";
+                    setActiveSection("analytics");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Analytics</span>
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.hash = "labs";
+                    setActiveSection("labs");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <Beaker className="h-4 w-4" />
+                  <span>Lab Catalog</span>
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="card p-4 space-y-3 xl:col-span-2">
-                <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+              <div className="card p-3 xl:col-span-2">
+                <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-semibold text-slate-900">Recent admissions</p>
                   <span className="text-xs text-slate-500">Latest 5</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-xs uppercase text-slate-500">
-                      <tr className="border-b border-slate-100">
-                        <th className="py-2 text-left">Patient</th>
-                        <th className="py-2 text-left">Ward/Bed</th>
-                        <th className="py-2 text-left">Doctor</th>
-                        <th className="py-2 text-left">Status</th>
-                        <th className="py-2 text-left">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {recentAdmissions.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="py-4 text-center text-slate-500">
-                            No admissions yet
-                          </td>
-                        </tr>
-                      )}
-                      {recentAdmissions.map((adm) => (
-                        <tr key={adm.id} className="hover:bg-slate-50/50">
-                          <td className="py-3">
-                            <div className="font-semibold text-slate-900">{adm.patient_name || "Patient"}</div>
-                            <div className="text-xs text-slate-500">#{adm.admission_number}</div>
-                          </td>
-                          <td className="py-3 text-slate-700">
-                            {adm.ward_name || "Ward"} • {adm.bed_number || "Bed"}
-                          </td>
-                          <td className="py-3 text-slate-700">
-                            {adm.doctor_name || "Doctor"}
-                          </td>
-                          <td className="py-3">
-                            <span className="pill bg-sky-50 text-sky-700 px-2 py-0.5 text-xs font-medium capitalize">
-                              {adm.status}
-                            </span>
-                          </td>
-                          <td className="py-3 text-slate-700">
-                            {adm.admission_date || "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <RecentAdmissionsList
+                  admissions={recentAdmissions}
+                  onAdmissionClick={(admissionId) => {
+                    setSelectedAdmissionId(admissionId);
+                    setShowAdmissionDetailModal(true);
+                  }}
+                  onViewAll={() => {
+                    window.location.hash = "admissions";
+                    setActiveSection("admissions");
+                    setIpdDefaultTab("admissions");
+                  }}
+                />
               </div>
 
-              <div className="card p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900">Pending bills</p>
-                  <span className="text-xs text-slate-500">Top 5</span>
-                </div>
-                <div className="space-y-3">
-                  {pendingBillingRecords.length === 0 && (
-                    <p className="text-sm text-slate-500">No pending bills</p>
-                  )}
-                  {pendingBillingRecords.map((rec) => (
-                    <div
-                      key={rec.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
-                    >
-                      <div className="text-sm text-slate-800">
-                        <p className="font-semibold">Record #{rec.id.slice(0, 6)}</p>
-                        <p className="text-xs text-slate-500">Items: {rec.items?.length || 0}</p>
-                      </div>
-                      <span className="text-amber-700 font-semibold">{currency(rec.total)}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="card p-3">
+                <DashboardBillingList
+                  statusFilter={dashboardBillingFilter}
+                  onStatusFilterChange={setDashboardBillingFilter}
+                />
               </div>
             </div>
           </div>
@@ -596,7 +702,7 @@ export default function Home() {
 
         {show("admissions") && (
           <div className="mt-6">
-            <ManageIPD />
+            <ManageIPD defaultTab={ipdDefaultTab} />
           </div>
         )}
 
@@ -724,6 +830,22 @@ export default function Home() {
           onClose={() => setShowLabBookingModal(false)}
         />
 
+        <AdmissionFormModal
+          isOpen={showAdmissionModal}
+          onClose={() => setShowAdmissionModal(false)}
+        />
+
+        {selectedAdmissionId && (
+          <AdmissionDetailModal
+            isOpen={showAdmissionDetailModal}
+            onClose={() => {
+              setShowAdmissionDetailModal(false);
+              setSelectedAdmissionId(null);
+            }}
+            admissionId={selectedAdmissionId}
+          />
+        )}
+
         <UserFormModal
           isOpen={showUserModal}
           onClose={() => {
@@ -731,12 +853,6 @@ export default function Home() {
             setEditingUser(null);
           }}
           defaultValues={editingUser ?? undefined}
-        />
-
-        <PaymentSummaryModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          type={paymentModalType}
         />
       </main>
     </div>
