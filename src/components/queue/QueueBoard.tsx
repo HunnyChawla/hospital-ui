@@ -139,13 +139,13 @@ export function QueueBoard() {
       {/* Enhanced Header Section */}
       <div className="card relative overflow-hidden">
         <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-gradient-to-br from-sky-200/30 to-transparent blur-2xl" />
-        <div className="relative p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative p-2.5">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
             {/* Doctor Selector */}
             {doctors.length > 0 && (
               <div className="flex-shrink-0">
-                <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  <Stethoscope className="h-4 w-4" />
+                <label className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  <Stethoscope className="h-3.5 w-3.5" />
                   Select Doctor
                 </label>
                 <div className="relative group">
@@ -153,7 +153,7 @@ export function QueueBoard() {
                   <select
                     value={selectedDoctorId}
                     onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    className="relative w-full min-w-[200px] appearance-none rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-all duration-200 hover:border-sky-300 hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 shadow-sm hover:shadow-md"
+                    className="relative w-full min-w-[180px] appearance-none rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none transition-all duration-200 hover:border-sky-300 hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 shadow-sm hover:shadow-md"
                   >
                     {doctors.map((doc) => {
                       const doctorName = doc.name || `Dr. ${doc.specialization}`;
@@ -169,7 +169,7 @@ export function QueueBoard() {
             )}
 
             {/* Filter Tabs */}
-            <div className="flex items-center gap-1 border-x border-slate-200 px-5">
+            <div className="flex items-center gap-0.5 lg:border-l lg:border-slate-200 lg:pl-4">
               {[
                 { id: "all" as FilterTab, label: "All", count: statusCounts.total },
                 { id: "pending" as FilterTab, label: "Pending", count: statusCounts.pending },
@@ -178,7 +178,7 @@ export function QueueBoard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                  className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1.5 text-xs font-semibold transition ${
                     activeTab === tab.id
                       ? "border-sky-500 text-sky-700"
                       : "border-transparent text-slate-600 hover:text-slate-900"
@@ -186,7 +186,7 @@ export function QueueBoard() {
                 >
                   <span>{tab.label}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                       activeTab === tab.id
                         ? "bg-sky-100 text-sky-700"
                         : "bg-slate-100 text-slate-600"
@@ -200,7 +200,7 @@ export function QueueBoard() {
 
             {/* Stats Summary Cards */}
             {entries.length > 0 && (
-              <div className="flex flex-nowrap items-center gap-2 -ml-4">
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
                 {/* Total Patients */}
                 <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm px-2.5 py-1.5 shadow-sm hover:shadow-md transition-all duration-200">
                   <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50">
@@ -238,7 +238,7 @@ export function QueueBoard() {
                 {nextToken !== undefined && (
                   <div className="relative group">
                     <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-sky-400 to-teal-500 opacity-20 blur-xl group-hover:opacity-30 transition-opacity duration-300" />
-                    <div className="relative flex flex-col items-center rounded-lg border-2 border-sky-200 bg-gradient-to-br from-sky-500 via-sky-500 to-teal-500 px-3 py-1.5 shadow-xl shadow-sky-500/25 ring-2 ring-sky-100/50 transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-sky-500/35">
+                    <div className="relative flex flex-col items-center rounded-lg border-2 border-sky-200 bg-gradient-to-br from-sky-500 via-sky-500 to-teal-500 px-2.5 py-1.5 shadow-xl shadow-sky-500/25 ring-2 ring-sky-100/50 transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-sky-500/35">
                       <div className="flex items-center gap-0.5 mb-0.5">
                         <Sparkles className="h-2.5 w-2.5 text-white/90" />
                         <span className="text-[8px] font-bold uppercase tracking-wider text-white/90">Next</span>
