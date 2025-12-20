@@ -200,50 +200,50 @@ export function QueueBoard() {
 
             {/* Stats Summary Cards */}
             {entries.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2.5 -ml-4">
+              <div className="flex flex-nowrap items-center gap-2 -ml-4">
                 {/* Total Patients */}
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm px-3.5 py-2 shadow-sm hover:shadow-md transition-all duration-200">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50">
-                    <Users className="h-3.5 w-3.5 text-slate-600" />
+                <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/80 backdrop-blur-sm px-2.5 py-1.5 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50">
+                    <Users className="h-3 w-3 text-slate-600" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-medium text-slate-500">Total</p>
-                    <p className="text-sm font-bold text-slate-900">{statusCounts.total}</p>
+                    <p className="text-[10px] font-medium text-slate-500">Total</p>
+                    <p className="text-xs font-bold text-slate-900">{statusCounts.total}</p>
                   </div>
                 </div>
 
                 {/* Waiting Count */}
-                <div className="flex items-center gap-2 rounded-xl border border-amber-200/50 bg-gradient-to-br from-amber-50/80 to-white/80 backdrop-blur-sm px-3.5 py-2 shadow-sm hover:shadow-md transition-all duration-200">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/25">
-                    <Clock className="h-3.5 w-3.5 text-white" />
+                <div className="flex items-center gap-1.5 rounded-lg border border-amber-200/50 bg-gradient-to-br from-amber-50/80 to-white/80 backdrop-blur-sm px-2.5 py-1.5 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/25">
+                    <Clock className="h-3 w-3 text-white" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-medium text-amber-600">Waiting</p>
-                    <p className="text-sm font-bold text-amber-700">{statusCounts.waiting}</p>
+                    <p className="text-[10px] font-medium text-amber-600">Waiting</p>
+                    <p className="text-xs font-bold text-amber-700">{statusCounts.waiting}</p>
                   </div>
                 </div>
 
                 {/* In Consultation Count */}
-                <div className="flex items-center gap-2 rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/80 to-white/80 backdrop-blur-sm px-3.5 py-2 shadow-sm hover:shadow-md transition-all duration-200">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
-                    <UserCheck className="h-3.5 w-3.5 text-white" />
+                <div className="flex items-center gap-1.5 rounded-lg border border-blue-200/50 bg-gradient-to-br from-blue-50/80 to-white/80 backdrop-blur-sm px-2.5 py-1.5 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+                    <UserCheck className="h-3 w-3 text-white" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-medium text-blue-600">Consulting</p>
-                    <p className="text-sm font-bold text-blue-700">{statusCounts.inConsultation}</p>
+                    <p className="text-[10px] font-medium text-blue-600">Consulting</p>
+                    <p className="text-xs font-bold text-blue-700">{statusCounts.inConsultation}</p>
                   </div>
                 </div>
 
                 {/* Next Token Badge */}
                 {nextToken !== undefined && (
                   <div className="relative group">
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-sky-400 to-teal-500 opacity-20 blur-xl group-hover:opacity-30 transition-opacity duration-300" />
-                    <div className="relative flex flex-col items-center rounded-xl border-2 border-sky-200 bg-gradient-to-br from-sky-500 via-sky-500 to-teal-500 px-4 py-2.5 shadow-xl shadow-sky-500/25 ring-2 ring-sky-100/50 transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-sky-500/35">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Sparkles className="h-3 w-3 text-white/90" />
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-white/90">Next</span>
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-sky-400 to-teal-500 opacity-20 blur-xl group-hover:opacity-30 transition-opacity duration-300" />
+                    <div className="relative flex flex-col items-center rounded-lg border-2 border-sky-200 bg-gradient-to-br from-sky-500 via-sky-500 to-teal-500 px-3 py-1.5 shadow-xl shadow-sky-500/25 ring-2 ring-sky-100/50 transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-sky-500/35">
+                      <div className="flex items-center gap-0.5 mb-0.5">
+                        <Sparkles className="h-2.5 w-2.5 text-white/90" />
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-white/90">Next</span>
                       </div>
-                      <span className="text-xl font-extrabold text-white drop-shadow-lg">{nextToken}</span>
+                      <span className="text-base font-extrabold text-white drop-shadow-lg">{nextToken}</span>
                     </div>
                   </div>
                 )}
