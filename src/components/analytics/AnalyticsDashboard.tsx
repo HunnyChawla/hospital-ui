@@ -421,8 +421,14 @@ export function AnalyticsDashboard() {
           hint={`${summary.totalDischarges} discharges • ${summary.readmissions} readmissions`}
           chartData={chartData.admissions}
           periods={data.patientFlow?.data.map(d => d.period_start) || []}
-          onChartClick={(data, chartType, color) => {
-            setChartModalData({ title: "Total Admissions - Detailed View", data, chartType, color });
+          onChartClick={(data, chartType, color, formatValue) => {
+            setChartModalData({ 
+              title: "Total Admissions - Detailed View", 
+              data, 
+              chartType, 
+              color,
+              formatValue: (v) => v.toFixed(2)
+            });
             setShowChartModal(true);
           }}
         />
@@ -525,71 +531,6 @@ export function AnalyticsDashboard() {
         />
       </div>
 
-      {/* Detailed Analytics */}
-      <div>
-        <h2 className="mb-2 text-lg font-bold text-slate-900">Detailed Analytics</h2>
-        <div className="grid gap-2 lg:grid-cols-2">
-          <AnalyticsPanel
-            title="Patient Flow"
-            subtitle="Admissions, discharges, and length of stay"
-            icon={Activity}
-            loading={loading}
-            rows={
-              data.patientFlow?.data.map((p) => ({
-                period: p.period_start,
-                primary: `${p.admissions} admissions`,
-                secondary: `${p.discharges} discharges`,
-                chip: p.avg_length_of_stay ? `${p.avg_length_of_stay.toFixed(1)}d ALOS` : undefined,
-                extra: p.readmissions > 0 ? `${p.readmissions} readmit` : undefined,
-              })) || []
-            }
-          />
-
-          <AnalyticsPanel
-            title="Bed Occupancy"
-            subtitle="Bed utilization and capacity"
-            icon={BedDouble}
-            loading={loading}
-            rows={
-              data.bedOccupancy?.data.map((p) => ({
-                period: p.period_start,
-                primary: `${p.occupancy_pct.toFixed(1)}% occupancy`,
-                secondary: `${p.avg_occupied_beds.toFixed(1)} of ${p.total_beds} beds`,
-              })) || []
-            }
-          />
-
-          <AnalyticsPanel
-            title="Doctor Utilization"
-            subtitle="Appointments and consultation efficiency"
-            icon={Stethoscope}
-            loading={loading}
-            rows={
-              data.doctorUtilization?.data.map((p) => ({
-                period: p.period_start,
-                primary: `${p.completed_appointments}/${p.appointments} completed`,
-                secondary: `${p.visits} visits • ${p.cancelled_appointments} cancelled`,
-                chip: p.avg_consult_minutes ? `${p.avg_consult_minutes.toFixed(1)}m avg` : undefined,
-              })) || []
-            }
-          />
-
-          <AnalyticsPanel
-            title="Appointments"
-            subtitle="Scheduling and completion rates"
-            icon={Calendar}
-            loading={loading}
-            rows={
-              data.appointmentSummary?.data.map((p) => ({
-                period: p.period_start,
-                primary: `${p.completed}/${p.scheduled} completed`,
-                secondary: `${p.confirmed} confirmed • ${p.cancelled} cancelled • ${p.no_show} no-shows`,
-              })) || []
-            }
-          />
-        </div>
-      </div>
-
       {/* Detailed Chart Modal */}
       {chartModalData && (
         <DetailedChartModal
@@ -677,6 +618,8 @@ function KPICard({ label, value, trend, icon: Icon, gradient, bgGradient, loadin
                   ? (v: number) => `${v.toFixed(1)}%`
                   : label.includes('Revenue')
                   ? currency
+                  : label.includes('Admissions')
+                  ? (v: number) => v.toFixed(2)
                   : (v: number) => v.toString();
                 onChartClick(fullData, chartType, color, formatValue);
               }
@@ -867,22 +810,6 @@ function PerformanceCard({ label, value, total, completed, cancelled, noShows, n
   );
 }
 
-type PanelRow = {
-  period: string;
-  primary: string;
-  secondary?: string;
-  chip?: string;
-  extra?: string;
-};
-
-type AnalyticsPanelProps = {
-  title: string;
-  subtitle: string;
-  icon: React.ComponentType<{ className?: string }>;
-  rows: PanelRow[];
-  loading: boolean;
-};
-
 // Chart Components
 type ChartProps = {
   data: number[];
@@ -1070,52 +997,6 @@ function EfficiencySparkline({ data, maxValue, color }: ChartProps) {
           strokeLinejoin="round"
         />
       </svg>
-    </div>
-  );
-}
-
-function AnalyticsPanel({ title, subtitle, icon: Icon, rows, loading }: AnalyticsPanelProps) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-bold text-slate-900">{title}</p>
-          <p className="text-xs text-slate-500">{subtitle}</p>
-        </div>
-        <div className="rounded-lg bg-slate-100 p-1.5 text-slate-600">
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-      {loading ? (
-        <SkeletonRow rows={5} />
-      ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-500">No data for the selected range.</p>
-      ) : (
-        <div className="space-y-1.5 max-h-96 overflow-y-auto">
-          {rows.slice(-15).reverse().map((row, idx) => (
-            <div
-              key={`${title}-${row.period}-${idx}`}
-              className="rounded-lg border border-slate-100 bg-gradient-to-r from-slate-50 to-white px-3 py-2 transition hover:border-sky-200 hover:shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">{row.primary}</p>
-                <span className="text-xs font-medium text-slate-500">{formatDate(row.period)}</span>
-              </div>
-              {row.secondary && (
-                <p className="mt-1 text-xs text-slate-600">{row.secondary}</p>
-              )}
-              {row.extra && (
-                <p className="mt-0.5 text-xs text-slate-400">{row.extra}</p>
-              )}
-              {row.chip && (
-                <span className="mt-1.5 inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
-                  {row.chip}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

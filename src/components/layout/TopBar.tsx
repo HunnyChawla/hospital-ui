@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Patient } from "@/types";
 import { patientsApi } from "@/services/patientsApi";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
+import { usersApi } from "@/services/usersApi";
 import { useTenant } from "@/hooks/useTenant";
 
 interface TopBarProps {
@@ -30,6 +31,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const router = useRouter();
   const { user } = useAppSelector((s) => s.auth);
   const { hospitalName } = useTenant();
+  const [fullName, setFullName] = useState<string | null>(null);
 
   // Debounced search
   useEffect(() => {
@@ -61,6 +63,24 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
 
     return () => clearTimeout(timeoutId);
   }, [term]);
+
+  // Fetch full name for the logged in user
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!user?.user_id) return;
+      try {
+        const u = await usersApi.getById(user.user_id);
+        if (!cancelled) setFullName(u.full_name || null);
+      } catch (err) {
+        console.error("Failed to fetch user details:", err);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.user_id]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -254,8 +274,8 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
             <UserCircle2 className="h-5 w-5" />
           </div>
           <div className="hidden text-left sm:block">
-            <p className="text-xs font-semibold text-slate-900 capitalize">
-              {user?.role?.replace("_", " ") || "Admin"}
+            <p className="text-xs font-semibold text-slate-900 truncate">
+              {fullName || user?.role?.replace("_", " ") || "Admin"}
             </p>
             <p className="text-[10px] text-slate-500">{hospitalName}</p>
           </div>
@@ -266,8 +286,8 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
         {showProfileDropdown && (
           <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
             <div className="border-b border-slate-100 px-4 py-3">
-              <p className="text-xs font-semibold text-slate-900 capitalize">
-                {user?.role?.replace("_", " ") || "Admin"}
+              <p className="text-xs font-semibold text-slate-900 truncate">
+                {fullName || user?.role?.replace("_", " ") || "Admin"}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">{hospitalName}</p>
             </div>
