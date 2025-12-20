@@ -6,7 +6,7 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
 import { formatDate, currency } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Clock, Printer, ChevronLeft, ChevronRight } from "lucide-react";
+import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -337,12 +337,6 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                           <Calendar className="h-3 w-3" />
                           {formatDate(booking.scheduled_date)}
                         </span>
-                        {booking.scheduled_time && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {booking.scheduled_time}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -516,12 +510,6 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                   <p className="text-xs text-slate-500">Scheduled Date</p>
                   <p className="mt-1 font-semibold text-slate-900">{formatDate(selectedBooking.scheduled_date)}</p>
                 </div>
-                {selectedBooking.scheduled_time && (
-                  <div>
-                    <p className="text-xs text-slate-500">Scheduled Time</p>
-                    <p className="mt-1 font-semibold text-slate-900">{selectedBooking.scheduled_time}</p>
-                  </div>
-                )}
                 <div>
                   <p className="text-xs text-slate-500">Priority</p>
                   <p className="mt-1">

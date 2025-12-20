@@ -5,7 +5,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { opdVisitsApi, CreateVisitRequest } from "@/services/opdVisitsApi";
 import { formatDate } from "@/utils/format";
-import { Calendar, Clock, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus } from "lucide-react";
+import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -197,12 +197,6 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                       {appointment.patient_mobile && (
                         <span>{appointment.patient_mobile}</span>
                       )}
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {appointment.appointment_time.includes(".") 
-                          ? appointment.appointment_time.split(".")[0].slice(0, 5)
-                          : appointment.appointment_time.slice(0, 5)}
-                      </span>
                       {appointment.visit_id && (
                         <span className="text-emerald-600">Visit Created</span>
                       )}

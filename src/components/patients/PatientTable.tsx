@@ -6,7 +6,7 @@ import {
   selectPatient,
 } from "@/redux/patientsSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { formatDate, currency } from "@/utils/format";
+import { formatDate } from "@/utils/format";
 import { Edit2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { Patient } from "@/types";
@@ -36,7 +36,6 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
             <th className="px-4 py-3">Patient</th>
             <th className="px-4 py-3">Contact</th>
             <th className="px-4 py-3">Visit</th>
-            <th className="px-4 py-3">Outstanding</th>
             <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
@@ -71,9 +70,6 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
               </td>
               <td className="px-4 py-3 text-slate-700">
                 {formatDate(patient.lastVisit)}
-              </td>
-              <td className="px-4 py-3 font-semibold text-amber-600">
-                {currency(patient.outstanding)}
               </td>
               <td className="px-4 py-3">
                 <div className="flex justify-end gap-2">

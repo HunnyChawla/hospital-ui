@@ -8,7 +8,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, Clock, Search, User, Beaker, Plus, X } from "lucide-react";
+import { Calendar, Search, User, Beaker, Plus, X } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 
 interface LabBookingFormProps {
@@ -26,7 +26,6 @@ export function LabBookingForm({
 
   const [patientId, setPatientId] = useState(defaultPatientId || "");
   const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
   const [priority, setPriority] = useState<TestPriority>("routine");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -208,7 +207,7 @@ export function LabBookingForm({
       const bookingData: CreateLabBookingRequest = {
         patient_id: patientId,
         scheduled_date: scheduledDate,
-        scheduled_time: scheduledTime || undefined,
+        scheduled_time: undefined, // Not required
         priority,
         tests: selectedTests.map((st) => ({
           lab_test_id: st.lab_test_id,
@@ -225,7 +224,6 @@ export function LabBookingForm({
       setPatientId("");
       setDropdownSearchTerm("");
       setScheduledDate(new Date().toISOString().split("T")[0]);
-      setScheduledTime("");
       setPriority("routine");
       setNotes("");
       setPaymentMethod("cash");
@@ -326,20 +324,6 @@ export function LabBookingForm({
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
               required
-              className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 outline-none focus:border-sky-400"
-            />
-          </div>
-        </label>
-
-        {/* Scheduled Time */}
-        <label className="space-y-1">
-          <span className="text-slate-600">Scheduled Time</span>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 outline-none focus:border-sky-400"
             />
           </div>
