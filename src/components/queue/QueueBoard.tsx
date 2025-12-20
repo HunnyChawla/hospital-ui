@@ -144,16 +144,16 @@ export function QueueBoard() {
             {/* Doctor Selector */}
             {doctors.length > 0 && (
               <div className="flex-shrink-0">
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <Stethoscope className="h-4 w-4" />
                   Select Doctor
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-sky-500/0 via-sky-500/5 to-teal-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl" />
-                  <Stethoscope className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-hover:text-sky-500" />
                   <select
                     value={selectedDoctorId}
                     onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    className="relative w-full min-w-[200px] appearance-none rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm pl-11 pr-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-all duration-200 hover:border-sky-300 hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 shadow-sm hover:shadow-md"
+                    className="relative w-full min-w-[200px] appearance-none rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-all duration-200 hover:border-sky-300 hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 shadow-sm hover:shadow-md"
                   >
                     {doctors.map((doc) => {
                       const doctorName = doc.name || `Dr. ${doc.specialization}`;
@@ -169,7 +169,7 @@ export function QueueBoard() {
             )}
 
             {/* Filter Tabs */}
-            <div className="flex items-center gap-2 border-x border-slate-200 px-5">
+            <div className="flex items-center gap-1 border-x border-slate-200 px-5">
               {[
                 { id: "all" as FilterTab, label: "All", count: statusCounts.total },
                 { id: "pending" as FilterTab, label: "Pending", count: statusCounts.pending },
@@ -200,7 +200,7 @@ export function QueueBoard() {
 
             {/* Stats Summary Cards */}
             {entries.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5 -ml-4">
                 {/* Total Patients */}
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm px-3.5 py-2 shadow-sm hover:shadow-md transition-all duration-200">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50">
@@ -313,43 +313,37 @@ export function QueueBoard() {
                   </div>
                 )}
 
-                <div className="relative p-5">
+                <div className="relative p-4">
                   {/* Header with Token */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className={`relative flex h-14 w-14 items-center justify-center rounded-xl ${statusStyles.badge} font-extrabold text-lg transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`relative flex h-12 w-12 items-center justify-center rounded-xl ${statusStyles.badge} font-extrabold text-base transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
                         <span className="drop-shadow-sm">{entry.token}</span>
                         {isNextToken && (
-                          <div className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-bold text-sky-600 shadow-lg">
+                          <div className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-bold text-sky-600 shadow-lg">
                             !
                           </div>
                         )}
                       </div>
                       <div>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Token Number</p>
-                        <p className="mt-0.5 text-base font-bold text-slate-900">#{entry.token}</p>
+                        <p className="mt-0.5 text-sm font-bold text-slate-900">#{entry.token}</p>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1 ${statusStyles.badge} shadow-md`}>
-                      <StatusIcon className="h-3.5 w-3.5" />
+                    <div className={`flex items-center gap-1.5 rounded-xl px-2 py-0.5 ${statusStyles.badge} shadow-md`}>
+                      <StatusIcon className="h-3 w-3" />
                       <span className="text-[11px] font-bold">{entry.status}</span>
                     </div>
                   </div>
 
                   {/* Patient Info */}
-                  <div className="mb-5 border-t border-slate-200/50 pt-4">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-50">
-                        <Activity className="h-4 w-4 text-slate-600" />
+                  <div className="mb-4 border-t border-slate-200/50 pt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-50">
+                        <Activity className="h-3.5 w-3.5 text-slate-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-base font-bold text-slate-900 truncate">{entry.patientName}</p>
-                        {entry.etaMinutes > 0 && (
-                          <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                            <Clock className="h-3 w-3" />
-                            Estimated time: {entry.etaMinutes} min
-                          </p>
-                        )}
+                        <p className="text-sm font-bold text-slate-900 truncate">{entry.patientName}</p>
                       </div>
                     </div>
                   </div>
