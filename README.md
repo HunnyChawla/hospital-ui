@@ -4,7 +4,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ### Environment Variables
 
-Create a `.env.local` file in the root directory with the following variables:
+#### Local Development
+
+Copy `.env.local.example` to `.env.local` and fill in your values:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then edit `.env.local` with your local configuration:
 
 ```env
 # API Base URL
@@ -19,7 +27,19 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 NEXT_PUBLIC_DOMAIN_URL=
 ```
 
+#### Production Build (GitHub Pages)
+
+For GitHub Pages deployment, environment variables are set via GitHub Actions workflow and GitHub Secrets:
+
+1. **Set GitHub Secrets** (Repository Settings → Secrets and variables → Actions):
+   - `NEXT_PUBLIC_API_BASE_URL`: Your production API URL (e.g., `https://api.yourdomain.com`)
+   - `NEXT_PUBLIC_DOMAIN_URL`: (Optional) Your base domain for subdomain detection
+
+2. **Base Path**: Automatically set to `/hospital-ui` for GitHub Pages deployment
+
 **Note:** `NEXT_PUBLIC_DOMAIN_URL` is optional. If not set, the application will attempt to extract subdomains automatically. For production with subdomain-based routing, set this to your base domain (e.g., `cura.com`). When set, the subdomain will be extracted from URLs like `demo-hospital.cura.com` → `demo-hospital`.
+
+For local production builds, copy `.env.production.example` to `.env.production` and configure accordingly.
 
 ### Running the Development Server
 
