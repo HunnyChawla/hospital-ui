@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { login, restoreSession } from "@/redux/authSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { extractSubdomain } from "@/utils/subdomain";
 import { Mail, Lock, Building2 } from "lucide-react";
 import Image from "next/image";
 
@@ -17,13 +18,27 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    tenant_id: "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1",
+    hospital_id: "",
   });
+  const [showHospitalIdInput, setShowHospitalIdInput] = useState(true);
 
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
   }, [dispatch]);
+
+  useEffect(() => {
+    // Detect subdomain on mount
+    const subdomain = extractSubdomain();
+    if (subdomain) {
+      // Subdomain exists, use it as hospital_id and hide input
+      setFormData((prev) => ({ ...prev, hospital_id: subdomain }));
+      setShowHospitalIdInput(false);
+    } else {
+      // No subdomain, show input field
+      setShowHospitalIdInput(true);
+    }
+  }, []);
 
   useEffect(() => {
     // Redirect if already authenticated
@@ -35,7 +50,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password || !formData.tenant_id) {
+    if (!formData.email || !formData.password || !formData.hospital_id) {
       toast.error("Please fill all fields");
       return;
     }
@@ -111,25 +126,27 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Tenant ID */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Tenant ID
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={formData.tenant_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tenant_id: e.target.value })
-                  }
-                  placeholder="Enter tenant ID"
-                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                  required
-                />
+            {/* Hospital ID */}
+            {showHospitalIdInput && (
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Hospital ID
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={formData.hospital_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hospital_id: e.target.value })
+                    }
+                    placeholder="Enter hospital ID"
+                    className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Error Message */}
             {error && (
@@ -147,19 +164,11 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
-
-          {/* Demo Credentials Hint */}
-          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
-            <p className="font-semibold mb-2">Demo Credentials:</p>
-            <p>Email: admin@demo.com</p>
-            <p>Password: admin123</p>
-            <p className="mt-2 text-slate-500">Enter your tenant_id to proceed</p>
-          </div>
         </div>
 
         {/* Footer */}
         <p className="mt-6 text-center text-xs text-slate-500">
-          © 2024 Hospital Management System. All rights reserved.
+          © {new Date().getFullYear()} Technesian PVT LTD. All rights reserved.
         </p>
       </div>
     </div>

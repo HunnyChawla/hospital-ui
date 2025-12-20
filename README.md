@@ -2,6 +2,27 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+# API Base URL
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+
+# Domain URL (for subdomain detection)
+# Used to extract hospital_id from subdomain (e.g., demo-hospital.cura.com)
+# If DOMAIN_URL=cura.com and login URL is demo-hospital.cura.com, hospital_id will be "demo-hospital"
+# If not set, the app will attempt to auto-detect subdomain from hostname
+# Examples:
+# NEXT_PUBLIC_DOMAIN_URL=cura.com
+NEXT_PUBLIC_DOMAIN_URL=
+```
+
+**Note:** `NEXT_PUBLIC_DOMAIN_URL` is optional. If not set, the application will attempt to extract subdomains automatically. For production with subdomain-based routing, set this to your base domain (e.g., `cura.com`). When set, the subdomain will be extracted from URLs like `demo-hospital.cura.com` → `demo-hospital`.
+
+### Running the Development Server
+
 First, run the development server:
 
 ```bash
