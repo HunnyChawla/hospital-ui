@@ -9,7 +9,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, Clock, Search, User, Stethoscope, Plus } from "lucide-react";
+import { Calendar, Search, User, Stethoscope, Plus } from "lucide-react";
 
 interface AppointmentFormProps {
   defaultPatientId?: string;
@@ -34,7 +34,6 @@ export function AppointmentForm({
   const [patientId, setPatientId] = useState(defaultPatientId || "");
   const [doctorId, setDoctorId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
-  const [appointmentTime, setAppointmentTime] = useState("");
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
@@ -178,11 +177,6 @@ export function AppointmentForm({
       return;
     }
 
-    if (!appointmentTime) {
-      toast.error("Please select an appointment time");
-      return;
-    }
-
     // Validate date is not in the past
     const selectedDate = new Date(appointmentDate);
     const today = new Date();
@@ -194,14 +188,11 @@ export function AppointmentForm({
     }
 
     try {
-      // Convert time from HH:MM to HH:MM:SS format
-      const timeFormatted = appointmentTime ? `${appointmentTime}:00` : "";
-      
       const appointmentData: CreateAppointmentRequest = {
         patient_id: selectedPatientId,
         doctor_id: doctorId,
         appointment_date: appointmentDate,
-        appointment_time: timeFormatted,
+        appointment_time: "", // Empty string - time not required
         notes: notes.trim() || undefined,
       };
 
@@ -214,7 +205,6 @@ export function AppointmentForm({
       // Reset form
       setPatientId("");
       setDoctorId("");
-      setAppointmentTime("");
       setNotes("");
       setSearchTerm("");
       setDropdownSearchTerm("");
@@ -423,20 +413,6 @@ export function AppointmentForm({
         />
       </label>
 
-      <label className="space-y-1">
-        <span className="text-slate-600 flex items-center gap-1">
-          <Clock className="h-4 w-4" />
-          Appointment Time <span className="text-rose-500">*</span>
-        </span>
-        <input
-          type="time"
-          value={appointmentTime}
-          onChange={(e) => setAppointmentTime(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          required
-        />
-      </label>
-
       <label className="col-span-2 space-y-1">
         <span className="text-slate-600">Notes</span>
         <textarea
@@ -454,7 +430,6 @@ export function AppointmentForm({
           onClick={() => {
             setPatientId("");
             setDoctorId("");
-            setAppointmentTime("");
             setNotes("");
             setSearchTerm("");
             setDropdownSearchTerm("");

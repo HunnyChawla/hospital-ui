@@ -681,12 +681,6 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                       <Calendar className="h-3 w-3" />
                                       {formatDate(appointment.appointment_date)}
                                     </span>
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {appointment.appointment_time.includes(".") 
-                                        ? appointment.appointment_time.split(".")[0].slice(0, 5)
-                                        : appointment.appointment_time.slice(0, 5)}
-                                    </span>
                                     {appointment.visit_id && (
                                       <span className="text-emerald-600">Visit Created</span>
                                     )}
