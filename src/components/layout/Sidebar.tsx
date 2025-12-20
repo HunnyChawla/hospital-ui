@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useTenant } from "@/hooks/useTenant";
 
 const navItems = [
@@ -46,12 +47,20 @@ export function Sidebar() {
   return (
     <aside className="glass fixed left-0 top-0 hidden h-screen w-64 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 lg:flex">
       <div className="mb-8 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-teal-400 text-white shadow-lg">
-          <Activity className="h-6 w-6" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
+          <Image
+            src="/cura-logo-v2.png"
+            alt="CURA Logo"
+            width={500}
+            height={500}
+            className="h-full w-full object-contain"
+            priority
+            unoptimized
+          />
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">
-            Hospital Portal
+          <p className="text-xs uppercase tracking-wide" style={{ color: 'lab(63.3038% -18.433 -51.0407)' }}>
+            CURA
           </p>
           <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
         </div>

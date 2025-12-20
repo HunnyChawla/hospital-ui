@@ -6,7 +6,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { login, restoreSession } from "@/redux/authSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { LogIn, Mail, Lock, Building2 } from "lucide-react";
+import { Mail, Lock, Building2 } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,12 +54,18 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 p-4">
       <div className="w-full max-w-md">
         {/* Logo/Header */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-teal-500 shadow-lg">
-            <LogIn className="h-8 w-8 text-white" />
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center">
+            <Image
+              src="/login-logo.png"
+              alt="CURA Logo"
+              width={691}
+              height={361}
+              className="h-auto w-auto max-w-md object-contain"
+              priority
+              unoptimized
+            />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Hospital Management</h1>
-          <p className="mt-2 text-slate-600">Sign in to access the portal</p>
         </div>
 
         {/* Login Form */}
