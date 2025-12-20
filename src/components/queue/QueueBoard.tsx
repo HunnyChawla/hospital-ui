@@ -10,11 +10,14 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { updateQueueStatus } from "@/redux/queueSlice";
 
+type FilterTab = "all" | "pending" | "completed";
+
 export function QueueBoard() {
   const dispatch = useAppDispatch();
   const { entries, loading, doctorId } = useAppSelector((s) => s.queue);
   const doctors = useAppSelector((s) => s.doctors.list);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
 
   useEffect(() => {
     dispatch(fetchDoctors());
@@ -60,7 +63,19 @@ export function QueueBoard() {
     }
   };
 
-  // Find the next token number (first waiting patient)
+  // Filter entries based on active tab
+  const filteredEntries = entries.filter((entry) => {
+    if (activeTab === "all") return true;
+    if (activeTab === "pending") {
+      return entry.status === "Waiting" || entry.status === "In Consultation";
+    }
+    if (activeTab === "completed") {
+      return entry.status === "Completed";
+    }
+    return true;
+  });
+
+  // Find the next token number (first waiting patient) from all entries
   const nextToken = entries
     .filter((entry) => entry.status === "Waiting" && entry.visitId)
     .sort((a, b) => a.token - b.token)[0]?.token;
@@ -69,12 +84,13 @@ export function QueueBoard() {
     return <SkeletonRow rows={3} />;
   }
 
-  // Get status counts for summary
+  // Get status counts for summary (from all entries)
   const statusCounts = {
     waiting: entries.filter((e) => e.status === "Waiting" && e.visitId).length,
     inConsultation: entries.filter((e) => e.status === "In Consultation" && e.visitId).length,
     completed: entries.filter((e) => e.status === "Completed").length,
     total: entries.filter((e) => e.visitId).length,
+    pending: entries.filter((e) => (e.status === "Waiting" || e.status === "In Consultation") && e.visitId).length,
   };
 
   const getStatusStyles = (status: string) => {
@@ -124,10 +140,10 @@ export function QueueBoard() {
       <div className="card relative overflow-hidden">
         <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-gradient-to-br from-sky-200/30 to-transparent blur-2xl" />
         <div className="relative p-5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* Doctor Selector */}
             {doctors.length > 0 && (
-              <div className="flex-1 max-w-md">
+              <div className="flex-shrink-0">
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Select Doctor
                 </label>
@@ -137,7 +153,7 @@ export function QueueBoard() {
                   <select
                     value={selectedDoctorId}
                     onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    className="relative w-full appearance-none rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm pl-11 pr-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-all duration-200 hover:border-sky-300 hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 shadow-sm hover:shadow-md"
+                    className="relative w-full min-w-[200px] appearance-none rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm pl-11 pr-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-all duration-200 hover:border-sky-300 hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 shadow-sm hover:shadow-md"
                   >
                     {doctors.map((doc) => {
                       const doctorName = doc.name || `Dr. ${doc.specialization}`;
@@ -151,6 +167,36 @@ export function QueueBoard() {
                 </div>
               </div>
             )}
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-2 border-x border-slate-200 px-5">
+              {[
+                { id: "all" as FilterTab, label: "All", count: statusCounts.total },
+                { id: "pending" as FilterTab, label: "Pending", count: statusCounts.pending },
+                { id: "completed" as FilterTab, label: "Completed", count: statusCounts.completed },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                    activeTab === tab.id
+                      ? "border-sky-500 text-sky-700"
+                      : "border-transparent text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                      activeTab === tab.id
+                        ? "bg-sky-100 text-sky-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
 
             {/* Stats Summary Cards */}
             {entries.length > 0 && (
@@ -208,20 +254,32 @@ export function QueueBoard() {
       </div>
 
       {/* Queue Grid */}
-      {entries.length === 0 && !loading ? (
+      {filteredEntries.length === 0 && !loading ? (
         <div className="card relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50" />
           <div className="relative p-14 text-center">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 shadow-lg">
               <Stethoscope className="h-8 w-8 text-slate-400" />
             </div>
-            <p className="text-lg font-bold text-slate-900">No patients in queue</p>
-            <p className="mt-1.5 text-sm text-slate-500">Patients will appear here when they check in</p>
+            <p className="text-lg font-bold text-slate-900">
+              {activeTab === "all" 
+                ? "No patients in queue"
+                : activeTab === "pending"
+                ? "No pending patients"
+                : "No completed visits"}
+            </p>
+            <p className="mt-1.5 text-sm text-slate-500">
+              {activeTab === "all"
+                ? "Patients will appear here when they check in"
+                : activeTab === "pending"
+                ? "No patients are currently waiting or in consultation"
+                : "No visits have been completed yet"}
+            </p>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
-          {entries.map((entry, index) => {
+          {filteredEntries.map((entry, index) => {
             const isVisit = entry.visitId && entry.status !== "Completed";
             const isWaiting = entry.status === "Waiting";
             const isInConsultation = entry.status === "In Consultation";
