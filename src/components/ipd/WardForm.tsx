@@ -58,9 +58,9 @@ export function WardForm({ defaultValues, onSuccess }: WardFormProps) {
         if (values.floor !== originalValuesRef.current.floor) {
           updateData.floor = values.floor ?? null;
         }
-        // Handle boolean comparison (form might return string "true"/"false")
-        const currentIsActive = values.is_active === true || values.is_active === "true";
-        const originalIsActive = originalValuesRef.current.is_active === true || originalValuesRef.current.is_active === "true";
+        // Handle boolean comparison
+        const currentIsActive = values.is_active === true;
+        const originalIsActive = originalValuesRef.current.is_active === true;
         if (currentIsActive !== originalIsActive) {
           updateData.is_active = currentIsActive;
         }

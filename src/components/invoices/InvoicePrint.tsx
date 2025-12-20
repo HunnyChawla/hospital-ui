@@ -193,10 +193,10 @@ export function InvoicePrint({ invoice, patientName, patientMobile, tests, booki
             <span className="text-slate-600">Paid Amount</span>
             <span className="font-semibold text-slate-900">{currency(invoice.paid_amount)}</span>
           </div>
-          {invoice.balance_amount > 0 && (
+          {(invoice.balance_amount ?? 0) > 0 && (
             <div className="flex justify-between border-t border-slate-300 pt-2">
               <span className="font-semibold text-slate-900">Balance Amount</span>
-              <span className="font-semibold text-rose-600">{currency(invoice.balance_amount)}</span>
+              <span className="font-semibold text-rose-600">{currency(invoice.balance_amount ?? 0)}</span>
             </div>
           )}
         </div>

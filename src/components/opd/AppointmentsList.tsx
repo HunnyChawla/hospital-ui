@@ -105,7 +105,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
     }
   };
 
-  const handleCreateOpdFromAppointment = async (appointment: AppointmentWithPatient) => {
+  const handleCreateOpdFromAppointment = async (appointment: Appointment) => {
     try {
       const visitRequest: CreateVisitRequest = {
         patient_id: appointment.patient_id,

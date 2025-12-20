@@ -145,9 +145,9 @@ export default function Home() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      dispatch(fetchAdmissions());
+      dispatch(fetchAdmissions({}));
       dispatch(fetchBilling());
-      dispatch(fetchPatients());
+      dispatch(fetchPatients({}));
       dispatch(fetchDoctors());
       fetchPaymentTotals();
       fetchDashboardInsights();

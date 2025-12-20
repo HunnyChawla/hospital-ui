@@ -381,7 +381,7 @@ export function AnalyticsDashboard() {
         <KPICard
           label="Revenue Collected"
           value={currency(summary.revenueCollected)}
-          trend={trends?.revenue}
+          trend={trends?.revenue ?? null}
           icon={DollarSign}
           gradient="from-emerald-500 to-teal-500"
           bgGradient="from-emerald-50 to-teal-50"
@@ -397,7 +397,7 @@ export function AnalyticsDashboard() {
         <KPICard
           label="Bed Occupancy"
           value={`${summary.avgOccupancy.toFixed(1)}%`}
-          trend={trends?.occupancy}
+          trend={trends?.occupancy ?? null}
           icon={BedDouble}
           gradient="from-sky-500 to-blue-500"
           bgGradient="from-sky-50 to-blue-50"
@@ -413,7 +413,7 @@ export function AnalyticsDashboard() {
         <KPICard
           label="Total Admissions"
           value={summary.totalAdmissions}
-          trend={trends?.admissions}
+          trend={trends?.admissions ?? null}
           icon={Activity}
           gradient="from-amber-500 to-orange-500"
           bgGradient="from-amber-50 to-orange-50"

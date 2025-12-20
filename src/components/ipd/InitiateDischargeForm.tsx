@@ -32,7 +32,7 @@ export function InitiateDischargeForm({ onSuccess, onSubmit }: InitiateDischarge
         tax_rate: taxRate,
         discount: discount,
         gst_number: gstNumber.trim() || null,
-        notes: notes.trim() || null,
+        notes: notes.trim() || undefined,
       };
 
       await onSubmit(initiateData);
