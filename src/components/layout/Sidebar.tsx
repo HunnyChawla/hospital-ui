@@ -4,7 +4,6 @@ import {
   Activity,
   BedDouble,
   Beaker,
-  Cog,
   CreditCard,
   Home,
   LayoutList,
@@ -12,6 +11,7 @@ import {
   Stethoscope,
   FlaskConical,
   BarChart3,
+  UserCog,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -22,15 +22,14 @@ const navItems = [
   { label: "Dashboard", href: "#dashboard", icon: Home },
   { label: "Analytics", href: "#analytics", icon: BarChart3 },
   { label: "Patients", href: "#patients", icon: Users2 },
-  { label: "Doctors", href: "#doctors", icon: Stethoscope },
   { label: "Appointments/OPD", href: "#opd", icon: Activity },
-  { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
-  { label: "Manage IPD", href: "#admissions", icon: BedDouble },
-  { label: "Billing", href: "#billing", icon: CreditCard },
-  { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
   { label: "Queue", href: "#queue", icon: LayoutList },
-  { label: "Manage Staff", href: "#users", icon: Users2 },
-  { label: "Settings", href: "#settings", icon: Cog },
+  { label: "IPD", href: "#admissions", icon: BedDouble },
+  { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
+  { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
+  { label: "Billing", href: "#billing", icon: CreditCard },
+  { label: "Doctors", href: "#doctors", icon: Stethoscope },
+  { label: "Staff", href: "#users", icon: UserCog },
 ];
 
 export function Sidebar() {
@@ -59,7 +58,7 @@ export function Sidebar() {
           />
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide" style={{ color: 'lab(63.3038% -18.433 -51.0407)' }}>
+          <p className="text-base font-bold uppercase tracking-wide text-teal-600">
             CURA
           </p>
           <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
