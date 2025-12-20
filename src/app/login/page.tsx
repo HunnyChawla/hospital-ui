@@ -118,7 +118,7 @@ export default function LoginPage() {
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="flex items-center justify-center">
                 <Image
-                  src="/login-logo.png"
+                  src="./login-logo.png"
                   alt="CURA Logo"
                   width={691}
                   height={361}
