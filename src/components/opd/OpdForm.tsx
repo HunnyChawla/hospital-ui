@@ -34,6 +34,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const [dropdownResults, setDropdownResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
   const [opdNumber, setOpdNumber] = useState("");
   const [tokenNumber, setTokenNumber] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "upi" | "card" | "cheque">("cash");
@@ -57,8 +58,13 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
   // Dropdown search effect
   useEffect(() => {
-    // Don't search if we just selected a patient or if a patient is already selected
-    if (justSelectedRef.current || (patientId && dropdownSearchTerm === patients.find(p => p.id === patientId)?.name)) {
+    // Don't search if we just selected a patient
+    if (justSelectedRef.current) {
+      return;
+    }
+
+    // Don't search if patient is already selected and search term matches patient name
+    if (patientId && dropdownSearchTerm === patients.find(p => p.id === patientId)?.name) {
       return;
     }
 
@@ -104,6 +110,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
       const patient = patients.find((p) => p.id === patientId);
       if (patient) {
         setDropdownSearchTerm(patient.name);
+        setSelectedPatientData(patient);
       }
     }
   }, [defaultPatientId, patientId, patients]);
@@ -122,6 +129,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
     justSelectedRef.current = true;
     setPatientId(patient.id);
     setDropdownSearchTerm(patient.name);
+    setSelectedPatientData(patient); // Store the selected patient object
     setShowDropdown(false);
     setDropdownResults([]); // Clear results to prevent dropdown from showing again
     // Reset the flag after a short delay
@@ -139,6 +147,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         if (newPatient) {
           setPatientId(newPatient.id);
           setDropdownSearchTerm(newPatient.name);
+          setSelectedPatientData(newPatient);
           setShowDropdown(false);
           setDropdownResults([]);
           toast.success("Patient added and selected");
@@ -152,7 +161,12 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
     };
   }, [patients]);
 
-  const selectedPatient = patients.find((p) => p.id === patientId);
+  // Find selected patient from stored data, Redux list, or dropdown results
+  const selectedPatient = patientId 
+    ? selectedPatientData && selectedPatientData.id === patientId
+      ? selectedPatientData
+      : patients.find((p) => p.id === patientId) || dropdownResults.find((p) => p.id === patientId)
+    : undefined;
 
   const printWithReactToPrint = useReactToPrint({
     contentRef: printRef,
@@ -280,11 +294,23 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                   type="text"
                   value={dropdownSearchTerm}
                   onChange={(e) => {
-                    setDropdownSearchTerm(e.target.value);
-                    setShowDropdown(true);
+                    const value = e.target.value;
+                    setDropdownSearchTerm(value);
+                    // Clear selected patient if user is typing a different value
+                    if (selectedPatientData && value !== selectedPatientData.name) {
+                      setSelectedPatientData(null);
+                      setPatientId("");
+                    }
+                    // Only show dropdown if we have results or are searching, or if user is typing
+                    if (value.trim().length >= 2) {
+                      setShowDropdown(true);
+                    } else {
+                      setShowDropdown(false);
+                    }
                   }}
                   onFocus={() => {
-                    if (dropdownResults.length > 0) {
+                    // Show dropdown if we have results or user has typed at least 2 characters
+                    if (dropdownResults.length > 0 || dropdownSearchTerm.trim().length >= 2) {
                       setShowDropdown(true);
                     }
                   }}
@@ -447,10 +473,14 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                 setTokenNumber(0);
                 setPatientId("");
                 setDropdownSearchTerm("");
+                setDropdownResults([]);
+                setShowDropdown(false);
+                setSelectedPatientData(null);
                 setSymptoms("");
                 setPaymentMethod("cash");
                 setPaymentReference("");
                 setShouldPrint(false);
+                justSelectedRef.current = false;
               }}
               className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
             >

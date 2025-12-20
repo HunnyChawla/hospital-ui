@@ -721,20 +721,9 @@ export default function Home() {
         )}
 
         {show("queue") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="queue"
-              title="Real-time Queue"
-              description="Automatic queue after OPD creation with drag-and-move statuses."
-              action={
-                <span className="pill bg-emerald-50 text-emerald-700">
-                  Live sync enabled
-                </span>
-              }
-            >
-              <QueueBoard />
-            </Section>
-        </div>
+          <div className="mt-4">
+            <QueueBoard />
+          </div>
         )}
 
         {show("users") && (

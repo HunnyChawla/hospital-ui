@@ -63,6 +63,12 @@ export interface OpdVisitsSearchResponse {
   total_pages: number;
 }
 
+export interface CompleteAndAdvanceResponse {
+  completed_visit: Visit;
+  next_visit_advanced: Visit | null;
+  message: string;
+}
+
 export const opdVisitsApi = {
   async create(visit: CreateVisitRequest, tenantId?: string): Promise<Visit> {
     const params = tenantId ? { tenant_id: tenantId } : {};
@@ -87,6 +93,19 @@ export const opdVisitsApi = {
     }
     const response = await apiClient.patch<Visit>(
       `/opd/visits/${visitId}/status`,
+      {},
+      { params }
+    );
+    return response.data;
+  },
+
+  async completeAndAdvance(
+    visitId: string,
+    tenantId?: string
+  ): Promise<CompleteAndAdvanceResponse> {
+    const params = tenantId ? { tenant_id: tenantId } : {};
+    const response = await apiClient.post<CompleteAndAdvanceResponse>(
+      `/opd/visits/${visitId}/complete-and-advance`,
       {},
       { params }
     );

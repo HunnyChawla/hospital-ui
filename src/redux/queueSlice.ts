@@ -72,6 +72,17 @@ export const updateQueueStatus = createAsyncThunk(
   }
 );
 
+export const completeAndAdvanceVisit = createAsyncThunk(
+  "queue/completeAndAdvance",
+  async (payload: {
+    visitId: string;
+    tenantId?: string;
+  }) => {
+    const response = await opdVisitsApi.completeAndAdvance(payload.visitId, payload.tenantId);
+    return response;
+  }
+);
+
 // Helper functions
 function mapVisitStatusToQueueStatus(status: string): QueueEntry["status"] {
   switch (status) {
