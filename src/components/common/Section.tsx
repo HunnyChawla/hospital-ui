@@ -7,19 +7,22 @@ type SectionProps = {
 };
 
 export function Section({ id, title, description, children, action }: SectionProps) {
+  const hasHeader = title || description || action;
   return (
     <section id={id} className="card relative overflow-hidden">
-      <div className="absolute right-6 top-6 h-16 w-16 rounded-full bg-sky-50 blur-2xl" />
-      <div className="flex items-start justify-between px-6 pt-6">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-          {description ? (
-            <p className="text-sm text-slate-500">{description}</p>
-          ) : null}
+      <div className="absolute right-4 top-4 h-12 w-12 rounded-full bg-sky-50 blur-2xl" />
+      {hasHeader && (
+        <div className="flex items-start justify-between px-4 pt-4">
+          <div>
+            {title && <h2 className="text-lg font-semibold text-slate-900">{title}</h2>}
+            {description ? (
+              <p className="text-sm text-slate-500">{description}</p>
+            ) : null}
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
-      <div className="px-6 pb-6 pt-3">{children}</div>
+      )}
+      <div className={hasHeader ? "px-4 pb-4 pt-2" : "p-4"}>{children}</div>
     </section>
   );
 }

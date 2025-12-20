@@ -527,11 +527,11 @@ export default function Home() {
         )}
 
         {show("analytics") && (
-          <div className="mt-6 grid gap-6">
+          <div className="mt-4 grid gap-4">
             <Section
               id="analytics"
-              title="Operational Analytics"
-              description="Monitor admissions, utilization, revenue, and efficiency."
+              title=""
+              description=""
             >
               <AnalyticsDashboard />
             </Section>

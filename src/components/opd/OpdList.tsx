@@ -5,12 +5,17 @@ import { useAppSelector } from "@/redux/hooks";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { formatDate } from "@/utils/format";
-import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight } from "lucide-react";
+import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { useReactToPrint } from "react-to-print";
 import { OpdSlipPrint } from "./OpdSlipPrint";
+import { InvoicePrint } from "@/components/invoices/InvoicePrint";
+import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { invoicesApi, Invoice } from "@/services/invoicesApi";
+import { paymentsApi, Payment } from "@/services/paymentsApi";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface OpdListProps {
   doctorId?: string;
@@ -30,10 +35,26 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [total, setTotal] = useState(0);
   const [printVisitData, setPrintVisitData] = useState<{ visit: Visit; patient: any } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
+  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
+  const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const printInvoiceRef = useRef<HTMLDivElement>(null);
+  const printPaymentRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printVisitData ? `OPD_Slip_${printVisitData.visit.visit_number}` : "OPD_Slip",
+  });
+
+  const handlePrintInvoice = useReactToPrint({
+    contentRef: printInvoiceRef,
+    documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
+  });
+
+  const handlePrintPayment = useReactToPrint({
+    contentRef: printPaymentRef,
+    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
   });
 
   useEffect(() => {
@@ -82,17 +103,25 @@ export function OpdList({ doctorId }: OpdListProps) {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [selectedDoctorId, selectedDate, sortBy, sortOrder]);
 
+  // Fetch visits when dependencies change - don't include fetchVisits in deps
   useEffect(() => {
     if (selectedDoctorId && selectedDate) {
       fetchVisits();
     }
-  }, [selectedDoctorId, selectedDate, sortBy, sortOrder, fetchVisits]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDoctorId, selectedDate, sortBy, sortOrder, currentPage, pageSize]);
 
   // Listen for OPD visit creation events to refresh the list
+  // Use ref to store stable callback
+  const fetchVisitsRef = useRef(fetchVisits);
+  useEffect(() => {
+    fetchVisitsRef.current = fetchVisits;
+  }, [fetchVisits]);
+
   useEffect(() => {
     const handleOpdVisitCreated = () => {
-      if (selectedDoctorId) {
-        fetchVisits();
+      if (selectedDoctorId && selectedDate) {
+        fetchVisitsRef.current();
       }
     };
 
@@ -100,7 +129,7 @@ export function OpdList({ doctorId }: OpdListProps) {
     return () => {
       window.removeEventListener("opd:visit:created", handleOpdVisitCreated);
     };
-  }, [selectedDoctorId, fetchVisits]);
+  }, [selectedDoctorId, selectedDate]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -163,6 +192,72 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
   };
 
+  const handlePrintInvoiceClick = async (visitId: string, invoiceId: string) => {
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      
+      // Fetch invoice details
+      const invoice = await invoicesApi.getById(invoiceId, apiTenantId);
+      
+      // Fetch patient details
+      const patient = await patientsApi.getById(invoice.patient_id);
+      const patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+      const patientMobile = patient.mobile;
+      
+      // Set print data
+      setPrintInvoiceData({
+        invoice,
+        patientName,
+        patientMobile,
+      });
+      setShouldPrintInvoice(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare invoice for printing");
+    }
+  };
+
+  const handlePrintPaymentReceiptClick = async (visitId: string, paymentId: string, invoiceId?: string | null) => {
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      
+      // Fetch payment details
+      const payment = await paymentsApi.getById(paymentId, apiTenantId);
+      
+      // Fetch invoice details if invoice_id is available to get invoice number
+      let invoiceNumber: string | undefined;
+      if (invoiceId) {
+        try {
+          const invoice = await invoicesApi.getById(invoiceId, apiTenantId);
+          invoiceNumber = invoice.invoice_number;
+        } catch (error) {
+          // If invoice fetch fails, continue without invoice number
+          console.warn("Failed to fetch invoice for payment receipt:", error);
+        }
+      }
+      
+      // Fetch patient details
+      const visit = await opdVisitsApi.getById(visitId);
+      const patient = await patientsApi.getById(visit.patient_id);
+      const patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+      const patientMobile = patient.mobile;
+      
+      // Set print data
+      setPrintPaymentData({
+        payment,
+        patientName,
+        patientMobile,
+        invoiceNumber,
+      });
+      setShouldPrintPayment(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare payment receipt for printing");
+    }
+  };
+
   // Trigger print when printVisitData is set
   useEffect(() => {
     if (printVisitData && printRef.current) {
@@ -172,6 +267,28 @@ export function OpdList({ doctorId }: OpdListProps) {
       return () => clearTimeout(timeoutId);
     }
   }, [printVisitData, handlePrint]);
+
+  // Trigger print when invoice print data is ready
+  useEffect(() => {
+    if (shouldPrintInvoice && printInvoiceData && printInvoiceRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintInvoice();
+        setShouldPrintInvoice(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintInvoice, printInvoiceData, handlePrintInvoice]);
+
+  // Trigger print when payment receipt print data is ready
+  useEffect(() => {
+    if (shouldPrintPayment && printPaymentData && printPaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintPayment();
+        setShouldPrintPayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintPayment, printPaymentData, handlePrintPayment]);
 
   return (
     <div className="space-y-4">
@@ -365,6 +482,48 @@ export function OpdList({ doctorId }: OpdListProps) {
                         <Printer className="h-4 w-4 shrink-0" />
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print OPD</span>
                       </button>
+                      {visit.invoice_id && (
+                        <button
+                          onClick={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Print Invoice"
+                        >
+                          <FileText className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
+                        </button>
+                      )}
+                      {visit.payment_id && (
+                        <button
+                          onClick={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Print Payment Receipt"
+                        >
+                          <Receipt className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Payment Receipt</span>
+                        </button>
+                      )}
                     </>
                   )}
                   {visit.status === "in_consultation" && (
@@ -426,6 +585,48 @@ export function OpdList({ doctorId }: OpdListProps) {
                         <Printer className="h-4 w-4 shrink-0" />
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print OPD</span>
                       </button>
+                      {visit.invoice_id && (
+                        <button
+                          onClick={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Print Invoice"
+                        >
+                          <FileText className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
+                        </button>
+                      )}
+                      {visit.payment_id && (
+                        <button
+                          onClick={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Print Payment Receipt"
+                        >
+                          <Receipt className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Payment Receipt</span>
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -516,6 +717,33 @@ export function OpdList({ doctorId }: OpdListProps) {
               symptoms={printVisitData.visit.chief_complaint || ""}
               opdNumber={printVisitData.visit.visit_number}
               tokenNumber={printVisitData.visit.token_number || 0}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable invoice */}
+      {printInvoiceData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printInvoiceRef} className="print-content">
+            <InvoicePrint
+              invoice={printInvoiceData.invoice}
+              patientName={printInvoiceData.patientName}
+              patientMobile={printInvoiceData.patientMobile}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable payment receipt */}
+      {printPaymentData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printPaymentRef} className="print-content">
+            <PaymentReceiptPrint
+              payment={printPaymentData.payment}
+              patientName={printPaymentData.patientName}
+              patientMobile={printPaymentData.patientMobile}
+              invoiceNumber={printPaymentData.invoiceNumber}
             />
           </div>
         </div>
