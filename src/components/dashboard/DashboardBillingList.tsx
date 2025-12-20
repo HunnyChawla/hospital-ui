@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
+import { paymentsApi, Payment } from "@/services/paymentsApi";
+import { patientsApi } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate } from "@/utils/format";
 import { CreditCard, Receipt, Printer, Clock } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { PaymentCollectionModal } from "../payments/PaymentCollectionModal";
+import { InvoicePrint } from "../invoices/InvoicePrint";
+import { PaymentReceiptPrint } from "../payments/PaymentReceiptPrint";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { useReactToPrint } from "react-to-print";
 
 interface DashboardBillingListProps {
   statusFilter: "pending" | "paid";
@@ -20,6 +25,24 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+
+  // Print state
+  const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
+  const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
+  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const printInvoiceRef = useRef<HTMLDivElement>(null);
+  const printPaymentRef = useRef<HTMLDivElement>(null);
+
+  const handlePrintInvoice = useReactToPrint({
+    contentRef: printInvoiceRef,
+    documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
+  });
+
+  const handlePrintPayment = useReactToPrint({
+    contentRef: printPaymentRef,
+    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+  });
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
@@ -44,6 +67,26 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
     fetchInvoices();
   }, [fetchInvoices]);
 
+  useEffect(() => {
+    if (printInvoiceData && shouldPrintInvoice && printInvoiceRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintInvoice();
+        setShouldPrintInvoice(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [printInvoiceData, shouldPrintInvoice, handlePrintInvoice]);
+
+  useEffect(() => {
+    if (shouldPrintPayment && printPaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintPayment();
+        setShouldPrintPayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintPayment, handlePrintPayment]);
+
   const handleCollectPaymentClick = (e: React.MouseEvent, invoice: Invoice) => {
     e.stopPropagation();
     setSelectedInvoiceForPayment(invoice);
@@ -52,6 +95,73 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
 
   const handlePaymentSuccess = () => {
     fetchInvoices();
+  };
+
+  const handlePrintInvoiceClick = async (invoice: Invoice) => {
+    try {
+      // Fetch full invoice details with line items
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const fullInvoice = await invoicesApi.getById(invoice.id, getTenantIdForApi(tenantId));
+      
+      // Use patient_name and patient_mobile from invoice if available, otherwise fetch
+      let patientName = fullInvoice.patient_name || "Unknown";
+      let patientMobile = fullInvoice.patient_mobile;
+      
+      if (!fullInvoice.patient_name || !fullInvoice.patient_mobile) {
+        const patient = await patientsApi.getById(fullInvoice.patient_id);
+        patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+        patientMobile = patient.mobile;
+      }
+      
+      setPrintInvoiceData({
+        invoice: fullInvoice,
+        patientName,
+        patientMobile,
+      });
+      setShouldPrintInvoice(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare invoice for printing");
+    }
+  };
+
+  const handlePrintPaymentReceiptClick = async (invoice: Invoice) => {
+    if (!invoice.payment_id) {
+      toast.error("Payment ID not available for this invoice");
+      return;
+    }
+
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      
+      // Fetch payment details directly using payment_id from invoice
+      const payment = await paymentsApi.getById(invoice.payment_id, apiTenantId);
+
+      // Get invoice number (we already have it from the invoice object)
+      const invoiceNumber = invoice.invoice_number;
+
+      // Get patient name and mobile (already available in invoice object)
+      let patientName = invoice.patient_name || "Unknown";
+      let patientMobile = invoice.patient_mobile;
+
+      if (!invoice.patient_name || !invoice.patient_mobile) {
+        const patient = await patientsApi.getById(invoice.patient_id);
+        patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+        patientMobile = patient.mobile;
+      }
+
+      setPrintPaymentData({
+        payment,
+        patientName,
+        patientMobile,
+        invoiceNumber,
+      });
+      setShouldPrintPayment(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare payment receipt for printing");
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -86,7 +196,7 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
         {/* Status Toggle */}
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-900">
-            {statusFilter === "pending" ? "Pending" : "Paid"} Bills
+            Bills
           </p>
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
             <button
@@ -195,8 +305,9 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
                     )}
                     {invoice.status === "paid" && invoice.payment_id && (
                       <button
-                        onClick={() => {
-                          toast.info("Receipt printing feature available in full billing page");
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrintPaymentReceiptClick(invoice);
                         }}
                         className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-1.5 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
                         style={{ width: "1.75rem" }}
@@ -217,8 +328,9 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
                       </button>
                     )}
                     <button
-                      onClick={() => {
-                        toast.info("Invoice printing feature available in full billing page");
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePrintInvoiceClick(invoice);
                       }}
                       className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-1.5 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
                       style={{ width: "1.75rem" }}
@@ -267,6 +379,32 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
         invoice={selectedInvoiceForPayment}
         onSuccess={handlePaymentSuccess}
       />
+
+      {/* Hidden Print Components */}
+      {printInvoiceData && (
+        <div style={{ display: "none" }}>
+          <div ref={printInvoiceRef}>
+            <InvoicePrint
+              invoice={printInvoiceData.invoice}
+              patientName={printInvoiceData.patientName}
+              patientMobile={printInvoiceData.patientMobile}
+            />
+          </div>
+        </div>
+      )}
+
+      {printPaymentData && (
+        <div style={{ display: "none" }}>
+          <div ref={printPaymentRef}>
+            <PaymentReceiptPrint
+              payment={printPaymentData.payment}
+              patientName={printPaymentData.patientName}
+              patientMobile={printPaymentData.patientMobile}
+              invoiceNumber={printPaymentData.invoiceNumber}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }
