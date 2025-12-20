@@ -36,7 +36,7 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /hospital-ui
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL || 'https://hms-platform-backend.onrender.com' }}
-          NEXT_PUBLIC_DOMAIN_URL: ${{ secrets.NEXT_PUBLIC_DOMAIN_URL || 'hunnychawla.github.io' }}
+          NEXT_PUBLIC_DOMAIN_URL: ${{ secrets.NEXT_PUBLIC_DOMAIN_URL || 'technesian.com' }}
         run: npm run build
 
       - name: Setup Pages
