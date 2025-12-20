@@ -380,10 +380,10 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
         onSuccess={handlePaymentSuccess}
       />
 
-      {/* Hidden Print Components */}
+      {/* Print Invoice (Hidden) */}
       {printInvoiceData && (
-        <div style={{ display: "none" }}>
-          <div ref={printInvoiceRef}>
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printInvoiceRef} className="print-content">
             <InvoicePrint
               invoice={printInvoiceData.invoice}
               patientName={printInvoiceData.patientName}
@@ -393,9 +393,10 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
         </div>
       )}
 
+      {/* Print Payment Receipt (Hidden) */}
       {printPaymentData && (
-        <div style={{ display: "none" }}>
-          <div ref={printPaymentRef}>
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printPaymentRef} className="print-content">
             <PaymentReceiptPrint
               payment={printPaymentData.payment}
               patientName={printPaymentData.patientName}
