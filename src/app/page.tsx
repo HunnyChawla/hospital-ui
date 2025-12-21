@@ -22,6 +22,7 @@ import { ManageIPD } from "@/components/ipd/ManageIPD";
 import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { BillingManagement } from "@/components/billing/BillingManagement";
 import { LabTestsPanel } from "@/components/lab-tests/LabTestsPanel";
+import { ServicesPanel } from "@/components/services/ServicesPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { QueueBoard } from "@/components/queue/QueueBoard";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
@@ -106,6 +107,7 @@ export default function Home() {
     | "admissions"
     | "billing"
     | "labs"
+    | "services"
     | "queue"
     | "users"
   >("dashboard");
@@ -766,6 +768,18 @@ export default function Home() {
               description="Manage the lab test catalog used in bookings."
             >
               <LabTestsPanel />
+            </Section>
+          </div>
+        )}
+
+        {show("services") && (
+          <div className="mt-6 grid gap-6">
+            <Section
+              id="services"
+              title="Service Master"
+              description="Create and manage available services."
+            >
+              <ServicesPanel />
             </Section>
           </div>
         )}

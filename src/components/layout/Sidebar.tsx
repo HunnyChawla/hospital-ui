@@ -12,6 +12,7 @@ import {
   FlaskConical,
   BarChart3,
   UserCog,
+  Package,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -27,6 +28,7 @@ const navItems = [
   { label: "IPD", href: "#admissions", icon: BedDouble },
   { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
   { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
+  { label: "Service Master", href: "#services", icon: Package },
   { label: "Billing", href: "#billing", icon: CreditCard },
   { label: "Doctors", href: "#doctors", icon: Stethoscope },
   { label: "Staff", href: "#users", icon: UserCog },
