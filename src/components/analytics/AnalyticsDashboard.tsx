@@ -14,6 +14,7 @@ import {
   Wallet,
   AlertCircle,
   BarChart3,
+  RefreshCw,
   FlaskConical,
   Pill,
   Stethoscope,
@@ -54,7 +55,12 @@ const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
 const avg = (arr: number[]) => arr.length > 0 ? sum(arr) / arr.length : 0;
 const max = (arr: number[]) => arr.length > 0 ? Math.max(...arr) : 0;
 
-export function AnalyticsDashboard() {
+interface AnalyticsDashboardProps {
+  refreshSignal?: number;
+  onRequestRefresh?: () => void;
+}
+
+export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: AnalyticsDashboardProps = {}) {
   const [datePreset, setDatePreset] = useState<DatePreset>("last30");
   const [filters, setFilters] = useState<AnalyticsFilters>({
     start_date: toISODate(startDefault),
@@ -151,6 +157,15 @@ export function AnalyticsDashboard() {
     loadData(newFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datePreset]);
+
+  // Respond to external refresh signals (from parent)
+  useEffect(() => {
+    if (typeof refreshSignal !== "undefined") {
+      // re-load using current filters
+      loadData(filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSignal]);
 
   const handlePresetChange = (preset: DatePreset) => {
     setDatePreset(preset);
@@ -316,6 +331,15 @@ export function AnalyticsDashboard() {
                 {preset === "today" ? "Today" : preset === "week" ? "This Week" : preset === "month" ? "This Month" : "Last 30 Days"}
               </button>
             ))}
+            {onRequestRefresh && (
+              <button
+                onClick={() => onRequestRefresh()}
+                className="ml-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+            )}
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import { OpdSlipPrint } from "./OpdSlipPrint";
 import { opdVisitsApi, CreateVisitRequest, Visit } from "@/services/opdVisitsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { currency } from "@/utils/format";
 
 interface OpdFormProps {
   defaultPatientId?: string;
@@ -37,7 +38,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
   const [opdNumber, setOpdNumber] = useState("");
   const [tokenNumber, setTokenNumber] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "upi" | "card" | "cheque">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"" | "cash" | "upi" | "card" | "cheque" >("");
   const [paymentReference, setPaymentReference] = useState("");
   const [createdVisitId, setCreatedVisitId] = useState<string | null>(null);
   const [visitData, setVisitData] = useState<Visit | null>(null);
@@ -125,6 +126,10 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
     );
   }, [patients, term]);
 
+  const selectedDoctor = useMemo(() => {
+    return doctorId ? doctors.find((d) => d.id === doctorId) || null : null;
+  }, [doctorId, doctors]);
+
   const handlePatientSelect = (patient: Patient) => {
     justSelectedRef.current = true;
     setPatientId(patient.id);
@@ -211,6 +216,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
       return;
     }
 
+    if (!doctorId) {
+      toast.error("Please select a doctor");
+      return;
+    }
+
     // Validate payment reference if required
     if ((paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
       toast.error(`Please enter payment reference for ${paymentMethod.toUpperCase()}`);
@@ -225,11 +235,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
       // Create OPD visit using the API
       const visitRequest: CreateVisitRequest = {
         patient_id: selectedPatient.id,
-        doctor_id: doctorId || null, // Optional
+        doctor_id: doctorId, // Required
         visit_type: "walk_in",
         chief_complaint: symptoms.trim() || null,
         notes: null,
-        payment_method: paymentMethod,
+        payment_method: paymentMethod as any,
         payment_reference: paymentReference.trim() || null,
         consultation_fee: selectedDoctorObj?.consultation_fee 
           ? parseFloat(String(selectedDoctorObj.consultation_fee)) 
@@ -387,14 +397,15 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         </div>
       )}
       <label className="space-y-1">
-        <span className="text-slate-600">Doctor</span>
+        <span className="text-slate-600">Doctor <span className="text-rose-500">*</span></span>
         <select
           value={doctorId}
           onChange={(e) => setDoctorId(e.target.value)}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
           disabled={doctorsLoading || doctors.length === 0}
+          required
         >
-          <option value="">Select doctor (optional)</option>
+          <option value="" disabled>Select doctor</option>
           {doctorsLoading ? (
             <option>Loading doctors...</option>
           ) : doctors.length === 0 ? (
@@ -410,6 +421,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
             })
           )}
         </select>
+        {selectedDoctor && (
+          <div className="mt-1 text-xs text-slate-500">
+            Consultation fee: {selectedDoctor.consultation_fee != null ? currency(Number(selectedDoctor.consultation_fee)) : "—"}
+          </div>
+        )}
       </label>
       <label className="space-y-1">
         <span className="text-slate-600">
@@ -417,10 +433,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         </span>
         <select
           value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value as "cash" | "upi" | "card" | "cheque")}
+          onChange={(e) => setPaymentMethod(e.target.value as any)}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
           required
         >
+          <option value="" disabled>Select payment method</option>
           <option value="cash">Cash</option>
           <option value="upi">UPI</option>
           <option value="card">Card</option>
@@ -477,7 +494,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                 setShowDropdown(false);
                 setSelectedPatientData(null);
                 setSymptoms("");
-                setPaymentMethod("cash");
+                setPaymentMethod("");
                 setPaymentReference("");
                 setShouldPrint(false);
                 justSelectedRef.current = false;
