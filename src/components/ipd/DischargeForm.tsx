@@ -118,8 +118,8 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
             invoice_id: invoice.id,
             amount: paymentAmount,
             payment_method: paymentMethod as any,
-            payment_reference: paymentReference.trim() || null,
-            notes: paymentNotes.trim() || null,
+            payment_reference: paymentReference.trim() || undefined,
+            notes: paymentNotes.trim() || undefined,
           };
           
           await paymentsApi.create(paymentData, tenantId || undefined);

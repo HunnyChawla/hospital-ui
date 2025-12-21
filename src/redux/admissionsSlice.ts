@@ -15,7 +15,7 @@ const initialState: AdmissionsState = {
 
 export const fetchAdmissions = createAsyncThunk(
   "admissions/fetch",
-  async (params?: { patient_id?: string; status?: string; ward_id?: string }, { rejectWithValue }) => {
+  async (params: { patient_id?: string; status?: string; ward_id?: string } = {}, { rejectWithValue }) => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const response = await admissionsApi.list({

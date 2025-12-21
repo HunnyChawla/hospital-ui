@@ -293,7 +293,7 @@ export function PaymentSummaryModal({
             });
             return {
               ...invoice,
-              patient_name: patient.name,
+              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
               patient_mobile: patient.mobile,
               payments: paymentsResponse.items,
             };

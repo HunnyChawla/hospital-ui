@@ -23,6 +23,7 @@ import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
+import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
 import { getTenantIdForApi } from "@/utils/auth";
 import { ServiceChargesModal } from "./ServiceChargesModal";
 import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";

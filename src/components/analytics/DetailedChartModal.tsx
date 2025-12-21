@@ -77,10 +77,8 @@ export function DetailedChartModal({
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-4">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Total</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">
-              {formatValue(data.reduce((sum, d) => sum + d.value, 0))}
-            </p>
+            <p className="text-xs text-slate-500">Minimum</p>
+            <p className="mt-1 text-lg font-bold text-slate-900">{formatValue(minValue)}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">Maximum</p>

@@ -707,8 +707,14 @@ export function OpdList({ doctorId }: OpdListProps) {
                 age: printVisitData.patient.date_of_birth 
                   ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
                   : 0,
-                gender: printVisitData.patient.gender,
+                gender: printVisitData.patient.gender as "Male" | "Female" | "Other",
                 outstanding: 0,
+                doctor: (() => {
+                  const doc = printVisitData.visit.doctor_id ? doctors.find((d) => d.id === printVisitData.visit.doctor_id) : null;
+                  return doc ? (doc.name || `Dr. ${doc.specialization}`) : "";
+                })(),
+                lastVisit: printVisitData.visit.created_at || "",
+                status: "Active" as const,
               }}
               doctor={(() => {
                 const doc = printVisitData.visit.doctor_id ? doctors.find((d) => d.id === printVisitData.visit.doctor_id) : null;

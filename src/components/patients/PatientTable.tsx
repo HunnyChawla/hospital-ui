@@ -21,7 +21,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
   const { list, loading, selected } = useAppSelector((s) => s.patients);
 
   useEffect(() => {
-    dispatch(fetchPatients());
+    dispatch(fetchPatients({}));
   }, [dispatch]);
 
   if (loading) {

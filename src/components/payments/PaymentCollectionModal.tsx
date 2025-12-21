@@ -72,7 +72,7 @@ export function PaymentCollectionModal({
         amount: paymentAmount,
         payment_method: paymentMethod,
         payment_reference: paymentReference.trim() || null,
-        notes: notes.trim() || null,
+        notes: notes.trim() || undefined,
       };
 
       await paymentsApi.create(paymentData, getTenantIdForApi(tenantId || undefined));

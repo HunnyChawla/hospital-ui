@@ -91,7 +91,7 @@ export default function LoginPage() {
           <div className="flex flex-col items-center justify-center space-y-6">
             <div className="transform hover:scale-105 transition-transform duration-300">
               <Image
-                src="/login-logo.png"
+                src="../login-logo.png"
                 alt="CURA Logo"
                 width={691}
                 height={361}
@@ -118,7 +118,7 @@ export default function LoginPage() {
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="flex items-center justify-center">
                 <Image
-                  src="/login-logo.png"
+                  src="../login-logo.png"
                   alt="CURA Logo"
                   width={691}
                   height={361}
@@ -159,7 +159,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
-                      placeholder="admin@demo.com"
+                      placeholder="Enter your email"
                       className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                       required
                     />

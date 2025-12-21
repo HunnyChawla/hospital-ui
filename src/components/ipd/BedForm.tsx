@@ -101,9 +101,9 @@ export function BedForm({ defaultValues, onSuccess }: BedFormProps) {
         if (Math.abs(originalDailyRate - currentDailyRate) > 0.01) { // Use small epsilon for float comparison
           updateData.daily_rate = values.daily_rate;
         }
-        // Handle boolean comparison (form might return string "true"/"false")
-        const currentIsActive = values.is_active === true || values.is_active === "true";
-        const originalIsActive = originalValuesRef.current.is_active === true || originalValuesRef.current.is_active === "true";
+        // Handle boolean comparison
+        const currentIsActive = values.is_active === true;
+        const originalIsActive = originalValuesRef.current.is_active === true;
         if (currentIsActive !== originalIsActive) {
           updateData.is_active = currentIsActive;
         }

@@ -38,7 +38,6 @@ import { User } from "@/services/usersApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchAdmissions } from "@/redux/admissionsSlice";
 import { fetchBilling } from "@/redux/billingSlice";
-import { fetchQueue } from "@/redux/queueSlice";
 import { fetchPatients } from "@/redux/patientsSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { restoreSession } from "@/redux/authSlice";
@@ -146,10 +145,9 @@ export default function Home() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      dispatch(fetchAdmissions());
+      dispatch(fetchAdmissions({}));
       dispatch(fetchBilling());
-      dispatch(fetchQueue());
-      dispatch(fetchPatients());
+      dispatch(fetchPatients({}));
       dispatch(fetchDoctors());
       fetchPaymentTotals();
       fetchDashboardInsights();

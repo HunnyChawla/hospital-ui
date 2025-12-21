@@ -48,7 +48,7 @@ export function Sidebar() {
       <div className="mb-8 flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
           <Image
-            src="/cura-logo-v2.png"
+            src="./cura-logo-v2.png"
             alt="CURA Logo"
             width={500}
             height={500}

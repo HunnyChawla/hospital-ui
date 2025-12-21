@@ -1143,10 +1143,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                       <span>Paid: {currency(invoice.paid_amount)}</span>
                                     </>
                                   )}
-                                  {invoice.balance_amount > 0 && (
+                                  {(invoice.balance_amount ?? 0) > 0 && (
                                     <>
                                       <span>•</span>
-                                      <span className="text-amber-600">Balance: {currency(invoice.balance_amount)}</span>
+                                      <span className="text-amber-600">Balance: {currency(invoice.balance_amount ?? 0)}</span>
                                     </>
                                   )}
                                 </div>
@@ -1450,10 +1450,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-slate-900">{item.description}</p>
                       <p className="text-xs text-slate-500">
-                        Qty: {item.quantity} × {currency(item.unit_price)}
+                        Qty: {item.quantity} × {currency(typeof item.unit_price === 'number' ? item.unit_price : parseFloat(item.unit_price.toString()) || 0)}
                       </p>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900">{currency(item.total)}</p>
+                    <p className="text-sm font-semibold text-slate-900">{currency(item.total ?? 0)}</p>
                   </div>
                 ))}
               </div>
@@ -1487,10 +1487,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     <span className="font-semibold text-emerald-700">{currency(selectedInvoice.paid_amount)}</span>
                   </div>
                 )}
-                {selectedInvoice.balance_amount > 0 && (
+                {(selectedInvoice.balance_amount ?? 0) > 0 && (
                   <div className="flex items-center justify-between border-t border-slate-200 pt-2">
                     <span className="text-slate-600">Balance Amount</span>
-                    <span className="font-semibold text-amber-700">{currency(selectedInvoice.balance_amount)}</span>
+                    <span className="font-semibold text-amber-700">{currency(selectedInvoice.balance_amount ?? 0)}</span>
                   </div>
                 )}
               </div>

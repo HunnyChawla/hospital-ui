@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   description:
     "Modern, fast, and intuitive hospital management portal built with Next.js.",
   icons: {
-    icon: "/cura-logo-v2.png",
-    apple: "/cura-logo-v2.png",
+    icon: "./cura-logo-v2.png",
+    apple: "./cura-logo-v2.png",
   },
 };
 
