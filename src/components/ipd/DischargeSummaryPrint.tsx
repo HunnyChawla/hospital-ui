@@ -4,6 +4,7 @@ import { Admission } from "@/services/admissionsApi";
 import { PatientApiResponse } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
+import { PrintHeader } from "@/components/common/PrintHeader";
 
 interface DischargeSummaryPrintProps {
   admission: Admission;
@@ -11,7 +12,7 @@ interface DischargeSummaryPrintProps {
 }
 
 export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPrintProps) {
-  const { hospitalName } = useTenant();
+  const { tenant } = useTenant();
 
   const fullName = `${patient.first_name} ${patient.last_name || ""}`.trim();
   const calculateAge = (dateOfBirth: string): number => {
@@ -44,10 +45,7 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
   return (
     <div className="mx-auto max-w-2xl bg-white p-8 print:p-4">
       {/* Header */}
-      <div className="mb-6 border-b-2 border-slate-800 pb-4 text-center">
-        <h1 className="text-3xl font-bold text-slate-900">{hospitalName.toUpperCase()}</h1>
-        <p className="mt-1 text-sm text-slate-600">Discharge Summary</p>
-      </div>
+      <PrintHeader tenant={tenant} documentType="Discharge Summary" />
 
       {/* Admission Number & Dates */}
       <div className="mb-6 rounded-lg border-2 border-sky-500 bg-sky-50 p-4">

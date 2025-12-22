@@ -2,6 +2,7 @@
 
 import { Patient } from "@/types";
 import { useTenant } from "@/hooks/useTenant";
+import { PrintHeader } from "@/components/common/PrintHeader";
 
 interface OpdSlipPrintProps {
   patient: Patient;
@@ -18,15 +19,12 @@ export function OpdSlipPrint({
   opdNumber,
   tokenNumber,
 }: OpdSlipPrintProps) {
-  const { hospitalName } = useTenant();
+  const { tenant } = useTenant();
 
   return (
     <div className="mx-auto max-w-2xl bg-white p-8 print:p-4">
       {/* Header */}
-      <div className="mb-6 border-b-2 border-slate-800 pb-4 text-center">
-        <h1 className="text-3xl font-bold text-slate-900">{hospitalName.toUpperCase()}</h1>
-        <p className="mt-1 text-sm text-slate-600">OPD Slip</p>
-      </div>
+      <PrintHeader tenant={tenant} documentType="OPD Slip" />
 
       {/* OPD Number & Token */}
       <div className="mb-6 flex items-center justify-between rounded-lg border-2 border-sky-500 bg-sky-50 p-4">

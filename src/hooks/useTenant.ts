@@ -7,6 +7,7 @@ export function useTenant() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTenant = async () => {
@@ -23,6 +24,20 @@ export function useTenant() {
         const tenantData = await tenantsApi.getById(tenantId);
         setTenant(tenantData);
         setError(null);
+
+        // Fetch logo after tenant data is loaded
+        try {
+          const logoBlob = await tenantsApi.getLogo(tenantId);
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setLogoDataUrl(reader.result as string);
+          };
+          reader.readAsDataURL(logoBlob);
+        } catch (logoErr) {
+          // Silently fail - logo is optional
+          console.error("Failed to fetch logo:", logoErr);
+          setLogoDataUrl(null);
+        }
       } catch (err) {
         console.error("Failed to fetch tenant:", err);
         setError("Failed to load tenant information");
@@ -37,6 +52,7 @@ export function useTenant() {
   return {
     tenant,
     hospitalName: tenant?.name || "Hospital",
+    logoDataUrl,
     loading,
     error,
   };
