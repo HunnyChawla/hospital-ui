@@ -42,86 +42,95 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
     }
   };
 
+  // Format address
+  const formatAddress = () => {
+    const parts = [
+      patient.address,
+      patient.city,
+      patient.state,
+      patient.pincode,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : null;
+  };
+
+  const address = formatAddress();
+
   return (
-    <div className="mx-auto max-w-2xl bg-white p-8 print:p-4">
+    <div className="mx-auto max-w-2xl bg-white p-4 print:p-2">
       {/* Header */}
       <PrintHeader tenant={tenant} documentType="Discharge Summary" />
 
       {/* Admission Number & Dates */}
-      <div className="mb-6 rounded-lg border-2 border-sky-500 bg-sky-50 p-4">
-        <div className="grid grid-cols-3 gap-4">
+      <div className="mb-3">
+        <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
-            <p className="text-xs text-slate-600">Admission Number</p>
-            <p className="text-xl font-bold text-slate-900">{admission.admission_number}</p>
+            <p className="text-[10px] text-slate-600">Admission Number</p>
+            <p className="text-sm font-bold text-slate-900">{admission.admission_number}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-600">Admission Date</p>
-            <p className="text-sm font-bold text-slate-900">{formatDateTime(admission.admission_time || `${admission.admission_date}T00:00:00`)}</p>
+            <p className="text-[10px] text-slate-600">Admission Date</p>
+            <p className="text-xs font-bold text-slate-900">{formatDateTime(admission.admission_time || `${admission.admission_date}T00:00:00`)}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-600">Discharge Date</p>
-            <p className="text-sm font-bold text-sky-600">{formatDateTime(admission.discharge_time || admission.discharge_date || null)}</p>
+            <p className="text-[10px] text-slate-600">Discharge Date</p>
+            <p className="text-xs font-bold text-slate-900">{formatDateTime(admission.discharge_time || admission.discharge_date || null)}</p>
           </div>
         </div>
       </div>
 
       {/* Patient Details */}
-      <div className="mb-6 space-y-4">
-        <h2 className="border-b border-slate-300 pb-2 text-lg font-bold text-slate-900">
+      <div className="mb-3 space-y-1">
+        <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
           Patient Information
         </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-4 gap-2 text-xs">
           <div>
-            <p className="text-slate-600">Patient Name</p>
+            <p className="text-[10px] text-slate-600">Patient Name</p>
             <p className="font-semibold text-slate-900">{fullName}</p>
           </div>
           <div>
-            <p className="text-slate-600">UHID</p>
+            <p className="text-[10px] text-slate-600">UHID</p>
             <p className="font-semibold text-slate-900">{patient.uhid}</p>
           </div>
           <div>
-            <p className="text-slate-600">Age</p>
+            <p className="text-[10px] text-slate-600">Age</p>
             <p className="font-semibold text-slate-900">{calculateAge(patient.date_of_birth)} years</p>
           </div>
           <div>
-            <p className="text-slate-600">Gender</p>
+            <p className="text-[10px] text-slate-600">Gender</p>
             <p className="font-semibold text-slate-900 capitalize">{patient.gender}</p>
           </div>
           <div>
-            <p className="text-slate-600">Mobile</p>
+            <p className="text-[10px] text-slate-600">Mobile</p>
             <p className="font-semibold text-slate-900">{patient.mobile}</p>
           </div>
           {patient.email && (
             <div>
-              <p className="text-slate-600">Email</p>
+              <p className="text-[10px] text-slate-600">Email</p>
               <p className="font-semibold text-slate-900">{patient.email}</p>
             </div>
           )}
-          {(patient.address || patient.city || patient.state || patient.pincode) && (
-            <div className="col-span-2">
-              <p className="text-slate-600">Address</p>
-              <p className="font-semibold text-slate-900">
-                {[patient.address, patient.city, patient.state, patient.pincode]
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
+          {address && (
+            <div className="col-span-4">
+              <p className="text-[10px] text-slate-600">Address</p>
+              <p className="font-semibold text-slate-900">{address}</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Admission Details */}
-      <div className="mb-6 space-y-4">
-        <h2 className="border-b border-slate-300 pb-2 text-lg font-bold text-slate-900">
+      <div className="mb-3 space-y-1">
+        <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
           Admission Details
         </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-4 gap-2 text-xs">
           <div>
-            <p className="text-slate-600">Doctor</p>
+            <p className="text-[10px] text-slate-600">Doctor</p>
             <p className="font-semibold text-slate-900">{admission.doctor_name || "N/A"}</p>
           </div>
           <div>
-            <p className="text-slate-600">Ward / Bed</p>
+            <p className="text-[10px] text-slate-600">Ward / Bed</p>
             <p className="font-semibold text-slate-900">
               {admission.ward_name && admission.bed_number
                 ? `${admission.ward_name} / ${admission.bed_number}`
@@ -129,14 +138,14 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
             </p>
           </div>
           <div>
-            <p className="text-slate-600">Admission Type</p>
+            <p className="text-[10px] text-slate-600">Admission Type</p>
             <p className="font-semibold text-slate-900 capitalize">
               {admission.admission_type.replace("_", " ")}
             </p>
           </div>
           {admission.discharge_type && (
             <div>
-              <p className="text-slate-600">Discharge Type</p>
+              <p className="text-[10px] text-slate-600">Discharge Type</p>
               <p className="font-semibold text-slate-900 capitalize">
                 {admission.discharge_type === "ama"
                   ? "AMA (Against Medical Advice)"
@@ -151,12 +160,12 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
 
       {/* Final Diagnosis */}
       {admission.final_diagnosis && (
-        <div className="mb-6 space-y-4">
-          <h2 className="border-b border-slate-300 pb-2 text-lg font-bold text-slate-900">
+        <div className="mb-3 space-y-1">
+          <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
             Final Diagnosis
           </h2>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm leading-relaxed text-slate-900 whitespace-pre-wrap">
+          <div className="rounded border border-slate-200 bg-slate-50 p-2">
+            <p className="text-xs leading-relaxed text-slate-900 whitespace-pre-wrap">
               {admission.final_diagnosis}
             </p>
           </div>
@@ -165,12 +174,12 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
 
       {/* Discharge Summary */}
       {admission.discharge_summary && (
-        <div className="mb-6 space-y-4">
-          <h2 className="border-b border-slate-300 pb-2 text-lg font-bold text-slate-900">
+        <div className="mb-3 space-y-1">
+          <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
             Discharge Summary
           </h2>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm leading-relaxed text-slate-900 whitespace-pre-wrap">
+          <div className="rounded border border-slate-200 bg-slate-50 p-2">
+            <p className="text-xs leading-relaxed text-slate-900 whitespace-pre-wrap">
               {admission.discharge_summary}
             </p>
           </div>
@@ -179,12 +188,12 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
 
       {/* Discharge Instructions */}
       {admission.discharge_instructions && (
-        <div className="mb-6 space-y-4">
-          <h2 className="border-b border-slate-300 pb-2 text-lg font-bold text-slate-900">
+        <div className="mb-3 space-y-1">
+          <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
             Discharge Instructions
           </h2>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm leading-relaxed text-slate-900 whitespace-pre-wrap">
+          <div className="rounded border border-slate-200 bg-slate-50 p-2">
+            <p className="text-xs leading-relaxed text-slate-900 whitespace-pre-wrap">
               {admission.discharge_instructions}
             </p>
           </div>
@@ -192,7 +201,7 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
       )}
 
       {/* Footer */}
-      <div className="mt-8 border-t-2 border-slate-300 pt-4 text-center text-xs text-slate-600">
+      <div className="mt-4 border-t border-slate-300 pt-2 text-center text-[10px] text-slate-600">
         <p>This is a computer-generated discharge summary. No signature required.</p>
         <p className="mt-1">Generated on {new Date().toLocaleString("en-IN")}</p>
       </div>

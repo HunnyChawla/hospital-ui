@@ -6,9 +6,11 @@ import { useTenant } from "@/hooks/useTenant";
 interface PrintHeaderProps {
   tenant: Tenant | null;
   documentType: string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
 }
 
-export function PrintHeader({ tenant, documentType }: PrintHeaderProps) {
+export function PrintHeader({ tenant, documentType, invoiceNumber, invoiceDate }: PrintHeaderProps) {
   const { logoDataUrl } = useTenant();
 
   // Format address
@@ -66,6 +68,24 @@ export function PrintHeader({ tenant, documentType }: PrintHeaderProps) {
 
       {/* Document Type */}
       <p className="mt-2 text-center text-sm text-slate-600">{documentType}</p>
+
+      {/* Invoice Number & Date (if provided) */}
+      {(invoiceNumber || invoiceDate) && (
+        <div className="mt-3 flex justify-between text-xs">
+          {invoiceNumber && (
+            <div>
+              <p className="text-[10px] text-slate-600">Invoice Number</p>
+              <p className="text-sm font-bold text-slate-900">{invoiceNumber}</p>
+            </div>
+          )}
+          {invoiceDate && (
+            <div className="text-right">
+              <p className="text-[10px] text-slate-600">Invoice Date</p>
+              <p className="text-sm font-bold text-slate-900">{invoiceDate}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
