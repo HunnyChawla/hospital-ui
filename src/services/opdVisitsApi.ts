@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 
 export type VisitStatus = "checked_in" | "in_consultation" | "completed" | "cancelled";
-export type VisitType = "walk_in" | "appointment";
+export type VisitType = "walk_in" | "appointment" | "emergency";
 export type PaymentMethod = "cash" | "upi" | "card" | "cheque";
 
 export interface Visit {
@@ -37,6 +37,7 @@ export interface CreateVisitRequest {
   payment_method: PaymentMethod;
   payment_reference?: string | null;
   consultation_fee?: number | null;
+  consultation_fee_override?: number | null;
 }
 
 export type SortField = "token_number" | "visit_date" | "created_at" | "checked_in_at" | "visit_number" | "status" | "visit_type";

@@ -8,6 +8,7 @@ import labTestsReducer from "./labTestsSlice";
 import servicesReducer from "./servicesSlice";
 import authReducer from "./authSlice";
 import doctorsReducer from "./doctorsSlice";
+import tenantReducer from "./tenantSlice";
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ export const store = configureStore({
     labTests: labTestsReducer,
     services: servicesReducer,
     doctors: doctorsReducer,
+    tenant: tenantReducer,
   },
 });
 

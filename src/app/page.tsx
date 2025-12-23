@@ -11,6 +11,7 @@ import { PatientTable } from "@/components/patients/PatientTable";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { DoctorTable } from "@/components/doctors/DoctorTable";
 import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
+import { ConsultationFeeFormModal } from "@/components/doctors/ConsultationFeeFormModal";
 import { OpdForm } from "@/components/opd/OpdForm";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
 import { AppointmentsList } from "@/components/opd/AppointmentsList";
@@ -42,6 +43,7 @@ import { fetchBilling } from "@/redux/billingSlice";
 import { fetchPatients } from "@/redux/patientsSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { restoreSession } from "@/redux/authSlice";
+import { fetchTenant } from "@/redux/tenantSlice";
 import { currency } from "@/utils/format";
 import {
   Activity,
@@ -91,6 +93,7 @@ export default function Home() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const tenant = useAppSelector((s) => s.tenant);
   const patients = useAppSelector((s) => s.patients.list);
   const admissions = useAppSelector((s) => s.admissions.list);
   const billing = useAppSelector((s) => s.billing.records);
@@ -116,6 +119,8 @@ export default function Home() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [showConsultationFeeModal, setShowConsultationFeeModal] = useState(false);
+  const [selectedDoctorForFees, setSelectedDoctorForFees] = useState<Doctor | null>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showOpdModal, setShowOpdModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
@@ -139,7 +144,13 @@ export default function Home() {
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
-  }, [dispatch]);
+    
+    // Fetch tenant data if not already loaded
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    if (tenantId && (!tenant.tenant && !tenant.loading)) {
+      dispatch(fetchTenant(tenantId));
+    }
+  }, [dispatch, tenant]);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -652,6 +663,10 @@ export default function Home() {
                       setEditingDoctor(doctor);
                       setShowDoctorModal(true);
                     }}
+                    onConfigureFeesClick={(doctor) => {
+                      setSelectedDoctorForFees(doctor);
+                      setShowConsultationFeeModal(true);
+                    }}
                   />
                 </div>
               </div>
@@ -866,6 +881,15 @@ export default function Home() {
             setEditingDoctor(null);
           }}
           defaultValues={editingDoctor ?? undefined}
+        />
+
+        <ConsultationFeeFormModal
+          isOpen={showConsultationFeeModal}
+          onClose={() => {
+            setShowConsultationFeeModal(false);
+            setSelectedDoctorForFees(null);
+          }}
+          doctorId={selectedDoctorForFees?.id || ""}
         />
 
         <AppointmentFormModal
