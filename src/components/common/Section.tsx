@@ -10,7 +10,7 @@ export function Section({ id, title, description, children, action }: SectionPro
   const hasHeader = title || description || action;
   return (
     <section id={id} className="card relative overflow-hidden">
-      <div className="absolute right-4 top-4 h-12 w-12 rounded-full bg-sky-50 blur-2xl" />
+      <div className="absolute right-4 top-4 h-12 w-12 rounded-full bg-sky-50 blur-2xl pointer-events-none" />
       {hasHeader && (
         <div className="flex items-start justify-between px-4 pt-4">
           <div>

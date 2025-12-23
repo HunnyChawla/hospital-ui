@@ -24,9 +24,11 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
 import { getTenantIdForApi } from "@/utils/auth";
 import { ServiceChargesModal } from "./ServiceChargesModal";
 import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
+import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
 
 interface AdmissionDetailModalProps {
   isOpen: boolean;
@@ -49,8 +51,11 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const [showInitiateDischargeModal, setShowInitiateDischargeModal] = useState(false);
   const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const [printDischargeSummaryData, setPrintDischargeSummaryData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
+  const [shouldPrintDischargeSummary, setShouldPrintDischargeSummary] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
+  const printDischargeSummaryRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -60,6 +65,11 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
     documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+  });
+
+  const handlePrintDischargeSummary = useReactToPrint({
+    contentRef: printDischargeSummaryRef,
+    documentTitle: printDischargeSummaryData ? `DischargeSummary_${printDischargeSummaryData.admission.admission_number}` : "Discharge Summary",
   });
 
   useEffect(() => {
@@ -213,6 +223,27 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     }
   };
 
+  const handlePrintDischargeSummaryClick = async () => {
+    if (!admission) return;
+    
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      
+      // Fetch patient details
+      const patient = await patientsApi.getById(admission.patient_id, apiTenantId);
+      
+      setPrintDischargeSummaryData({
+        admission,
+        patient,
+      });
+      setShouldPrintDischargeSummary(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to fetch patient details");
+    }
+  };
+
   // Trigger print when printInvoiceData is set and shouldPrint is true
   useEffect(() => {
     if (printInvoiceData && shouldPrint && printRef.current) {
@@ -234,6 +265,16 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       return () => clearTimeout(timeoutId);
     }
   }, [shouldPrintPayment, handlePrintPayment]);
+
+  useEffect(() => {
+    if (printDischargeSummaryData && shouldPrintDischargeSummary && printDischargeSummaryRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintDischargeSummary();
+        setShouldPrintDischargeSummary(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [printDischargeSummaryData, shouldPrintDischargeSummary, handlePrintDischargeSummary]);
 
   const formatDateTime = (dateTime: string | null) => {
     if (!dateTime) return "N/A";
@@ -656,6 +697,13 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           )}
           {admission.status === "discharged" && (
             <>
+              <button
+                onClick={handlePrintDischargeSummaryClick}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
+              >
+                <Printer className="h-4 w-4" />
+                Print Discharge Summary
+              </button>
               {admission.invoice_id && (
                 <button
                   onClick={() => handlePrintInvoice(admission.invoice_id!)}
@@ -716,6 +764,18 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               patientName={printPaymentData.patientName}
               patientMobile={printPaymentData.patientMobile}
               invoiceNumber={printPaymentData.invoiceNumber}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable discharge summary */}
+      {printDischargeSummaryData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printDischargeSummaryRef} className="print-content">
+            <DischargeSummaryPrint
+              admission={printDischargeSummaryData.admission}
+              patient={printDischargeSummaryData.patient}
             />
           </div>
         </div>

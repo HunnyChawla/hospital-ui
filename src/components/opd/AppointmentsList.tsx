@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAppSelector } from "@/redux/hooks";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { opdVisitsApi, CreateVisitRequest } from "@/services/opdVisitsApi";
+import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate } from "@/utils/format";
 import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
@@ -106,29 +107,21 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   };
 
   const handleCreateOpdFromAppointment = async (appointment: Appointment) => {
-    try {
-      const visitRequest: CreateVisitRequest = {
-        patient_id: appointment.patient_id,
-        doctor_id: appointment.doctor_id,
-        visit_type: "appointment",
-        appointment_id: appointment.id,
-        chief_complaint: appointment.notes || null,
-        notes: `Created from appointment #${appointment.token_number}`,
-        payment_method: "cash", // Default payment method
-        payment_reference: null,
-        consultation_fee: null,
-      };
+    // This function is now handled by modal flow.
+  };
 
-      const visit = await opdVisitsApi.create(visitRequest);
-      toast.success(`OPD visit created from appointment! Visit #${visit.visit_number}`);
-      
-      // Refresh appointments list by triggering useEffect
-      if (selectedDoctorId && selectedDate) {
-        fetchAppointments();
-      }
-    } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [appointmentForModal, setAppointmentForModal] = useState<Appointment | null>(null);
+
+  const openCreateModal = (appt: Appointment) => {
+    setAppointmentForModal(appt);
+    setShowCreateModal(true);
+  };
+
+  const handleAfterCreated = (visitId: string) => {
+    // Refresh appointments list
+    if (selectedDoctorId && selectedDate) {
+      fetchAppointments();
     }
   };
 
@@ -212,7 +205,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                 <div className="flex items-center gap-2">
                   {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
                     <button
-                      onClick={() => handleCreateOpdFromAppointment(appointment)}
+                      onClick={() => openCreateModal(appointment)}
                       className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
                       style={{ width: "2rem" }}
                       onMouseEnter={(e) => {
@@ -242,6 +235,14 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
           ))}
         </div>
       )}
+
+      <CreateOpdFromAppointmentModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        appointment={appointmentForModal}
+        doctor={appointmentForModal ? doctors.find((d) => d.id === appointmentForModal.doctor_id) : null}
+        onCreated={handleAfterCreated}
+      />
     </div>
   );
 }

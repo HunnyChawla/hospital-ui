@@ -34,6 +34,37 @@ export interface UpdateDoctorRequest {
   consultation_fee?: number;
 }
 
+export interface ConsultationFee {
+  id: string;
+  doctor_id: string;
+  day_of_week: number;
+  shift: "morning" | "evening" | "night" | "emergency";
+  fee: string;
+  patient_type: "old" | "new" | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConsultationFeeRequest {
+  day_of_week: number;
+  shift: "morning" | "evening" | "night" | "emergency";
+  fee: number;
+  patient_type: "old" | "new" | null;
+}
+
+export interface ConsultationFeeCalculation {
+  doctor_id: string;
+  patient_id: string;
+  patient_name: string;
+  is_old_patient: boolean;
+  consultation_fee: string;
+  visit_datetime: string;
+  day_of_week: number;
+  shift: "morning" | "evening" | "night" | "emergency";
+  is_emergency: boolean;
+  patient_type_used: "old" | "new";
+}
+
 export const doctorsApi = {
   async create(doctor: CreateDoctorRequest, tenantId?: string): Promise<Doctor> {
     const apiTenantId = getTenantIdForApi(tenantId);
@@ -60,6 +91,31 @@ export const doctorsApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<Doctor>(`/doctors/${doctorId}`, updates, { params });
+    return response.data;
+  },
+
+  async getConsultationFees(doctorId: string, tenantId?: string): Promise<ConsultationFee[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<ConsultationFee[]>(`/doctors/${doctorId}/consultation-fees`, { params });
+    return response.data;
+  },
+
+  async setConsultationFees(doctorId: string, fees: ConsultationFeeRequest[], tenantId?: string): Promise<{ fees: ConsultationFeeRequest[] }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put<{ fees: ConsultationFeeRequest[] }>(`/doctors/${doctorId}/consultation-fees`, { fees }, { params });
+    return response.data;
+  },
+
+  async calculateConsultationFee(doctorId: string, patientId: string, isEmergency: boolean = false, tenantId?: string): Promise<ConsultationFeeCalculation> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params: any = { 
+      patient_id: patientId,
+      is_emergency: isEmergency.toString(),
+      ...(apiTenantId ? { tenant_id: apiTenantId } : {})
+    };
+    const response = await apiClient.get<ConsultationFeeCalculation>(`/doctors/${doctorId}/consultation-fees/calculate`, { params });
     return response.data;
   },
 };

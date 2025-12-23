@@ -11,6 +11,7 @@ import { PatientTable } from "@/components/patients/PatientTable";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { DoctorTable } from "@/components/doctors/DoctorTable";
 import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
+import { ConsultationFeeFormModal } from "@/components/doctors/ConsultationFeeFormModal";
 import { OpdForm } from "@/components/opd/OpdForm";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
 import { AppointmentsList } from "@/components/opd/AppointmentsList";
@@ -22,6 +23,7 @@ import { ManageIPD } from "@/components/ipd/ManageIPD";
 import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { BillingManagement } from "@/components/billing/BillingManagement";
 import { LabTestsPanel } from "@/components/lab-tests/LabTestsPanel";
+import { ServicesPanel } from "@/components/services/ServicesPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { QueueBoard } from "@/components/queue/QueueBoard";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
@@ -41,6 +43,7 @@ import { fetchBilling } from "@/redux/billingSlice";
 import { fetchPatients } from "@/redux/patientsSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { restoreSession } from "@/redux/authSlice";
+import { fetchTenant } from "@/redux/tenantSlice";
 import { currency } from "@/utils/format";
 import {
   Activity,
@@ -54,11 +57,12 @@ import {
   Users2,
   CreditCard,
   BarChart3,
+  RefreshCw,
 } from "lucide-react";
 
 function BillingSection() {
   const [searchBox, setSearchBox] = useState<React.ReactNode>(null);
-  const [filterToggle, setFilterToggle] = useState<React.ReactNode>(null);
+  const [filterBox, setFilterBox] = useState<React.ReactNode>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid">("all");
 
   return (
@@ -70,13 +74,13 @@ function BillingSection() {
         action={
           <div className="flex items-center gap-3">
             {searchBox}
-            {filterToggle}
+            {filterBox}
           </div>
         }
       >
         <BillingManagement 
           renderSearchInHeader={setSearchBox}
-          renderFilterInHeader={setFilterToggle}
+          renderFilterInHeader={setFilterBox}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
         />
@@ -89,6 +93,7 @@ export default function Home() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const tenant = useAppSelector((s) => s.tenant);
   const patients = useAppSelector((s) => s.patients.list);
   const admissions = useAppSelector((s) => s.admissions.list);
   const billing = useAppSelector((s) => s.billing.records);
@@ -105,6 +110,7 @@ export default function Home() {
     | "admissions"
     | "billing"
     | "labs"
+    | "services"
     | "queue"
     | "users"
   >("dashboard");
@@ -113,6 +119,8 @@ export default function Home() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [showConsultationFeeModal, setShowConsultationFeeModal] = useState(false);
+  const [selectedDoctorForFees, setSelectedDoctorForFees] = useState<Doctor | null>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showOpdModal, setShowOpdModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
@@ -130,11 +138,19 @@ export default function Home() {
   const [bedOccupancy, setBedOccupancy] = useState<{ occupied: number; total: number; occupancy: number } | null>(null);
   const [appointmentInsights, setAppointmentInsights] = useState<{ today: number; completed: number; scheduled: number } | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
+  const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
 
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
-  }, [dispatch]);
+    
+    // Fetch tenant data if not already loaded
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    if (tenantId && (!tenant.tenant && !tenant.loading)) {
+      dispatch(fetchTenant(tenantId));
+    }
+  }, [dispatch, tenant]);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -239,6 +255,27 @@ export default function Home() {
     }
   };
 
+  const refreshDashboard = async () => {
+    setDashboardRefreshing(true);
+    try {
+      // Refresh core datasets used on dashboard
+      dispatch(fetchAdmissions({}));
+      dispatch(fetchBilling());
+      dispatch(fetchPatients({}));
+      dispatch(fetchDoctors());
+
+      // Refresh analytics-derived numbers
+      await Promise.all([fetchPaymentTotals(), fetchDashboardInsights()]);
+
+      // Trigger analytics panel to reload its internal analytics APIs
+      setAnalyticsRefreshSignal((s) => s + 1);
+    } catch (err) {
+      console.error("Failed to refresh dashboard:", err);
+    } finally {
+      setDashboardRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     const syncHash = () => {
       const raw = window.location.hash.replace("#", "");
@@ -254,6 +291,24 @@ export default function Home() {
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
   }, []);
+
+  // When the dashboard tab becomes active, refresh dashboard data
+  useEffect(() => {
+    if (activeSection === "dashboard") {
+      refreshDashboard();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
+
+  // When analytics tab becomes active, refresh dashboard & analytics
+  useEffect(() => {
+    if (activeSection === "analytics") {
+      refreshDashboard();
+      // also trigger analytics child reload
+      setAnalyticsRefreshSignal((s) => s + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
 
   const admittedCount = admissions.length;
   const totalQueue = queue.length;
@@ -287,6 +342,16 @@ export default function Home() {
 
         {show("dashboard") && (
           <div className="grid gap-4">
+            <div className="flex justify-end">
+              <button
+                onClick={() => refreshDashboard()}
+                disabled={dashboardRefreshing}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>{dashboardRefreshing ? "Refreshing..." : "Refresh"}</span>
+              </button>
+            </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <EnhancedStatCard
                 label="Total patients"
@@ -531,7 +596,7 @@ export default function Home() {
               title=""
               description=""
             >
-              <AnalyticsDashboard />
+                  <AnalyticsDashboard refreshSignal={analyticsRefreshSignal} onRequestRefresh={() => refreshDashboard()} />
             </Section>
           </div>
         )}
@@ -597,6 +662,10 @@ export default function Home() {
                     onEditClick={(doctor) => {
                       setEditingDoctor(doctor);
                       setShowDoctorModal(true);
+                    }}
+                    onConfigureFeesClick={(doctor) => {
+                      setSelectedDoctorForFees(doctor);
+                      setShowConsultationFeeModal(true);
                     }}
                   />
                 </div>
@@ -718,6 +787,18 @@ export default function Home() {
           </div>
         )}
 
+        {show("services") && (
+          <div className="mt-6 grid gap-6">
+            <Section
+              id="services"
+              title="Service Master"
+              description="Create and manage available services."
+            >
+              <ServicesPanel />
+            </Section>
+          </div>
+        )}
+
         {show("queue") && (
           <div className="mt-4">
             <QueueBoard />
@@ -800,6 +881,15 @@ export default function Home() {
             setEditingDoctor(null);
           }}
           defaultValues={editingDoctor ?? undefined}
+        />
+
+        <ConsultationFeeFormModal
+          isOpen={showConsultationFeeModal}
+          onClose={() => {
+            setShowConsultationFeeModal(false);
+            setSelectedDoctorForFees(null);
+          }}
+          doctorId={selectedDoctorForFees?.id || ""}
         />
 
         <AppointmentFormModal

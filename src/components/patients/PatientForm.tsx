@@ -17,7 +17,10 @@ interface PatientFormProps {
 export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const dispatch = useAppDispatch();
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreatePatientRequest>();
+  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm<CreatePatientRequest>({
+    mode: "onChange",
+    reValidateMode: "onChange",
+  });
 
   // Fetch full patient details when editing
   useEffect(() => {
@@ -152,13 +155,18 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           </span>
           <input
             type="tel"
-            {...register("mobile", { 
+            {...register("mobile", {
               required: "Mobile is required",
               minLength: { value: 10, message: "Mobile must be at least 10 digits" },
-              maxLength: { value: 20, message: "Mobile must be at most 20 digits" }
+              maxLength: { value: 20, message: "Mobile must be at most 20 digits" },
+              pattern: {
+                // Allow optional +91 or leading 0, then 10 digits starting with 6-9 (India common rule)
+                value: /^(\+91[\-\s]?|0)?[6-9]\d{9}$/, 
+                message: "Enter a valid mobile number (10 digits, starting with 6-9)"
+              }
             })}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            placeholder="10-digit mobile"
+            placeholder="e.g. 9876543210 or +919876543210"
           />
           {errors.mobile && (
             <span className="text-xs text-rose-500">{errors.mobile.message}</span>

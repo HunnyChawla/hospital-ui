@@ -14,6 +14,7 @@ import {
   Wallet,
   AlertCircle,
   BarChart3,
+  RefreshCw,
   FlaskConical,
   Pill,
   Stethoscope,
@@ -38,7 +39,7 @@ const toISODate = (d: Date) => d.toISOString().split("T")[0];
 const startDefault = new Date(today);
 startDefault.setDate(today.getDate() - 29);
 
-type DatePreset = "today" | "week" | "month" | "last30" | "custom";
+type DatePreset = "week" | "month" | "last30" | "custom";
 
 type AnalyticsData = {
   patientFlow: Awaited<ReturnType<typeof analyticsApi.patientFlow>> | null;
@@ -54,7 +55,12 @@ const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
 const avg = (arr: number[]) => arr.length > 0 ? sum(arr) / arr.length : 0;
 const max = (arr: number[]) => arr.length > 0 ? Math.max(...arr) : 0;
 
-export function AnalyticsDashboard() {
+interface AnalyticsDashboardProps {
+  refreshSignal?: number;
+  onRequestRefresh?: () => void;
+}
+
+export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: AnalyticsDashboardProps = {}) {
   const [datePreset, setDatePreset] = useState<DatePreset>("last30");
   const [filters, setFilters] = useState<AnalyticsFilters>({
     start_date: toISODate(startDefault),
@@ -86,9 +92,6 @@ export function AnalyticsDashboard() {
     const start = new Date(today);
     
     switch (preset) {
-      case "today":
-        start.setDate(today.getDate());
-        return { start_date: toISODate(start), end_date: toISODate(end), granularity: "daily" as const };
       case "week":
         start.setDate(today.getDate() - 6);
         return { start_date: toISODate(start), end_date: toISODate(end), granularity: "daily" as const };
@@ -134,6 +137,15 @@ export function AnalyticsDashboard() {
         diagnosticsUsage,
         efficiencyScore,
       });
+      // Debug: log counts and sample data to help diagnose empty appointment metrics
+      try {
+        console.debug("analytics.loadData: appointmentSummary.length=", appointmentSummary?.data?.length ?? 0);
+        console.debug("analytics.loadData: doctorUtilization.length=", doctorUtilization?.data?.length ?? 0);
+        console.debug("analytics.loadData: appointmentSummary.sample=", appointmentSummary?.data?.[0] ?? null);
+        console.debug("analytics.loadData: doctorUtilization.sample=", doctorUtilization?.data?.[0] ?? null);
+      } catch (e) {
+        /* ignore */
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -151,6 +163,15 @@ export function AnalyticsDashboard() {
     loadData(newFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datePreset]);
+
+  // Respond to external refresh signals (from parent)
+  useEffect(() => {
+    if (typeof refreshSignal !== "undefined") {
+      // re-load using current filters
+      loadData(filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSignal]);
 
   const handlePresetChange = (preset: DatePreset) => {
     setDatePreset(preset);
@@ -171,8 +192,20 @@ export function AnalyticsDashboard() {
     const efficiency = data.efficiencyScore?.data ?? [];
     const diagnostics = data.diagnosticsUsage?.data ?? [];
 
+    // Compatibility helpers: some endpoints return different field names
+    const apptScheduled = (p: any) => p?.scheduled ?? p?.appointments ?? 0;
+    const apptCompleted = (p: any) => p?.completed ?? p?.completed_appointments ?? 0;
+    const apptCancelled = (p: any) => p?.cancelled ?? p?.cancelled_appointments ?? 0;
+    const apptNoShow = (p: any) => p?.no_show ?? p?.no_shows ?? 0;
+
     const latestOccupancy = occupancy.length > 0 ? occupancy[occupancy.length - 1] : null;
     const latestEfficiency = efficiency.length > 0 ? efficiency[efficiency.length - 1] : null;
+
+    // Use doctorUtilization as canonical source for appointment/consult metrics
+    const totalAppt = sum(docUtil.map((p: any) => (p?.appointments ?? p?.scheduled ?? 0)));
+    const completedAppt = sum(docUtil.map((p: any) => (p?.completed_appointments ?? p?.completed ?? 0)));
+    const cancelledAppt = sum(docUtil.map((p: any) => (p?.cancelled_appointments ?? p?.cancelled ?? 0)));
+    const noShowAppt = sum(docUtil.map((p: any) => (p?.no_shows ?? p?.no_show ?? 0)));
 
     return {
       // Patient Flow
@@ -199,22 +232,26 @@ export function AnalyticsDashboard() {
         : 0,
       avgDailyRevenue: revenue.length > 0 ? sum(revenue.map((p) => p.collected_amount)) / revenue.length : 0,
       
-      // Appointments
-      totalAppointments: sum(appointments.map((p) => p.scheduled)),
-      completedAppointments: sum(appointments.map((p) => p.completed)),
-      cancelledAppointments: sum(appointments.map((p) => p.cancelled)),
-      noShows: sum(appointments.map((p) => p.no_show)),
-      appointmentCompletionRate: sum(appointments.map((p) => p.scheduled)) > 0
-        ? (sum(appointments.map((p) => p.completed)) / sum(appointments.map((p) => p.scheduled))) * 100
-        : 0,
-      noShowRate: sum(appointments.map((p) => p.scheduled)) > 0
-        ? (sum(appointments.map((p) => p.no_show)) / sum(appointments.map((p) => p.scheduled))) * 100
-        : 0,
+      // Appointments (derived from doctorUtilization)
+      totalAppointments: totalAppt,
+      completedAppointments: completedAppt,
+      cancelledAppointments: cancelledAppt,
+      noShows: noShowAppt,
+      appointmentCompletionRate: totalAppt > 0 ? (completedAppt / totalAppt) * 100 : 0,
+      noShowRate: totalAppt > 0 ? (noShowAppt / totalAppt) * 100 : 0,
       
       // Doctor Utilization
       completedVisits: sum(docUtil.map((p) => p.completed_appointments)),
       avgConsultTime: avg(docUtil.map((p) => p.avg_consult_minutes || 0).filter(v => v > 0)),
       totalVisits: sum(docUtil.map((p) => p.visits)),
+      // Appointment totals from doctor utilization series
+      // doctorUtilization contains per-doctor daily series; we will not duplicate appointment completion here
+      docAppointmentsTotal: sum(docUtil.map((p: any) => (p?.appointments ?? p?.scheduled ?? 0))),
+      docCancelledAppointments: sum(docUtil.map((p: any) => (p?.cancelled_appointments ?? p?.cancelled ?? 0))),
+      docNoShows: sum(docUtil.map((p: any) => (p?.no_shows ?? p?.no_show ?? 0))),
+      consultCompletionRate: docUtil.length > 0
+        ? (sum(docUtil.map((p: any) => (p?.completed_appointments ?? p?.completed ?? 0))) / Math.max(1, sum(docUtil.map((p: any) => (p?.appointments ?? p?.scheduled ?? 0))))) * 100
+        : 0,
       
       // Efficiency
       efficiencyScore: latestEfficiency?.efficiency_score || 0,
@@ -232,7 +269,8 @@ export function AnalyticsDashboard() {
   // Calculate trends (comparing first half vs second half of period)
   const trends = useMemo(() => {
     const revenue = data.revenue?.data ?? [];
-    const appointments = data.appointmentSummary?.data ?? [];
+    // Use doctorUtilization for appointment trends
+    const appointments = data.doctorUtilization?.data ?? [];
     const flow = data.patientFlow?.data ?? [];
     const occupancy = data.bedOccupancy?.data ?? [];
     
@@ -248,8 +286,9 @@ export function AnalyticsDashboard() {
       ? ((secondHalfRevenue - firstHalfRevenue) / firstHalfRevenue) * 100 
       : 0;
     
-    const firstHalfAppointments = sum(firstHalf.map((_, i) => appointments[i]?.scheduled || 0));
-    const secondHalfAppointments = sum(secondHalf.map((_, i) => appointments[mid + i]?.scheduled || 0));
+    const apptScheduled = (p: any) => p?.appointments ?? p?.scheduled ?? 0;
+    const firstHalfAppointments = sum(firstHalf.map((_, i) => apptScheduled(appointments[i]) || 0));
+    const secondHalfAppointments = sum(secondHalf.map((_, i) => apptScheduled(appointments[mid + i]) || 0));
     const appointmentChange = firstHalfAppointments > 0
       ? ((secondHalfAppointments - firstHalfAppointments) / firstHalfAppointments) * 100
       : 0;
@@ -277,13 +316,15 @@ export function AnalyticsDashboard() {
   // Get chart data for visualizations
   const chartData = useMemo(() => {
     const revenue = data.revenue?.data ?? [];
-    const appointments = data.appointmentSummary?.data ?? [];
+    const appointments = data.doctorUtilization?.data ?? [];
     const flow = data.patientFlow?.data ?? [];
     const occupancy = data.bedOccupancy?.data ?? [];
 
+    const apptScheduled = (p: any) => p?.appointments ?? p?.scheduled ?? 0;
+
     return {
       revenue: revenue.map((p) => p.collected_amount || 0).filter(v => !isNaN(v)),
-      appointments: appointments.map((p) => p.scheduled || 0).filter(v => !isNaN(v)),
+      appointments: appointments.map((p) => apptScheduled(p) || 0).filter(v => !isNaN(v)),
       admissions: flow.map((p) => p.admissions || 0).filter(v => !isNaN(v)),
       occupancy: occupancy.map((p) => p.occupancy_pct || 0).filter(v => !isNaN(v)),
     };
@@ -302,7 +343,7 @@ export function AnalyticsDashboard() {
           </div>
           
           <div className="flex flex-wrap items-center gap-1.5">
-            {(["today", "week", "month", "last30"] as DatePreset[]).map((preset) => (
+            {(["week", "month", "last30"] as DatePreset[]).map((preset) => (
               <button
                 key={preset}
                 onClick={() => handlePresetChange(preset)}
@@ -313,9 +354,18 @@ export function AnalyticsDashboard() {
                     : "bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:shadow"
                 )}
               >
-                {preset === "today" ? "Today" : preset === "week" ? "This Week" : preset === "month" ? "This Month" : "Last 30 Days"}
+                {preset === "week" ? "This Week" : preset === "month" ? "This Month" : "Last 30 Days"}
               </button>
             ))}
+            {onRequestRefresh && (
+              <button
+                onClick={() => onRequestRefresh()}
+                className="ml-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+            )}
           </div>
         </div>
 
@@ -479,8 +529,8 @@ export function AnalyticsDashboard() {
         />
       </div>
 
-      {/* Performance Metrics */}
-      <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+      {/* Performance Metrics (two cards: 50/50) */}
+      <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
         <PerformanceCard
           label="Appointment Completion"
           value={`${summary.appointmentCompletionRate.toFixed(1)}%`}
@@ -491,30 +541,6 @@ export function AnalyticsDashboard() {
           noShowRate={summary.noShowRate}
           icon={Calendar}
           color="blue"
-          loading={loading}
-        />
-        <PerformanceCard
-          label="Lab Completion"
-          value={`${summary.labCompletionRate.toFixed(1)}%`}
-          total={summary.totalLabOrders}
-          completed={summary.completedLabOrders}
-          cancelled={0}
-          noShows={0}
-          noShowRate={0}
-          icon={FlaskConical}
-          color="purple"
-          loading={loading}
-        />
-        <PerformanceCard
-          label="Readmission Rate"
-          value={`${summary.readmissionRate.toFixed(1)}%`}
-          total={summary.totalDischarges}
-          completed={summary.readmissions}
-          cancelled={0}
-          noShows={0}
-          noShowRate={0}
-          icon={Activity}
-          color="rose"
           loading={loading}
         />
         <PerformanceCard

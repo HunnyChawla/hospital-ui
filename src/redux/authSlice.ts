@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authApi, LoginRequest, LoginResponse } from "@/services/authApi";
+import { fetchTenant, clearTenant } from "./tenantSlice";
 
 type AuthState = {
   user: LoginResponse | null;
@@ -19,7 +20,7 @@ const initialState: AuthState = {
 
 export const login = createAsyncThunk(
   "auth/login",
-  async (credentials: LoginRequest, { rejectWithValue }) => {
+  async (credentials: LoginRequest, { rejectWithValue, dispatch }) => {
     try {
       const response = await authApi.login(credentials);
       if (typeof window !== "undefined") {
@@ -29,6 +30,9 @@ export const login = createAsyncThunk(
         const tenantId = response.tenant_id || "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1";
         localStorage.setItem("tenant_id", tenantId);
         localStorage.setItem("role", response.role);
+        
+        // Fetch tenant data after successful login
+        dispatch(fetchTenant(tenantId));
       }
       return response;
     } catch (error: any) {
@@ -38,7 +42,7 @@ export const login = createAsyncThunk(
   }
 );
 
-export const logout = createAsyncThunk("auth/logout", async () => {
+export const logout = createAsyncThunk("auth/logout", async (_, { dispatch }) => {
   // Call logout API
   await authApi.logout();
   
@@ -49,6 +53,9 @@ export const logout = createAsyncThunk("auth/logout", async () => {
     localStorage.removeItem("tenant_id");
     localStorage.removeItem("role");
   }
+  
+  // Clear tenant data
+  dispatch(clearTenant());
 });
 
 const authSlice = createSlice({

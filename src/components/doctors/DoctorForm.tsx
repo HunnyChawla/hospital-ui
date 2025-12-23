@@ -102,7 +102,6 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
             specialization: apiDoctor.specialization || "",
             qualification: apiDoctor.qualification || "",
             registration_number: apiDoctor.registration_number || "",
-            consultation_fee: apiDoctor.consultation_fee ? parseFloat(apiDoctor.consultation_fee) : undefined,
           });
         })
         .catch((error) => {
@@ -113,7 +112,6 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
             specialization: defaultValues.specialization || "",
             qualification: defaultValues.qualification || "",
             registration_number: defaultValues.registration_number || "",
-            consultation_fee: defaultValues.consultation_fee ? parseFloat(defaultValues.consultation_fee) : undefined,
           });
         });
     } else {
@@ -123,7 +121,6 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
         specialization: "",
         qualification: "",
         registration_number: "",
-        consultation_fee: undefined,
       });
       setSearchTerm("");
       setSelectedUserDetails(null);
@@ -223,7 +220,6 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
         specialization: values.specialization || undefined,
         qualification: values.qualification || undefined,
         registration_number: values.registration_number || undefined,
-        consultation_fee: values.consultation_fee ? parseFloat(String(values.consultation_fee)) : undefined,
       };
 
       if (defaultValues) {
@@ -235,7 +231,6 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
               specialization: doctorData.specialization,
               qualification: doctorData.qualification,
               registration_number: doctorData.registration_number,
-              consultation_fee: doctorData.consultation_fee,
             },
           })
         ).unwrap();
@@ -407,25 +402,6 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
           placeholder="Medical council registration number"
         />
-      </label>
-
-      {/* Consultation Fee */}
-      <label className="space-y-1">
-        <span className="text-slate-600">Consultation Fee (₹)</span>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          {...register("consultation_fee", {
-            valueAsNumber: true,
-            min: { value: 0, message: "Fee must be positive" },
-          })}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          placeholder="0.00"
-        />
-        {errors.consultation_fee && (
-          <span className="text-xs text-rose-500">{errors.consultation_fee.message}</span>
-        )}
       </label>
 
       {/* Submit Button */}

@@ -611,6 +611,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
 // Print Buttons Group Component for Discharged Admissions
 function PrintButtonsGroup({ admission }: { admission: Admission }) {
   const [showPrintDropdown, setShowPrintDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
@@ -618,6 +619,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handlePrintInvoiceAction = useReactToPrint({
     contentRef: printInvoiceRef,
@@ -648,6 +650,46 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
       return () => clearTimeout(timeoutId);
     }
   }, [shouldPrintPayment, handlePrintPaymentAction]);
+
+  // Calculate dropdown position using fixed positioning to avoid overflow clipping
+  useEffect(() => {
+    if (!showPrintDropdown || !buttonRef.current) {
+      setDropdownPosition(null);
+      return;
+    }
+
+    const calculatePosition = () => {
+      if (!buttonRef.current) return;
+      
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = 120; // Approximate height of dropdown menu
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // Calculate position - open upward if not enough space below
+      const top = spaceBelow < dropdownHeight && spaceAbove > dropdownHeight
+        ? rect.top - dropdownHeight - 4 // 4px margin
+        : rect.bottom + 4; // 4px margin
+      
+      // Position from right edge of viewport
+      const right = window.innerWidth - rect.right;
+      
+      setDropdownPosition({ top, right });
+    };
+
+    // Calculate position after a small delay to ensure DOM is updated
+    const timeoutId = setTimeout(calculatePosition, 0);
+    
+    // Recalculate on scroll/resize
+    window.addEventListener("scroll", calculatePosition, true);
+    window.addEventListener("resize", calculatePosition);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("scroll", calculatePosition, true);
+      window.removeEventListener("resize", calculatePosition);
+    };
+  }, [showPrintDropdown]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -737,6 +779,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
     <>
       <div className="relative" ref={dropdownRef}>
         <button
+          ref={buttonRef}
           onClick={(e) => {
             e.stopPropagation();
             setShowPrintDropdown(!showPrintDropdown);
@@ -761,8 +804,14 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
           <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print</span>
         </button>
 
-        {showPrintDropdown && (
-          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
+        {showPrintDropdown && dropdownPosition && (
+          <div 
+            className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white shadow-lg"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              right: `${dropdownPosition.right}px`,
+            }}
+          >
             {hasInvoice ? (
               <button
                 onClick={(e) => {
