@@ -50,6 +50,7 @@ export interface LabTestsSearchResponse {
 
 export interface LabTestParameter {
   id: string;
+  tenant_id: string;
   test_code: string;
   parameter_code: string;
   parameter_name: string;
@@ -63,6 +64,36 @@ export interface LabTestParameter {
   method: string | null;
   display_order: number;
   is_active: boolean;
+}
+
+export interface CreateLabTestParameterRequest {
+  parameter_code: string;
+  parameter_name: string;
+  unit: string;
+  normal_min?: number;
+  normal_max?: number;
+  normal_text?: string;
+  gender: "ALL" | "M" | "F";
+  age_min?: number;
+  age_max?: number;
+  method?: string;
+  display_order: number;
+  is_active?: boolean;
+}
+
+export interface UpdateLabTestParameterRequest {
+  parameter_code?: string;
+  parameter_name?: string;
+  unit?: string;
+  normal_min?: number | null;
+  normal_max?: number | null;
+  normal_text?: string | null;
+  gender?: "ALL" | "M" | "F";
+  age_min?: number;
+  age_max?: number;
+  method?: string | null;
+  display_order?: number;
+  is_active?: boolean;
 }
 
 export interface LabTestResult {
@@ -149,6 +180,43 @@ export const labTestsApi = {
     if (gender) params.gender = gender;
     const response = await apiClient.get<LabTestParameter[]>(`/lab-tests/${testCode}/parameters`, { params });
     return response.data;
+  },
+
+  async createParameter(
+    testCode: string,
+    parameter: CreateLabTestParameterRequest,
+    tenantId?: string
+  ): Promise<LabTestParameter> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<LabTestParameter>(
+      `/lab-tests/${testCode}/parameters`,
+      parameter,
+      { params }
+    );
+    return response.data;
+  },
+
+  async updateParameter(
+    testCode: string,
+    parameterId: string,
+    updates: UpdateLabTestParameterRequest,
+    tenantId?: string
+  ): Promise<LabTestParameter> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.patch<LabTestParameter>(
+      `/lab-tests/${testCode}/parameters/${parameterId}`,
+      updates,
+      { params }
+    );
+    return response.data;
+  },
+
+  async deleteParameter(testCode: string, parameterId: string, tenantId?: string): Promise<void> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    await apiClient.delete(`/lab-tests/${testCode}/parameters/${parameterId}`, { params });
   },
 
   async getResults(
