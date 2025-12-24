@@ -156,35 +156,6 @@ export function InvoicePrint({ invoice, patientName, patientMobile, tests, booki
         </div>
       </div>
 
-      {/* Lab Tests Details */}
-      {tests && tests.length > 0 && (
-        <div className="mb-3 space-y-1">
-          <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-            Lab Tests
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-300">
-                  <th className="pb-1 pt-1 text-left font-semibold text-slate-900">Test Name</th>
-                  <th className="pb-1 pt-1 text-left font-semibold text-slate-900">Test Code</th>
-                  <th className="pb-1 pt-1 text-right font-semibold text-slate-900">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tests.map((test) => (
-                  <tr key={test.id} className="border-b border-slate-100">
-                    <td className="py-1 text-slate-900">{test.test_name}</td>
-                    <td className="py-1 text-slate-600">{test.test_code}</td>
-                    <td className="py-1 text-right font-semibold text-slate-900">{currency(test.price)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Invoice Items */}
       {invoice.line_items && invoice.line_items.length > 0 && (
         <div className="mb-3 space-y-1">
@@ -228,8 +199,8 @@ export function InvoicePrint({ invoice, patientName, patientMobile, tests, booki
         </div>
       )}
 
-      {/* Fallback if no line items and no tests */}
-      {(!invoice.line_items || invoice.line_items.length === 0) && (!tests || tests.length === 0) && (
+      {/* Fallback if no line items */}
+      {(!invoice.line_items || invoice.line_items.length === 0) && (
         <div className="mb-3 space-y-1">
           <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
             Invoice Details

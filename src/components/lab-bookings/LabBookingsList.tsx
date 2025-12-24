@@ -3,14 +3,16 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/services/labBookingsApi";
+import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
 import { formatDate, currency } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight } from "lucide-react";
+import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "../invoices/InvoicePrint";
+import { TestReportPrint } from "../lab-technician/TestReportPrint";
 import { Modal } from "../common/Modal";
 
 interface LabBookingWithPatient extends LabBooking {
@@ -44,10 +46,26 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
   const [shouldPrint, setShouldPrint] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<LabBookingWithPatient | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const [printReportData, setPrintReportData] = useState<{
+    booking: LabBookingWithPatient;
+    patientName: string;
+    patientMobile?: string;
+    testResults: Array<{
+      test: LabBookingTest;
+      results: LabTestResult[];
+    }>;
+  } | null>(null);
+  const [shouldPrintReport, setShouldPrintReport] = useState(false);
+  const printReportRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
+  });
+
+  const handlePrintReport = useReactToPrint({
+    contentRef: printReportRef,
+    documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
   });
 
   const fetchBookings = useCallback(async () => {
@@ -204,6 +222,83 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     }
   };
 
+  // Check if all tests have results
+  const allTestsHaveResults = async (booking: LabBookingWithPatient): Promise<boolean> => {
+    if (booking.tests.length === 0) return false;
+    
+    try {
+      const resultsPromises = booking.tests.map(async (test) => {
+        try {
+          const results = await labTestsApi.getResults(booking.id, test.id);
+          return Array.isArray(results) ? results.length > 0 : false;
+        } catch {
+          return false;
+        }
+      });
+      
+      const results = await Promise.all(resultsPromises);
+      return results.every((hasResults) => hasResults);
+    } catch {
+      return false;
+    }
+  };
+
+  const handleDownloadReport = async (booking: LabBookingWithPatient) => {
+    try {
+      // Check if all tests have results
+      const allHaveResults = await allTestsHaveResults(booking);
+      if (!allHaveResults) {
+        toast.error("Cannot download report: Not all tests have published results");
+        return;
+      }
+
+      // Fetch patient details
+      let patientName = booking.patient_name || "Unknown";
+      let patientMobile = booking.patient_mobile;
+
+      if (!booking.patient_name || !booking.patient_mobile) {
+        try {
+          const patient = await patientsApi.getById(booking.patient_id);
+          patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+          patientMobile = patient.mobile;
+        } catch (error) {
+          console.error("Failed to fetch patient details:", error);
+        }
+      }
+
+      // Fetch results for all tests
+      const testResultsPromises = booking.tests.map(async (test) => {
+        try {
+          const results = await labTestsApi.getResults(booking.id, test.id);
+          return {
+            test,
+            results: Array.isArray(results) ? results : [],
+          };
+        } catch (error) {
+          console.error(`Failed to fetch results for test ${test.id}:`, error);
+          return {
+            test,
+            results: [],
+          };
+        }
+      });
+
+      const testResults = await Promise.all(testResultsPromises);
+
+      // Set up print data
+      setPrintReportData({
+        booking,
+        patientName,
+        patientMobile,
+        testResults,
+      });
+      setShouldPrintReport(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare report for download");
+    }
+  };
+
   // Trigger print when printInvoiceData is set and shouldPrint is true
   useEffect(() => {
     if (printInvoiceData && shouldPrint && printRef.current) {
@@ -215,6 +310,19 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
       return () => clearTimeout(timeoutId);
     }
   }, [printInvoiceData, shouldPrint, handlePrint]);
+
+  // Trigger print when printReportData is set and shouldPrintReport is true
+  useEffect(() => {
+    if (printReportData && shouldPrintReport && printReportRef.current) {
+      // Small delay to ensure DOM is updated
+      const timeoutId = setTimeout(() => {
+        handlePrintReport();
+        setShouldPrintReport(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printReportData, shouldPrintReport]);
 
   return (
     <div className="space-y-4">
@@ -307,7 +415,11 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
             <div
               key={booking.id}
               onClick={() => setSelectedBooking(booking)}
-              className="relative cursor-pointer rounded-xl border border-slate-100 bg-white p-4 pr-24 shadow-sm transition hover:border-sky-200 hover:shadow-md"
+              className={`relative cursor-pointer rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-sky-200 hover:shadow-md ${
+                (booking.status === "completed" && booking.invoice_id) ? "pr-48" : 
+                (booking.status === "completed" || booking.invoice_id) ? "pr-36" : 
+                "pr-4"
+              }`}
             >
               <div className="flex items-start">
                 <div className="flex-1">
@@ -357,8 +469,32 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                     </div>
                   </div>
                 </div>
-                {booking.invoice_id && (
-                  <div className="absolute right-4 top-4 z-10">
+                <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+                  {booking.status === "completed" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadReport(booking);
+                      }}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-sky-600 hover:to-teal-600"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="Download Report"
+                    >
+                      <Download className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Download Report</span>
+                    </button>
+                  )}
+                  {booking.invoice_id && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -381,8 +517,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                       <Printer className="h-4 w-4 shrink-0" />
                       <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -457,6 +593,20 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
               patientMobile={printInvoiceData.patientMobile}
               tests={printInvoiceData.tests}
               bookingNumber={printInvoiceData.bookingNumber}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable test report */}
+      {printReportData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printReportRef} className="print-content">
+            <TestReportPrint
+              booking={printReportData.booking}
+              patientName={printReportData.patientName}
+              patientMobile={printReportData.patientMobile}
+              testResults={printReportData.testResults}
             />
           </div>
         </div>
@@ -553,8 +703,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
             )}
 
             {/* Actions */}
-            {selectedBooking.invoice_id && (
-              <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+              {selectedBooking.invoice_id && (
                 <button
                   onClick={() => {
                     handlePrintInvoice(
@@ -570,8 +720,17 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                   <Printer className="h-4 w-4" />
                   Print Invoice
                 </button>
-              </div>
-            )}
+              )}
+              {selectedBooking.status === "completed" && (
+                <button
+                  onClick={() => handleDownloadReport(selectedBooking)}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-sky-600 hover:to-teal-600"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Report
+                </button>
+              )}
+            </div>
           </div>
         )}
       </Modal>
