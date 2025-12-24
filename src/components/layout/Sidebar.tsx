@@ -27,7 +27,7 @@ const navItems = [
   { label: "Queue", href: "#queue", icon: LayoutList },
   { label: "IPD", href: "#admissions", icon: BedDouble },
   { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
-  { label: "Lab Technician", href: "#lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"] },
+  { label: "Lab Reports", href: "#lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"] },
   { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
   { label: "Service Master", href: "#services", icon: Package },
   { label: "Billing", href: "#billing", icon: CreditCard },

@@ -6,7 +6,7 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { formatDate, currency } from "@/utils/format";
-import { Beaker, Calendar, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, FlaskConical, Eye, Lock, Download } from "lucide-react";
+import { Beaker, Calendar, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, FlaskConical, Eye, Lock, Download, List, Activity, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -364,23 +364,13 @@ export function LabTechnicianPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Lab Technician Dashboard</h2>
-            <p className="text-sm text-slate-500">Manage lab test bookings and publish results</p>
-          </div>
-        </div>
-      </div>
-
       {/* Filters */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div>
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="mb-4">
           <label className="mb-2 block text-sm font-semibold text-slate-700">
             Scheduled Date
           </label>
-          <div className="relative">
+          <div className="relative max-w-xs">
             <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="date"
@@ -390,22 +380,77 @@ export function LabTechnicianPanel() {
             />
           </div>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Status
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "all")}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-          >
-            <option value="all">All Statuses</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="sample_collected">Sample Collected</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+
+        {/* Status Tabs */}
+        <div className="border-b border-slate-200">
+          <div className="flex flex-wrap gap-2 -mb-px">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "all"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <List className="h-4 w-4" />
+              All
+            </button>
+            <button
+              onClick={() => setStatusFilter("scheduled")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "scheduled"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <Calendar className="h-4 w-4" />
+              Scheduled
+            </button>
+            <button
+              onClick={() => setStatusFilter("sample_collected")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "sample_collected"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <FlaskConical className="h-4 w-4" />
+              Sample Collected
+            </button>
+            <button
+              onClick={() => setStatusFilter("in_progress")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "in_progress"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <Activity className="h-4 w-4" />
+              In Progress
+            </button>
+            <button
+              onClick={() => setStatusFilter("completed")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "completed"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Completed
+            </button>
+            <button
+              onClick={() => setStatusFilter("cancelled")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "cancelled"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <XCircle className="h-4 w-4" />
+              Cancelled
+            </button>
+          </div>
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
 import { formatDate, currency } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -327,77 +327,134 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Search by Booking Number
-          </label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Search by Booking Number
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchBookingId}
+                  onChange={(e) => setSearchBookingId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearchByBookingNumber();
+                    }
+                  }}
+                  placeholder="Enter booking number (e.g., LAB-20251215-00003)"
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400"
+                />
+              </div>
+              <button
+                onClick={handleSearchByBookingNumber}
+                disabled={searching}
+                className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+              >
+                {searching ? "Searching..." : "Search"}
+              </button>
+              {searchBookingId && (
+                <button
+                  onClick={() => {
+                    setSearchBookingId("");
+                    fetchBookings();
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Scheduled Date
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
-                type="text"
-                value={searchBookingId}
-                onChange={(e) => setSearchBookingId(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSearchByBookingNumber();
-                  }
-                }}
-                placeholder="Enter booking number (e.g., LAB-20251215-00003)"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Status Tabs */}
+        <div className="border-b border-slate-200">
+          <div className="flex flex-wrap gap-2 -mb-px">
             <button
-              onClick={handleSearchByBookingNumber}
-              disabled={searching}
-              className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+              onClick={() => setStatusFilter("all")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "all"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
             >
-              {searching ? "Searching..." : "Search"}
+              <List className="h-4 w-4" />
+              All
             </button>
-            {searchBookingId && (
-              <button
-                onClick={() => {
-                  setSearchBookingId("");
-                  fetchBookings();
-                }}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Clear
-              </button>
-            )}
+            <button
+              onClick={() => setStatusFilter("scheduled")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "scheduled"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <Calendar className="h-4 w-4" />
+              Scheduled
+            </button>
+            <button
+              onClick={() => setStatusFilter("sample_collected")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "sample_collected"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <FlaskConical className="h-4 w-4" />
+              Sample Collected
+            </button>
+            <button
+              onClick={() => setStatusFilter("in_progress")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "in_progress"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <Activity className="h-4 w-4" />
+              In Progress
+            </button>
+            <button
+              onClick={() => setStatusFilter("completed")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "completed"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Completed
+            </button>
+            <button
+              onClick={() => setStatusFilter("cancelled")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+                statusFilter === "cancelled"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+              }`}
+            >
+              <XCircle className="h-4 w-4" />
+              Cancelled
+            </button>
           </div>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Scheduled Date
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Status
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "all")}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-          >
-            <option value="all">All</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="sample_collected">Sample Collected</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
         </div>
       </div>
 
