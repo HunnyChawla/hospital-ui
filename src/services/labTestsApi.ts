@@ -96,6 +96,20 @@ export interface UpdateLabTestParameterRequest {
   is_active?: boolean;
 }
 
+export interface LabTestPrice {
+  id: string;
+  lab_test_id: string;
+  test_code: string;
+  tenant_id: string;
+  price: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateLabTestPriceRequest {
+  price: number;
+}
+
 export interface LabTestResult {
   id: string;
   booking_item_id: string;
@@ -245,6 +259,28 @@ export const labTestsApi = {
     const response = await apiClient.post<LabTestResult[]>(
       `/lab-tests/bookings/${labBookingId}/items/${bookingItemId}/results`,
       results,
+      { params }
+    );
+    return response.data;
+  },
+
+  async getTestPrice(testCode: string, tenantId?: string): Promise<LabTestPrice> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<LabTestPrice>(`/lab-tests/prices/${testCode}`, { params });
+    return response.data;
+  },
+
+  async updateTestPrice(
+    testCode: string,
+    updates: UpdateLabTestPriceRequest,
+    tenantId?: string
+  ): Promise<LabTestPrice> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.patch<LabTestPrice>(
+      `/lab-tests/prices/${testCode}`,
+      updates,
       { params }
     );
     return response.data;

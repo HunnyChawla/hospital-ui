@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Calendar, Search, User, Beaker, Plus, X } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
+import { currency } from "@/utils/format";
 
 interface LabBookingFormProps {
   defaultPatientId?: string;
@@ -449,6 +450,16 @@ export function LabBookingForm({
             placeholder="Additional notes (e.g., fasting required)"
           />
         </label>
+
+        {/* Total Amount */}
+        {selectedTests.length > 0 && (
+          <div className="col-span-2 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <span className="text-sm font-semibold text-slate-700">Total Amount:</span>
+            <span className="text-lg font-bold text-slate-900">
+              {currency(selectedTests.reduce((sum, st) => sum + st.test.price, 0))}
+            </span>
+          </div>
+        )}
 
         {/* Submit Button */}
         <div className="col-span-2 flex justify-end gap-3">
