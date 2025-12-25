@@ -18,10 +18,12 @@ import { patientsApi } from "@/services/patientsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
+import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
+import { paymentsApi } from "@/services/paymentsApi";
 import {
   ArrowLeft,
   CreditCard,
@@ -94,6 +96,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [shouldPrintOpd, setShouldPrintOpd] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printOpdRef = useRef<HTMLDivElement>(null);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; paymentAmount?: number } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -493,7 +498,48 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   // Handle update OPD visit status
   const handleUpdateOpdStatus = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed" | "cancelled") => {
+    // If cancelling, check if payment exists and show acknowledgment modal
+    if (newStatus === "cancelled") {
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const apiTenantId = getTenantIdForApi(tenantId);
+        
+        // Fetch visit details to check for payment
+        const visit = await opdVisitsApi.getById(visitId, apiTenantId);
+        
+        if (visit.payment_id) {
+          // Fetch payment details to get amount
+          let paymentAmount: number | undefined;
+          try {
+            const payment = await paymentsApi.getById(visit.payment_id, apiTenantId);
+            paymentAmount = payment.amount;
+          } catch (error) {
+            console.error("Failed to fetch payment details:", error);
+          }
+          
+          // Show acknowledgment modal
+          setPendingCancellation({
+            visitId,
+            visitNumber: visit.visit_number,
+            paymentAmount,
+          });
+          setShowCancellationModal(true);
+          return;
+        }
+      } catch (error: any) {
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage || "Failed to fetch visit details");
+        return;
+      }
+    }
+    
+    // Proceed with status update (non-cancellation or cancellation without payment)
+    await performOpdStatusUpdate(visitId, newStatus);
+  };
+
+  const performOpdStatusUpdate = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed" | "cancelled") => {
     try {
+      setCancelling(newStatus === "cancelled");
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       await opdVisitsApi.updateStatus(visitId, newStatus, getTenantIdForApi(tenantId));
       toast.success(`Visit status updated to ${newStatus.replace("_", " ")}`);
@@ -505,7 +551,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage || "Failed to update visit status");
+    } finally {
+      setCancelling(false);
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
     }
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!pendingCancellation) return;
+    await performOpdStatusUpdate(pendingCancellation.visitId, "cancelled");
   };
 
   // Handle create OPD from appointment
@@ -1548,6 +1603,20 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           </div>
         </div>
       )}
+
+      {/* Cancellation Refund Acknowledgment Modal */}
+      <CancellationRefundAcknowledgmentModal
+        isOpen={showCancellationModal}
+        onClose={() => {
+          setShowCancellationModal(false);
+          setPendingCancellation(null);
+        }}
+        onConfirm={handleConfirmCancellation}
+        type="opd"
+        itemNumber={pendingCancellation?.visitNumber}
+        amount={pendingCancellation?.paymentAmount}
+        loading={cancelling}
+      />
     </div>
   );
 }

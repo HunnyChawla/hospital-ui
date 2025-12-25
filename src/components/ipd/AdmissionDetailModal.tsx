@@ -17,7 +17,8 @@ import {
   Phone,
   Building2,
   ClipboardList,
-  Printer
+  Printer,
+  Shield
 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
@@ -616,59 +617,99 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           </div>
         )}
 
-        {/* Admission Details Grid */}
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        {/* Next of Kin, Insurance & Medical Information - Compact Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {/* Next of Kin Section */}
           {(admission.next_of_kin_name || admission.next_of_kin_relation || admission.next_of_kin_contact) && (
             <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Next of Kin</p>
-              <p className="text-sm font-bold text-slate-900">{admission.next_of_kin_name || "N/A"}</p>
-              {admission.next_of_kin_relation && (
-                <p className="text-xs text-slate-500 mt-0.5">{admission.next_of_kin_relation}</p>
-              )}
+              <div className="flex items-center gap-1.5 mb-2">
+                <User className="h-3.5 w-3.5 text-sky-600" />
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Next of Kin</p>
+              </div>
+              <div className="space-y-1.5">
+                {admission.next_of_kin_name && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Name</p>
+                    <p className="text-xs font-semibold text-slate-900">{admission.next_of_kin_name}</p>
+                  </div>
+                )}
+                {admission.next_of_kin_relation && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Relation</p>
+                    <p className="text-xs text-slate-700">{admission.next_of_kin_relation}</p>
+                  </div>
+                )}
+                {admission.next_of_kin_contact && (
+                  <div className="flex items-center gap-1">
+                    <Phone className="h-3 w-3 text-slate-400" />
+                    <div>
+                      <p className="text-[10px] text-slate-500 mb-0.5">Contact</p>
+                      <p className="text-xs text-slate-700">{admission.next_of_kin_contact}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Insurance Information Section */}
+          {(admission.insurance_provider || admission.insurance_policy_number) && (
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Insurance</p>
+              </div>
+              <div className="space-y-1.5">
+                {admission.insurance_provider && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Provider</p>
+                    <p className="text-xs font-semibold text-slate-900">{admission.insurance_provider}</p>
+                  </div>
+                )}
+                {admission.insurance_policy_number && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Policy Number</p>
+                    <p className="text-xs font-semibold text-slate-900 font-mono">{admission.insurance_policy_number}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Additional Information Grid */}
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-          {(admission.insurance_provider || admission.insurance_policy_number) && (
-            <>
-              {admission.insurance_provider && (
-                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Insurance Provider</p>
-                  <p className="text-sm font-bold text-slate-900">{admission.insurance_provider}</p>
-                </div>
-              )}
-              {admission.insurance_policy_number && (
-                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Policy #</p>
-                  <p className="text-sm font-bold text-slate-900">{admission.insurance_policy_number}</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Medical Information */}
+        {/* Medical Information - Compact */}
         {(admission.reason_for_admission || admission.diagnosis || admission.final_diagnosis) && (
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center gap-1.5 px-2.5 pt-2.5 pb-2 border-b border-slate-200">
+              <Stethoscope className="h-3.5 w-3.5 text-amber-600" />
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Medical Information</p>
+            </div>
+            <div className="p-2.5 space-y-2">
               {admission.reason_for_admission && (
-                <div className="p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Reason for Admission</p>
-                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.reason_for_admission}</p>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ClipboardList className="h-3 w-3 text-slate-400" />
+                    <p className="text-[10px] font-medium text-slate-600">Reason for Admission</p>
+                  </div>
+                  <p className="text-xs text-slate-900 leading-relaxed ml-4.5">{admission.reason_for_admission}</p>
                 </div>
               )}
               {admission.diagnosis && (
-                <div className="p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Initial Diagnosis</p>
-                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.diagnosis}</p>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Stethoscope className="h-3 w-3 text-slate-400" />
+                    <p className="text-[10px] font-medium text-slate-600">Initial Diagnosis</p>
+                  </div>
+                  <p className="text-xs text-slate-900 leading-relaxed ml-4.5">{admission.diagnosis}</p>
                 </div>
               )}
               {admission.final_diagnosis && (
-                <div className="p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Final Diagnosis</p>
-                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.final_diagnosis}</p>
+                <div className="rounded border border-emerald-200 bg-emerald-50/30 p-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Stethoscope className="h-3 w-3 text-emerald-600" />
+                    <p className="text-[10px] font-medium text-emerald-700">Final Diagnosis</p>
+                  </div>
+                  <p className="text-xs text-slate-900 leading-relaxed ml-4.5 font-medium">{admission.final_diagnosis}</p>
                 </div>
               )}
             </div>

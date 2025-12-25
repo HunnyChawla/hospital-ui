@@ -16,6 +16,9 @@ import { TestReportPrint } from "./TestReportPrint";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { paymentsApi } from "@/services/paymentsApi";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface LabBookingWithPatient extends LabBooking {
   patient_name?: string;
@@ -64,6 +67,9 @@ export function LabTechnicianPanel() {
   } | null>(null);
   const [shouldPrintReport, setShouldPrintReport] = useState(false);
   const printReportRef = useRef<HTMLDivElement>(null);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [pendingCancellation, setPendingCancellation] = useState<{ bookingId: string; bookingNumber?: string; paymentAmount?: number } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -598,8 +604,48 @@ export function LabTechnicianPanel() {
   };
 
   const handleStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
+    // If cancelling, check if payment exists and show acknowledgment modal
+    if (newStatus === "cancelled") {
+      try {
+        // Find booking in current list to check for payment
+        const booking = bookings.find((b) => b.id === bookingId);
+        
+        if (booking?.payment_id) {
+          // Fetch payment details to get amount
+          let paymentAmount: number | undefined;
+          try {
+            const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+            const apiTenantId = getTenantIdForApi(tenantId || undefined);
+            const payment = await paymentsApi.getById(booking.payment_id, apiTenantId);
+            paymentAmount = payment.amount;
+          } catch (error) {
+            console.error("Failed to fetch payment details:", error);
+          }
+          
+          // Show acknowledgment modal
+          setPendingCancellation({
+            bookingId,
+            bookingNumber: booking.booking_number,
+            paymentAmount,
+          });
+          setShowCancellationModal(true);
+          return;
+        }
+      } catch (error: any) {
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage || "Failed to fetch booking details");
+        return;
+      }
+    }
+    
+    // Proceed with status update (non-cancellation or cancellation without payment)
+    await performStatusUpdate(bookingId, newStatus);
+  };
+
+  const performStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
     setUpdatingStatus(bookingId);
     try {
+      setCancelling(newStatus === "cancelled");
       await labBookingsApi.updateStatus(bookingId, newStatus);
       toast.success(`Status updated to ${getStatusLabel(newStatus)}`);
       fetchBookings();
@@ -608,7 +654,15 @@ export function LabTechnicianPanel() {
       toast.error(errorMessage || "Failed to update status");
     } finally {
       setUpdatingStatus(null);
+      setCancelling(false);
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
     }
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!pendingCancellation) return;
+    await performStatusUpdate(pendingCancellation.bookingId, "cancelled");
   };
 
   const toggleBookingExpansion = async (bookingId: string) => {
@@ -1245,6 +1299,20 @@ export function LabTechnicianPanel() {
           </div>
         </div>
       )}
+
+      {/* Cancellation Refund Acknowledgment Modal */}
+      <CancellationRefundAcknowledgmentModal
+        isOpen={showCancellationModal}
+        onClose={() => {
+          setShowCancellationModal(false);
+          setPendingCancellation(null);
+        }}
+        onConfirm={handleConfirmCancellation}
+        type="lab"
+        itemNumber={pendingCancellation?.bookingNumber}
+        amount={pendingCancellation?.paymentAmount}
+        loading={cancelling}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { serviceChargesApi, ServiceCharge } from "@/services/serviceChargesApi";
 import { servicesApi, Service } from "@/services/servicesApi";
 import { currency } from "@/utils/format";
 import { formatDate } from "@/utils/format";
-import { Plus, X, Search } from "lucide-react";
+import { Plus, X, Search, Trash2, Loader2 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -28,6 +28,9 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
     discount: 0,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [cancellingChargeId, setCancellingChargeId] = useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [chargeToCancel, setChargeToCancel] = useState<ServiceCharge | null>(null);
 
   // Service dropdown state
   const [serviceSearchTerm, setServiceSearchTerm] = useState("");
@@ -257,6 +260,31 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
     }
   };
 
+  const handleCancelCharge = (charge: ServiceCharge) => {
+    setChargeToCancel(charge);
+    setShowCancelConfirm(true);
+  };
+
+  const confirmCancelCharge = async () => {
+    if (!chargeToCancel) return;
+
+    setCancellingChargeId(chargeToCancel.charge_id);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      await serviceChargesApi.cancel(chargeToCancel.charge_id, tenantId || undefined);
+      toast.success("Charge cancelled successfully");
+      setShowCancelConfirm(false);
+      setChargeToCancel(null);
+      fetchCharges(); // Refresh the charges list
+    } catch (error) {
+      console.error("Failed to cancel charge:", error);
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to cancel charge");
+    } finally {
+      setCancellingChargeId(null);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Service Charges" size="xl">
       <div className="space-y-3 -mx-6 -mb-6 px-6 pb-6">
@@ -437,6 +465,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                     <th className="px-3 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
                     <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Status</th>
                     <th className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Performed At</th>
+                    <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -453,6 +482,28 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                         </span>
                       </td>
                       <td className="px-3 py-3 text-xs text-slate-600">{formatDateTime(charge.performed_at)}</td>
+                      <td className="px-3 py-3 text-center">
+                        {charge.status === "ACTIVE" && (
+                          <button
+                            onClick={() => handleCancelCharge(charge)}
+                            disabled={cancellingChargeId === charge.charge_id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed border border-rose-200"
+                            title="Cancel Charge"
+                          >
+                            {cancellingChargeId === charge.charge_id ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Cancelling...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-3 w-3" />
+                                <span>Cancel</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -471,6 +522,74 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
           </button>
         </div>
       </div>
+
+      {/* Cancel Confirmation Dialog */}
+      {showCancelConfirm && chargeToCancel && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-slate-200 bg-white px-6 py-4">
+              <h3 className="text-lg font-semibold text-slate-900">Cancel Charge</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm text-amber-900 font-medium mb-2">
+                  Are you sure you want to cancel this charge?
+                </p>
+                <div className="space-y-2 text-sm text-amber-800">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Service:</span>
+                    <span>{chargeToCancel.service_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Category:</span>
+                    <span>{chargeToCancel.service_category}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Quantity:</span>
+                    <span>{chargeToCancel.quantity}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Total Amount:</span>
+                    <span className="font-bold">{currency(parseFloat(chargeToCancel.total_amount))}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600">
+                This action cannot be undone. The charge will be marked as cancelled.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <button
+                onClick={() => {
+                  setShowCancelConfirm(false);
+                  setChargeToCancel(null);
+                }}
+                disabled={cancellingChargeId === chargeToCancel.charge_id}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmCancelCharge}
+                disabled={cancellingChargeId === chargeToCancel.charge_id}
+                className="rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-rose-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cancellingChargeId === chargeToCancel.charge_id ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cancelling...
+                  </span>
+                ) : (
+                  "Confirm Cancel"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

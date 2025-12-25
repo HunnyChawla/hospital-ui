@@ -16,6 +16,7 @@ import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePayment
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi } from "@/services/paymentsApi";
 import { getTenantIdForApi } from "@/utils/auth";
+import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -203,6 +204,9 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; paymentAmount?: number } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
   
@@ -424,8 +428,82 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
   };
 
-  const handleUpdateStatus = async (visitId: string, newStatus: VisitStatus) => {
+  const handleUpdateStatus = async (visitId: string, newStatus: VisitStatus, visit?: Visit) => {
+    // If cancelling, check if payment exists and show acknowledgment modal
+    if (newStatus === "cancelled") {
+      try {
+        // Use visit from list if provided, otherwise fetch it
+        let visitData = visit;
+        if (!visitData) {
+          visitData = await opdVisitsApi.getById(visitId);
+        }
+        
+        console.log("Checking cancellation for visit:", visitData.id, "payment_id:", visitData.payment_id, "invoice_id:", visitData.invoice_id);
+        
+        // Check if visit has payment_id or invoice_id (payment might be linked via invoice)
+        const hasPayment = visitData.payment_id || visitData.invoice_id;
+        
+        if (hasPayment) {
+          // Fetch payment details to get amount
+          let paymentAmount: number | undefined;
+          
+          // Try to get payment via payment_id first
+          if (visitData.payment_id) {
+            try {
+              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+              const apiTenantId = getTenantIdForApi(tenantId || undefined);
+              const payment = await paymentsApi.getById(visitData.payment_id, apiTenantId);
+              paymentAmount = Math.abs(payment.amount);
+              console.log("Found payment via payment_id:", paymentAmount);
+            } catch (error) {
+              console.error("Failed to fetch payment details:", error);
+            }
+          } 
+          // If no payment_id but has invoice_id, try to get payment from invoice
+          if (!paymentAmount && visitData.invoice_id) {
+            try {
+              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+              const apiTenantId = getTenantIdForApi(tenantId || undefined);
+              const payments = await paymentsApi.getByInvoiceId(visitData.invoice_id, apiTenantId);
+              // Sum all positive payments (excluding refunds)
+              if (payments.length > 0) {
+                paymentAmount = payments
+                  .filter(p => p.amount > 0)
+                  .reduce((sum, p) => sum + p.amount, 0);
+                console.log("Found payments via invoice_id:", paymentAmount, "from", payments.length, "payments");
+              }
+            } catch (error) {
+              console.error("Failed to fetch payments from invoice:", error);
+            }
+          }
+          
+          // Show acknowledgment modal even if we couldn't fetch amount
+          console.log("Showing cancellation modal for visit:", visitData.visit_number, "with payment amount:", paymentAmount);
+          setPendingCancellation({
+            visitId,
+            visitNumber: visitData.visit_number,
+            paymentAmount,
+          });
+          setShowCancellationModal(true);
+          return;
+        } else {
+          console.log("No payment found for visit:", visitData.id, "- proceeding with cancellation");
+        }
+      } catch (error: any) {
+        console.error("Error checking payment for cancellation:", error);
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage || "Failed to fetch visit details");
+        return;
+      }
+    }
+    
+    // Proceed with status update (non-cancellation or cancellation without payment)
+    await performStatusUpdate(visitId, newStatus);
+  };
+
+  const performStatusUpdate = async (visitId: string, newStatus: VisitStatus) => {
     try {
+      setCancelling(newStatus === "cancelled");
       await opdVisitsApi.updateStatus(visitId, newStatus);
       toast.success(`Visit status updated to ${newStatus.replace("_", " ")}`);
       
@@ -436,7 +514,16 @@ export function OpdList({ doctorId }: OpdListProps) {
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage);
+    } finally {
+      setCancelling(false);
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
     }
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!pendingCancellation) return;
+    await performStatusUpdate(pendingCancellation.visitId, "cancelled");
   };
 
   const handlePrintOpd = async (visitId: string) => {
@@ -990,7 +1077,7 @@ export function OpdList({ doctorId }: OpdListProps) {
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
                       </button>
                       <button
-                        onClick={() => handleUpdateStatus(visit.id, "cancelled")}
+                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
                         className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
                         style={{ width: "2rem" }}
                         onMouseEnter={(e) => {
@@ -1038,7 +1125,7 @@ export function OpdList({ doctorId }: OpdListProps) {
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
                       </button>
                       <button
-                        onClick={() => handleUpdateStatus(visit.id, "cancelled")}
+                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
                         className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
                         style={{ width: "2rem" }}
                         onMouseEnter={(e) => {
@@ -1184,6 +1271,20 @@ export function OpdList({ doctorId }: OpdListProps) {
           </div>
         </div>
       )}
+
+      {/* Cancellation Refund Acknowledgment Modal */}
+      <CancellationRefundAcknowledgmentModal
+        isOpen={showCancellationModal}
+        onClose={() => {
+          setShowCancellationModal(false);
+          setPendingCancellation(null);
+        }}
+        onConfirm={handleConfirmCancellation}
+        type="opd"
+        itemNumber={pendingCancellation?.visitNumber}
+        amount={pendingCancellation?.paymentAmount}
+        loading={cancelling}
+      />
     </div>
   );
 }
