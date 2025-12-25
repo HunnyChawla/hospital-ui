@@ -108,14 +108,14 @@ export const doctorsApi = {
     return response.data;
   },
 
-  async calculateConsultationFee(doctorId: string, patientId: string, isEmergency: boolean = false, tenantId?: string): Promise<ConsultationFeeCalculation> {
+  async calculateConsultationFee(doctorId: string, patientId: string, isEmergency: boolean = false, tenantId?: string, signal?: AbortSignal): Promise<ConsultationFeeCalculation> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params: any = { 
       patient_id: patientId,
       is_emergency: isEmergency.toString(),
       ...(apiTenantId ? { tenant_id: apiTenantId } : {})
     };
-    const response = await apiClient.get<ConsultationFeeCalculation>(`/doctors/${doctorId}/consultation-fees/calculate`, { params });
+    const response = await apiClient.get<ConsultationFeeCalculation>(`/doctors/${doctorId}/consultation-fees/calculate`, { params, signal });
     return response.data;
   },
 };
