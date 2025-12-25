@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  hospital-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build args are optional - Next.js will read .env.production automatically
+      # Uncomment and set values here if you want to override .env.production
+      # args:
+      #   - NEXT_PUBLIC_BASE_PATH=
+      #   - NEXT_PUBLIC_API_BASE_URL=
+      #   - NEXT_PUBLIC_DOMAIN_URL=
+    container_name: hospital-ui
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+
