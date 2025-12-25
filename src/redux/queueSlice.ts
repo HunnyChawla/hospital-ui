@@ -29,6 +29,7 @@ export const fetchQueue = createAsyncThunk(
       status: mapVisitStatusToQueueStatus(visit.status),
       etaMinutes: calculateETA(visit),
       visitId: visit.id, // Store visit ID for status updates
+      visit_type: visit.visit_type, // Include visit type for emergency highlighting
     }));
   }
 );
@@ -55,6 +56,7 @@ export const fetchCombinedQueue = createAsyncThunk(
       etaMinutes: 0, // Calculate based on position in queue
       visitId: item.type === "visit" ? item.id : undefined, // Only visits have visitId
       appointmentId: item.type === "appointment" ? item.id : undefined,
+      visit_type: item.visit_type as "walk_in" | "appointment" | "emergency" | undefined, // Include visit type for emergency highlighting
     }));
   }
 );

@@ -21,6 +21,159 @@ interface OpdListProps {
   doctorId?: string;
 }
 
+// Print Buttons Group Component for OPD Visits
+function PrintButtonsGroup({ 
+  visit, 
+  onPrintOpd, 
+  onPrintInvoice, 
+  onPrintPayment 
+}: { 
+  visit: Visit; 
+  onPrintOpd: () => void;
+  onPrintInvoice: () => void;
+  onPrintPayment: () => void;
+}) {
+  const [showPrintDropdown, setShowPrintDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Calculate dropdown position using fixed positioning to avoid overflow clipping
+  useEffect(() => {
+    if (!showPrintDropdown || !buttonRef.current) {
+      setDropdownPosition(null);
+      return;
+    }
+
+    const calculatePosition = () => {
+      if (!buttonRef.current) return;
+      
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = 150; // Approximate height of dropdown menu
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // Calculate position - open upward if not enough space below
+      const top = spaceBelow < dropdownHeight && spaceAbove > dropdownHeight
+        ? rect.top - dropdownHeight - 4 // 4px margin
+        : rect.bottom + 4; // 4px margin
+      
+      // Position from right edge of viewport
+      const right = window.innerWidth - rect.right;
+      
+      setDropdownPosition({ top, right });
+    };
+
+    // Calculate position after a small delay to ensure DOM is updated
+    const timeoutId = setTimeout(calculatePosition, 0);
+    
+    // Recalculate on scroll/resize
+    window.addEventListener("scroll", calculatePosition, true);
+    window.addEventListener("resize", calculatePosition);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("scroll", calculatePosition, true);
+      window.removeEventListener("resize", calculatePosition);
+    };
+  }, [showPrintDropdown]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showPrintDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowPrintDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPrintDropdown]);
+
+  const hasInvoice = !!visit.invoice_id;
+  const hasPayment = !!visit.payment_id;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        ref={buttonRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowPrintDropdown(!showPrintDropdown);
+        }}
+        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+        style={{ width: "2rem" }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.width = "auto";
+          e.currentTarget.style.paddingLeft = "0.75rem";
+          e.currentTarget.style.paddingRight = "0.75rem";
+        }}
+        onMouseLeave={(e) => {
+          if (!showPrintDropdown) {
+            e.currentTarget.style.width = "2rem";
+            e.currentTarget.style.paddingLeft = "0.5rem";
+            e.currentTarget.style.paddingRight = "0.5rem";
+          }
+        }}
+        title="Print"
+      >
+        <Printer className="h-4 w-4 shrink-0" />
+        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print</span>
+      </button>
+
+      {showPrintDropdown && dropdownPosition && (
+        <div 
+          className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white shadow-lg"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            right: `${dropdownPosition.right}px`,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrintOpd();
+              setShowPrintDropdown(false);
+            }}
+            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+          >
+            <Printer className="h-4 w-4" />
+            Print OPD
+          </button>
+          {hasInvoice ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPrintInvoice();
+                setShowPrintDropdown(false);
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              <FileText className="h-4 w-4" />
+              Print Invoice
+            </button>
+          ) : null}
+          {hasPayment ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPrintPayment();
+                setShowPrintDropdown(false);
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              <Receipt className="h-4 w-4" />
+              Print Payment Receipt
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function OpdList({ doctorId }: OpdListProps) {
   const doctors = useAppSelector((s) => s.doctors.list);
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -385,9 +538,15 @@ export function OpdList({ doctorId }: OpdListProps) {
                       {visit.patient_mobile && (
                         <span>{visit.patient_mobile}</span>
                       )}
-                      <span className="flex items-center gap-1">
+                      <span className={`flex items-center gap-1 ${visit.visit_type === "emergency" ? "pill px-2 py-0.5 bg-rose-50 text-rose-700 font-medium" : ""}`}>
                         <User className="h-3 w-3" />
-                        {visit.visit_type === "walk_in" ? "Walk-in" : "From Appointment"}
+                        {visit.visit_type === "walk_in" 
+                          ? "Walk-in" 
+                          : visit.visit_type === "appointment" 
+                          ? "From Appointment" 
+                          : visit.visit_type === "emergency"
+                          ? "Emergency"
+                          : visit.visit_type.replace("_", " ")}
                       </span>
                       {visit.checked_in_at && (
                         <span>
@@ -463,67 +622,12 @@ export function OpdList({ doctorId }: OpdListProps) {
                         <X className="h-4 w-4 shrink-0" />
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
                       </button>
-                      <button
-                        onClick={() => handlePrintOpd(visit.id)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Print OPD"
-                      >
-                        <Printer className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print OPD</span>
-                      </button>
-                      {visit.invoice_id && (
-                        <button
-                          onClick={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Print Invoice"
-                        >
-                          <FileText className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
-                        </button>
-                      )}
-                      {visit.payment_id && (
-                        <button
-                          onClick={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Print Payment Receipt"
-                        >
-                          <Receipt className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Payment Receipt</span>
-                        </button>
-                      )}
+                      <PrintButtonsGroup
+                        visit={visit}
+                        onPrintOpd={() => handlePrintOpd(visit.id)}
+                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                      />
                     </>
                   )}
                   {visit.status === "in_consultation" && (
@@ -566,67 +670,12 @@ export function OpdList({ doctorId }: OpdListProps) {
                         <X className="h-4 w-4 shrink-0" />
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
                       </button>
-                      <button
-                        onClick={() => handlePrintOpd(visit.id)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Print OPD"
-                      >
-                        <Printer className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print OPD</span>
-                      </button>
-                      {visit.invoice_id && (
-                        <button
-                          onClick={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Print Invoice"
-                        >
-                          <FileText className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
-                        </button>
-                      )}
-                      {visit.payment_id && (
-                        <button
-                          onClick={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Print Payment Receipt"
-                        >
-                          <Receipt className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Payment Receipt</span>
-                        </button>
-                      )}
+                      <PrintButtonsGroup
+                        visit={visit}
+                        onPrintOpd={() => handlePrintOpd(visit.id)}
+                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                      />
                     </>
                   )}
                 </div>

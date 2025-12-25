@@ -54,6 +54,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const searchRef = useRef<HTMLDivElement>(null);
   const previousPatientsCount = useRef(patients.length);
   const justSelectedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch doctors on mount
   useEffect(() => {
@@ -124,31 +125,62 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
   // Calculate consultation fee when doctor and patient are selected
   useEffect(() => {
+    // Abort any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
     const calculateFee = async () => {
       if (!doctorId || !patientId) {
         setConsultationFee(null);
         setFeeCalculation(null);
+        setIsCalculatingFee(false);
         return;
       }
 
+      // Create new AbortController for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       setIsCalculatingFee(true);
       try {
-        const calculation = await doctorsApi.calculateConsultationFee(doctorId, patientId, isEmergency);
-        setFeeCalculation(calculation);
-        setConsultationFee(calculation.consultation_fee);
-      } catch (error) {
+        const calculation = await doctorsApi.calculateConsultationFee(doctorId, patientId, isEmergency, undefined, abortController.signal);
+        
+        // Only update state if request wasn't aborted and this is still the current request
+        if (!abortController.signal.aborted && abortControllerRef.current === abortController) {
+          setFeeCalculation(calculation);
+          setConsultationFee(calculation.consultation_fee);
+          setIsCalculatingFee(false);
+        }
+      } catch (error: any) {
+        // Ignore aborted requests
+        if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+          return;
+        }
         console.error("Failed to calculate consultation fee:", error);
-        setConsultationFee(null);
-        setFeeCalculation(null);
+        
+        // Only update state if request wasn't aborted and this is still the current request
+        if (!abortController.signal.aborted && abortControllerRef.current === abortController) {
+          setConsultationFee(null);
+          setFeeCalculation(null);
+          setIsCalculatingFee(false);
+        }
         // Don't show error toast as this is a background operation
-      } finally {
-        setIsCalculatingFee(false);
       }
     };
 
     // Debounce the calculation
     const timeoutId = setTimeout(calculateFee, 300);
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      // Abort request on cleanup
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+        setIsCalculatingFee(false);
+      }
+    };
   }, [doctorId, patientId, isEmergency]);
 
   const filteredPatients = useMemo(() => {
@@ -461,22 +493,24 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         </label>
 
         {/* Emergency Checkbox - Compact */}
-        <label className="space-y-1">
+        <div className="space-y-1">
           <span className="text-slate-600 text-xs">Visit Type</span>
           <div className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 transition hover:border-rose-200 hover:bg-rose-50/30">
-            <input
-              type="checkbox"
-              id="emergency"
-              checked={isEmergency}
-              onChange={(e) => setIsEmergency(e.target.checked)}
-              className="h-4 w-4 rounded border-2 border-slate-300 text-rose-500 focus:ring-1 focus:ring-rose-500"
-            />
+            <label htmlFor="emergency" className="cursor-pointer">
+              <input
+                type="checkbox"
+                id="emergency"
+                checked={isEmergency}
+                onChange={(e) => setIsEmergency(e.target.checked)}
+                className="h-4 w-4 rounded border-2 border-slate-300 text-rose-500 focus:ring-1 focus:ring-rose-500"
+              />
+            </label>
             <AlertCircle className={`h-4 w-4 ${isEmergency ? 'text-rose-600' : 'text-slate-400'}`} />
             <span className={`text-xs font-medium ${isEmergency ? 'text-rose-600' : 'text-slate-600'}`}>
               Emergency
             </span>
           </div>
-        </label>
+        </div>
 
         {/* Consultation Fee - Compact */}
         <label className="space-y-1">

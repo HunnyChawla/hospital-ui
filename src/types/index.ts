@@ -73,5 +73,6 @@ export type QueueEntry = {
   etaMinutes: number;
   visitId?: string; // For OPD visits
   appointmentId?: string; // For appointments
+  visit_type?: "walk_in" | "appointment" | "emergency"; // Visit type for emergency highlighting
 };
 
