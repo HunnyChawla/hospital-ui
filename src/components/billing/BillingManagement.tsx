@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi, Payment } from "@/services/paymentsApi";
+import { paymentsApi } from "@/services/paymentsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
-import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { Modal } from "@/components/common/Modal";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
 import { useReactToPrint } from "react-to-print";
@@ -29,8 +29,8 @@ import {
 interface BillingManagementProps {
   renderSearchInHeader?: (searchBox: React.ReactNode) => void;
   renderFilterInHeader?: (filterToggle: React.ReactNode) => void;
-  statusFilter: "all" | "pending" | "paid";
-  onStatusFilterChange: (filter: "all" | "pending" | "paid") => void;
+  statusFilter: "all" | "pending" | "paid" | "partial" | "refunded";
+  onStatusFilterChange: (filter: "all" | "pending" | "paid" | "partial" | "refunded") => void;
 }
 
 export function BillingManagement({ 
@@ -62,7 +62,7 @@ export function BillingManagement({
   // Print state
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
-  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
@@ -74,7 +74,7 @@ export function BillingManagement({
 
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
   });
 
   useEffect(() => {
@@ -222,37 +222,13 @@ export function BillingManagement({
   };
 
   const handlePrintPaymentReceiptClick = async (invoice: Invoice) => {
-    if (!invoice.payment_id) {
-      toast.error("Payment ID not available for this invoice");
+    if (!invoice.id) {
+      toast.error("Invoice ID not available");
       return;
     }
 
     try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      
-      // Fetch payment details directly using payment_id from invoice
-      const payment = await paymentsApi.getById(invoice.payment_id, apiTenantId);
-
-      // Get invoice number (we already have it from the invoice object)
-      const invoiceNumber = invoice.invoice_number;
-
-      // Get patient name and mobile (already available in invoice object)
-      let patientName = invoice.patient_name || "Unknown";
-      let patientMobile = invoice.patient_mobile;
-
-      if (!invoice.patient_name || !invoice.patient_mobile) {
-        const patient = await patientsApi.getById(invoice.patient_id);
-        patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
-        patientMobile = patient.mobile;
-      }
-
-      setPrintPaymentData({
-        payment,
-        patientName,
-        patientMobile,
-        invoiceNumber,
-      });
+      setPrintPaymentInvoiceId(invoice.id);
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
@@ -267,6 +243,8 @@ export function BillingManagement({
         return "bg-emerald-50 text-emerald-700";
       case "partial":
         return "bg-amber-50 text-amber-700";
+      case "refunded":
+        return "bg-rose-50 text-rose-700";
       case "cancelled":
       case "failed":
         return "bg-rose-50 text-rose-700";
@@ -386,6 +364,26 @@ export function BillingManagement({
         }`}
       >
         Paid
+      </button>
+      <button
+        onClick={() => onStatusFilterChange("partial")}
+        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+          statusFilter === "partial"
+            ? "bg-sky-500 text-white shadow-sm"
+            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+        }`}
+      >
+        Partial
+      </button>
+      <button
+        onClick={() => onStatusFilterChange("refunded")}
+        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+          statusFilter === "refunded"
+            ? "bg-sky-500 text-white shadow-sm"
+            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+        }`}
+      >
+        Refunded
       </button>
     </div>
   ), [statusFilter, onStatusFilterChange]);
@@ -793,15 +791,10 @@ export function BillingManagement({
       )}
 
       {/* Print Payment Receipt (Hidden) */}
-      {printPaymentData && (
+      {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <PaymentReceiptPrint
-              payment={printPaymentData.payment}
-              patientName={printPaymentData.patientName}
-              patientMobile={printPaymentData.patientMobile}
-              invoiceNumber={printPaymentData.invoiceNumber}
-            />
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
           </div>
         </div>
       )}

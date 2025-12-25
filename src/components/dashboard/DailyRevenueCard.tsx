@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { analyticsApi } from "@/services/analyticsApi";
 import { currency } from "@/utils/format";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, Currency } from "lucide-react";
 
 interface DailyRevenueData {
   today: {
@@ -105,7 +105,7 @@ export function DailyRevenueCard() {
             <div className="mt-1.5 h-4 w-24 animate-pulse rounded bg-slate-200"></div>
           </div>
           <div className="rounded-2xl p-2.5 bg-emerald-50 text-emerald-600">
-            <DollarSign className="h-5 w-5" />
+            <Currency className="h-5 w-5" />
           </div>
         </div>
       </div>
@@ -127,7 +127,7 @@ export function DailyRevenueCard() {
             <p className="mt-1.5 text-xs text-slate-500">Today collected</p>
           </div>
           <div className="rounded-2xl p-2.5 bg-emerald-50 text-emerald-600">
-            <DollarSign className="h-5 w-5" />
+            <Currency className="h-5 w-5" />
           </div>
         </div>
 

@@ -17,13 +17,14 @@ import {
   Phone,
   Building2,
   ClipboardList,
-  Printer
+  Printer,
+  Shield
 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
-import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
 import { getTenantIdForApi } from "@/utils/auth";
 import { ServiceChargesModal } from "./ServiceChargesModal";
@@ -49,7 +50,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [showServiceChargesModal, setShowServiceChargesModal] = useState(false);
   const [showInitiateDischargeModal, setShowInitiateDischargeModal] = useState(false);
-  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const [printDischargeSummaryData, setPrintDischargeSummaryData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
   const [shouldPrintDischargeSummary, setShouldPrintDischargeSummary] = useState(false);
@@ -64,7 +65,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
   });
 
   const handlePrintDischargeSummary = useReactToPrint({
@@ -98,6 +99,16 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       setInvoice(null);
     }
   }, [admission?.invoice_id]);
+
+  useEffect(() => {
+    if (shouldPrintPayment && printPaymentInvoiceId && printPaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintPayment();
+        setShouldPrintPayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintPayment, printPaymentInvoiceId, handlePrintPayment]);
 
   useEffect(() => {
     if (admission?.status === "admitted" && !admission.invoice_id) {
@@ -189,37 +200,18 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     }
   };
 
-  const handlePrintPaymentReceipt = async (paymentId: string) => {
+  const handlePrintPaymentReceipt = async () => {
+    if (!admission?.invoice_id) {
+      toast.error("Invoice ID not available for this admission");
+      return;
+    }
+
     try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      const payment = await paymentsApi.getById(paymentId, apiTenantId);
-      
-      // Get invoice number if available
-      let invoiceNumber: string | undefined;
-      if (payment.invoice_id) {
-        try {
-          const invoice = await invoicesApi.getById(payment.invoice_id, apiTenantId);
-          invoiceNumber = invoice.invoice_number;
-        } catch (error) {
-          console.error("Failed to fetch invoice for receipt:", error);
-        }
-      }
-      
-      // Use patient name from admission if available
-      const patientName = admission?.patient_name || "Unknown";
-      const patientMobile = undefined; // Could fetch from patient if needed
-      
-      setPrintPaymentData({
-        payment,
-        patientName,
-        patientMobile,
-        invoiceNumber,
-      });
+      setPrintPaymentInvoiceId(admission.invoice_id);
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to fetch payment details");
+      toast.error(errorMessage || "Failed to prepare payment receipt for printing");
     }
   };
 
@@ -625,59 +617,99 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           </div>
         )}
 
-        {/* Admission Details Grid */}
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        {/* Next of Kin, Insurance & Medical Information - Compact Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {/* Next of Kin Section */}
           {(admission.next_of_kin_name || admission.next_of_kin_relation || admission.next_of_kin_contact) && (
             <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Next of Kin</p>
-              <p className="text-sm font-bold text-slate-900">{admission.next_of_kin_name || "N/A"}</p>
-              {admission.next_of_kin_relation && (
-                <p className="text-xs text-slate-500 mt-0.5">{admission.next_of_kin_relation}</p>
-              )}
+              <div className="flex items-center gap-1.5 mb-2">
+                <User className="h-3.5 w-3.5 text-sky-600" />
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Next of Kin</p>
+              </div>
+              <div className="space-y-1.5">
+                {admission.next_of_kin_name && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Name</p>
+                    <p className="text-xs font-semibold text-slate-900">{admission.next_of_kin_name}</p>
+                  </div>
+                )}
+                {admission.next_of_kin_relation && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Relation</p>
+                    <p className="text-xs text-slate-700">{admission.next_of_kin_relation}</p>
+                  </div>
+                )}
+                {admission.next_of_kin_contact && (
+                  <div className="flex items-center gap-1">
+                    <Phone className="h-3 w-3 text-slate-400" />
+                    <div>
+                      <p className="text-[10px] text-slate-500 mb-0.5">Contact</p>
+                      <p className="text-xs text-slate-700">{admission.next_of_kin_contact}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Insurance Information Section */}
+          {(admission.insurance_provider || admission.insurance_policy_number) && (
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Insurance</p>
+              </div>
+              <div className="space-y-1.5">
+                {admission.insurance_provider && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Provider</p>
+                    <p className="text-xs font-semibold text-slate-900">{admission.insurance_provider}</p>
+                  </div>
+                )}
+                {admission.insurance_policy_number && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">Policy Number</p>
+                    <p className="text-xs font-semibold text-slate-900 font-mono">{admission.insurance_policy_number}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Additional Information Grid */}
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-          {(admission.insurance_provider || admission.insurance_policy_number) && (
-            <>
-              {admission.insurance_provider && (
-                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Insurance Provider</p>
-                  <p className="text-sm font-bold text-slate-900">{admission.insurance_provider}</p>
-                </div>
-              )}
-              {admission.insurance_policy_number && (
-                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-0.5">Policy #</p>
-                  <p className="text-sm font-bold text-slate-900">{admission.insurance_policy_number}</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Medical Information */}
+        {/* Medical Information - Compact */}
         {(admission.reason_for_admission || admission.diagnosis || admission.final_diagnosis) && (
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center gap-1.5 px-2.5 pt-2.5 pb-2 border-b border-slate-200">
+              <Stethoscope className="h-3.5 w-3.5 text-amber-600" />
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Medical Information</p>
+            </div>
+            <div className="p-2.5 space-y-2">
               {admission.reason_for_admission && (
-                <div className="p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Reason for Admission</p>
-                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.reason_for_admission}</p>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ClipboardList className="h-3 w-3 text-slate-400" />
+                    <p className="text-[10px] font-medium text-slate-600">Reason for Admission</p>
+                  </div>
+                  <p className="text-xs text-slate-900 leading-relaxed ml-4.5">{admission.reason_for_admission}</p>
                 </div>
               )}
               {admission.diagnosis && (
-                <div className="p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Initial Diagnosis</p>
-                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.diagnosis}</p>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Stethoscope className="h-3 w-3 text-slate-400" />
+                    <p className="text-[10px] font-medium text-slate-600">Initial Diagnosis</p>
+                  </div>
+                  <p className="text-xs text-slate-900 leading-relaxed ml-4.5">{admission.diagnosis}</p>
                 </div>
               )}
               {admission.final_diagnosis && (
-                <div className="p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 mb-1.5">Final Diagnosis</p>
-                  <p className="text-xs font-medium text-slate-900 leading-relaxed">{admission.final_diagnosis}</p>
+                <div className="rounded border border-emerald-200 bg-emerald-50/30 p-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Stethoscope className="h-3 w-3 text-emerald-600" />
+                    <p className="text-[10px] font-medium text-emerald-700">Final Diagnosis</p>
+                  </div>
+                  <p className="text-xs text-slate-900 leading-relaxed ml-4.5 font-medium">{admission.final_diagnosis}</p>
                 </div>
               )}
             </div>
@@ -713,9 +745,9 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
                   Print Invoice
                 </button>
               )}
-              {admission.payment_id && (
+              {admission.invoice_id && (
                 <button
-                  onClick={() => handlePrintPaymentReceipt(admission.payment_id!)}
+                  onClick={handlePrintPaymentReceipt}
                   className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
                 >
                   <Printer className="h-4 w-4" />
@@ -756,15 +788,10 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       )}
 
       {/* Hidden printable payment receipt */}
-      {printPaymentData && (
+      {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <PaymentReceiptPrint
-              payment={printPaymentData.payment}
-              patientName={printPaymentData.patientName}
-              patientMobile={printPaymentData.patientMobile}
-              invoiceNumber={printPaymentData.invoiceNumber}
-            />
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
           </div>
         </div>
       )}

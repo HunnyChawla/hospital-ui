@@ -119,7 +119,9 @@ export interface AdmissionsSearchParams {
   ward_id?: string;
   bed_id?: string;
   status?: AdmissionStatus;
-  admission_date?: string; // YYYY-MM-DD
+  admission_date?: string; // YYYY-MM-DD (kept for backward compatibility)
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string; // YYYY-MM-DD
   tenant_id?: string;
 }
 
@@ -148,7 +150,15 @@ export const admissionsApi = {
     if (params?.ward_id) queryParams.append("ward_id", params.ward_id);
     if (params?.bed_id) queryParams.append("bed_id", params.bed_id);
     if (params?.status) queryParams.append("status", params.status);
-    if (params?.admission_date) queryParams.append("admission_date", params.admission_date);
+    
+    // Use start_date and end_date if provided, otherwise fall back to admission_date
+    if (params?.start_date && params?.end_date) {
+      queryParams.append("start_date", params.start_date);
+      queryParams.append("end_date", params.end_date);
+    } else if (params?.admission_date) {
+      queryParams.append("admission_date", params.admission_date);
+    }
+    
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 

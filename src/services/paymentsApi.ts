@@ -8,6 +8,9 @@ export interface Payment {
   id: string;
   tenant_id: string;
   invoice_id: string;
+  patient_id?: string;
+  patient_name?: string;
+  patient_mobile?: string;
   payment_number: string;
   amount: number;
   payment_method: PaymentMethod;
@@ -76,6 +79,13 @@ export const paymentsApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<Payment>(`/payments/${paymentId}`, { params });
+    return response.data;
+  },
+
+  async getByInvoiceId(invoiceId: string, tenantId?: string): Promise<Payment[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<Payment[]>(`/payments/invoice/${invoiceId}`, { params });
     return response.data;
   },
 };
