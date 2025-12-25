@@ -5,7 +5,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { formatDate } from "@/utils/format";
-import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt } from "lucide-react";
+import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -16,6 +16,9 @@ import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
 import { getTenantIdForApi } from "@/utils/auth";
+import { useTenant } from "@/hooks/useTenant";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface OpdListProps {
   doctorId?: string;
@@ -176,10 +179,18 @@ function PrintButtonsGroup({
 
 export function OpdList({ doctorId }: OpdListProps) {
   const doctors = useAppSelector((s) => s.doctors.list);
+  const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
-  const [selectedDate, setSelectedDate] = useState("");
+  
+  // Date range state - default to today
+  const getTodayDate = () => new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [dateRangeError, setDateRangeError] = useState<string>("");
+  
   const [sortBy, setSortBy] = useState<"token_number" | "visit_date" | "created_at" | "checked_in_at" | "visit_number" | "status" | "visit_type">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -217,15 +228,74 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
   }, [doctors, selectedDoctorId]);
 
-  // Set default date on client side only to avoid hydration mismatch
+  // Set default dates on client side only to avoid hydration mismatch
   useEffect(() => {
-    if (!selectedDate) {
-      setSelectedDate(new Date().toISOString().split("T")[0]);
+    const today = getTodayDate();
+    if (!startDate) {
+      setStartDate(today);
+      setEndDate(today);
     }
-  }, [selectedDate]);
+  }, [startDate]);
+
+  // Validate date range (max 3 months)
+  const validateDateRange = useCallback((start: string, end: string): string => {
+    if (!start || !end) return "";
+    
+    const startDateObj = new Date(start);
+    const endDateObj = new Date(end);
+    
+    if (endDateObj < startDateObj) {
+      return "End date must be after or equal to start date";
+    }
+    
+    // Calculate difference in months
+    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
+                      (endDateObj.getMonth() - startDateObj.getMonth());
+    
+    if (monthsDiff > 3) {
+      return "Date range cannot exceed 3 months";
+    }
+    
+    return "";
+  }, []);
+
+  // Update validation when dates change
+  useEffect(() => {
+    if (startDate && endDate) {
+      const error = validateDateRange(startDate, endDate);
+      setDateRangeError(error);
+    } else {
+      setDateRangeError("");
+    }
+  }, [startDate, endDate, validateDateRange]);
+
+  // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months)
+  const getMaxEndDate = useCallback((): string => {
+    if (!startDate) return "";
+    const startDateObj = new Date(startDate);
+    const maxDate = new Date(startDateObj);
+    maxDate.setMonth(maxDate.getMonth() + 3);
+    // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
+    maxDate.setDate(maxDate.getDate() - 1);
+    return maxDate.toISOString().split("T")[0];
+  }, [startDate]);
+
+  // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
+  const getMinStartDate = useCallback((): string => {
+    if (!endDate) return "";
+    const endDateObj = new Date(endDate);
+    const minDate = new Date(endDateObj);
+    minDate.setMonth(minDate.getMonth() - 3);
+    // Add 1 day to ensure the range is at most 3 months (not more than 3 months)
+    minDate.setDate(minDate.getDate() + 1);
+    return minDate.toISOString().split("T")[0];
+  }, [endDate]);
 
   const fetchVisits = useCallback(async () => {
-    if (!selectedDoctorId || !selectedDate) return; // Don't fetch if date is not set yet
+    if (!selectedDoctorId || !startDate || !endDate) return;
+    
+    // Don't fetch if date range is invalid
+    if (dateRangeError) return;
     
     setLoading(true);
     try {
@@ -236,33 +306,71 @@ export function OpdList({ doctorId }: OpdListProps) {
         sort_by: sortBy,
         sort_order: sortOrder,
         doctor_id: selectedDoctorId,
-        visit_date: selectedDate,
+        start_date: startDate,
+        end_date: endDate,
       });
       
       setVisits(response.items);
       setTotalPages(response.total_pages);
       setTotal(response.total);
+      // Clear any previous date range error if fetch succeeds
+      if (dateRangeError) {
+        setDateRangeError("");
+      }
     } catch (error: any) {
       console.error("Failed to fetch OPD visits:", error);
+      console.error("Error response:", error?.response?.data);
+      
+      // Extract error message
+      const errorMessage = getErrorMessage(error);
+      
+      // Check if it's a date range validation error from API
+      const isDateRangeError = 
+        errorMessage.includes("Date range cannot exceed 3 months") || 
+        errorMessage.includes("90 days") ||
+        errorMessage.includes("Date range") ||
+        error?.response?.data?.detail?.some?.((err: any) => 
+          err.type === "business_logic_error" && 
+          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
+        );
+      
+      if (isDateRangeError) {
+        // Set the date range error state to show validation message
+        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
+          err.type === "business_logic_error"
+        )?.msg || "Date range cannot exceed 3 months";
+        setDateRangeError(apiErrorMessage);
+        toast.error(apiErrorMessage);
+      } else {
+        // Show other errors as toast with full details
+        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to fetch OPD visits";
+        toast.error(fullErrorMessage);
+        console.error("Full error details:", {
+          status: error?.response?.status,
+          data: error?.response?.data,
+          message: errorMessage
+        });
+      }
+      
       setVisits([]);
       setTotalPages(1);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, selectedDoctorId, selectedDate, sortBy, sortOrder]);
+  }, [currentPage, pageSize, selectedDoctorId, startDate, endDate, sortBy, sortOrder, dateRangeError]);
 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
-  }, [selectedDoctorId, selectedDate, sortBy, sortOrder]);
+  }, [selectedDoctorId, startDate, endDate, sortBy, sortOrder]);
 
   // Fetch visits when dependencies change - don't include fetchVisits in deps
   useEffect(() => {
-    if (selectedDoctorId && selectedDate) {
+    if (selectedDoctorId && startDate && endDate && !dateRangeError) {
       fetchVisits();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDoctorId, selectedDate, sortBy, sortOrder, currentPage, pageSize]);
+  }, [selectedDoctorId, startDate, endDate, sortBy, sortOrder, currentPage, pageSize, dateRangeError]);
 
   // Listen for OPD visit creation events to refresh the list
   // Use ref to store stable callback
@@ -273,7 +381,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   useEffect(() => {
     const handleOpdVisitCreated = () => {
-      if (selectedDoctorId && selectedDate) {
+      if (selectedDoctorId && startDate && endDate && !dateRangeError) {
         fetchVisitsRef.current();
       }
     };
@@ -282,7 +390,7 @@ export function OpdList({ doctorId }: OpdListProps) {
     return () => {
       window.removeEventListener("opd:visit:created", handleOpdVisitCreated);
     };
-  }, [selectedDoctorId, selectedDate]);
+  }, [selectedDoctorId, startDate, endDate, dateRangeError]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -443,80 +551,381 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
   }, [shouldPrintPayment, printPaymentData, handlePrintPayment]);
 
+  const handleExportPDF = useCallback(async () => {
+    // Validate filters
+    if (!selectedDoctorId) {
+      toast.error("Please select a doctor");
+      return;
+    }
+    
+    if (!startDate || !endDate) {
+      toast.error("Please select date range");
+      return;
+    }
+    
+    if (dateRangeError) {
+      toast.error(dateRangeError);
+      return;
+    }
+
+    setExporting(true);
+    try {
+      // Fetch all visits without pagination
+      const response = await opdVisitsApi.list({
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        doctor_id: selectedDoctorId,
+        start_date: startDate,
+        end_date: endDate,
+        // Omit page and page_size to get all results
+      });
+
+      // Get all visits from response
+      const allVisits = response.items || [];
+      
+      if (allVisits.length === 0) {
+        toast.error("No visits found to export");
+        setExporting(false);
+        return;
+      }
+
+      // Get selected doctor name
+      const selectedDoctor = doctors.find((d) => d.id === selectedDoctorId);
+      const doctorName = selectedDoctor?.name || selectedDoctor?.specialization || "Unknown Doctor";
+
+      // Format address similar to PrintHeader
+      const formatAddress = () => {
+        if (!tenant) return null;
+        const parts = [
+          tenant.address,
+          tenant.city,
+          tenant.state,
+          tenant.pincode,
+        ].filter(Boolean);
+        return parts.length > 0 ? parts.join(", ") : null;
+      };
+      const address = formatAddress();
+
+      // Create PDF
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const centerX = pageWidth / 2;
+      let yPos = 15;
+
+      // Add logo if available (similar to PrintHeader)
+      if (logoDataUrl) {
+        try {
+          // Load image to get dimensions
+          const img = new Image();
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+            img.src = logoDataUrl;
+          });
+
+          // Calculate logo size (max 24mm height, maintain aspect ratio)
+          // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
+          const pxToMm = 0.264583;
+          const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
+          
+          let logoWidthMm = img.width * pxToMm;
+          let logoHeightMm = img.height * pxToMm;
+          
+          // Scale down if too large
+          if (logoHeightMm > maxHeightMm) {
+            const scale = maxHeightMm / logoHeightMm;
+            logoWidthMm = logoWidthMm * scale;
+            logoHeightMm = maxHeightMm;
+          }
+
+          // Center the logo horizontally
+          const logoX = centerX - (logoWidthMm / 2);
+          
+          // Detect image format from data URL
+          let imageFormat: string = 'PNG';
+          if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
+            imageFormat = 'JPEG';
+          } else if (logoDataUrl.startsWith('data:image/png')) {
+            imageFormat = 'PNG';
+          }
+          
+          // Add logo to PDF
+          doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
+          yPos += logoHeightMm + 5; // Add space after logo
+        } catch (error) {
+          console.warn("Could not add logo to PDF:", error);
+        }
+      }
+
+      // Hospital Name (centered, bold, large) - matching PrintHeader style
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      const hospitalNameText = (tenant?.name || hospitalName || "HOSPITAL").toUpperCase();
+      doc.text(hospitalNameText, centerX, yPos, { align: "center" });
+      yPos += 8;
+
+      // Address and Contact Information (centered, smaller text)
+      if (address || tenant?.phone_no || tenant?.email || tenant?.website) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(55, 65, 81);
+        
+        if (address) {
+          doc.text(address, centerX, yPos, { align: "center" });
+          yPos += 5;
+        }
+        
+        const contactParts: string[] = [];
+        if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
+        if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
+        if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
+        
+        if (contactParts.length > 0) {
+          doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
+          yPos += 6;
+        }
+      }
+
+      doc.setTextColor(0, 0, 0);
+
+      // Document Type (centered) - matching PrintHeader style
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text("OPD Visits Report", centerX, yPos, { align: "center" });
+      yPos += 8;
+
+      // Filter Details
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(30, 41, 59);
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 6;
+
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      doc.text("Doctor", 14, yPos);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(doctorName, 14, yPos + 4);
+      
+      const dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text("Date Range", pageWidth - 14, yPos, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(dateRangeText, pageWidth - 14, yPos + 4, { align: "right" });
+      
+      yPos += 8;
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Export Date: ${new Date().toLocaleString()}`, 14, yPos);
+      doc.text(`Total: ${allVisits.length} visits`, pageWidth - 14, yPos, { align: "right" });
+      yPos += 8;
+
+      // Prepare table data
+      const tableData = allVisits.map((visit) => {
+        // Format status
+        const statusStr = visit.status || "";
+        const formattedStatus = statusStr.charAt(0).toUpperCase() + statusStr.slice(1).replace(/_/g, " ");
+        
+        // Format visit type
+        const visitTypeStr = visit.visit_type || "";
+        const formattedVisitType = visitTypeStr.charAt(0).toUpperCase() + visitTypeStr.slice(1).replace(/_/g, " ");
+        
+        // Get visit date from created_at
+        const visitDate = visit.created_at ? formatDate(visit.created_at.split("T")[0]) : "-";
+        
+        return [
+          visitDate,
+          visit.visit_number || "-",
+          visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`,
+          visit.patient_mobile || "-",
+          formattedStatus,
+          formattedVisitType,
+        ];
+      });
+
+      // Calculate available width
+      const availableWidth = pageWidth - 28;
+
+      // Add table
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Date", "Visit #", "Patient Name", "Mobile", "Status", "Visit Type"]],
+        body: tableData,
+        theme: "striped",
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        columnStyles: {
+          0: { cellWidth: availableWidth * 0.18 }, // Date - 18%
+          1: { cellWidth: availableWidth * 0.18 }, // Visit # - 18% (increased from 15%)
+          2: { cellWidth: availableWidth * 0.26 }, // Patient Name - 26% (reduced from 30%)
+          3: { cellWidth: availableWidth * 0.15 }, // Mobile - 15%
+          4: { cellWidth: availableWidth * 0.10 }, // Status - 10%
+          5: { cellWidth: availableWidth * 0.13 }, // Visit Type - 13% (increased from 10%)
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Generate filename
+      const filename = `opd_visits_${startDate}_to_${endDate}.pdf`;
+
+      // Save PDF
+      doc.save(filename);
+      
+      toast.success(`Exported ${allVisits.length} visits successfully`);
+    } catch (error: any) {
+      console.error("Failed to export visits:", error);
+      
+      // Extract error message
+      const errorMessage = getErrorMessage(error);
+      
+      // Check if it's a date range validation error from API
+      if (errorMessage.includes("Date range cannot exceed 3 months") || 
+          errorMessage.includes("90 days") ||
+          error?.response?.data?.detail?.some?.((err: any) => 
+            err.type === "business_logic_error" && err.msg?.includes("Date range")
+          )) {
+        setDateRangeError("Date range cannot exceed 3 months");
+        toast.error("Date range cannot exceed 3 months");
+      } else {
+        toast.error(errorMessage || "Failed to export visits");
+      }
+    } finally {
+      setExporting(false);
+    }
+  }, [selectedDoctorId, startDate, endDate, dateRangeError, doctors, tenant, hospitalName, logoDataUrl, sortBy, sortOrder]);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <label className="space-y-1">
-          <span className="text-slate-600 flex items-center gap-1">
-            <Stethoscope className="h-4 w-4" />
-            Doctor
-          </span>
-          <select
-            value={selectedDoctorId}
-            onChange={(e) => setSelectedDoctorId(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          >
-            <option value="">Select doctor</option>
-            {doctors.map((doc) => {
-              const doctorName = doc.name || `Dr. ${doc.specialization}`;
-              return (
-                <option key={doc.id} value={doc.id}>
-                  {doctorName} - {doc.specialization}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-        <label className="space-y-1">
-          <span className="text-slate-600 flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            Date
-          </span>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="text-slate-600 flex items-center gap-1">
-            Sort By
-          </span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          >
-            <option value="created_at">Created At</option>
-            <option value="token_number">Token Number</option>
-            <option value="visit_date">Visit Date</option>
-            <option value="checked_in_at">Checked In At</option>
-            <option value="visit_number">Visit Number</option>
-            <option value="status">Status</option>
-            <option value="visit_type">Visit Type</option>
-          </select>
-        </label>
-        <label className="space-y-1">
-          <span className="text-slate-600 flex items-center gap-1">
-            Order
-          </span>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          >
-            <option value="desc">Descending</option>
-            <option value="asc">Ascending</option>
-          </select>
-        </label>
+      <div className="flex items-end gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5 flex-1">
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1">
+              <Stethoscope className="h-4 w-4" />
+              Doctor
+            </span>
+            <select
+              value={selectedDoctorId}
+              onChange={(e) => setSelectedDoctorId(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            >
+              <option value="">Select doctor</option>
+              {doctors.map((doc) => {
+                const doctorName = doc.name || `Dr. ${doc.specialization}`;
+                return (
+                  <option key={doc.id} value={doc.id}>
+                    {doctorName} - {doc.specialization}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              Start Date
+            </span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              max={endDate || undefined}
+              min={endDate ? getMinStartDate() : undefined}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              End Date
+            </span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate || undefined}
+              max={startDate ? getMaxEndDate() : undefined}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1">
+              Sort By
+            </span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            >
+              <option value="created_at">Created At</option>
+              <option value="token_number">Token Number</option>
+              <option value="visit_date">Visit Date</option>
+              <option value="checked_in_at">Checked In At</option>
+              <option value="visit_number">Visit Number</option>
+              <option value="status">Status</option>
+              <option value="visit_type">Visit Type</option>
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1">
+              Order
+            </span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            >
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </select>
+          </label>
+        </div>
+        
+        <button
+          onClick={handleExportPDF}
+          disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+          title="Export all visits to PDF"
+        >
+          {exporting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Exporting...</span>
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4" />
+              <span>Export PDF</span>
+            </>
+          )}
+        </button>
       </div>
+
+      {dateRangeError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <p className="text-sm text-rose-700">{dateRangeError}</p>
+        </div>
+      )}
 
       {loading ? (
         <SkeletonRow rows={3} />
       ) : visits.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center">
-          <p className="text-slate-500">No OPD visits found for selected doctor</p>
+          <p className="text-slate-500">No OPD visits found for selected doctor and date range</p>
         </div>
       ) : (
         <div className="grid gap-3">

@@ -52,7 +52,9 @@ export interface OpdVisitsSearchParams {
   doctor_id?: string;
   status?: VisitStatus;
   visit_type?: VisitType;
-  visit_date?: string; // YYYY-MM-DD
+  visit_date?: string; // YYYY-MM-DD (kept for backward compatibility)
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string; // YYYY-MM-DD
   tenant_id?: string;
 }
 
@@ -123,7 +125,15 @@ export const opdVisitsApi = {
     if (params?.doctor_id) queryParams.append("doctor_id", params.doctor_id);
     if (params?.status) queryParams.append("status", params.status);
     if (params?.visit_type) queryParams.append("visit_type", params.visit_type);
-    if (params?.visit_date) queryParams.append("visit_date", params.visit_date);
+    
+    // Use start_date and end_date if provided, otherwise fall back to visit_date
+    if (params?.start_date && params?.end_date) {
+      queryParams.append("start_date", params.start_date);
+      queryParams.append("end_date", params.end_date);
+    } else if (params?.visit_date) {
+      queryParams.append("visit_date", params.visit_date);
+    }
+    
     if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
     
     const queryString = queryParams.toString();

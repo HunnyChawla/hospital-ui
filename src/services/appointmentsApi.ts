@@ -44,22 +44,32 @@ export const appointmentsApi = {
 
   async getByDoctor(
     doctorId: string,
-    appointmentDate: string,
+    startDate: string,
+    endDate: string,
     options?: {
+      page?: number;
+      page_size?: number;
       appointmentsOnly?: boolean;
       tenantId?: string;
     }
-  ): Promise<Appointment[]> {
+  ): Promise<AppointmentsSearchResponse> {
     const params: Record<string, string> = {
-      appointment_date: appointmentDate,
+      start_date: startDate,
+      end_date: endDate,
     };
+    if (options?.page) {
+      params.page = options.page.toString();
+    }
+    if (options?.page_size) {
+      params.page_size = options.page_size.toString();
+    }
     if (options?.appointmentsOnly) {
       params.appointments_only = "true";
     }
     if (options?.tenantId) {
       params.tenant_id = options.tenantId;
     }
-    const response = await apiClient.get<Appointment[]>(`/appointments/doctor/${doctorId}`, { params });
+    const response = await apiClient.get<AppointmentsSearchResponse>(`/appointments/doctor/${doctorId}`, { params });
     return response.data;
   },
 
