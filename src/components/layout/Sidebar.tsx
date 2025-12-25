@@ -27,6 +27,7 @@ const navItems = [
   { label: "Queue", href: "#queue", icon: LayoutList },
   { label: "IPD", href: "#admissions", icon: BedDouble },
   { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
+  { label: "Lab Reports", href: "#lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"] },
   { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
   { label: "Service Master", href: "#services", icon: Package },
   { label: "Billing", href: "#billing", icon: CreditCard },
@@ -36,14 +37,28 @@ const navItems = [
 
 export function Sidebar() {
   const [hash, setHash] = useState<string>("#dashboard");
+  const [userRole, setUserRole] = useState<string | null>(null);
   const { hospitalName } = useTenant();
 
   useEffect(() => {
     const updateHash = () => setHash(window.location.hash || "#dashboard");
     updateHash();
     window.addEventListener("hashchange", updateHash);
+    
+    // Get user role from localStorage
+    if (typeof window !== "undefined") {
+      const role = localStorage.getItem("role");
+      setUserRole(role);
+    }
+    
     return () => window.removeEventListener("hashchange", updateHash);
   }, []);
+
+  const isRoleAllowed = (item: typeof navItems[0]): boolean => {
+    if (!item.roles) return true; // No role restriction
+    if (!userRole) return false;
+    return item.roles.includes(userRole);
+  };
 
   return (
     <aside className="glass fixed left-0 top-0 hidden h-screen w-64 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 lg:flex">
@@ -69,6 +84,8 @@ export function Sidebar() {
 
       <nav className="space-y-1">
         {navItems.map((item) => {
+          if (!isRoleAllowed(item)) return null;
+          
           const Icon = item.icon;
           const active = hash === item.href || (hash === "" && item.href === "#dashboard");
           return (

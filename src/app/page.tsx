@@ -19,6 +19,7 @@ import { OpdList } from "@/components/opd/OpdList";
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
+import { LabTechnicianPanel } from "@/components/lab-technician/LabTechnicianPanel";
 import { ManageIPD } from "@/components/ipd/ManageIPD";
 import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { BillingManagement } from "@/components/billing/BillingManagement";
@@ -107,6 +108,7 @@ export default function Home() {
     | "doctors"
     | "opd"
     | "lab-bookings"
+    | "lab-technician"
     | "admissions"
     | "billing"
     | "labs"
@@ -140,10 +142,17 @@ export default function Home() {
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
+    
+    // Get user role from localStorage
+    if (typeof window !== "undefined") {
+      const role = localStorage.getItem("role");
+      setUserRole(role);
+    }
     
     // Fetch tenant data if not already loaded
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -764,6 +773,23 @@ export default function Home() {
                 <LabBookingsList />
               </div>
             </div>
+          </div>
+        )}
+
+        {show("lab-technician") && (
+          <div className="mt-6 grid gap-6">
+            {userRole === "lab_technician" || userRole === "admin" ? (
+              <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+                <div className="p-6">
+                  <LabTechnicianPanel />
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+                <p className="text-slate-600">You do not have permission to access this section.</p>
+                <p className="mt-2 text-sm text-slate-500">This section is only available to lab technicians and administrators.</p>
+              </div>
+            )}
           </div>
         )}
 
