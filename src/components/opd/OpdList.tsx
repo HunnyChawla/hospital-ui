@@ -269,15 +269,17 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
   }, [startDate, endDate, validateDateRange]);
 
-  // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months)
+  // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return "";
+    if (!startDate) return getTodayDate();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    return maxDate.toISOString().split("T")[0];
+    const today = new Date(getTodayDate());
+    // Return the earlier of: calculated max date or today
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -843,7 +845,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              max={endDate || undefined}
+              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
               min={endDate ? getMinStartDate() : undefined}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
@@ -858,7 +860,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
-              max={startDate ? getMaxEndDate() : undefined}
+              max={startDate ? getMaxEndDate() : getTodayDate()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
           </label>

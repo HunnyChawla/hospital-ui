@@ -6,14 +6,17 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
-import { formatDate, currency } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical } from "lucide-react";
+import { formatDate, currency, formatCurrencyForPDF } from "@/utils/format";
+import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "../invoices/InvoicePrint";
 import { TestReportPrint } from "../lab-technician/TestReportPrint";
 import { Modal } from "../common/Modal";
+import { useTenant } from "@/hooks/useTenant";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface LabBookingWithPatient extends LabBooking {
   patient_name?: string;
@@ -25,23 +28,20 @@ interface LabBookingsListProps {
 }
 
 export function LabBookingsList({ patientId }: LabBookingsListProps) {
+  const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [bookings, setBookings] = useState<LabBookingWithPatient[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchBookingId, setSearchBookingId] = useState("");
   const [searching, setSearching] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [dateRangeError, setDateRangeError] = useState<string>("");
+  const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-
-  // Set default date on client side only to avoid hydration mismatch
-  useEffect(() => {
-    if (!selectedDate) {
-      setSelectedDate(new Date().toISOString().split("T")[0]);
-    }
-  }, [selectedDate]);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string; tests?: LabBookingTest[]; bookingNumber?: string } | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<LabBookingWithPatient | null>(null);
@@ -68,15 +68,77 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
   });
 
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => new Date().toISOString().split("T")[0];
+
+  // Validate date range (max 3 months)
+  const validateDateRange = useCallback((start: string, end: string): string => {
+    if (!start || !end) return "";
+    
+    const startDateObj = new Date(start);
+    const endDateObj = new Date(end);
+    
+    if (endDateObj < startDateObj) {
+      return "End date must be after or equal to start date";
+    }
+    
+    // Calculate difference in months
+    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
+                      (endDateObj.getMonth() - startDateObj.getMonth());
+    
+    if (monthsDiff > 3) {
+      return "Date range cannot exceed 3 months";
+    }
+    
+    return "";
+  }, []);
+
+  // Update validation when dates change
+  useEffect(() => {
+    if (startDate && endDate) {
+      const error = validateDateRange(startDate, endDate);
+      setDateRangeError(error);
+    } else {
+      setDateRangeError("");
+    }
+  }, [startDate, endDate, validateDateRange]);
+
+  // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
+  const getMaxEndDate = useCallback((): string => {
+    if (!startDate) return getTodayDate();
+    const startDateObj = new Date(startDate);
+    const maxDate = new Date(startDateObj);
+    maxDate.setMonth(maxDate.getMonth() + 3);
+    // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
+    maxDate.setDate(maxDate.getDate() - 1);
+    const today = new Date(getTodayDate());
+    // Return the earlier of: calculated max date or today
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+  }, [startDate]);
+
+  // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
+  const getMinStartDate = useCallback((): string => {
+    if (!endDate) return "";
+    const endDateObj = new Date(endDate);
+    const minDate = new Date(endDateObj);
+    minDate.setMonth(minDate.getMonth() - 3);
+    // Add 1 day to ensure the range is at most 3 months (not more than 3 months)
+    minDate.setDate(minDate.getDate() + 1);
+    return minDate.toISOString().split("T")[0];
+  }, [endDate]);
+
   const fetchBookings = useCallback(async () => {
-    if (!selectedDate) return; // Don't fetch if date is not set yet
+    // Don't fetch if date range is invalid (only when both dates are provided)
+    if (dateRangeError) return;
+    
     setLoading(true);
     try {
       const response = await labBookingsApi.list({
         page: currentPage,
         page_size: pageSize,
         patient_id: patientId,
-        scheduled_date: selectedDate,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
 
@@ -103,23 +165,62 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
       setBookings(bookingsWithPatients);
       setTotalPages(response.total_pages);
       setTotal(response.total);
+      // Clear any previous date range error if fetch succeeds
+      if (dateRangeError) {
+        setDateRangeError("");
+      }
     } catch (error: any) {
       console.error("Failed to fetch lab bookings:", error);
+      console.error("Error response:", error?.response?.data);
+      
+      // Extract error message
+      const errorMessage = getErrorMessage(error);
+      
+      // Check if it's a date range validation error from API
+      const isDateRangeError = 
+        errorMessage.includes("Date range cannot exceed 3 months") || 
+        errorMessage.includes("90 days") ||
+        errorMessage.includes("Date range") ||
+        error?.response?.data?.detail?.some?.((err: any) => 
+          err.type === "business_logic_error" && 
+          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
+        );
+      
+      if (isDateRangeError) {
+        // Set the date range error state to show validation message
+        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
+          err.type === "business_logic_error"
+        )?.msg || "Date range cannot exceed 3 months";
+        setDateRangeError(apiErrorMessage);
+        toast.error(apiErrorMessage);
+      } else {
+        // Show other errors as toast with full details
+        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to fetch lab bookings";
+        toast.error(fullErrorMessage);
+        console.error("Full error details:", {
+          status: error?.response?.status,
+          data: error?.response?.data,
+          message: errorMessage
+        });
+      }
+      
       setBookings([]);
       setTotalPages(1);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, patientId, selectedDate, statusFilter]);
+  }, [currentPage, pageSize, patientId, startDate, endDate, statusFilter, dateRangeError]);
 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
-  }, [patientId, selectedDate, statusFilter]);
+  }, [patientId, startDate, endDate, statusFilter]);
 
   useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+    if (!dateRangeError) {
+      fetchBookings();
+    }
+  }, [fetchBookings, dateRangeError]);
 
   // Listen for booking creation events
   useEffect(() => {
@@ -210,6 +311,302 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         return "bg-slate-50 text-slate-700";
     }
   };
+
+  const formatStatus = (status: string) => {
+    return status.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+  };
+
+  const handleExportPDF = useCallback(async () => {
+    // Validate date range is selected
+    if (!startDate || !endDate) {
+      toast.error("Please select date range");
+      return;
+    }
+    
+    // Validate filters - only check date range error if dates are provided
+    if (dateRangeError) {
+      toast.error(dateRangeError);
+      return;
+    }
+
+    setExporting(true);
+    try {
+      // Fetch all bookings without pagination
+      const response = await labBookingsApi.list({
+        patient_id: patientId,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        // Omit page and page_size to get all results
+      });
+
+      // Fetch patient details for bookings
+      const bookingsWithPatients = await Promise.all(
+        response.items.map(async (booking) => {
+          try {
+            const patient = await patientsApi.getById(booking.patient_id);
+            return {
+              ...booking,
+              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
+              patient_mobile: patient.mobile,
+            };
+          } catch {
+            return {
+              ...booking,
+              patient_name: "Unknown",
+              patient_mobile: "",
+            };
+          }
+        })
+      );
+
+      // Get all bookings from response
+      const allBookings = bookingsWithPatients || [];
+      
+      if (allBookings.length === 0) {
+        toast.error("No lab bookings found to export");
+        setExporting(false);
+        return;
+      }
+
+      // Format address similar to PrintHeader
+      const formatAddress = () => {
+        if (!tenant) return null;
+        const parts = [
+          tenant.address,
+          tenant.city,
+          tenant.state,
+          tenant.pincode,
+        ].filter(Boolean);
+        return parts.length > 0 ? parts.join(", ") : null;
+      };
+      const address = formatAddress();
+
+      // Create PDF
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const centerX = pageWidth / 2;
+      let yPos = 15;
+
+      // Add logo if available (similar to PrintHeader)
+      if (logoDataUrl) {
+        try {
+          // Load image to get dimensions
+          const img = new Image();
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+            img.src = logoDataUrl;
+          });
+
+          // Calculate logo size (max 24mm height, maintain aspect ratio)
+          // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
+          const pxToMm = 0.264583;
+          const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
+          
+          let logoWidthMm = img.width * pxToMm;
+          let logoHeightMm = img.height * pxToMm;
+          
+          // Scale down if too large
+          if (logoHeightMm > maxHeightMm) {
+            const scale = maxHeightMm / logoHeightMm;
+            logoWidthMm = logoWidthMm * scale;
+            logoHeightMm = maxHeightMm;
+          }
+
+          // Center the logo horizontally
+          const logoX = centerX - (logoWidthMm / 2);
+          
+          // Detect image format from data URL
+          let imageFormat: string = 'PNG';
+          if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
+            imageFormat = 'JPEG';
+          } else if (logoDataUrl.startsWith('data:image/png')) {
+            imageFormat = 'PNG';
+          }
+          
+          // Add logo to PDF
+          doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
+          yPos += logoHeightMm + 5; // Add space after logo
+        } catch (error) {
+          console.warn("Could not add logo to PDF:", error);
+          // Continue without logo
+        }
+      }
+
+      // Hospital Name (centered, bold, large) - matching PrintHeader style
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      const hospitalNameText = (tenant?.name || hospitalName || "HOSPITAL").toUpperCase();
+      doc.text(hospitalNameText, centerX, yPos, { align: "center" });
+      yPos += 8;
+
+      // Address and Contact Information (centered, smaller text)
+      if (address || tenant?.phone_no || tenant?.email || tenant?.website) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(55, 65, 81); // slate-700
+        
+        if (address) {
+          doc.text(address, centerX, yPos, { align: "center" });
+          yPos += 5;
+        }
+        
+        // Contact info
+        const contactParts: string[] = [];
+        if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
+        if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
+        if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
+        
+        if (contactParts.length > 0) {
+          doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
+          yPos += 6;
+        }
+      }
+
+      // Reset text color
+      doc.setTextColor(0, 0, 0);
+
+      // Document Type (centered) - matching PrintHeader style
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text("Lab Bookings Report", centerX, yPos, { align: "center" });
+      yPos += 8;
+
+      // Filter Details (left-aligned, similar to invoice number/date in PrintHeader)
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      
+      // Add border line similar to PrintHeader
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(30, 41, 59); // slate-800
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 6;
+
+      // Filter details
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105); // slate-600
+      if (startDate && endDate) {
+        doc.text("Date Range", 14, yPos);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        const dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+        doc.text(dateRangeText, 14, yPos + 4);
+      }
+      
+      // Status filter on the right (if selected)
+      if (statusFilter !== "all") {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        doc.text("Status", pageWidth - 14, yPos, { align: "right" });
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text(formatStatus(statusFilter), pageWidth - 14, yPos + 4, { align: "right" });
+      }
+      
+      yPos += 8;
+      
+      // Export date and total
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Export Date: ${new Date().toLocaleString()}`, 14, yPos);
+      doc.text(`Total: ${allBookings.length} bookings`, pageWidth - 14, yPos, { align: "right" });
+      yPos += 8;
+
+      // Prepare table data
+      const tableData = allBookings.map((booking) => {
+        return [
+          formatDate(booking.scheduled_date), // Date as first column
+          booking.booking_number,
+          booking.patient_name || `Patient ${booking.patient_id.slice(0, 8)}...`,
+          booking.patient_mobile || "-",
+          formatStatus(booking.status),
+          booking.priority.charAt(0).toUpperCase() + booking.priority.slice(1),
+          `${booking.tests.length} test${booking.tests.length !== 1 ? "s" : ""}`,
+          formatCurrencyForPDF(booking.total_amount),
+        ];
+      });
+
+      // Calculate available width (page width minus margins)
+      const availableWidth = pageWidth - 28; // 14mm margin on each side
+
+      // Add table
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Date", "Booking #", "Patient Name", "Mobile", "Status", "Priority", "Tests", "Amount"]],
+        body: tableData,
+        theme: "striped",
+        headStyles: {
+          fillColor: [59, 130, 246], // Sky blue
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+        },
+        columnStyles: {
+          0: { cellWidth: availableWidth * 0.12 }, // Date - 12%
+          1: { cellWidth: availableWidth * 0.15 }, // Booking # - 15%
+          2: { cellWidth: availableWidth * 0.20 }, // Patient Name - 20%
+          3: { cellWidth: availableWidth * 0.12 }, // Mobile - 12%
+          4: { cellWidth: availableWidth * 0.12 }, // Status - 12%
+          5: { cellWidth: availableWidth * 0.10 }, // Priority - 10%
+          6: { cellWidth: availableWidth * 0.09 }, // Tests - 9%
+          7: { cellWidth: availableWidth * 0.10 }, // Amount - 10%
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Generate filename
+      const filename = startDate && endDate
+        ? `lab_bookings_${startDate}_to_${endDate}.pdf`
+        : `lab_bookings_all_${new Date().toISOString().split("T")[0]}.pdf`;
+
+      // Save PDF
+      doc.save(filename);
+      
+      toast.success(`Exported ${allBookings.length} lab bookings successfully`);
+    } catch (error: any) {
+      console.error("Failed to export lab bookings:", error);
+      console.error("Error response:", error?.response?.data);
+      
+      // Extract error message
+      const errorMessage = getErrorMessage(error);
+      
+      // Check if it's a date range validation error from API
+      const isDateRangeError = 
+        errorMessage.includes("Date range cannot exceed 3 months") || 
+        errorMessage.includes("90 days") ||
+        errorMessage.includes("Date range") ||
+        error?.response?.data?.detail?.some?.((err: any) => 
+          err.type === "business_logic_error" && 
+          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
+        );
+      
+      if (isDateRangeError) {
+        // Set the date range error state to show validation message
+        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
+          err.type === "business_logic_error"
+        )?.msg || "Date range cannot exceed 3 months";
+        setDateRangeError(apiErrorMessage);
+        toast.error(apiErrorMessage);
+      } else {
+        // Show other errors as toast with full details
+        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to export lab bookings";
+        toast.error(fullErrorMessage);
+        console.error("Full error details:", {
+          status: error?.response?.status,
+          data: error?.response?.data,
+          message: errorMessage
+        });
+      }
+    } finally {
+      setExporting(false);
+    }
+  }, [startDate, endDate, dateRangeError, patientId, statusFilter, tenant, hospitalName, logoDataUrl]);
 
   const handlePrintInvoice = async (invoiceId: string, patientName: string, patientMobile?: string, tests?: LabBookingTest[], bookingNumber?: string) => {
     try {
@@ -328,7 +725,7 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     <div className="space-y-4">
       {/* Search and Filters */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Search by Booking Number
@@ -370,20 +767,62 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Scheduled Date
+            <label className="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              Start Date
             </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400"
-              />
-            </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
+              min={endDate ? getMinStartDate() : undefined}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              End Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate || undefined}
+              max={startDate ? getMaxEndDate() : getTodayDate()}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            />
           </div>
         </div>
+
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div className="flex-1"></div>
+          <button
+            onClick={handleExportPDF}
+            disabled={!!dateRangeError || exporting}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+            title="Export all lab bookings to PDF"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>Export PDF</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {dateRangeError && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
+            <p className="text-sm text-rose-700">{dateRangeError}</p>
+          </div>
+        )}
 
         {/* Status Tabs */}
         <div className="border-b border-slate-200">
