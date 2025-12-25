@@ -280,6 +280,8 @@ export function ParameterForm({ parameter, onSubmit, onCancel, isSubmitting = fa
               valueAsNumber: true,
               min: { value: 0, message: "Age max must be >= 0" },
               validate: (val, formValues) => {
+                if (val === undefined || val === null) return true;
+                if (formValues.age_min === undefined || formValues.age_min === null) return true;
                 if (val < formValues.age_min) {
                   return "Age max must be >= age min";
                 }

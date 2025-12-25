@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
 import { store } from "@/redux/store";
 import { useState } from "react";
+import { ServiceWorkerRegistration } from "@/components/common/ServiceWorkerRegistration";
 
 export default function Providers({
   children,
@@ -18,6 +19,7 @@ export default function Providers({
   return (
     <ReduxProvider store={store}>
       <QueryClientProvider client={queryClient}>
+        <ServiceWorkerRegistration />
         {children}
         <Toaster richColors position="top-right" />
         <ReactQueryDevtools initialIsOpen={false} />
