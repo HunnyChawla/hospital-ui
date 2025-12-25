@@ -8,10 +8,13 @@ import { wardsApi, Ward } from "@/services/wardsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
 import { doctorsApi } from "@/services/doctorsApi";
 import { formatDate } from "@/utils/format";
-import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown } from "lucide-react";
+import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { useTenant } from "@/hooks/useTenant";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { DischargeFormModal } from "./DischargeFormModal";
 import { AdmissionDetailModal } from "./AdmissionDetailModal";
 import { TransferBedFormModal } from "./TransferBedFormModal";
@@ -31,6 +34,7 @@ interface AdmissionTableProps {
 
 export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) {
   const dispatch = useAppDispatch();
+  const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [beds, setBeds] = useState<Bed[]>([]);
@@ -54,8 +58,71 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  
+  // Date range state - optional
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [dateRangeError, setDateRangeError] = useState<string>("");
+  const [exporting, setExporting] = useState(false);
+
+  // Validate date range (max 3 months)
+  const validateDateRange = useCallback((start: string, end: string): string => {
+    if (!start || !end) return "";
+    
+    const startDateObj = new Date(start);
+    const endDateObj = new Date(end);
+    
+    if (endDateObj < startDateObj) {
+      return "End date must be after or equal to start date";
+    }
+    
+    // Calculate difference in months
+    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
+                      (endDateObj.getMonth() - startDateObj.getMonth());
+    
+    if (monthsDiff > 3) {
+      return "Date range cannot exceed 3 months";
+    }
+    
+    return "";
+  }, []);
+
+  // Update validation when dates change
+  useEffect(() => {
+    if (startDate && endDate) {
+      const error = validateDateRange(startDate, endDate);
+      setDateRangeError(error);
+    } else {
+      setDateRangeError("");
+    }
+  }, [startDate, endDate, validateDateRange]);
+
+  // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months)
+  const getMaxEndDate = useCallback((): string => {
+    if (!startDate) return "";
+    const startDateObj = new Date(startDate);
+    const maxDate = new Date(startDateObj);
+    maxDate.setMonth(maxDate.getMonth() + 3);
+    // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
+    maxDate.setDate(maxDate.getDate() - 1);
+    return maxDate.toISOString().split("T")[0];
+  }, [startDate]);
+
+  // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
+  const getMinStartDate = useCallback((): string => {
+    if (!endDate) return "";
+    const endDateObj = new Date(endDate);
+    const minDate = new Date(endDateObj);
+    minDate.setMonth(minDate.getMonth() - 3);
+    // Add 1 day to ensure the range is at most 3 months (not more than 3 months)
+    minDate.setDate(minDate.getDate() + 1);
+    return minDate.toISOString().split("T")[0];
+  }, [endDate]);
 
   const fetchAdmissionsList = useCallback(async () => {
+    // Don't fetch if date range is invalid (only when both dates are provided)
+    if (dateRangeError) return;
+    
     setLoading(true);
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -65,28 +132,58 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
         patient_id: patientId,
         ward_id: selectedWardId || undefined,
         status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
         tenant_id: tenantId || undefined,
       });
       setAdmissions(response.items);
       setTotalPages(response.total_pages);
       setTotal(response.total);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch admissions:", error);
+      
+      // Handle API-returned date range validation errors
+      const errorMessage = getErrorMessage(error);
+      if (
+        error?.response?.data?.detail &&
+        Array.isArray(error.response.data.detail)
+      ) {
+        const dateRangeErrorDetail = error.response.data.detail.find(
+          (detail: any) =>
+            detail.type === "business_logic_error" ||
+            (detail.msg && (
+              detail.msg.includes("Date range cannot exceed 3 months") ||
+              detail.msg.includes("90 days")
+            ))
+        );
+        if (dateRangeErrorDetail) {
+          setDateRangeError(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
+          toast.error(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
+        } else {
+          toast.error(errorMessage || "Failed to fetch admissions");
+        }
+      } else {
+        toast.error(errorMessage || "Failed to fetch admissions");
+      }
+      
       setAdmissions([]);
       setTotalPages(1);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, patientId, selectedWardId, statusFilter]);
+  }, [currentPage, pageSize, patientId, selectedWardId, statusFilter, startDate, endDate, dateRangeError]);
 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
-  }, [patientId, selectedWardId, statusFilter]);
+  }, [patientId, selectedWardId, statusFilter, startDate, endDate]);
 
+  // Auto-fetch when any filter changes - also runs on initial mount
   useEffect(() => {
-    fetchAdmissionsList();
-  }, [fetchAdmissionsList]);
+    if (!dateRangeError) {
+      fetchAdmissionsList();
+    }
+  }, [selectedWardId, statusFilter, patientId, startDate, endDate, fetchAdmissionsList, dateRangeError]);
 
   useEffect(() => {
     const fetchWards = async () => {
@@ -264,45 +361,377 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     return status.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
 
+  const formatAdmissionType = (type: string) => {
+    return type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+  };
+
+  const handleExportPDF = useCallback(async () => {
+    // Validate filters - only check date range error if dates are provided
+    if (dateRangeError) {
+      toast.error(dateRangeError);
+      return;
+    }
+
+    setExporting(true);
+    try {
+      // Fetch all admissions without pagination
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const response = await admissionsApi.list({
+        patient_id: patientId,
+        ward_id: selectedWardId || undefined,
+        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        tenant_id: tenantId || undefined,
+        // Omit page and page_size to get all results
+      });
+
+      // Get all admissions from response
+      const allAdmissions = response.items || [];
+      
+      if (allAdmissions.length === 0) {
+        toast.error("No admissions found to export");
+        setExporting(false);
+        return;
+      }
+
+      // Format address similar to PrintHeader
+      const formatAddress = () => {
+        if (!tenant) return null;
+        const parts = [
+          tenant.address,
+          tenant.city,
+          tenant.state,
+          tenant.pincode,
+        ].filter(Boolean);
+        return parts.length > 0 ? parts.join(", ") : null;
+      };
+      const address = formatAddress();
+
+      // Create PDF
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const centerX = pageWidth / 2;
+      let yPos = 15;
+
+      // Add logo if available (similar to PrintHeader)
+      if (logoDataUrl) {
+        try {
+          // Load image to get dimensions
+          const img = new Image();
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+            img.src = logoDataUrl;
+          });
+
+          // Calculate logo size (max 24mm height, maintain aspect ratio)
+          // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
+          const pxToMm = 0.264583;
+          const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
+          
+          let logoWidthMm = img.width * pxToMm;
+          let logoHeightMm = img.height * pxToMm;
+          
+          // Scale down if too large
+          if (logoHeightMm > maxHeightMm) {
+            const scale = maxHeightMm / logoHeightMm;
+            logoWidthMm = logoWidthMm * scale;
+            logoHeightMm = maxHeightMm;
+          }
+
+          // Center the logo horizontally
+          const logoX = centerX - (logoWidthMm / 2);
+          
+          // Detect image format from data URL
+          let imageFormat: string = 'PNG';
+          if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
+            imageFormat = 'JPEG';
+          } else if (logoDataUrl.startsWith('data:image/png')) {
+            imageFormat = 'PNG';
+          }
+          
+          // Add logo to PDF
+          doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
+          yPos += logoHeightMm + 5; // Add space after logo
+        } catch (error) {
+          console.warn("Could not add logo to PDF:", error);
+          // Continue without logo
+        }
+      }
+
+      // Hospital Name (centered, bold, large) - matching PrintHeader style
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      const hospitalNameText = (tenant?.name || hospitalName || "HOSPITAL").toUpperCase();
+      doc.text(hospitalNameText, centerX, yPos, { align: "center" });
+      yPos += 8;
+
+      // Address and Contact Information (centered, smaller text)
+      if (address || tenant?.phone_no || tenant?.email || tenant?.website) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(55, 65, 81); // slate-700
+        
+        if (address) {
+          doc.text(address, centerX, yPos, { align: "center" });
+          yPos += 5;
+        }
+        
+        // Contact info
+        const contactParts: string[] = [];
+        if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
+        if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
+        if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
+        
+        if (contactParts.length > 0) {
+          doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
+          yPos += 6;
+        }
+      }
+
+      // Reset text color
+      doc.setTextColor(0, 0, 0);
+
+      // Document Type (centered) - matching PrintHeader style
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text("Admissions Report", centerX, yPos, { align: "center" });
+      yPos += 8;
+
+      // Filter Details (left-aligned, similar to invoice number/date in PrintHeader)
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      
+      // Add border line similar to PrintHeader
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(30, 41, 59); // slate-800
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 6;
+
+      // Filter details
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text("Date Range", 14, yPos);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      const dateRangeText = startDate && endDate 
+        ? `${formatDate(startDate)} to ${formatDate(endDate)}`
+        : "All Dates";
+      doc.text(dateRangeText, 14, yPos + 4);
+      
+      // Ward filter on the right (if selected)
+      if (selectedWardId) {
+        const selectedWard = wards.find((w) => w.id === selectedWardId);
+        const wardName = selectedWard ? `${selectedWard.ward_name} (${selectedWard.ward_code})` : "Selected Ward";
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        doc.text("Ward", pageWidth - 14, yPos, { align: "right" });
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text(wardName, pageWidth - 14, yPos + 4, { align: "right" });
+      }
+      
+      yPos += 8;
+      
+      // Status filter and total
+      if (statusFilter !== "all") {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        doc.text("Status", 14, yPos);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text(formatStatus(statusFilter), 14, yPos + 4);
+      }
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Export Date: ${new Date().toLocaleString()}`, 14, yPos + (statusFilter !== "all" ? 8 : 0));
+      doc.text(`Total: ${allAdmissions.length} admissions`, pageWidth - 14, yPos + (statusFilter !== "all" ? 8 : 0), { align: "right" });
+      yPos += (statusFilter !== "all" ? 16 : 8);
+
+      // Prepare table data
+      const tableData = allAdmissions.map((adm) => {
+        return [
+          formatDate(adm.admission_date), // Date as first column
+          adm.admission_number || "-",
+          adm.patient_name || `Patient ${adm.patient_id.slice(0, 8)}...`,
+          getWardName(adm),
+          getBedNumber(adm),
+          getDoctorName(adm),
+          formatStatus(adm.status),
+          formatAdmissionType(adm.admission_type),
+        ];
+      });
+
+      // Calculate available width (page width minus margins)
+      const availableWidth = pageWidth - 28; // 14mm margin on each side
+
+      // Add table
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Date", "Admission #", "Patient Name", "Ward", "Bed", "Doctor", "Status", "Type"]],
+        body: tableData,
+        theme: "striped",
+        headStyles: {
+          fillColor: [59, 130, 246], // Sky blue
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+        },
+        columnStyles: {
+          0: { cellWidth: availableWidth * 0.12 }, // Date - 12%
+          1: { cellWidth: availableWidth * 0.12 }, // Admission # - 12%
+          2: { cellWidth: availableWidth * 0.20 }, // Patient Name - 20%
+          3: { cellWidth: availableWidth * 0.12 }, // Ward - 12%
+          4: { cellWidth: availableWidth * 0.08 }, // Bed - 8%
+          5: { cellWidth: availableWidth * 0.15 }, // Doctor - 15%
+          6: { cellWidth: availableWidth * 0.11 }, // Status - 11%
+          7: { cellWidth: availableWidth * 0.10 }, // Type - 10%
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Generate filename
+      const filename = startDate && endDate
+        ? `admissions_${startDate}_to_${endDate}.pdf`
+        : `admissions_all_${new Date().toISOString().split("T")[0]}.pdf`;
+
+      // Save PDF
+      doc.save(filename);
+      
+      toast.success(`Exported ${allAdmissions.length} admissions successfully`);
+    } catch (error: any) {
+      console.error("Failed to export admissions:", error);
+      
+      // Handle API-returned date range validation errors
+      const errorMessage = getErrorMessage(error);
+      if (
+        error?.response?.data?.detail &&
+        Array.isArray(error.response.data.detail)
+      ) {
+        const dateRangeErrorDetail = error.response.data.detail.find(
+          (detail: any) =>
+            detail.type === "business_logic_error" ||
+            (detail.msg && (
+              detail.msg.includes("Date range cannot exceed 3 months") ||
+              detail.msg.includes("90 days")
+            ))
+        );
+        if (dateRangeErrorDetail) {
+          toast.error(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
+        } else {
+          toast.error(errorMessage || "Failed to export admissions");
+        }
+      } else {
+        toast.error(errorMessage || "Failed to export admissions");
+      }
+    } finally {
+      setExporting(false);
+    }
+  }, [startDate, endDate, dateRangeError, patientId, selectedWardId, statusFilter, wards, tenant, hospitalName, logoDataUrl]);
+
   if (loading && admissions.length === 0) {
     return <SkeletonRow rows={5} />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className="space-y-1">
-          <span className="text-slate-600 text-sm">Filter by Ward</span>
-          <select
-            value={selectedWardId}
-            onChange={(e) => setSelectedWardId(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-          >
-            <option value="">All Wards</option>
-            {wards.map((ward) => (
-              <option key={ward.id} value={ward.id}>
-                {ward.ward_name} ({ward.ward_code})
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="flex items-end gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4 flex-1">
+          <label className="space-y-1">
+            <span className="text-slate-600 text-sm flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              Start Date
+            </span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              max={endDate || undefined}
+              min={endDate ? getMinStartDate() : undefined}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            />
+          </label>
 
-        <label className="space-y-1">
-          <span className="text-slate-600 text-sm">Filter by Status</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-          >
-            <option value="all">All Status</option>
-            <option value="admitted">Admitted</option>
-            <option value="discharged">Discharged</option>
-            <option value="transferred">Transferred</option>
-            <option value="deceased">Deceased</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </label>
+          <label className="space-y-1">
+            <span className="text-slate-600 text-sm flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              End Date
+            </span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate || undefined}
+              max={startDate ? getMaxEndDate() : undefined}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            />
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-slate-600 text-sm">Filter by Ward</span>
+            <select
+              value={selectedWardId}
+              onChange={(e) => setSelectedWardId(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            >
+              <option value="">All Wards</option>
+              {wards.map((ward) => (
+                <option key={ward.id} value={ward.id}>
+                  {ward.ward_name} ({ward.ward_code})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-slate-600 text-sm">Filter by Status</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            >
+              <option value="all">All Status</option>
+              <option value="admitted">Admitted</option>
+              <option value="discharged">Discharged</option>
+              <option value="transferred">Transferred</option>
+              <option value="deceased">Deceased</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+        </div>
+        
+        <button
+          onClick={handleExportPDF}
+          disabled={!!dateRangeError || exporting}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+          title="Export all admissions to PDF"
+        >
+          {exporting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Exporting...</span>
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4" />
+              <span>Export PDF</span>
+            </>
+          )}
+        </button>
       </div>
+
+      {dateRangeError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <p className="text-sm text-rose-700">{dateRangeError}</p>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
         <table className="min-w-full divide-y divide-slate-100 text-sm">
