@@ -12,9 +12,9 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { useReactToPrint } from "react-to-print";
 import { OpdSlipPrint } from "./OpdSlipPrint";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
-import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi, Payment } from "@/services/paymentsApi";
+import { paymentsApi } from "@/services/paymentsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
@@ -200,7 +200,7 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [printVisitData, setPrintVisitData] = useState<{ visit: Visit; patient: any } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
-  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
@@ -218,7 +218,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
   });
 
   useEffect(() => {
@@ -482,38 +482,13 @@ export function OpdList({ doctorId }: OpdListProps) {
   };
 
   const handlePrintPaymentReceiptClick = async (visitId: string, paymentId: string, invoiceId?: string | null) => {
+    if (!invoiceId) {
+      toast.error("Invoice ID not available for this visit");
+      return;
+    }
+
     try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      
-      // Fetch payment details
-      const payment = await paymentsApi.getById(paymentId, apiTenantId);
-      
-      // Fetch invoice details if invoice_id is available to get invoice number
-      let invoiceNumber: string | undefined;
-      if (invoiceId) {
-        try {
-          const invoice = await invoicesApi.getById(invoiceId, apiTenantId);
-          invoiceNumber = invoice.invoice_number;
-        } catch (error) {
-          // If invoice fetch fails, continue without invoice number
-          console.warn("Failed to fetch invoice for payment receipt:", error);
-        }
-      }
-      
-      // Fetch patient details
-      const visit = await opdVisitsApi.getById(visitId);
-      const patient = await patientsApi.getById(visit.patient_id);
-      const patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
-      const patientMobile = patient.mobile;
-      
-      // Set print data
-      setPrintPaymentData({
-        payment,
-        patientName,
-        patientMobile,
-        invoiceNumber,
-      });
+      setPrintPaymentInvoiceId(invoiceId);
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
@@ -544,14 +519,14 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   // Trigger print when payment receipt print data is ready
   useEffect(() => {
-    if (shouldPrintPayment && printPaymentData && printPaymentRef.current) {
+    if (shouldPrintPayment && printPaymentInvoiceId && printPaymentRef.current) {
       const timeoutId = setTimeout(() => {
         handlePrintPayment();
         setShouldPrintPayment(false);
       }, 200);
       return () => clearTimeout(timeoutId);
     }
-  }, [shouldPrintPayment, printPaymentData, handlePrintPayment]);
+  }, [shouldPrintPayment, printPaymentInvoiceId, handlePrintPayment]);
 
   const handleExportPDF = useCallback(async () => {
     // Validate filters
@@ -1202,15 +1177,10 @@ export function OpdList({ doctorId }: OpdListProps) {
       )}
 
       {/* Hidden printable payment receipt */}
-      {printPaymentData && (
+      {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <PaymentReceiptPrint
-              payment={printPaymentData.payment}
-              patientName={printPaymentData.patientName}
-              patientMobile={printPaymentData.patientMobile}
-              invoiceNumber={printPaymentData.invoiceNumber}
-            />
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
           </div>
         </div>
       )}

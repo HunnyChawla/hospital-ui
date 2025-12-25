@@ -59,12 +59,13 @@ import {
   CreditCard,
   BarChart3,
   RefreshCw,
+  Coins,
 } from "lucide-react";
 
 function BillingSection() {
   const [searchBox, setSearchBox] = useState<React.ReactNode>(null);
   const [filterBox, setFilterBox] = useState<React.ReactNode>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "partial" | "refunded">("all");
 
   return (
     <div className="mt-6 grid gap-6">
@@ -406,7 +407,7 @@ export default function Home() {
                 label="Pending billing"
                 value={currency(totalPending)}
                 hint="Outstanding invoices"
-                icon={Stethoscope}
+                icon={Coins}
                 tone="amber"
                 insights={[
                   {

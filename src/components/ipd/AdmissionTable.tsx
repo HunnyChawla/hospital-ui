@@ -21,9 +21,9 @@ import { TransferBedFormModal } from "./TransferBedFormModal";
 import { ServiceChargesModal } from "./ServiceChargesModal";
 import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi, Payment } from "@/services/paymentsApi";
+import { paymentsApi } from "@/services/paymentsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
-import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { useReactToPrint } from "react-to-print";
 import { getTenantIdForApi } from "@/utils/auth";
 
@@ -1053,7 +1053,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
   const [showPrintDropdown, setShowPrintDropdown] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
-  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
@@ -1068,7 +1068,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
 
   const handlePrintPaymentAction = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
   });
 
   useEffect(() => {
@@ -1173,44 +1173,23 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
   };
 
   const handlePrintPaymentReceipt = async () => {
-    if (!admission.payment_id) {
-      toast.error("Payment ID not available for this admission");
+    if (!admission.invoice_id) {
+      toast.error("Invoice ID not available for this admission");
       return;
     }
     
     try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const payment = await paymentsApi.getById(admission.payment_id, getTenantIdForApi(tenantId || undefined));
-      
-      // Get invoice number if available
-      let invoiceNumber: string | undefined;
-      if (payment.invoice_id) {
-        try {
-          const invoice = await invoicesApi.getById(payment.invoice_id, getTenantIdForApi(tenantId || undefined));
-          invoiceNumber = invoice.invoice_number;
-        } catch (error) {
-          console.error("Failed to fetch invoice for receipt:", error);
-        }
-      }
-      
-      const patientName = admission.patient_name || "Unknown";
-      
-      setPrintPaymentData({
-        payment,
-        patientName,
-        invoiceNumber,
-      });
+      setPrintPaymentInvoiceId(admission.invoice_id);
       setShouldPrintPayment(true);
       setShowPrintDropdown(false);
     } catch (error) {
-      console.error("Failed to fetch payment:", error);
+      console.error("Failed to prepare payment receipt:", error);
       const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to fetch payment details");
+      toast.error(errorMessage || "Failed to prepare payment receipt for printing");
     }
   };
 
   const hasInvoice = !!admission.invoice_id;
-  const hasPayment = !!admission.payment_id;
   
   // Always show print button for discharged admissions
   // Show options in dropdown based on available IDs
@@ -1266,7 +1245,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
             ) : (
               <div className="px-4 py-2 text-xs text-slate-500">No invoice available</div>
             )}
-            {hasPayment ? (
+            {admission.invoice_id ? (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1298,15 +1277,10 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
       )}
 
       {/* Hidden printable payment receipt */}
-      {printPaymentData && (
+      {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <PaymentReceiptPrint
-              payment={printPaymentData.payment}
-              patientName={printPaymentData.patientName}
-              patientMobile={printPaymentData.patientMobile}
-              invoiceNumber={printPaymentData.invoiceNumber}
-            />
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
           </div>
         </div>
       )}

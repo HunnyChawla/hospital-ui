@@ -23,7 +23,7 @@ import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
-import { PaymentReceiptPrint } from "@/components/payments/PaymentReceiptPrint";
+import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
 import { getTenantIdForApi } from "@/utils/auth";
 import { ServiceChargesModal } from "./ServiceChargesModal";
@@ -49,7 +49,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [showServiceChargesModal, setShowServiceChargesModal] = useState(false);
   const [showInitiateDischargeModal, setShowInitiateDischargeModal] = useState(false);
-  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const [printDischargeSummaryData, setPrintDischargeSummaryData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
   const [shouldPrintDischargeSummary, setShouldPrintDischargeSummary] = useState(false);
@@ -64,7 +64,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
   });
 
   const handlePrintDischargeSummary = useReactToPrint({
@@ -98,6 +98,16 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       setInvoice(null);
     }
   }, [admission?.invoice_id]);
+
+  useEffect(() => {
+    if (shouldPrintPayment && printPaymentInvoiceId && printPaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintPayment();
+        setShouldPrintPayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintPayment, printPaymentInvoiceId, handlePrintPayment]);
 
   useEffect(() => {
     if (admission?.status === "admitted" && !admission.invoice_id) {
@@ -189,37 +199,18 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     }
   };
 
-  const handlePrintPaymentReceipt = async (paymentId: string) => {
+  const handlePrintPaymentReceipt = async () => {
+    if (!admission?.invoice_id) {
+      toast.error("Invoice ID not available for this admission");
+      return;
+    }
+
     try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      const payment = await paymentsApi.getById(paymentId, apiTenantId);
-      
-      // Get invoice number if available
-      let invoiceNumber: string | undefined;
-      if (payment.invoice_id) {
-        try {
-          const invoice = await invoicesApi.getById(payment.invoice_id, apiTenantId);
-          invoiceNumber = invoice.invoice_number;
-        } catch (error) {
-          console.error("Failed to fetch invoice for receipt:", error);
-        }
-      }
-      
-      // Use patient name from admission if available
-      const patientName = admission?.patient_name || "Unknown";
-      const patientMobile = undefined; // Could fetch from patient if needed
-      
-      setPrintPaymentData({
-        payment,
-        patientName,
-        patientMobile,
-        invoiceNumber,
-      });
+      setPrintPaymentInvoiceId(admission.invoice_id);
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to fetch payment details");
+      toast.error(errorMessage || "Failed to prepare payment receipt for printing");
     }
   };
 
@@ -713,9 +704,9 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
                   Print Invoice
                 </button>
               )}
-              {admission.payment_id && (
+              {admission.invoice_id && (
                 <button
-                  onClick={() => handlePrintPaymentReceipt(admission.payment_id!)}
+                  onClick={handlePrintPaymentReceipt}
                   className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
                 >
                   <Printer className="h-4 w-4" />
@@ -756,15 +747,10 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       )}
 
       {/* Hidden printable payment receipt */}
-      {printPaymentData && (
+      {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <PaymentReceiptPrint
-              payment={printPaymentData.payment}
-              patientName={printPaymentData.patientName}
-              patientMobile={printPaymentData.patientMobile}
-              invoiceNumber={printPaymentData.invoiceNumber}
-            />
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
           </div>
         </div>
       )}

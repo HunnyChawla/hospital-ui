@@ -162,7 +162,12 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         })
       );
 
-      setBookings(bookingsWithPatients);
+      // Deduplicate bookings by ID to prevent duplicate key errors
+      const uniqueBookings = Array.from(
+        new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
+      );
+
+      setBookings(uniqueBookings);
       setTotalPages(response.total_pages);
       setTotal(response.total);
       // Clear any previous date range error if fetch succeeds
@@ -272,7 +277,11 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
             }
           })
         );
-        setBookings(bookingsWithPatients);
+        // Deduplicate bookings by ID to prevent duplicate key errors
+        const uniqueBookings = Array.from(
+          new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
+        );
+        setBookings(uniqueBookings);
         toast.success("Booking found");
       }
     } catch (error: any) {
@@ -360,8 +369,10 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         })
       );
 
-      // Get all bookings from response
-      const allBookings = bookingsWithPatients || [];
+      // Deduplicate bookings by ID to prevent duplicate key errors
+      const allBookings = Array.from(
+        new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
+      );
       
       if (allBookings.length === 0) {
         toast.error("No lab bookings found to export");
