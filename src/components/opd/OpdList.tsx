@@ -1019,7 +1019,7 @@ export function OpdList({ doctorId }: OpdListProps) {
                           ? "From Appointment" 
                           : visit.visit_type === "emergency"
                           ? "Emergency"
-                          : visit.visit_type.replace("_", " ")}
+                          : String(visit.visit_type).replace("_", " ")}
                       </span>
                       {visit.checked_in_at && (
                         <span>

@@ -365,7 +365,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                                   <p className="text-xs text-slate-500 mt-0.5">{service.description}</p>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{service.category}</span>
-                                    <span className="text-xs font-semibold text-slate-900">{currency(parseFloat(service.price))}</span>
+                                    <span className="text-xs font-semibold text-slate-900">{currency(service.price)}</span>
                                   </div>
                                 </div>
                               </button>
