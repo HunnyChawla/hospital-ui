@@ -12,6 +12,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { usersApi } from "@/services/usersApi";
 import { useTenant } from "@/hooks/useTenant";
+import { formatDate } from "@/utils/format";
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;
@@ -30,7 +31,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { user } = useAppSelector((s) => s.auth);
-  const { hospitalName } = useTenant();
+  const { hospitalName, tenant } = useTenant();
   const [fullName, setFullName] = useState<string | null>(null);
 
   // Debounced search
@@ -150,6 +151,45 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
     toast.success("Logged out successfully");
     router.push("/login");
   };
+
+  // Inline license utility functions to avoid Turbopack HMR issues
+  const getDaysUntilExpiry = (expiryDate: string | null): number | null => {
+    if (!expiryDate) return null;
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const isExpiringSoon = (expiryDate: string | null, daysThreshold: number = 7): boolean => {
+    const daysUntil = getDaysUntilExpiry(expiryDate);
+    if (daysUntil === null) return false;
+    return daysUntil <= daysThreshold && daysUntil >= 0;
+  };
+
+  const isExpired = (expiryDate: string | null): boolean => {
+    const daysUntil = getDaysUntilExpiry(expiryDate);
+    if (daysUntil === null) return false;
+    return daysUntil < 0;
+  };
+
+  // Calculate license expiry status for color coding
+  const licenseExpiryInfo = tenant?.license_valid_till ? (() => {
+    const daysUntil = getDaysUntilExpiry(tenant.license_valid_till);
+    const expired = isExpired(tenant.license_valid_till);
+    const expiringSoon = isExpiringSoon(tenant.license_valid_till);
+    const isUrgent = expired || expiringSoon;
+    return {
+      daysUntil,
+      expired,
+      expiringSoon,
+      isUrgent,
+      textColor: isUrgent ? "text-rose-600" : "text-emerald-600",
+    };
+  })() : null;
 
   return (
     <header className="sticky top-0 z-20 mb-4 flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -290,6 +330,11 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                 {fullName || user?.role?.replace("_", " ") || "Admin"}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">{hospitalName}</p>
+              {tenant?.license_valid_till && licenseExpiryInfo && (
+                <p className={`mt-1 text-[10px] ${licenseExpiryInfo.textColor} font-medium`}>
+                  License expires: {formatDate(tenant.license_valid_till)}
+                </p>
+              )}
             </div>
             <button
               onClick={handleLogout}

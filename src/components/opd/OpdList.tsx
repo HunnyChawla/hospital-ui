@@ -192,8 +192,6 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [endDate, setEndDate] = useState<string>("");
   const [dateRangeError, setDateRangeError] = useState<string>("");
   
-  const [sortBy, setSortBy] = useState<"token_number" | "visit_date" | "created_at" | "checked_in_at" | "visit_number" | "status" | "visit_type">("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -309,8 +307,6 @@ export function OpdList({ doctorId }: OpdListProps) {
       const response = await opdVisitsApi.list({
         page: currentPage,
         page_size: pageSize,
-        sort_by: sortBy,
-        sort_order: sortOrder,
         doctor_id: selectedDoctorId,
         start_date: startDate,
         end_date: endDate,
@@ -364,11 +360,11 @@ export function OpdList({ doctorId }: OpdListProps) {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, selectedDoctorId, startDate, endDate, sortBy, sortOrder, dateRangeError]);
+  }, [currentPage, pageSize, selectedDoctorId, startDate, endDate, dateRangeError]);
 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
-  }, [selectedDoctorId, startDate, endDate, sortBy, sortOrder]);
+  }, [selectedDoctorId, startDate, endDate]);
 
   // Fetch visits when dependencies change - don't include fetchVisits in deps
   useEffect(() => {
@@ -376,7 +372,7 @@ export function OpdList({ doctorId }: OpdListProps) {
       fetchVisits();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDoctorId, startDate, endDate, sortBy, sortOrder, currentPage, pageSize, dateRangeError]);
+  }, [selectedDoctorId, startDate, endDate, currentPage, pageSize, dateRangeError]);
 
   // Listen for OPD visit creation events to refresh the list
   // Use ref to store stable callback
@@ -636,8 +632,6 @@ export function OpdList({ doctorId }: OpdListProps) {
     try {
       // Fetch all visits without pagination
       const response = await opdVisitsApi.list({
-        sort_by: sortBy,
-        sort_order: sortOrder,
         doctor_id: selectedDoctorId,
         start_date: startDate,
         end_date: endDate,
@@ -871,12 +865,12 @@ export function OpdList({ doctorId }: OpdListProps) {
     } finally {
       setExporting(false);
     }
-  }, [selectedDoctorId, startDate, endDate, dateRangeError, doctors, tenant, hospitalName, logoDataUrl, sortBy, sortOrder]);
+  }, [selectedDoctorId, startDate, endDate, dateRangeError, doctors, tenant, hospitalName, logoDataUrl]);
 
   return (
     <div className="space-y-4">
       <div className="flex items-end gap-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5 flex-1">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 flex-1">
           <label className="space-y-1">
             <span className="text-slate-600 flex items-center gap-1">
               <Stethoscope className="h-4 w-4" />
@@ -925,37 +919,6 @@ export function OpdList({ doctorId }: OpdListProps) {
               max={startDate ? getMaxEndDate() : getTodayDate()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
-          </label>
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1">
-              Sort By
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            >
-              <option value="created_at">Created At</option>
-              <option value="token_number">Token Number</option>
-              <option value="visit_date">Visit Date</option>
-              <option value="checked_in_at">Checked In At</option>
-              <option value="visit_number">Visit Number</option>
-              <option value="status">Status</option>
-              <option value="visit_type">Visit Type</option>
-            </select>
-          </label>
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1">
-              Order
-            </span>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            >
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
           </label>
         </div>
         
@@ -1150,6 +1113,14 @@ export function OpdList({ doctorId }: OpdListProps) {
                         onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
                       />
                     </>
+                  )}
+                  {visit.status === "completed" && (
+                    <PrintButtonsGroup
+                      visit={visit}
+                      onPrintOpd={() => handlePrintOpd(visit.id)}
+                      onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                      onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                    />
                   )}
                 </div>
               </div>
