@@ -14,6 +14,7 @@ export interface Tenant {
   website: string | null;
   phone_no: string | null;
   logo: string | null;
+  license_valid_till: string | null;
   created_at: string;
   updated_at: string;
 }

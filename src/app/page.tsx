@@ -34,6 +34,8 @@ import { DailyRevenueCard } from "@/components/dashboard/DailyRevenueCard";
 import { DashboardBillingList } from "@/components/dashboard/DashboardBillingList";
 import { RecentAdmissionsList } from "@/components/dashboard/RecentAdmissionsList";
 import { AdmissionDetailModal } from "@/components/ipd/AdmissionDetailModal";
+import { useTenant } from "@/hooks/useTenant";
+import { formatDate } from "@/utils/format";
 import { analyticsApi } from "@/services/analyticsApi";
 import { Patient } from "@/types";
 import { Doctor } from "@/services/doctorsApi";
@@ -48,6 +50,7 @@ import { fetchTenant } from "@/redux/tenantSlice";
 import { currency } from "@/utils/format";
 import {
   Activity,
+  AlertTriangle,
   BedDouble,
   HeartPulse,
   LayoutList,
@@ -60,7 +63,108 @@ import {
   BarChart3,
   RefreshCw,
   Coins,
+  X,
 } from "lucide-react";
+
+// Inline License utility functions to avoid Turbopack HMR issues
+function getDaysUntilExpiry(expiryDate: string | null): number | null {
+  if (!expiryDate) return null;
+  
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+  
+  const diffTime = expiry.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+}
+
+function isExpiringSoon(expiryDate: string | null, daysThreshold: number = 7): boolean {
+  const daysUntil = getDaysUntilExpiry(expiryDate);
+  if (daysUntil === null) return false;
+  return daysUntil <= daysThreshold && daysUntil >= 0;
+}
+
+function isExpired(expiryDate: string | null): boolean {
+  const daysUntil = getDaysUntilExpiry(expiryDate);
+  if (daysUntil === null) return false;
+  return daysUntil < 0;
+}
+
+function getExpiryMessage(expiryDate: string | null): string | null {
+  if (!expiryDate) return null;
+  
+  const daysUntil = getDaysUntilExpiry(expiryDate);
+  if (daysUntil === null) return null;
+  
+  if (daysUntil < 0) {
+    return `License expired ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago`;
+  } else if (daysUntil === 0) {
+    return 'License expires today';
+  } else if (daysUntil === 1) {
+    return 'License expires tomorrow';
+  } else if (daysUntil <= 7) {
+    return `License expires in ${daysUntil} days`;
+  } else {
+    return null;
+  }
+}
+
+// Inline License Expiry Alert component to avoid Turbopack HMR issues
+function LicenseExpiryAlert() {
+  const { tenant } = useTenant();
+  const [dismissed, setDismissed] = useState(false);
+  
+  if (!tenant?.license_valid_till || dismissed) {
+    return null;
+  }
+  
+  const daysUntil = getDaysUntilExpiry(tenant.license_valid_till);
+  const expired = isExpired(tenant.license_valid_till);
+  const expiringSoon = isExpiringSoon(tenant.license_valid_till);
+  
+  if (!expired && !expiringSoon) {
+    return null;
+  }
+  
+  const message = getExpiryMessage(tenant.license_valid_till);
+  const expiryDate = formatDate(tenant.license_valid_till);
+  const isUrgent = expired || (daysUntil !== null && daysUntil <= 3);
+  const bgColor = isUrgent ? "bg-rose-50 border-rose-200" : "bg-amber-50 border-amber-200";
+  const textColor = isUrgent ? "text-rose-800" : "text-amber-800";
+  const iconColor = isUrgent ? "text-rose-600" : "text-amber-600";
+  
+  return (
+    <div className={`mx-4 mb-4 rounded-xl border ${bgColor} p-4 shadow-sm`}>
+      <div className="flex items-start gap-3">
+        <AlertTriangle className={`h-5 w-5 shrink-0 ${iconColor} mt-0.5`} />
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-semibold ${textColor} mb-1`}>
+            {expired ? "License Expired" : "License Expiring Soon"}
+          </h3>
+          <p className={`text-sm ${textColor} mb-2`}>
+            {message && <span className="font-medium">{message}.</span>}
+            {!expired && <span className="ml-1">Expiry date: {expiryDate}</span>}
+            {expired && <span className="ml-1">Expired on: {expiryDate}</span>}
+          </p>
+          <p className={`text-xs ${textColor} opacity-90`}>
+            Please renew your license to continue using all features.
+          </p>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          className={`shrink-0 rounded-lg p-1 transition hover:bg-white/50 ${textColor}`}
+          aria-label="Dismiss alert"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function BillingSection() {
   const [searchBox, setSearchBox] = useState<React.ReactNode>(null);
@@ -349,6 +453,7 @@ export default function Home() {
       <Sidebar />
       <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
         <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
+        <LicenseExpiryAlert />
 
         {show("dashboard") && (
           <div className="grid gap-4">
