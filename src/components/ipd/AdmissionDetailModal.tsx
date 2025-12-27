@@ -26,10 +26,12 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
+import { ConsentFormPrint } from "./ConsentFormPrint";
 import { getTenantIdForApi } from "@/utils/auth";
 import { ServiceChargesModal } from "./ServiceChargesModal";
 import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
 import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
+import { useTenant } from "@/hooks/useTenant";
 
 interface AdmissionDetailModalProps {
   isOpen: boolean;
@@ -38,6 +40,7 @@ interface AdmissionDetailModalProps {
 }
 
 export function AdmissionDetailModal({ isOpen, onClose, admissionId }: AdmissionDetailModalProps) {
+  const { tenant, hospitalName } = useTenant();
   const [admission, setAdmission] = useState<Admission | null>(null);
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -54,9 +57,15 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const [printDischargeSummaryData, setPrintDischargeSummaryData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
   const [shouldPrintDischargeSummary, setShouldPrintDischargeSummary] = useState(false);
+  const [printConsentFormData, setPrintConsentFormData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
+  const [shouldPrintConsentForm, setShouldPrintConsentForm] = useState(false);
+  const [printAdvancePaymentInvoiceId, setPrintAdvancePaymentInvoiceId] = useState<string | null>(null);
+  const [shouldPrintAdvancePayment, setShouldPrintAdvancePayment] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
   const printDischargeSummaryRef = useRef<HTMLDivElement>(null);
+  const printConsentFormRef = useRef<HTMLDivElement>(null);
+  const printAdvancePaymentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -71,6 +80,16 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const handlePrintDischargeSummary = useReactToPrint({
     contentRef: printDischargeSummaryRef,
     documentTitle: printDischargeSummaryData ? `DischargeSummary_${printDischargeSummaryData.admission.admission_number}` : "Discharge Summary",
+  });
+
+  const handlePrintConsentForm = useReactToPrint({
+    contentRef: printConsentFormRef,
+    documentTitle: printConsentFormData ? `ConsentForm_${printConsentFormData.admission.admission_number}` : "Consent Form",
+  });
+
+  const handlePrintAdvancePayment = useReactToPrint({
+    contentRef: printAdvancePaymentRef,
+    documentTitle: printAdvancePaymentInvoiceId ? `AdvancePaymentReceipt_Invoice_${printAdvancePaymentInvoiceId}` : "Advance Payment Receipt",
   });
 
   useEffect(() => {
@@ -215,6 +234,21 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
     }
   };
 
+  const handlePrintAdvancePaymentReceipt = async () => {
+    if (!admission?.advance_invoice_id) {
+      toast.error("Advance invoice ID not available for this admission");
+      return;
+    }
+
+    try {
+      setPrintAdvancePaymentInvoiceId(admission.advance_invoice_id);
+      setShouldPrintAdvancePayment(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare advance payment receipt for printing");
+    }
+  };
+
   const handlePrintDischargeSummaryClick = async () => {
     if (!admission) return;
     
@@ -235,6 +269,28 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       toast.error(errorMessage || "Failed to fetch patient details");
     }
   };
+
+  const handlePrintConsentFormClick = async () => {
+    if (!admission) return;
+    
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId || undefined);
+      
+      // Fetch patient details
+      const patient = await patientsApi.getById(admission.patient_id, apiTenantId);
+      
+      setPrintConsentFormData({
+        admission,
+        patient,
+      });
+      setShouldPrintConsentForm(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to fetch patient details");
+    }
+  };
+
 
   // Trigger print when printInvoiceData is set and shouldPrint is true
   useEffect(() => {
@@ -267,6 +323,26 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       return () => clearTimeout(timeoutId);
     }
   }, [printDischargeSummaryData, shouldPrintDischargeSummary, handlePrintDischargeSummary]);
+
+  useEffect(() => {
+    if (printConsentFormData && shouldPrintConsentForm && printConsentFormRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintConsentForm();
+        setShouldPrintConsentForm(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [printConsentFormData, shouldPrintConsentForm, handlePrintConsentForm]);
+
+  useEffect(() => {
+    if (shouldPrintAdvancePayment && printAdvancePaymentInvoiceId && printAdvancePaymentRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintAdvancePayment();
+        setShouldPrintAdvancePayment(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintAdvancePayment, printAdvancePaymentInvoiceId, handlePrintAdvancePayment]);
 
   const formatDateTime = (dateTime: string | null) => {
     if (!dateTime) return "N/A";
@@ -448,6 +524,32 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
             )}
           </div>
         </div>
+
+        {/* Advance Payment Details */}
+        {admission.advance_payment_amount !== undefined && admission.advance_payment_amount > 0 && (
+          <div className="rounded-lg border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Advance Payment</p>
+                  <p className="text-lg font-bold text-emerald-700">{currency(admission.advance_payment_amount)}</p>
+                </div>
+              </div>
+              {admission.advance_invoice_id && (
+                <button
+                  onClick={handlePrintAdvancePaymentReceipt}
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  Download Receipt
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Invoice Details */}
         {admission.invoice_id && (
@@ -718,6 +820,14 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          {/* Consent Form - Available for all statuses */}
+          <button
+            onClick={handlePrintConsentFormClick}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
+          >
+            <Printer className="h-4 w-4" />
+            Print Consent Form
+          </button>
           {admission.status === "admitted" && (
             <button
               onClick={() => setShowServiceChargesModal(true)}
@@ -804,6 +914,27 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               admission={printDischargeSummaryData.admission}
               patient={printDischargeSummaryData.patient}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable consent form */}
+      {printConsentFormData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printConsentFormRef} className="print-content">
+            <ConsentFormPrint
+              admission={printConsentFormData.admission}
+              patient={printConsentFormData.patient}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Hidden printable advance payment receipt */}
+      {printAdvancePaymentInvoiceId && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printAdvancePaymentRef} className="print-content">
+            <InvoicePaymentReceiptPrint invoiceId={printAdvancePaymentInvoiceId} />
           </div>
         </div>
       )}

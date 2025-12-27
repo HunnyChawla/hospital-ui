@@ -35,6 +35,8 @@ export interface Admission {
   discharge_instructions: string | null;
   final_diagnosis: string | null;
   invoice_id: string | null;
+  advance_invoice_id: string | null;
+  advance_payment_amount: number;
   payment_id: string | null;
   created_at: string;
   updated_at: string;
@@ -54,6 +56,9 @@ export interface CreateAdmissionRequest {
   next_of_kin_relation?: string | null;
   next_of_kin_contact?: string | null;
   visit_id?: string | null; // OPD visit ID
+  advance_payment_amount?: number | null;
+  payment_method?: string | null; // cash/upi/card/cheque
+  payment_reference?: string | null; // Required if payment_method is upi or card
 }
 
 export interface UpdateAdmissionRequest {
