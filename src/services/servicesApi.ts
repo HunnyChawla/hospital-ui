@@ -81,7 +81,7 @@ export const servicesApi = {
   async update(serviceId: string, updates: UpdateServiceRequest, tenantId?: string): Promise<Service> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.patch<Service>(`/services/${serviceId}`, updates, { params });
+    const response = await apiClient.put<Service>(`/services/${serviceId}`, updates, { params });
     return response.data;
   },
 

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchServices, deleteService } from "@/redux/servicesSlice";
-import { ServiceForm } from "./ServiceForm";
+import { ServiceFormModal } from "./ServiceFormModal";
+import { Service } from "@/services/servicesApi";
 import { currency } from "@/utils/format";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -14,6 +15,8 @@ import {
   Search,
   Filter,
   Trash2,
+  Edit2,
+  Plus,
 } from "lucide-react";
 
 const DEFAULT_QUERY = { page: 1, page_size: 20 };
@@ -24,6 +27,9 @@ export function ServicesPanel() {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     dispatch(fetchServices(DEFAULT_QUERY));
@@ -49,6 +55,16 @@ export function ServicesPanel() {
     [items]
   );
 
+  const handleAdd = () => {
+    setEditingService(null);
+    setShowAddModal(true);
+  };
+
+  const handleEdit = (service: Service) => {
+    setEditingService(service);
+    setShowEditModal(true);
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
       return;
@@ -68,8 +84,8 @@ export function ServicesPanel() {
   };
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <div className="col-span-2 space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <div className="space-y-4">
+      <div className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">Service Master</p>
@@ -77,13 +93,22 @@ export function ServicesPanel() {
               Create and manage available services.
             </p>
           </div>
-          <button
-            onClick={refresh}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-sky-300"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={refresh}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-sky-300"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Refresh
+            </button>
+            <button
+              onClick={handleAdd}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+            >
+              <Plus className="h-4 w-4" />
+              Add Service
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -117,7 +142,7 @@ export function ServicesPanel() {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200">
-          <div className="grid grid-cols-4 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase text-slate-500">
+          <div className="grid grid-cols-5 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase text-slate-500">
             <div className="col-span-2">Name</div>
             <div>Category</div>
             <div className="text-right">Price</div>
@@ -137,7 +162,7 @@ export function ServicesPanel() {
               {items.map((service) => (
                 <div
                   key={service.id}
-                  className="grid grid-cols-4 items-center px-4 py-3 text-sm text-slate-800"
+                  className="grid grid-cols-5 items-center px-4 py-3 text-sm text-slate-800"
                 >
                   <div className="col-span-2">
                     <p className="font-semibold text-slate-900">{service.name}</p>
@@ -149,12 +174,45 @@ export function ServicesPanel() {
                   <div className="font-semibold text-slate-900 text-right">{currency(service.price)}</div>
                   <div className="flex items-center justify-end gap-2">
                     <button
+                      onClick={() => handleEdit(service)}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="Edit service"
+                    >
+                      <Edit2 className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Edit</span>
+                    </button>
+                    <button
                       onClick={() => handleDelete(service.id, service.name)}
                       disabled={deletingId === service.id}
-                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-60"
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600 disabled:opacity-50"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        if (!e.currentTarget.disabled) {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
                       title="Delete service"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Delete</span>
                     </button>
                   </div>
                 </div>
@@ -169,7 +227,23 @@ export function ServicesPanel() {
         </div>
       </div>
 
-      <ServiceForm onCreated={refresh} />
+      <ServiceFormModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingService(null);
+        }}
+        defaultValues={undefined}
+      />
+
+      <ServiceFormModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingService(null);
+        }}
+        defaultValues={editingService ?? undefined}
+      />
     </div>
   );
 }
