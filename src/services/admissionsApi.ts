@@ -91,10 +91,12 @@ export interface TransferBedRequest {
 }
 
 export interface InitiateDischargeRequest {
-  tax_rate: number;
-  discount: number;
-  gst_number?: string | null;
   notes?: string | null;
+  discharge_date?: string | null; // YYYY-MM-DD
+  discharge_type?: DischargeType | null;
+  discharge_summary?: string | null;
+  discharge_instructions?: string | null;
+  final_diagnosis?: string | null;
 }
 
 export interface AmountDueCharge {
