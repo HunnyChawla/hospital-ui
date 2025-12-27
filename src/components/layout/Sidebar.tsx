@@ -13,6 +13,7 @@ import {
   BarChart3,
   UserCog,
   Package,
+  FileText,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -31,6 +32,7 @@ const navItems = [
   { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
   { label: "Service Master", href: "#services", icon: Package },
   { label: "Billing", href: "#billing", icon: CreditCard },
+  { label: "MRD Documents", href: "#mrd", icon: FileText },
   { label: "Doctors", href: "#doctors", icon: Stethoscope },
   { label: "Staff", href: "#users", icon: UserCog },
 ];

@@ -34,6 +34,7 @@ import { DailyRevenueCard } from "@/components/dashboard/DailyRevenueCard";
 import { DashboardBillingList } from "@/components/dashboard/DashboardBillingList";
 import { RecentAdmissionsList } from "@/components/dashboard/RecentAdmissionsList";
 import { AdmissionDetailModal } from "@/components/ipd/AdmissionDetailModal";
+import { MRDPanel } from "@/components/mrd/MRDPanel";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
 import { analyticsApi } from "@/services/analyticsApi";
@@ -220,6 +221,7 @@ export default function Home() {
     | "services"
     | "queue"
     | "users"
+    | "mrd"
   >("dashboard");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [showPatientModal, setShowPatientModal] = useState(false);
@@ -393,9 +395,15 @@ export default function Home() {
   useEffect(() => {
     const syncHash = () => {
       const raw = window.location.hash.replace("#", "");
-      const hash =
-        raw === "lookup" ? "patients" : (raw as typeof activeSection);
-      setActiveSection(hash || "dashboard");
+      let hash: typeof activeSection = "dashboard";
+      if (raw === "lookup") {
+        hash = "patients";
+      } else if (raw === "mrd") {
+        hash = "mrd";
+      } else if (raw && ["dashboard", "analytics", "patients", "doctors", "opd", "lab-bookings", "lab-technician", "admissions", "billing", "labs", "services", "queue", "users"].includes(raw)) {
+        hash = raw as typeof activeSection;
+      }
+      setActiveSection(hash);
       // Reset IPD tab to wards when navigating away from admissions
       if (hash !== "admissions") {
         setIpdDefaultTab("wards");
@@ -934,6 +942,16 @@ export default function Home() {
         {show("queue") && (
           <div className="mt-4">
             <QueueBoard />
+          </div>
+        )}
+
+        {show("mrd") && (
+          <div className="mt-6 grid gap-6">
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+              <div className="p-6">
+                <MRDPanel />
+              </div>
+            </div>
           </div>
         )}
 
