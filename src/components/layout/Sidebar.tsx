@@ -17,42 +17,51 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useTenant } from "@/hooks/useTenant";
+import { FEATURES } from "@/lib/feature-flags";
 
+// Navigation items with both legacy hash and new route paths
 const navItems = [
-  { label: "Dashboard", href: "#dashboard", icon: Home },
-  { label: "Analytics", href: "#analytics", icon: BarChart3 },
-  { label: "Patients", href: "#patients", icon: Users2 },
-  { label: "Appointments/OPD", href: "#opd", icon: Activity },
-  { label: "Queue", href: "#queue", icon: LayoutList },
-  { label: "IPD", href: "#admissions", icon: BedDouble },
-  { label: "Lab Bookings", href: "#lab-bookings", icon: FlaskConical },
-  { label: "Lab Reports", href: "#lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"] },
-  { label: "Lab Test Catalog", href: "#labs", icon: Beaker },
-  { label: "Service Master", href: "#services", icon: Package },
-  { label: "Billing", href: "#billing", icon: CreditCard },
-  { label: "MRD Documents", href: "#mrd", icon: FileText },
-  { label: "Doctors", href: "#doctors", icon: Stethoscope },
-  { label: "Staff", href: "#users", icon: UserCog },
+  { label: "Dashboard", legacyHref: "#dashboard", newRoute: "/", icon: Home, featureFlag: "NEW_DASHBOARD" },
+  { label: "Analytics", legacyHref: "#analytics", newRoute: "/analytics", icon: BarChart3, featureFlag: "NEW_ANALYTICS" },
+  { label: "Patients", legacyHref: "#patients", newRoute: "/patients", icon: Users2, featureFlag: "NEW_PATIENTS" },
+  { label: "Appointments/OPD", legacyHref: "#opd", newRoute: "/opd", icon: Activity, featureFlag: "NEW_OPD" },
+  { label: "Queue", legacyHref: "#queue", newRoute: "/queue", icon: LayoutList, featureFlag: "NEW_QUEUE" },
+  { label: "IPD", legacyHref: "#admissions", newRoute: "/admissions", icon: BedDouble, featureFlag: "NEW_ADMISSIONS" },
+  { label: "Lab Bookings", legacyHref: "#lab-bookings", newRoute: "/lab-bookings", icon: FlaskConical, featureFlag: "NEW_LAB_BOOKINGS" },
+  { label: "Lab Reports", legacyHref: "#lab-technician", newRoute: "/lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"], featureFlag: "NEW_LAB_TECHNICIAN" },
+  { label: "Lab Test Catalog", legacyHref: "#labs", newRoute: "/labs", icon: Beaker, featureFlag: "NEW_LABS" },
+  { label: "Service Master", legacyHref: "#services", newRoute: "/services", icon: Package, featureFlag: "NEW_SERVICES" },
+  { label: "Billing", legacyHref: "#billing", newRoute: "/billing", icon: CreditCard, featureFlag: "NEW_BILLING" },
+  { label: "MRD Documents", legacyHref: "#mrd", newRoute: "/mrd", icon: FileText, featureFlag: "NEW_MRD" },
+  { label: "Doctors", legacyHref: "#doctors", newRoute: "/doctors", icon: Stethoscope, featureFlag: "NEW_DOCTORS" },
+  { label: "My Panel", legacyHref: "#doctor-panel", newRoute: "/doctor-panel", icon: Stethoscope, roles: ["doctor"], featureFlag: "NEW_DOCTOR_PANEL" },
+  { label: "Staff", legacyHref: "#users", newRoute: "/users", icon: UserCog, featureFlag: "NEW_USERS" },
 ];
 
 export function Sidebar() {
   const [hash, setHash] = useState<string>("#dashboard");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const pathname = usePathname();
   const { hospitalName } = useTenant();
 
   useEffect(() => {
-    const updateHash = () => setHash(window.location.hash || "#dashboard");
+    const updateHash = () => {
+      const newHash = window.location.hash || "#dashboard";
+      setHash(newHash);
+    };
     updateHash();
     window.addEventListener("hashchange", updateHash);
-    
+
     // Get user role from localStorage
     if (typeof window !== "undefined") {
       const role = localStorage.getItem("role");
       setUserRole(role);
     }
-    
+
     return () => window.removeEventListener("hashchange", updateHash);
   }, []);
 
@@ -62,12 +71,18 @@ export function Sidebar() {
     return item.roles.includes(userRole);
   };
 
+  // Check if feature flag is enabled for a given nav item
+  const isNewRouteEnabled = (item: typeof navItems[0]): boolean => {
+    if (!item.featureFlag) return false;
+    return FEATURES[item.featureFlag as keyof typeof FEATURES] === true;
+  };
+
   return (
     <aside className="glass fixed left-0 top-0 hidden h-screen w-64 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 lg:flex">
       <div className="mb-8 flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
           <Image
-            src="./cura-logo-v2.png"
+            src="/cura-logo-v2.png"
             alt="CURA Logo"
             width={500}
             height={500}
@@ -87,25 +102,50 @@ export function Sidebar() {
       <nav className="space-y-1">
         {navItems.map((item) => {
           if (!isRoleAllowed(item)) return null;
-          
+
           const Icon = item.icon;
-          const active = hash === item.href || (hash === "" && item.href === "#dashboard");
-          return (
-            <button
-              key={item.label}
-              onClick={() => {
-                window.location.hash = item.href;
-                setHash(item.href);
-              }}
-              className={clsx(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all hover:bg-sky-50 hover:text-sky-700",
-                active && "bg-sky-50 text-sky-700 font-semibold"
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </button>
+          const useNewRoute = isNewRouteEnabled(item);
+
+          // For new routes: check pathname match
+          // For legacy routes: check hash match
+          const active = useNewRoute
+            ? pathname === item.newRoute
+            : hash === item.legacyHref || (hash === "" && item.legacyHref === "#dashboard");
+
+          const baseClassName = clsx(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-3 transition-all hover:bg-sky-50 hover:text-sky-700",
+            active && "bg-sky-50 text-sky-700 font-semibold"
           );
+
+          // Render Next.js Link for new routes, button for legacy hash routing
+          if (useNewRoute) {
+            return (
+              <Link
+                key={item.label}
+                href={item.newRoute}
+                className={baseClassName}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          } else {
+            return (
+              <button
+                key={item.label}
+                onClick={() => {
+                  if (window.location.hash !== item.legacyHref) {
+                    window.location.hash = item.legacyHref;
+                  }
+                  setHash(item.legacyHref);
+                }}
+                className={baseClassName}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          }
         })}
       </nav>
 

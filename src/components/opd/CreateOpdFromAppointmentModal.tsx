@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/common/Modal";
 import { Appointment } from "@/services/appointmentsApi";
-import { opdVisitsApi, CreateVisitRequest } from "@/services/opdVisitsApi";
+import { CreateVisitRequest } from "@/services/opdVisitsApi";
+import { useCreateOpdVisit } from "@/hooks/queries/useOpdVisits";
 import { doctorsApi, ConsultationFeeCalculation } from "@/services/doctorsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -18,9 +19,9 @@ interface Props {
 }
 
 export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, doctor, onCreated }: Props) {
+  const createOpdVisit = useCreateOpdVisit();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "upi" | "card" | "cheque">("cash");
   const [paymentReference, setPaymentReference] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [consultationFee, setConsultationFee] = useState<string | null>(null);
   const [feeCalculation, setFeeCalculation] = useState<ConsultationFeeCalculation | null>(null);
   const [isCalculatingFee, setIsCalculatingFee] = useState(false);
@@ -101,7 +102,6 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
       return;
     }
 
-    setIsCreating(true);
     try {
       const visitRequest: CreateVisitRequest = {
         patient_id: appointment.patient_id,
@@ -116,15 +116,14 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
         consultation_fee_override: feeOverride && parseFloat(feeOverride) > 0 ? parseFloat(feeOverride) : null,
       };
 
-      const visit = await opdVisitsApi.create(visitRequest);
-      toast.success(`OPD visit created #${visit.visit_number}`);
+      // Use React Query mutation - automatic cache invalidation!
+      const visit = await createOpdVisit.mutateAsync(visitRequest);
+      // Toast is shown by the mutation's onSuccess callback
       if (onCreated) onCreated(visit.id);
       onClose();
     } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
-    } finally {
-      setIsCreating(false);
+      // Error toast is shown by the mutation's onError callback
+      // But we still handle it here to prevent unhandled errors
     }
   };
 
@@ -233,10 +232,10 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
             </button>
             <button
               onClick={handleConfirm}
-              disabled={isCreating}
+              disabled={createOpdVisit.isPending}
               className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {isCreating ? "Creating..." : "Create OPD"}
+              {createOpdVisit.isPending ? "Creating..." : "Create OPD"}
             </button>
           </div>
         </div>

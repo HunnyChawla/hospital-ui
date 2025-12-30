@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useAppDispatch } from "@/redux/hooks";
-import { fetchAdmissions, dischargePatient } from "@/redux/admissionsSlice";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAdmissions, admissionKeys, useDischargeAdmission } from "@/hooks/queries/useAdmissions";
 import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
 import { wardsApi, Ward } from "@/services/wardsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
@@ -33,13 +33,12 @@ interface AdmissionTableProps {
 }
 
 export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) {
-  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
+  const dischargeAdmission = useDischargeAdmission();
   const { tenant, hospitalName, logoDataUrl } = useTenant();
-  const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [beds, setBeds] = useState<Bed[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedWardId, setSelectedWardId] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showDischargeModal, setShowDischargeModal] = useState(false);
@@ -56,14 +55,27 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
   const [dischargingAdmissionStatus, setDischargingAdmissionStatus] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  
+
   // Date range state - optional
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [dateRangeError, setDateRangeError] = useState<string>("");
   const [exporting, setExporting] = useState(false);
+
+  // React Query hook to fetch admissions - automatic deduplication!
+  const { data: admissionsResponse, isLoading: loading, error } = useAdmissions({
+    page: currentPage,
+    page_size: pageSize,
+    patient_id: patientId || undefined,
+    ward_id: selectedWardId || undefined,
+    status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+  });
+
+  const admissions = admissionsResponse?.items ?? [];
+  const totalPages = admissionsResponse?.total_pages ?? 1;
+  const total = admissionsResponse?.total ?? 0;
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -124,71 +136,9 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     return minDate.toISOString().split("T")[0];
   }, [endDate]);
 
-  const fetchAdmissionsList = useCallback(async () => {
-    // Don't fetch if date range is invalid (only when both dates are provided)
-    if (dateRangeError) return;
-    
-    setLoading(true);
-    try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const response = await admissionsApi.list({
-        page: currentPage,
-        page_size: pageSize,
-        patient_id: patientId,
-        ward_id: selectedWardId || undefined,
-        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
-        tenant_id: tenantId || undefined,
-      });
-      setAdmissions(response.items);
-      setTotalPages(response.total_pages);
-      setTotal(response.total);
-    } catch (error: any) {
-      console.error("Failed to fetch admissions:", error);
-      
-      // Handle API-returned date range validation errors
-      const errorMessage = getErrorMessage(error);
-      if (
-        error?.response?.data?.detail &&
-        Array.isArray(error.response.data.detail)
-      ) {
-        const dateRangeErrorDetail = error.response.data.detail.find(
-          (detail: any) =>
-            detail.type === "business_logic_error" ||
-            (detail.msg && (
-              detail.msg.includes("Date range cannot exceed 3 months") ||
-              detail.msg.includes("90 days")
-            ))
-        );
-        if (dateRangeErrorDetail) {
-          setDateRangeError(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
-          toast.error(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
-        } else {
-          toast.error(errorMessage || "Failed to fetch admissions");
-        }
-      } else {
-        toast.error(errorMessage || "Failed to fetch admissions");
-      }
-      
-      setAdmissions([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, patientId, selectedWardId, statusFilter, startDate, endDate, dateRangeError]);
-
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [patientId, selectedWardId, statusFilter, startDate, endDate]);
-
-  // Auto-fetch when any filter changes - also runs on initial mount
-  useEffect(() => {
-    if (!dateRangeError) {
-      fetchAdmissionsList();
-    }
-  }, [selectedWardId, statusFilter, patientId, startDate, endDate, fetchAdmissionsList, dateRangeError]);
 
   useEffect(() => {
     const fetchWards = async () => {
@@ -238,14 +188,14 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
 
   useEffect(() => {
     const handleAdmissionCreated = () => {
-      fetchAdmissionsList();
+      queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
     };
 
     window.addEventListener("admission:created", handleAdmissionCreated);
     return () => {
       window.removeEventListener("admission:created", handleAdmissionCreated);
     };
-  }, [fetchAdmissionsList]);
+  }, [queryClient]);
 
   const handleDischargeClick = (e: React.MouseEvent, admissionId: string, admissionStatus?: string) => {
     e.stopPropagation(); // Prevent row click
@@ -289,22 +239,18 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
 
   const handleInitiateDischargeSuccess = async (updatedAdmission: Admission) => {
     // Refresh the admissions list to show updated status
-    await fetchAdmissionsList();
+    await queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
     setShowInitiateDischargeModal(false);
     setInitiatingAdmissionId(null);
   };
 
   const handleDischargeSubmit = async (admissionId: string, dischargeData: DischargeRequest) => {
     try {
-      await dispatch(
-        dischargePatient({
-          admissionId,
-          dischargeData,
-        })
-      ).unwrap();
+      await dischargeAdmission.mutateAsync({
+        admissionId,
+        dischargeData,
+      });
 
-      toast.success("Patient discharged successfully!");
-      fetchAdmissionsList();
       setShowDischargeModal(false);
       setDischargingAdmissionId(null);
     } catch (error: any) {
@@ -320,7 +266,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
       await admissionsApi.transferBed(admissionId, transferData, tenantId || undefined);
 
       toast.success("Bed transferred successfully!");
-      fetchAdmissionsList();
+      queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
       setShowTransferModal(false);
       setTransferringAdmissionId(null);
       setTransferringBedId(null);

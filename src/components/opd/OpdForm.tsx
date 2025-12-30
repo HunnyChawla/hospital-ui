@@ -9,6 +9,7 @@ import { fetchDoctors } from "@/redux/doctorsSlice";
 import { Patient } from "@/types";
 import { OpdSlipPrint } from "./OpdSlipPrint";
 import { opdVisitsApi, CreateVisitRequest, Visit } from "@/services/opdVisitsApi";
+import { useCreateOpdVisit } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { doctorsApi, ConsultationFeeCalculation } from "@/services/doctorsApi";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -23,6 +24,7 @@ interface OpdFormProps {
 
 export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess, onOpenPatientModal }: OpdFormProps = {} as OpdFormProps) {
   const dispatch = useAppDispatch();
+  const createOpdVisit = useCreateOpdVisit();
   const patients = useAppSelector((s) => s.patients.list);
   const queue = useAppSelector((s) => s.queue.entries);
   const doctors = useAppSelector((s) => s.doctors.list);
@@ -296,7 +298,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
     setIsCreating(true);
     try {
-      // Create OPD visit using the API
+      // Create OPD visit using React Query mutation for automatic cache invalidation
       const visitRequest: CreateVisitRequest = {
         patient_id: selectedPatient.id,
         doctor_id: doctorId, // Required
@@ -309,20 +311,16 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         consultation_fee_override: feeOverride && parseFloat(feeOverride) > 0 ? parseFloat(feeOverride) : null,
       };
 
-      const visit = await opdVisitsApi.create(visitRequest);
-      
-      // Dispatch custom event to refresh OPD visits list
-      window.dispatchEvent(new CustomEvent("opd:visit:created"));
-      
+      const visit = await createOpdVisit.mutateAsync(visitRequest);
+
       // Store visit ID for later fetching
       setCreatedVisitId(visit.id);
       setOpdNumber(visit.visit_number);
       setTokenNumber(visit.token_number || 0);
-      
-      toast.success(`OPD visit created #${visit.visit_number}`);
+
+      // Success toast is shown by the mutation's onSuccess callback
     } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+      // Error toast is shown by the mutation's onError callback
     } finally {
       setIsCreating(false);
     }

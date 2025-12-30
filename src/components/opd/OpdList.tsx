@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useAppSelector } from "@/redux/hooks";
+import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useOpdVisits, useUpdateOpdVisitStatus } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { formatDate } from "@/utils/format";
@@ -179,23 +180,38 @@ function PrintButtonsGroup({
 }
 
 export function OpdList({ doctorId }: OpdListProps) {
-  const doctors = useAppSelector((s) => s.doctors.list);
+  // Use React Query hooks instead of Redux and manual fetching
+  const { data: doctorsData } = useDoctors();
+  const doctors = doctorsData ?? [];
   const { tenant, hospitalName, logoDataUrl } = useTenant();
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
-  
+
   // Date range state - default to today
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [dateRangeError, setDateRangeError] = useState<string>("");
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+
+  // React Query hook to fetch OPD visits - automatic deduplication!
+  const { data: visitsResponse, isLoading: loading, error } = useOpdVisits({
+    page: currentPage,
+    page_size: pageSize,
+    doctor_id: selectedDoctorId || undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+  });
+
+  const visits = visitsResponse?.items ?? [];
+  const totalPages = visitsResponse?.total_pages ?? 1;
+  const total = visitsResponse?.total ?? 0;
+
+  // React Query mutation for updating visit status
+  const updateStatusMutation = useUpdateOpdVisitStatus();
+
   const [printVisitData, setPrintVisitData] = useState<{ visit: Visit; patient: any } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
@@ -295,104 +311,9 @@ export function OpdList({ doctorId }: OpdListProps) {
     return minDate.toISOString().split("T")[0];
   }, [endDate]);
 
-  const fetchVisits = useCallback(async () => {
-    if (!selectedDoctorId || !startDate || !endDate) return;
-    
-    // Don't fetch if date range is invalid
-    if (dateRangeError) return;
-    
-    setLoading(true);
-    try {
-      // Fetch visits using the new list API (patient_name and patient_mobile are included in response)
-      const response = await opdVisitsApi.list({
-        page: currentPage,
-        page_size: pageSize,
-        doctor_id: selectedDoctorId,
-        start_date: startDate,
-        end_date: endDate,
-      });
-      
-      setVisits(response.items);
-      setTotalPages(response.total_pages);
-      setTotal(response.total);
-      // Clear any previous date range error if fetch succeeds
-      if (dateRangeError) {
-        setDateRangeError("");
-      }
-    } catch (error: any) {
-      console.error("Failed to fetch OPD visits:", error);
-      console.error("Error response:", error?.response?.data);
-      
-      // Extract error message
-      const errorMessage = getErrorMessage(error);
-      
-      // Check if it's a date range validation error from API
-      const isDateRangeError = 
-        errorMessage.includes("Date range cannot exceed 3 months") || 
-        errorMessage.includes("90 days") ||
-        errorMessage.includes("Date range") ||
-        error?.response?.data?.detail?.some?.((err: any) => 
-          err.type === "business_logic_error" && 
-          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
-        );
-      
-      if (isDateRangeError) {
-        // Set the date range error state to show validation message
-        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
-          err.type === "business_logic_error"
-        )?.msg || "Date range cannot exceed 3 months";
-        setDateRangeError(apiErrorMessage);
-        toast.error(apiErrorMessage);
-      } else {
-        // Show other errors as toast with full details
-        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to fetch OPD visits";
-        toast.error(fullErrorMessage);
-        console.error("Full error details:", {
-          status: error?.response?.status,
-          data: error?.response?.data,
-          message: errorMessage
-        });
-      }
-      
-      setVisits([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, selectedDoctorId, startDate, endDate, dateRangeError]);
-
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [selectedDoctorId, startDate, endDate]);
-
-  // Fetch visits when dependencies change - don't include fetchVisits in deps
-  useEffect(() => {
-    if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-      fetchVisits();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDoctorId, startDate, endDate, currentPage, pageSize, dateRangeError]);
-
-  // Listen for OPD visit creation events to refresh the list
-  // Use ref to store stable callback
-  const fetchVisitsRef = useRef(fetchVisits);
-  useEffect(() => {
-    fetchVisitsRef.current = fetchVisits;
-  }, [fetchVisits]);
-
-  useEffect(() => {
-    const handleOpdVisitCreated = () => {
-      if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-        fetchVisitsRef.current();
-      }
-    };
-
-    window.addEventListener("opd:visit:created", handleOpdVisitCreated);
-    return () => {
-      window.removeEventListener("opd:visit:created", handleOpdVisitCreated);
-    };
-  }, [selectedDoctorId, startDate, endDate, dateRangeError]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -498,18 +419,15 @@ export function OpdList({ doctorId }: OpdListProps) {
   };
 
   const performStatusUpdate = async (visitId: string, newStatus: VisitStatus) => {
+    setCancelling(newStatus === "cancelled");
     try {
-      setCancelling(newStatus === "cancelled");
-      await opdVisitsApi.updateStatus(visitId, newStatus);
-      toast.success(`Visit status updated to ${newStatus.replace("_", " ")}`);
-      
-      // Refresh visits list
-      if (selectedDoctorId) {
-        fetchVisits();
-      }
+      await updateStatusMutation.mutateAsync({
+        visitId,
+        newStatus,
+      });
+      // React Query mutation already shows toast and invalidates cache!
     } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+      // Error handling is done in the mutation onError callback
     } finally {
       setCancelling(false);
       setShowCancellationModal(false);
@@ -950,6 +868,12 @@ export function OpdList({ doctorId }: OpdListProps) {
 
       {loading ? (
         <SkeletonRow rows={3} />
+      ) : error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+          <p className="text-sm text-rose-800">
+            Failed to load visits. Please try again.
+          </p>
+        </div>
       ) : visits.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center">
           <p className="text-slate-500">No OPD visits found for selected doctor and date range</p>

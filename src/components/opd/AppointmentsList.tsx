@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAppSelector } from "@/redux/hooks";
-import { appointmentsApi, Appointment, AppointmentsSearchResponse } from "@/services/appointmentsApi";
-import { opdVisitsApi, CreateVisitRequest } from "@/services/opdVisitsApi";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useAppointmentsByDoctor } from "@/hooks/queries/useAppointments";
+import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
+import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate } from "@/utils/format";
 import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
@@ -20,24 +22,39 @@ interface AppointmentsListProps {
 }
 
 export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsListProps) {
-  const doctors = useAppSelector((s) => s.doctors.list);
+  // Use React Query hooks instead of Redux and manual fetching
+  const queryClient = useQueryClient();
+  const { data: doctorsData } = useDoctors();
+  const doctors = doctorsData ?? [];
   const { tenant, hospitalName, logoDataUrl } = useTenant();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
-  
+
   // Date range state - default to today
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [dateRangeError, setDateRangeError] = useState<string>("");
-  
+
   // Pagination state
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+
+  // React Query hook to fetch appointments - automatic deduplication!
+  const { data: appointmentsResponse, isLoading: loading, error } = useAppointmentsByDoctor(
+    selectedDoctorId,
+    startDate,
+    endDate,
+    {
+      page,
+      page_size: pageSize,
+      appointmentsOnly: false,
+    }
+  );
+
+  const appointments = appointmentsResponse?.items ?? [];
+  const totalPages = appointmentsResponse?.total_pages ?? 1;
+  const total = appointmentsResponse?.total ?? 0;
 
   // Set default dates on client side only to avoid hydration mismatch
   useEffect(() => {
@@ -120,58 +137,6 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
     setPage(1);
   }, [selectedDoctorId, startDate, endDate]);
 
-  const fetchAppointments = useCallback(async () => {
-    if (!selectedDoctorId || !startDate || !endDate) return;
-    
-    // Don't fetch if date range is invalid
-    if (dateRangeError) return;
-    
-    setLoading(true);
-    try {
-      const response = await appointmentsApi.getByDoctor(
-        selectedDoctorId,
-        startDate,
-        endDate,
-        {
-          page,
-          page_size: pageSize,
-          appointmentsOnly: false,
-        }
-      );
-      
-      setAppointments(response.items);
-      setTotalPages(response.total_pages);
-      setTotal(response.total);
-    } catch (error: any) {
-      console.error("Failed to fetch appointments:", error);
-      setAppointments([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedDoctorId, startDate, endDate, page, pageSize, dateRangeError]);
-
-  useEffect(() => {
-    if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-      fetchAppointments();
-    }
-  }, [selectedDoctorId, startDate, endDate, page, fetchAppointments, dateRangeError]);
-
-  // Listen for appointment creation events to refresh the list
-  useEffect(() => {
-    const handleAppointmentCreated = () => {
-      if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-        fetchAppointments();
-      }
-    };
-
-    window.addEventListener("appointment:created", handleAppointmentCreated);
-    return () => {
-      window.removeEventListener("appointment:created", handleAppointmentCreated);
-    };
-  }, [selectedDoctorId, startDate, endDate, fetchAppointments, dateRangeError]);
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
@@ -213,10 +178,8 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   };
 
   const handleAfterCreated = (visitId: string) => {
-    // Refresh appointments list
-    if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-      fetchAppointments();
-    }
+    // Invalidate OPD visits query to refresh the OPD tab
+    queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
   };
 
   const handleExportPDF = useCallback(async () => {
@@ -548,6 +511,12 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
       {loading ? (
         <SkeletonRow rows={3} />
+      ) : error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+          <p className="text-sm text-rose-800">
+            Failed to load appointments. Please try again.
+          </p>
+        </div>
       ) : appointments.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center">
           <p className="text-slate-500">No appointments found for selected doctor and date range</p>

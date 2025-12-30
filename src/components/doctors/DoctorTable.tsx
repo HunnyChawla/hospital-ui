@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { fetchDoctors } from "@/redux/doctorsSlice";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useDoctors } from "@/hooks/queries/useDoctors";
 import { Edit2, Settings } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { Doctor } from "@/services/doctorsApi";
@@ -14,15 +12,22 @@ interface DoctorTableProps {
 }
 
 export function DoctorTable({ onDoctorClick, onEditClick, onConfigureFeesClick }: DoctorTableProps) {
-  const dispatch = useAppDispatch();
-  const { list, loading } = useAppSelector((s) => s.doctors);
+  // Use React Query hook instead of Redux - automatic deduplication!
+  const { data, isLoading, error } = useDoctors();
+  const list = data ?? [];
 
-  useEffect(() => {
-    dispatch(fetchDoctors());
-  }, [dispatch]);
-
-  if (loading) {
+  if (isLoading) {
     return <SkeletonRow rows={5} />;
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+        <p className="text-sm text-rose-800">
+          Failed to load doctors. Please try again.
+        </p>
+      </div>
+    );
   }
 
   return (
