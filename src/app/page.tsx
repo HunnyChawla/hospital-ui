@@ -396,14 +396,29 @@ export default function Home() {
     const syncHash = () => {
       const raw = window.location.hash.replace("#", "");
       let hash: typeof activeSection = "dashboard";
-      if (raw === "lookup") {
+
+      // First, try to restore from sessionStorage if no hash
+      if (!raw && typeof window !== "undefined") {
+        const savedSection = sessionStorage.getItem("activeSection");
+        if (savedSection && ["dashboard", "analytics", "patients", "doctors", "opd", "lab-bookings", "lab-technician", "admissions", "billing", "labs", "services", "queue", "users", "mrd"].includes(savedSection)) {
+          hash = savedSection as typeof activeSection;
+          // Set hash to match saved section (for URL consistency)
+          window.location.hash = `#${hash}`;
+        }
+      } else if (raw === "lookup") {
         hash = "patients";
       } else if (raw === "mrd") {
         hash = "mrd";
       } else if (raw && ["dashboard", "analytics", "patients", "doctors", "opd", "lab-bookings", "lab-technician", "admissions", "billing", "labs", "services", "queue", "users"].includes(raw)) {
         hash = raw as typeof activeSection;
       }
+
       setActiveSection(hash);
+      // Save to sessionStorage for persistence across refreshes
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("activeSection", hash);
+      }
+
       // Reset IPD tab to wards when navigating away from admissions
       if (hash !== "admissions") {
         setIpdDefaultTab("wards");

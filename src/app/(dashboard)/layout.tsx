@@ -127,18 +127,24 @@ export default function DashboardLayout({
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
+  const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
 
   useEffect(() => {
     // Restore session on mount
-    dispatch(restoreSession());
+    const checkAuth = async () => {
+      await dispatch(restoreSession());
+      setIsCheckingAuth(false);
+    };
+    checkAuth();
   }, [dispatch]);
 
   useEffect(() => {
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
+    // Only redirect to login after we've checked authentication
+    // This prevents flickering and unwanted redirects during session restore
+    if (!isCheckingAuth && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isCheckingAuth, router]);
 
   useEffect(() => {
     // Fetch tenant data if not already loaded
@@ -150,8 +156,8 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, dispatch, tenant]);
 
-  // Show nothing while checking auth
-  if (!isAuthenticated) {
+  // Show nothing while checking auth or if not authenticated
+  if (isCheckingAuth || !isAuthenticated) {
     return null;
   }
 
