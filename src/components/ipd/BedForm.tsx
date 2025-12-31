@@ -2,8 +2,8 @@
 
 import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
+import { useAppSelector } from "@/redux/hooks";
 import { bedsApi, Bed, CreateBedRequest, UpdateBedRequest, BedStatus, BedType, AddBulkBedsRequest } from "@/services/bedsApi";
-import { wardsApi, Ward } from "@/services/wardsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Plus, X } from "lucide-react";
@@ -20,26 +20,10 @@ export function BedForm({ defaultValues, onSuccess }: BedFormProps) {
     AddBulkBedsRequest &
     { bed_numbers_input?: string }
   >();
-  const [wards, setWards] = useState<Ward[]>([]);
+  // Use Redux centralized wards cache (fetched once in dashboard layout)
+  const wards = useAppSelector((s) => s.wards.list);
   const [bedNumbers, setBedNumbers] = useState<string[]>([""]);
   const originalValuesRef = useRef<Partial<Bed> | null>(null);
-
-  useEffect(() => {
-    const fetchWards = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await wardsApi.list({
-          page: 1,
-          page_size: 100,
-          tenant_id: tenantId || undefined,
-        });
-        setWards(response.items);
-      } catch (error) {
-        console.error("Failed to fetch wards:", error);
-      }
-    };
-    fetchWards();
-  }, []);
 
   useEffect(() => {
     if (defaultValues) {

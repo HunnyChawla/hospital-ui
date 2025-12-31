@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { DoctorTable } from "@/components/doctors/DoctorTable";
 import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
+import { ConsultationFeeFormModal } from "@/components/doctors/ConsultationFeeFormModal";
 import { Doctor } from "@/services/doctorsApi";
 
 export default function DoctorsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | undefined>(undefined);
+  const [showFeesModal, setShowFeesModal] = useState(false);
+  const [selectedDoctorForFees, setSelectedDoctorForFees] = useState<string | null>(null);
 
   const handleAddDoctor = () => {
     setSelectedDoctor(undefined);
@@ -24,6 +27,16 @@ export default function DoctorsPage() {
     setSelectedDoctor(undefined);
   };
 
+  const handleConfigureFees = (doctor: Doctor) => {
+    setSelectedDoctorForFees(doctor.id);
+    setShowFeesModal(true);
+  };
+
+  const handleCloseFeesModal = () => {
+    setShowFeesModal(false);
+    setSelectedDoctorForFees(null);
+  };
+
   return (
     <div className="mt-6 grid gap-6">
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -36,7 +49,10 @@ export default function DoctorsPage() {
             Add Doctor
           </button>
         </div>
-        <DoctorTable onEditClick={handleEditDoctor} />
+        <DoctorTable
+          onEditClick={handleEditDoctor}
+          onConfigureFeesClick={handleConfigureFees}
+        />
       </div>
 
       <DoctorFormModal
@@ -44,6 +60,14 @@ export default function DoctorsPage() {
         onClose={handleCloseModal}
         defaultValues={selectedDoctor}
       />
+
+      {selectedDoctorForFees && (
+        <ConsultationFeeFormModal
+          isOpen={showFeesModal}
+          onClose={handleCloseFeesModal}
+          doctorId={selectedDoctorForFees}
+        />
+      )}
     </div>
   );
 }

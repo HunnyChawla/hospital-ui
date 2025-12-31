@@ -41,10 +41,13 @@ export function WardTable({ onEditClick }: WardTableProps) {
     }
   }, [currentPage, pageSize]);
 
+  // Fetch wards when page changes
   useEffect(() => {
     fetchWards();
-  }, [fetchWards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
+  // Event listeners for ward create/update
   useEffect(() => {
     const handleWardCreated = () => {
       fetchWards();
@@ -60,7 +63,8 @@ export function WardTable({ onEditClick }: WardTableProps) {
       window.removeEventListener("ward:created", handleWardCreated);
       window.removeEventListener("ward:updated", handleWardUpdated);
     };
-  }, [fetchWards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async (wardId: string) => {
     if (!confirm("Are you sure you want to delete this ward?")) return;

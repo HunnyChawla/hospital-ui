@@ -17,6 +17,8 @@ import { Modal } from "../common/Modal";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { getPatientById } from "@/redux/patientsSlice";
 
 interface LabBookingWithPatient extends LabBooking {
   patient_name?: string;
@@ -29,6 +31,8 @@ interface LabBookingsListProps {
 
 export function LabBookingsList({ patientId }: LabBookingsListProps) {
   const { tenant, hospitalName, logoDataUrl } = useTenant();
+  const dispatch = useAppDispatch();
+  const patientsCache = useAppSelector((s) => s.patients.list);
   const [bookings, setBookings] = useState<LabBookingWithPatient[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchBookingId, setSearchBookingId] = useState("");
@@ -67,6 +71,42 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     contentRef: printReportRef,
     documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
   });
+
+  // Helper function to batch fetch patients and enrich bookings
+  const enrichBookingsWithPatients = async (bookingsList: LabBooking[]): Promise<LabBookingWithPatient[]> => {
+    // Extract unique patient IDs
+    const uniquePatientIds = Array.from(new Set(bookingsList.map((b) => b.patient_id)));
+
+    // Fetch all unique patients using Redux (checks cache first, only fetches if not cached)
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    const patientResults = await Promise.all(
+      uniquePatientIds.map((patientId) =>
+        dispatch(getPatientById({ patientId, tenantId: tenantId || undefined })).unwrap()
+      )
+    );
+
+    // Create a map of patient ID to patient data
+    const patientsMap = new Map(
+      patientResults.map((p) => [p.id, p])
+    );
+
+    // Enrich bookings with patient data
+    return bookingsList.map((booking) => {
+      const patient = patientsMap.get(booking.patient_id);
+      if (patient) {
+        return {
+          ...booking,
+          patient_name: patient.name,
+          patient_mobile: patient.mobile,
+        };
+      }
+      return {
+        ...booking,
+        patient_name: "Unknown",
+        patient_mobile: "",
+      };
+    });
+  };
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -142,25 +182,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
 
-      // Fetch patient details for bookings
-      const bookingsWithPatients = await Promise.all(
-        response.items.map(async (booking) => {
-          try {
-            const patient = await patientsApi.getById(booking.patient_id);
-            return {
-              ...booking,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-              patient_mobile: patient.mobile,
-            };
-          } catch {
-            return {
-              ...booking,
-              patient_name: "Unknown",
-              patient_mobile: "",
-            };
-          }
-        })
-      );
+      // Batch fetch patient details using Redux cache
+      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
 
       // Deduplicate bookings by ID to prevent duplicate key errors
       const uniqueBookings = Array.from(
@@ -258,25 +281,9 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         toast.error("Booking not found");
         setBookings([]);
       } else {
-        // Fetch patient details for bookings
-        const bookingsWithPatients = await Promise.all(
-          response.items.map(async (booking) => {
-            try {
-              const patient = await patientsApi.getById(booking.patient_id);
-              return {
-                ...booking,
-                patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-                patient_mobile: patient.mobile,
-              };
-            } catch {
-              return {
-                ...booking,
-                patient_name: "Unknown",
-                patient_mobile: "",
-              };
-            }
-          })
-        );
+        // Batch fetch patient details using Redux cache
+        const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
+
         // Deduplicate bookings by ID to prevent duplicate key errors
         const uniqueBookings = Array.from(
           new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
@@ -349,25 +356,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         // Omit page and page_size to get all results
       });
 
-      // Fetch patient details for bookings
-      const bookingsWithPatients = await Promise.all(
-        response.items.map(async (booking) => {
-          try {
-            const patient = await patientsApi.getById(booking.patient_id);
-            return {
-              ...booking,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-              patient_mobile: patient.mobile,
-            };
-          } catch {
-            return {
-              ...booking,
-              patient_name: "Unknown",
-              patient_mobile: "",
-            };
-          }
-        })
-      );
+      // Batch fetch patient details using Redux cache
+      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
 
       // Deduplicate bookings by ID to prevent duplicate key errors
       const allBookings = Array.from(
