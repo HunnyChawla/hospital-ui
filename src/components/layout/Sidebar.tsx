@@ -106,15 +106,16 @@ export function Sidebar() {
           const Icon = item.icon;
           const useNewRoute = isNewRouteEnabled(item);
 
-          // For new routes: check pathname match
+          // For new routes: check pathname match (handle trailing slashes)
           // For legacy routes: check hash match
+          const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
           const active = useNewRoute
-            ? pathname === item.newRoute
+            ? normalizedPathname === item.newRoute
             : hash === item.legacyHref || (hash === "" && item.legacyHref === "#dashboard");
 
           const baseClassName = clsx(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-3 transition-all hover:bg-sky-50 hover:text-sky-700",
-            active && "bg-sky-50 text-sky-700 font-semibold"
+            "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
+            active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
           );
 
           // Render Next.js Link for new routes, button for legacy hash routing

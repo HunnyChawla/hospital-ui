@@ -44,6 +44,7 @@ export function usePatients(params: PatientSearchParams = {}) {
 
 /**
  * Fetch single patient by ID
+ * Returns raw API response with all fields (date_of_birth, email, address, etc.)
  */
 export function usePatient(patientId: string | null) {
   const { tenantId, isPlatformOwner } = useTenantContext();
@@ -51,11 +52,12 @@ export function usePatient(patientId: string | null) {
   return useQuery({
     queryKey: patientKeys.detail(patientId!),
     queryFn: async () => {
+      // Return raw API response to preserve all fields for forms
       const response = await patientsApi.getById(
         patientId!,
         isPlatformOwner ? tenantId ?? undefined : undefined
       );
-      return patientsApi.mapToPatients([response])[0];
+      return response; // Don't map - return raw API response
     },
     enabled: !!patientId, // Only fetch when patientId is provided
   });
@@ -84,12 +86,15 @@ export function useCreatePatient() {
 
       // Optimistically update to the new value
       queryClient.setQueriesData({ queryKey: patientKeys.lists() }, (old: any) => {
-        if (!old) return old;
+        if (!old || !old.patients) return old;
 
         return {
           ...old,
-          items: [newPatient, ...(old.items || [])],
-          total: old.total + 1,
+          patients: [newPatient, ...(old.patients || [])],
+          pagination: {
+            ...old.pagination,
+            total: old.pagination.total + 1,
+          },
         };
       });
 
@@ -155,11 +160,11 @@ export function useUpdatePatient() {
 
       // Optimistically update list cache
       queryClient.setQueriesData({ queryKey: patientKeys.lists() }, (old: any) => {
-        if (!old) return old;
+        if (!old || !old.patients) return old;
 
         return {
           ...old,
-          items: old.items.map((item: any) =>
+          patients: old.patients.map((item: any) =>
             item.id === patientId ? { ...item, ...updates } : item
           ),
         };

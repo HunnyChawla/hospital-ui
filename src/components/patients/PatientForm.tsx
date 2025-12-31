@@ -18,6 +18,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
 
   // Fetch full patient details when editing (React Query auto-deduplicates this!)
   const { data: fullPatientData } = usePatient(defaultValues?.id || null);
+  const apiData = fullPatientData as any;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreatePatientRequest>({
     mode: "onChange",
@@ -28,18 +29,20 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   useEffect(() => {
     if (fullPatientData && defaultValues?.id) {
       // React Query fetched the full data - no manual API call needed!
+      // fullPatientData is now PatientApiResponse with all fields preserved
+      const apiData = fullPatientData as any;
       reset({
-        first_name: fullPatientData.name.split(/\s+/)[0] || "",
-        last_name: fullPatientData.name.split(/\s+/).slice(1).join(" ") || "",
-        mobile: fullPatientData.mobile,
-        email: "",
-        date_of_birth: "",
-        gender: fullPatientData.gender.toLowerCase() as "male" | "female" | "other",
-        abha_id: fullPatientData.healthId || "",
-        address: "",
-        city: "",
-        state: "",
-        pincode: "",
+        first_name: apiData.first_name || "",
+        last_name: apiData.last_name || "",
+        mobile: apiData.mobile || "",
+        email: apiData.email || "",
+        date_of_birth: apiData.date_of_birth || "",
+        gender: apiData.gender?.toLowerCase() as "male" | "female" | "other",
+        abha_id: apiData.abha_id || "",
+        address: apiData.address || "",
+        city: apiData.city || "",
+        state: apiData.state || "",
+        pincode: apiData.pincode || "",
       });
     } else if (!defaultValues) {
       // Reset form for new patient
@@ -99,6 +102,20 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="grid grid-cols-2 gap-3 text-sm"
     >
+      {/* UHID Display (read-only, shown only when editing) */}
+      {defaultValues && apiData?.uhid && (
+        <div className="col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-3">
+          <label className="space-y-1">
+            <span className="text-xs font-semibold text-sky-700">Patient ID (UHID)</span>
+            <input
+              value={apiData.uhid}
+              disabled
+              className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-sky-900 opacity-75"
+            />
+          </label>
+        </div>
+      )}
+
       {/* Required Fields */}
       <div className="col-span-2 grid grid-cols-2 gap-3">
         <label className="space-y-1">
