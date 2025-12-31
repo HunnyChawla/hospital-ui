@@ -1,6 +1,6 @@
 "use client";
 
-import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useAppSelector } from "@/redux/hooks";
 import { Edit2, Settings } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { Doctor } from "@/services/doctorsApi";
@@ -12,9 +12,8 @@ interface DoctorTableProps {
 }
 
 export function DoctorTable({ onDoctorClick, onEditClick, onConfigureFeesClick }: DoctorTableProps) {
-  // Use React Query hook instead of Redux - automatic deduplication!
-  const { data, isLoading, error } = useDoctors();
-  const list = data ?? [];
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
+  const { list, loading: isLoading, error } = useAppSelector((s) => s.doctors);
 
   if (isLoading) {
     return <SkeletonRow rows={5} />;

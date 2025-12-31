@@ -30,9 +30,11 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const profileRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const { user } = useAppSelector((s) => s.auth);
+  const { user, userDetails } = useAppSelector((s) => s.auth);
   const { hospitalName, tenant } = useTenant();
-  const [fullName, setFullName] = useState<string | null>(null);
+
+  // Use userDetails from Redux (fetched once after login)
+  const fullName = userDetails?.full_name || null;
 
   // Debounced search
   useEffect(() => {
@@ -64,24 +66,6 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
 
     return () => clearTimeout(timeoutId);
   }, [term]);
-
-  // Fetch full name for the logged in user
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      if (!user?.user_id) return;
-      try {
-        const u = await usersApi.getById(user.user_id);
-        if (!cancelled) setFullName(u.full_name || null);
-      } catch (err) {
-        console.error("Failed to fetch user details:", err);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.user_id]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {

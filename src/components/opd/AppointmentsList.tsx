@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useAppSelector } from "@/redux/hooks";
 import { useAppointmentsByDoctor } from "@/hooks/queries/useAppointments";
 import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
@@ -22,10 +22,9 @@ interface AppointmentsListProps {
 }
 
 export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsListProps) {
-  // Use React Query hooks instead of Redux and manual fetching
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const queryClient = useQueryClient();
-  const { data: doctorsData } = useDoctors();
-  const doctors = doctorsData ?? [];
+  const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");

@@ -3,8 +3,11 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
-import { restoreSession } from "@/redux/authSlice";
+import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
+import { fetchDoctors } from "@/redux/doctorsSlice";
+import { fetchWards } from "@/redux/wardsSlice";
+import { fetchBeds } from "@/redux/bedsSlice";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 
@@ -125,18 +128,47 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, userDetails } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
+  const doctors = useAppSelector((s) => s.doctors);
+  const wards = useAppSelector((s) => s.wards);
+  const beds = useAppSelector((s) => s.beds);
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
 
   useEffect(() => {
     // Restore session on mount
     const checkAuth = async () => {
       await dispatch(restoreSession());
+
+      // Fetch user details only if not already loaded
+      if (typeof window !== "undefined" && !userDetails) {
+        const userId = localStorage.getItem("user_id");
+        if (userId) {
+          dispatch(fetchUserDetails(userId));
+        }
+      }
+
+      // Fetch doctors once if not already loaded
+      if (doctors.list.length === 0 && !doctors.loading) {
+        dispatch(fetchDoctors());
+      }
+
+      // Fetch wards once if not already loaded
+      if (wards.list.length === 0 && !wards.loading) {
+        dispatch(fetchWards());
+      }
+
+      // Fetch beds once if not already loaded
+      if (beds.list.length === 0 && !beds.loading) {
+        dispatch(fetchBeds());
+      }
+
       setIsCheckingAuth(false);
     };
     checkAuth();
-  }, [dispatch]);
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Only redirect to login after we've checked authentication

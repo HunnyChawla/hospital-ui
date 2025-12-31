@@ -33,6 +33,7 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
+  const lastFetchedFilterRef = useRef<string | null>(null);
 
   const handlePrintInvoice = useReactToPrint({
     contentRef: printInvoiceRef,
@@ -63,9 +64,15 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
     }
   }, [statusFilter]);
 
+  // Fetch invoices only when statusFilter actually changes
   useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+    // Only fetch if the filter has changed from the last fetch
+    if (lastFetchedFilterRef.current !== statusFilter) {
+      fetchInvoices();
+      lastFetchedFilterRef.current = statusFilter;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   useEffect(() => {
     if (printInvoiceData && shouldPrintInvoice && printInvoiceRef.current) {

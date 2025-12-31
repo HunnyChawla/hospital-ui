@@ -2,7 +2,9 @@
 
 import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
-import { useCreateDoctor, useUpdateDoctor, useDoctor } from "@/hooks/queries/useDoctors";
+import { useDoctor } from "@/hooks/queries/useDoctors";
+import { useAppDispatch } from "@/redux/hooks";
+import { createDoctor, updateDoctor, fetchDoctors } from "@/redux/doctorsSlice";
 import { Doctor, CreateDoctorRequest } from "@/services/doctorsApi";
 import { usersApi, User } from "@/services/usersApi";
 import { toast } from "sonner";
@@ -43,9 +45,7 @@ const SPECIALIZATIONS = [
 ];
 
 export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
-  // React Query mutations - automatic cache invalidation and optimistic updates!
-  const createDoctor = useCreateDoctor();
-  const updateDoctor = useUpdateDoctor();
+  const dispatch = useAppDispatch();
 
   // Fetch full doctor details when editing (React Query auto-deduplicates this!)
   const { data: fullDoctorData } = useDoctor(defaultValues?.id || null);
@@ -56,6 +56,7 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const specializationRef = useRef<HTMLDivElement>(null);
@@ -211,26 +212,38 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       registration_number: values.registration_number || undefined,
     };
 
-    if (defaultValues) {
-      // Update existing doctor
-      await updateDoctor.mutateAsync({
-        doctorId: defaultValues.id,
-        updates: {
-          specialization: doctorData.specialization,
-          qualification: doctorData.qualification,
-          registration_number: doctorData.registration_number,
-        },
-      });
-      // React Query mutation already shows toast and invalidates cache!
-      onSuccess?.();
-    } else {
-      // Create new doctor
-      await createDoctor.mutateAsync(doctorData);
-      // React Query mutation already shows toast and invalidates cache!
-      reset();
-      // Dispatch custom event
-      window.dispatchEvent(new CustomEvent("doctor:created"));
-      onSuccess?.();
+    setIsSubmitting(true);
+    try {
+      if (defaultValues) {
+        // Update existing doctor via Redux
+        await dispatch(updateDoctor({
+          doctorId: defaultValues.id,
+          updates: {
+            specialization: doctorData.specialization,
+            qualification: doctorData.qualification,
+            registration_number: doctorData.registration_number,
+          },
+        })).unwrap();
+        toast.success("Doctor updated successfully");
+        // Refresh doctors list with enriched user data
+        dispatch(fetchDoctors());
+        onSuccess?.();
+      } else {
+        // Create new doctor via Redux
+        await dispatch(createDoctor(doctorData)).unwrap();
+        toast.success("Doctor created successfully");
+        // Refresh doctors list with enriched user data
+        dispatch(fetchDoctors());
+        reset();
+        // Dispatch custom event
+        window.dispatchEvent(new CustomEvent("doctor:created"));
+        onSuccess?.();
+      }
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || (defaultValues ? "Failed to update doctor" : "Failed to create doctor"));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -388,10 +401,10 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       <div className="col-span-2 flex justify-end gap-3">
         <button
           type="submit"
-          disabled={createDoctor.isPending || updateDoctor.isPending}
+          disabled={isSubmitting}
           className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {createDoctor.isPending || updateDoctor.isPending
+          {isSubmitting
             ? "Saving..."
             : defaultValues
             ? "Update Doctor"

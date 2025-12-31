@@ -1,9 +1,14 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authApi, LoginRequest, LoginResponse } from "@/services/authApi";
+import { usersApi } from "@/services/usersApi";
 import { fetchTenant, clearTenant } from "./tenantSlice";
 
 type AuthState = {
   user: LoginResponse | null;
+  userDetails: {
+    full_name: string;
+    email: string;
+  } | null;
   token: string | null;
   loading: boolean;
   error: string | null;
@@ -12,11 +17,24 @@ type AuthState = {
 
 const initialState: AuthState = {
   user: null,
+  userDetails: null,
   token: null,
   loading: false,
   error: null,
   isAuthenticated: false,
 };
+
+// Fetch user details (full name, email, etc.)
+export const fetchUserDetails = createAsyncThunk(
+  "auth/fetchUserDetails",
+  async (userId: string) => {
+    const userDetails = await usersApi.getById(userId);
+    return {
+      full_name: userDetails.full_name,
+      email: userDetails.email,
+    };
+  }
+);
 
 export const login = createAsyncThunk(
   "auth/login",
@@ -30,9 +48,10 @@ export const login = createAsyncThunk(
         const tenantId = response.tenant_id || "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1";
         localStorage.setItem("tenant_id", tenantId);
         localStorage.setItem("role", response.role);
-        
-        // Fetch tenant data after successful login
+
+        // Fetch tenant data and user details after successful login
         dispatch(fetchTenant(tenantId));
+        dispatch(fetchUserDetails(response.user_id));
       }
       return response;
     } catch (error: any) {
@@ -65,13 +84,14 @@ const authSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+    // Note: restoreSession doesn't fetch user details - that's done by a separate effect
     restoreSession(state) {
       if (typeof window !== "undefined") {
         const token = localStorage.getItem("auth_token");
         const user_id = localStorage.getItem("user_id");
         const tenant_id = localStorage.getItem("tenant_id");
         const role = localStorage.getItem("role");
-        
+
         if (token && user_id && tenant_id && role) {
           state.token = token;
           state.isAuthenticated = true;
@@ -111,8 +131,12 @@ const authSlice = createSlice({
         }
         state.isAuthenticated = false;
       })
+      .addCase(fetchUserDetails.fulfilled, (state, action) => {
+        state.userDetails = action.payload;
+      })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
+        state.userDetails = null;
         state.token = null;
         state.isAuthenticated = false;
         state.error = null;

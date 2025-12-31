@@ -2,11 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAppSelector } from "@/redux/hooks";
 import { useAdmissions, admissionKeys, useDischargeAdmission } from "@/hooks/queries/useAdmissions";
 import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
-import { wardsApi, Ward } from "@/services/wardsApi";
-import { bedsApi, Bed } from "@/services/bedsApi";
-import { doctorsApi } from "@/services/doctorsApi";
 import { formatDate } from "@/utils/format";
 import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
@@ -36,9 +34,10 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
   const queryClient = useQueryClient();
   const dischargeAdmission = useDischargeAdmission();
   const { tenant, hospitalName, logoDataUrl } = useTenant();
-  const [wards, setWards] = useState<Ward[]>([]);
-  const [beds, setBeds] = useState<Bed[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
+  // Use Redux centralized caches (fetched once in dashboard layout)
+  const doctors = useAppSelector((s) => s.doctors.list);
+  const wards = useAppSelector((s) => s.wards.list);
+  const beds = useAppSelector((s) => s.beds.list);
   const [selectedWardId, setSelectedWardId] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showDischargeModal, setShowDischargeModal] = useState(false);
@@ -140,51 +139,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     setCurrentPage(1); // Reset to first page when filter changes
   }, [patientId, selectedWardId, statusFilter, startDate, endDate]);
 
-  useEffect(() => {
-    const fetchWards = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await wardsApi.list({
-          page: 1,
-          page_size: 100,
-          tenant_id: tenantId || undefined,
-        });
-        setWards(response.items);
-      } catch (error) {
-        console.error("Failed to fetch wards:", error);
-      }
-    };
-    fetchWards();
-  }, []);
-
-  useEffect(() => {
-    const fetchBeds = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await bedsApi.list({
-          page: 1,
-          page_size: 99,
-          tenant_id: tenantId || undefined,
-        });
-        setBeds(response.items);
-      } catch (error) {
-        console.error("Failed to fetch beds:", error);
-      }
-    };
-    fetchBeds();
-  }, []);
-
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const response = await doctorsApi.list();
-        setDoctors(response);
-      } catch (error) {
-        console.error("Failed to fetch doctors:", error);
-      }
-    };
-    fetchDoctors();
-  }, []);
+  // Note: fetchWards, fetchBeds, and fetchDoctors removed - all are now fetched once in dashboard layout and cached in Redux
 
   useEffect(() => {
     const handleAdmissionCreated = () => {

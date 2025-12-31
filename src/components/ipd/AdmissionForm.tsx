@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { admitPatient } from "@/redux/admissionsSlice";
 import { admissionsApi, CreateAdmissionRequest, AdmissionType } from "@/services/admissionsApi";
 import { wardsApi, Ward } from "@/services/wardsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
-import { doctorsApi } from "@/services/doctorsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
@@ -47,8 +46,9 @@ export function AdmissionForm({
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
 
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
+  // Use Redux centralized caches (fetched once in dashboard layout)
+  const doctors = useAppSelector((s) => s.doctors.list);
+  const wards = useAppSelector((s) => s.wards.list);
   const [beds, setBeds] = useState<Bed[]>([]);
   const [availableBeds, setAvailableBeds] = useState<Bed[]>([]);
   const [bedSearchTerm, setBedSearchTerm] = useState("");
@@ -72,37 +72,14 @@ export function AdmissionForm({
   const searchRef = useRef<HTMLDivElement>(null);
   const justSelectedRef = useRef(false);
 
+  // Auto-select first doctor if none selected
   useEffect(() => {
-    const fetchDoctorsList = async () => {
-      try {
-        const response = await doctorsApi.list();
-        setDoctors(response);
-        if (response.length > 0 && !doctorId) {
-          setDoctorId(response[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to fetch doctors:", error);
-      }
-    };
-    fetchDoctorsList();
-  }, [doctorId]);
+    if (doctors.length > 0 && !doctorId) {
+      setDoctorId(doctors[0].id);
+    }
+  }, [doctors, doctorId]);
 
-  useEffect(() => {
-    const fetchWards = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await wardsApi.list({
-          page: 1,
-          page_size: 100,
-          tenant_id: tenantId || undefined,
-        });
-        setWards(response.items);
-      } catch (error) {
-        console.error("Failed to fetch wards:", error);
-      }
-    };
-    fetchWards();
-  }, []);
+  // Note: fetchWards and fetchDoctors removed - now using Redux centralized caches fetched once in dashboard layout
 
   // Fetch beds when ward is selected
   const fetchBedsForWard = useCallback(async (page: number, append: boolean, searchTerm: string) => {

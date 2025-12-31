@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchQueue, completeAndAdvanceVisit } from "@/redux/queueSlice";
-import { fetchDoctors } from "@/redux/doctorsSlice";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { ArrowRight, CheckCircle, Clock, UserCheck, CheckCircle2, Stethoscope, Users, Activity, Sparkles, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -15,13 +14,10 @@ type FilterTab = "all" | "pending" | "completed";
 export function QueueBoard() {
   const dispatch = useAppDispatch();
   const { entries, loading, doctorId } = useAppSelector((s) => s.queue);
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const doctors = useAppSelector((s) => s.doctors.list);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
-
-  useEffect(() => {
-    dispatch(fetchDoctors());
-  }, [dispatch]);
 
   useEffect(() => {
     if (doctors.length > 0 && !selectedDoctorId) {

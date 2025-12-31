@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useDoctors } from "@/hooks/queries/useDoctors";
+import { useAppSelector } from "@/redux/hooks";
 import { useOpdVisits, useUpdateOpdVisitStatus } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
@@ -180,9 +180,8 @@ function PrintButtonsGroup({
 }
 
 export function OpdList({ doctorId }: OpdListProps) {
-  // Use React Query hooks instead of Redux and manual fetching
-  const { data: doctorsData } = useDoctors();
-  const doctors = doctorsData ?? [];
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
+  const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");

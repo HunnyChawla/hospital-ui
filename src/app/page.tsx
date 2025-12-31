@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
@@ -45,8 +45,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchAdmissions } from "@/redux/admissionsSlice";
 import { fetchBilling } from "@/redux/billingSlice";
 import { fetchPatients } from "@/redux/patientsSlice";
-import { fetchDoctors } from "@/redux/doctorsSlice";
-import { restoreSession } from "@/redux/authSlice";
+import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { currency } from "@/utils/format";
 import {
@@ -246,21 +245,28 @@ export default function Home() {
   const [totalPending, setTotalPending] = useState(0);
   const [bedOccupancy, setBedOccupancy] = useState<{ occupied: number; total: number; occupancy: number } | null>(null);
   const [appointmentInsights, setAppointmentInsights] = useState<{ today: number; completed: number; scheduled: number } | null>(null);
+  const [dailyRevenue, setDailyRevenue] = useState<{
+    today: { collected: number; outstanding: number; invoiced: number };
+    yesterday: { collected: number; outstanding: number; invoiced: number };
+  } | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const hasLoadedInitialDataRef = useRef(false);
+  const previousSectionRef = useRef<typeof activeSection | null>(null);
 
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
-    
+
     // Get user role from localStorage
+    // Note: User details are fetched by the dashboard layout, no need to fetch here
     if (typeof window !== "undefined") {
       const role = localStorage.getItem("role");
       setUserRole(role);
     }
-    
+
     // Fetch tenant data if not already loaded
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
     if (tenantId && (!tenant.tenant && !tenant.loading)) {
@@ -276,15 +282,20 @@ export default function Home() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !hasLoadedInitialDataRef.current) {
+      // Only fetch on initial authentication, not on every re-render
       dispatch(fetchAdmissions({}));
       dispatch(fetchBilling());
       dispatch(fetchPatients({}));
-      dispatch(fetchDoctors());
+      // Note: fetchDoctors removed - doctors are now fetched once in dashboard layout
       fetchPaymentTotals();
       fetchDashboardInsights();
+
+      // Mark initial load as complete
+      hasLoadedInitialDataRef.current = true;
     }
-  }, [dispatch, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const fetchPaymentTotals = async () => {
     try {
@@ -322,10 +333,11 @@ export default function Home() {
     setInsightsLoading(true);
     try {
       const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
       const todayStr = today.toISOString().split("T")[0];
-      const oneWeekAgo = new Date(today);
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const oneWeekAgoStr = oneWeekAgo.toISOString().split("T")[0];
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
 
       // Fetch bed occupancy
       try {
@@ -364,6 +376,49 @@ export default function Home() {
       } catch (err) {
         console.error("Failed to fetch appointment summary:", err);
       }
+
+      // Fetch daily revenue (today and yesterday in one batch)
+      try {
+        const [todayRevenueResponse, yesterdayRevenueResponse] = await Promise.all([
+          analyticsApi.revenue({
+            start_date: todayStr,
+            end_date: todayStr,
+            granularity: "daily",
+          }),
+          analyticsApi.revenue({
+            start_date: yesterdayStr,
+            end_date: yesterdayStr,
+            granularity: "daily",
+          }),
+        ]);
+
+        const todayData = todayRevenueResponse.data[0] || {
+          collected_amount: 0,
+          outstanding_amount: 0,
+          invoiced_amount: 0,
+        };
+
+        const yesterdayData = yesterdayRevenueResponse.data[0] || {
+          collected_amount: 0,
+          outstanding_amount: 0,
+          invoiced_amount: 0,
+        };
+
+        setDailyRevenue({
+          today: {
+            collected: todayData.collected_amount,
+            outstanding: todayData.outstanding_amount,
+            invoiced: todayData.invoiced_amount,
+          },
+          yesterday: {
+            collected: yesterdayData.collected_amount,
+            outstanding: yesterdayData.outstanding_amount,
+            invoiced: yesterdayData.invoiced_amount,
+          },
+        });
+      } catch (err) {
+        console.error("Failed to fetch daily revenue:", err);
+      }
     } catch (err) {
       console.error("Failed to fetch dashboard insights:", err);
     } finally {
@@ -378,7 +433,8 @@ export default function Home() {
       dispatch(fetchAdmissions({}));
       dispatch(fetchBilling());
       dispatch(fetchPatients({}));
-      dispatch(fetchDoctors());
+      // Note: fetchDoctors removed - doctors are now cached and don't need refresh
+      // If doctors update, components should manually invalidate via Redux dispatch
 
       // Refresh analytics-derived numbers
       await Promise.all([fetchPaymentTotals(), fetchDashboardInsights()]);
@@ -429,21 +485,33 @@ export default function Home() {
     return () => window.removeEventListener("hashchange", syncHash);
   }, []);
 
-  // When the dashboard tab becomes active, refresh dashboard data
+  // Handle section changes and refresh logic
   useEffect(() => {
-    if (activeSection === "dashboard") {
-      refreshDashboard();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection]);
+    const previousSection = previousSectionRef.current;
+    const isFirstLoad = previousSection === null;
 
-  // When analytics tab becomes active, refresh dashboard & analytics
-  useEffect(() => {
-    if (activeSection === "analytics") {
+    // When returning to dashboard from another section
+    const isReturningToDashboard =
+      activeSection === "dashboard" &&
+      !isFirstLoad &&
+      previousSection !== "dashboard";
+
+    // When navigating to analytics from another section
+    const isNavigatingToAnalytics =
+      activeSection === "analytics" &&
+      !isFirstLoad &&
+      previousSection !== "analytics";
+
+    if (isReturningToDashboard) {
+      refreshDashboard();
+    } else if (isNavigatingToAnalytics) {
       refreshDashboard();
       // also trigger analytics child reload
       setAnalyticsRefreshSignal((s) => s + 1);
     }
+
+    // Update previous section for next time
+    previousSectionRef.current = activeSection;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection]);
 
@@ -546,7 +614,7 @@ export default function Home() {
                 ]}
                 loading={false}
               />
-              <DailyRevenueCard />
+              <DailyRevenueCard data={dailyRevenue} loading={insightsLoading} />
             </div>
 
             {/* Quick Actions - Enhanced for Hospital Staff */}
