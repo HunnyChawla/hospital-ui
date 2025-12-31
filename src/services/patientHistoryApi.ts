@@ -30,6 +30,7 @@ export const patientHistoryApi = {
       `/patients/${params.patient_id}/history`,
       { params: apiParams }
     );
+    
     return response.data;
   },
 };

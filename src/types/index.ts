@@ -125,19 +125,23 @@ export type ClinicalNote = {
 
 // Doctor Panel - Patient History
 export type PatientHistoryEvent = {
-  event_type: "opd_visit" | "prescription" | "lab_booking" | "admission" | "vital_signs";
+  event_type: "visit" | "vital_sign" | "lab_test" | "admission" | "prescription";
   event_id: string;
-  event_date: string;
+  timestamp: string;
   title: string;
-  summary: string;
-  data: any; // Type-specific data
+  description: string | null;
+  doctor_name: string | null;
+  visit_id: string | null;
+  metadata: any; // Type-specific data
 };
 
 export type PatientHistoryTimeline = {
+  patient_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  event_type: string;
   events: PatientHistoryEvent[];
-  total: number;
-  page: number;
-  total_pages: number;
+  total_events: number;
 };
 
 // Doctor Panel - Doctor Schedule

@@ -34,11 +34,11 @@ export const PatientHistoryTimeline: React.FC<PatientHistoryTimelineProps> = ({
     if (filter === "all") return true;
 
     const typeMap: Record<string, FilterType> = {
-      opd_visit: "visits",
-      lab_booking: "labs",
+      visit: "visits",
+      lab_test: "labs",
       prescription: "prescriptions",
       admission: "admissions",
-      vital_signs: "vitals",
+      vital_sign: "vitals",
     };
 
     return typeMap[event.event_type] === filter;
@@ -119,12 +119,12 @@ export const PatientHistoryTimeline: React.FC<PatientHistoryTimelineProps> = ({
               key={event.event_id}
               eventType={event.event_type}
               title={event.title}
-              date={event.event_date}
-              summary={event.summary}
+              timestamp={event.timestamp}
+              description={event.description}
               details={
-                event.data && (
+                event.metadata && (
                   <div className="space-y-2 text-sm">
-                    {Object.entries(event.data).map(([key, value]) => (
+                    {Object.entries(event.metadata).map(([key, value]) => (
                       <div key={key} className="flex justify-between">
                         <span className="font-medium text-slate-700">
                           {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}:
@@ -143,9 +143,9 @@ export const PatientHistoryTimeline: React.FC<PatientHistoryTimelineProps> = ({
       )}
 
       {/* Pagination info */}
-      {history.total_pages > 1 && (
+      {history.total_events > 0 && (
         <div className="text-center text-sm text-slate-600">
-          Showing page {history.page} of {history.total_pages} ({history.total} total events)
+          {history.total_events} {history.total_events === 1 ? "event" : "events"} total
         </div>
       )}
     </div>

@@ -12,16 +12,16 @@ import {
 } from "lucide-react";
 
 interface TimelineItemProps {
-  eventType: "opd_visit" | "prescription" | "lab_booking" | "admission" | "vital_signs";
+  eventType: "visit" | "vital_sign" | "lab_test" | "admission" | "prescription";
   title: string;
-  date: string;
-  summary: string;
+  timestamp: string;
+  description: string | null;
   details?: React.ReactNode;
   onViewDetails?: () => void;
 }
 
 const eventConfig = {
-  opd_visit: {
+  visit: {
     icon: FileText,
     color: "bg-sky-100 text-sky-700",
     dotColor: "bg-sky-500",
@@ -33,7 +33,7 @@ const eventConfig = {
     dotColor: "bg-purple-500",
     borderColor: "border-purple-200",
   },
-  lab_booking: {
+  lab_test: {
     icon: FlaskConical,
     color: "bg-emerald-100 text-emerald-700",
     dotColor: "bg-emerald-500",
@@ -45,7 +45,7 @@ const eventConfig = {
     dotColor: "bg-rose-500",
     borderColor: "border-rose-200",
   },
-  vital_signs: {
+  vital_sign: {
     icon: Activity,
     color: "bg-amber-100 text-amber-700",
     dotColor: "bg-amber-500",
@@ -56,16 +56,24 @@ const eventConfig = {
 export const TimelineItem: React.FC<TimelineItemProps> = ({
   eventType,
   title,
-  date,
-  summary,
+  timestamp,
+  description,
   details,
   onViewDetails,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const config = eventConfig[eventType];
+  
+  // Add fallback for unknown event types
+  const config = eventConfig[eventType] || {
+    icon: FileText, // Default icon
+    color: "bg-slate-100 text-slate-700",
+    dotColor: "bg-slate-500",
+    borderColor: "border-slate-200",
+  };
+  
   const Icon = config.icon;
 
-  const formattedDate = new Date(date).toLocaleDateString("en-US", {
+  const formattedDate = new Date(timestamp).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -98,7 +106,7 @@ export const TimelineItem: React.FC<TimelineItemProps> = ({
                   <span className="text-xs text-slate-500">{formattedDate}</span>
                 </div>
                 <h4 className="mt-2 font-semibold text-slate-900">{title}</h4>
-                <p className="mt-1 text-sm text-slate-600">{summary}</p>
+                {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
               </div>
 
               {(details || onViewDetails) && (
