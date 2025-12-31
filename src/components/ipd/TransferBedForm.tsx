@@ -5,6 +5,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { TransferBedRequest } from "@/services/admissionsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
 import { BedDouble } from "lucide-react";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface TransferBedFormProps {
   currentBedId: string;
@@ -37,7 +38,7 @@ export function TransferBedForm({ currentBedId, onSuccess, onSubmit }: TransferB
           page_size: 99,
           ward_id: selectedWardId,
           status: "available",
-          tenant_id: tenantId || undefined,
+          tenant_id: getTenantIdForApi(tenantId),
         });
         // Filter out the current bed
         const availableBeds = response.items.filter((bed) => bed.id !== currentBedId);

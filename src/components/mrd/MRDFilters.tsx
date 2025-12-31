@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { MRDDocumentCategory } from "@/services/mrdApi";
 import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
 import { Patient } from "@/types";
+import { getTenantIdForApi } from "@/utils/auth";
 import { Search, X, Calendar, Loader2, User } from "lucide-react";
 
 const DOCUMENT_CATEGORIES: { value: MRDDocumentCategory | ""; label: string }[] = [
@@ -96,7 +97,7 @@ export function MRDFilters({
         q: searchTerm.trim(),
         page: 1,
         page_size: 10,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
 
       const patients = response.items.map(mapApiPatientToPatient);

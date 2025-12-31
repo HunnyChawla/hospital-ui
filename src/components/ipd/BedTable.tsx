@@ -7,6 +7,7 @@ import { Edit2, Trash2, BedDouble, ChevronLeft, ChevronRight, CheckCircle2, XCir
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface BedTableProps {
   wardId?: string;
@@ -30,7 +31,7 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
   const fetchBedTypes = async () => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const response = await bedsApi.getBedTypes(tenantId || undefined);
+      const response = await bedsApi.getBedTypes(getTenantIdForApi(tenantId));
       setBedTypes(response.bed_types);
     } catch (error) {
       console.error("Failed to fetch bed types:", error);
@@ -47,7 +48,7 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
         ward_id: selectedWardId || undefined,
         bed_type: selectedBedType !== "all" ? selectedBedType : undefined,
         status: availabilityFilter !== "all" ? availabilityFilter : undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
       setBeds(response.items);
       setTotalPages(response.total_pages);

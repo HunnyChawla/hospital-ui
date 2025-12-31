@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { bedsApi, Bed } from "@/services/bedsApi";
+import { getTenantIdForApi } from "@/utils/auth";
 
 type BedsState = {
   list: Bed[];
@@ -18,7 +19,7 @@ export const fetchBeds = createAsyncThunk("beds/fetch", async () => {
   const response = await bedsApi.list({
     page: 1,
     page_size: 100,
-    tenant_id: tenantId || undefined,
+    tenant_id: getTenantIdForApi(tenantId),
   });
   return response.items;
 });

@@ -10,6 +10,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 import { currency } from "@/utils/format";
 import { Calendar, Clock, Search, User, Stethoscope, Plus, BedDouble, PlusCircle, Loader2, X, CreditCard } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
@@ -104,7 +105,7 @@ export function AdmissionForm({
         ward_id: wardId,
         status: "available",
         search: searchTerm.trim() || undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
 
       if (append) {

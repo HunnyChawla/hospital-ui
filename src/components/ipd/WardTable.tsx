@@ -6,6 +6,7 @@ import { Edit2, Trash2, BedDouble, ChevronLeft, ChevronRight, Building2 } from "
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface WardTableProps {
   onEditClick?: (ward: Ward) => void;
@@ -26,7 +27,7 @@ export function WardTable({ onEditClick }: WardTableProps) {
       const response = await wardsApi.list({
         page: currentPage,
         page_size: pageSize,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
       setWards(response.items);
       setTotalPages(response.total_pages);

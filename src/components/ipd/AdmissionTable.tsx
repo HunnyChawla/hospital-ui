@@ -294,7 +294,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
         status: statusFilter !== "all" ? (statusFilter as any) : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
         // Omit page and page_size to get all results
       });
 

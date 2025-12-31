@@ -217,3 +217,5 @@ export function PrescriptionPrint({ prescription, patientName, patientMobile }: 
   );
 }
 
+
+

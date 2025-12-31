@@ -9,6 +9,7 @@ import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 import { Search, User, Upload, X, FileText, Loader2, BedDouble, FlaskConical, Activity } from "lucide-react";
 import { formatDate } from "@/utils/format";
 
@@ -118,7 +119,7 @@ export function MRDUploadForm({
         q: searchTerm.trim(),
         page: 1,
         page_size: 10,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
 
       const patients = response.items.map(mapApiPatientToPatient);
@@ -198,7 +199,7 @@ export function MRDUploadForm({
         const response = await admissionsApi.list({
           patient_id: patientId,
           page_size: 100,
-          tenant_id: tenantId || undefined,
+          tenant_id: getTenantIdForApi(tenantId),
         });
         setAdmissions(response.items);
         // If defaultAdmissionId is provided and exists in the list, keep it selected
@@ -233,7 +234,7 @@ export function MRDUploadForm({
         const response = await labBookingsApi.list({
           patient_id: patientId,
           page_size: 100,
-          tenant_id: tenantId || undefined,
+          tenant_id: getTenantIdForApi(tenantId),
         });
         setLabBookings(response.items);
         // If defaultLabBookingId is provided and exists in the list, keep it selected
