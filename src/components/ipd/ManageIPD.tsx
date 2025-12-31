@@ -14,9 +14,10 @@ import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2 } from "luc
 
 interface ManageIPDProps {
   defaultTab?: "wards" | "beds" | "admissions";
+  action?: string | null;
 }
 
-export function ManageIPD({ defaultTab = "wards" }: ManageIPDProps) {
+export function ManageIPD({ defaultTab = "wards", action }: ManageIPDProps) {
   const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">(defaultTab);
 
   // Update tab when defaultTab prop changes
@@ -25,11 +26,19 @@ export function ManageIPD({ defaultTab = "wards" }: ManageIPDProps) {
       setActiveTab(defaultTab);
     }
   }, [defaultTab]);
+
   const [showWardModal, setShowWardModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [editingWard, setEditingWard] = useState<Ward | null>(null);
   const [editingBed, setEditingBed] = useState<Bed | null>(null);
+
+  // Handle action prop to open modals
+  useEffect(() => {
+    if (action === "add" && activeTab === "admissions") {
+      setShowAdmissionModal(true);
+    }
+  }, [action, activeTab]);
 
   return (
     <div className="space-y-6">

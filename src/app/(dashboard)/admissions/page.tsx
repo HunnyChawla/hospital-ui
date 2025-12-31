@@ -1,13 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ManageIPD } from "@/components/ipd/ManageIPD";
 import { admissionKeys } from "@/hooks/queries/useAdmissions";
 
 export default function AdmissionsPage() {
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">("admissions");
+  const [action, setAction] = useState<string | null>(null);
+
+  // Handle query parameters for tabs and action
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const actionParam = searchParams.get("action");
+
+    // Set active tab if provided
+    if (tab === "wards" || tab === "beds" || tab === "admissions") {
+      setActiveTab(tab);
+    }
+
+    // Set action if provided
+    if (actionParam) {
+      setAction(actionParam);
+    }
+  }, [searchParams]);
 
   const handleTabChange = (tab: "wards" | "beds" | "admissions") => {
     setActiveTab(tab);
@@ -26,7 +45,7 @@ export default function AdmissionsPage() {
           <p className="text-lg font-semibold text-slate-900">IPD Management</p>
           <p className="text-xs text-slate-500">Manage wards, beds, and patient admissions</p>
         </div>
-        <ManageIPD defaultTab={activeTab} />
+        <ManageIPD defaultTab={activeTab} action={action} />
       </div>
     </div>
   );

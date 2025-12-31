@@ -623,10 +623,7 @@ export default function Home() {
                 {/* Patient Management */}
                 <button
                   onClick={() => {
-                    window.location.hash = "patients";
-                    setActiveSection("patients");
-                    setEditingPatient(null);
-                    setShowPatientModal(true);
+                    router.push("/patients?action=add");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
                 >
@@ -640,10 +637,7 @@ export default function Home() {
                 {/* Appointment Booking */}
                 <button
                   onClick={() => {
-                    window.location.hash = "opd";
-                    setActiveSection("opd");
-                    setOpdActiveTab("appointments");
-                    setShowAppointmentModal(true);
+                    router.push("/opd?action=appointment&tab=appointments");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
                 >
@@ -657,10 +651,7 @@ export default function Home() {
                 {/* OPD Visit */}
                 <button
                   onClick={() => {
-                    window.location.hash = "opd";
-                    setActiveSection("opd");
-                    setOpdActiveTab("opd");
-                    setShowOpdModal(true);
+                    router.push("/opd?action=opd&tab=opd");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
                 >
@@ -674,9 +665,7 @@ export default function Home() {
                 {/* Lab Booking */}
                 <button
                   onClick={() => {
-                    window.location.hash = "lab-bookings";
-                    setActiveSection("lab-bookings");
-                    setShowLabBookingModal(true);
+                    router.push("/lab-bookings?action=add");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
                 >
@@ -690,8 +679,7 @@ export default function Home() {
                 {/* Billing */}
                 <button
                   onClick={() => {
-                    window.location.hash = "billing";
-                    setActiveSection("billing");
+                    router.push("/billing");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
                 >
@@ -705,10 +693,7 @@ export default function Home() {
                 {/* Admissions */}
                 <button
                   onClick={() => {
-                    window.location.hash = "admissions";
-                    setActiveSection("admissions");
-                    setIpdDefaultTab("admissions");
-                    setShowAdmissionModal(true);
+                    router.push("/admissions?action=add&tab=admissions");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
                 >
@@ -724,8 +709,7 @@ export default function Home() {
               <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-4">
                 <button
                   onClick={() => {
-                    window.location.hash = "queue";
-                    setActiveSection("queue");
+                    router.push("/queue");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -734,8 +718,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = "patients";
-                    setActiveSection("patients");
+                    router.push("/patients");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -744,8 +727,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = "analytics";
-                    setActiveSection("analytics");
+                    router.push("/analytics");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -754,8 +736,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = "labs";
-                    setActiveSection("labs");
+                    router.push("/labs");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -778,9 +759,7 @@ export default function Home() {
                     setShowAdmissionDetailModal(true);
                   }}
                   onViewAll={() => {
-                    window.location.hash = "admissions";
-                    setActiveSection("admissions");
-                    setIpdDefaultTab("admissions");
+                    router.push("/admissions?tab=admissions");
                   }}
                 />
               </div>

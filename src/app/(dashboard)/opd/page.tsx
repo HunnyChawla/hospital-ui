@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppointmentsList } from "@/components/opd/AppointmentsList";
 import { OpdList } from "@/components/opd/OpdList";
@@ -11,10 +12,29 @@ import { appointmentKeys } from "@/hooks/queries/useAppointments";
 import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 
 export default function OpdPage() {
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"appointments" | "opd">("appointments");
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showOpdModal, setShowOpdModal] = useState(false);
+
+  // Handle query parameters for tabs and modals
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const action = searchParams.get("action");
+
+    // Set active tab if provided
+    if (tab === "appointments" || tab === "opd") {
+      setActiveTab(tab);
+    }
+
+    // Open modals based on action
+    if (action === "appointment") {
+      setShowAppointmentModal(true);
+    } else if (action === "opd") {
+      setShowOpdModal(true);
+    }
+  }, [searchParams]);
 
   const handleTabChange = (tab: "appointments" | "opd") => {
     setActiveTab(tab);

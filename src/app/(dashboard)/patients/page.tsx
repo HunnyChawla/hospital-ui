@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { PatientTable } from "@/components/patients/PatientTable";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { Patient } from "@/types";
@@ -16,8 +17,18 @@ import { Activity } from "lucide-react";
  * - Zero duplicate API calls
  */
 export default function PatientsPage() {
+  const searchParams = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+
+  // Handle query parameters for opening modals
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "add") {
+      setEditingPatient(null);
+      setShowModal(true);
+    }
+  }, [searchParams]);
 
   const handleAddPatient = () => {
     setEditingPatient(null);
