@@ -11,11 +11,13 @@ export default function AdmissionsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">("admissions");
   const [action, setAction] = useState<string | null>(null);
+  const [admissionId, setAdmissionId] = useState<string | null>(null);
 
-  // Handle query parameters for tabs and action
+  // Handle query parameters for tabs, action, and admission_id
   useEffect(() => {
     const tab = searchParams.get("tab");
     const actionParam = searchParams.get("action");
+    const admissionIdParam = searchParams.get("admission_id");
 
     // Set active tab if provided
     if (tab === "wards" || tab === "beds" || tab === "admissions") {
@@ -25,6 +27,11 @@ export default function AdmissionsPage() {
     // Set action if provided
     if (actionParam) {
       setAction(actionParam);
+    }
+
+    // Set admission ID if provided
+    if (admissionIdParam) {
+      setAdmissionId(admissionIdParam);
     }
   }, [searchParams]);
 
@@ -45,7 +52,7 @@ export default function AdmissionsPage() {
           <p className="text-lg font-semibold text-slate-900">IPD Management</p>
           <p className="text-xs text-slate-500">Manage wards, beds, and patient admissions</p>
         </div>
-        <ManageIPD defaultTab={activeTab} action={action} />
+        <ManageIPD defaultTab={activeTab} action={action} admissionId={admissionId} />
       </div>
     </div>
   );

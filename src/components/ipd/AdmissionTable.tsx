@@ -28,9 +28,11 @@ import { getTenantIdForApi } from "@/utils/auth";
 interface AdmissionTableProps {
   patientId?: string;
   onEditClick?: (admission: Admission) => void;
+  selectedAdmissionId?: string | null;
+  action?: string | null;
 }
 
-export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) {
+export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: externalAdmissionId, action }: AdmissionTableProps) {
   const queryClient = useQueryClient();
   const dischargeAdmission = useDischargeAdmission();
   const { tenant, hospitalName, logoDataUrl } = useTenant();
@@ -138,6 +140,23 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [patientId, selectedWardId, statusFilter, startDate, endDate]);
+
+  // Handle external admission ID and action from URL parameters (Doctor Panel navigation)
+  useEffect(() => {
+    if (externalAdmissionId) {
+      // Set the selected admission ID for the detail modal
+      setSelectedAdmissionId(externalAdmissionId);
+
+      if (action === "discharge") {
+        // If action is discharge, open the discharge flow
+        setInitiatingAdmissionId(externalAdmissionId);
+        setShowInitiateDischargeModal(true);
+      } else {
+        // Otherwise, just open the detail view modal
+        setShowDetailModal(true);
+      }
+    }
+  }, [externalAdmissionId, action]);
 
   // Note: fetchWards, fetchBeds, and fetchDoctors removed - all are now fetched once in dashboard layout and cached in Redux
 

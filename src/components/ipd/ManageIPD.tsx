@@ -15,9 +15,10 @@ import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2 } from "luc
 interface ManageIPDProps {
   defaultTab?: "wards" | "beds" | "admissions";
   action?: string | null;
+  admissionId?: string | null;
 }
 
-export function ManageIPD({ defaultTab = "wards", action }: ManageIPDProps) {
+export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageIPDProps) {
   const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">(defaultTab);
 
   // Update tab when defaultTab prop changes
@@ -136,7 +137,7 @@ export function ManageIPD({ defaultTab = "wards", action }: ManageIPDProps) {
 
         {activeTab === "admissions" && (
           <div>
-            <AdmissionTable />
+            <AdmissionTable selectedAdmissionId={admissionId} action={action} />
           </div>
         )}
       </div>

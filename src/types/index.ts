@@ -76,3 +76,114 @@ export type QueueEntry = {
   visit_type?: "walk_in" | "appointment" | "emergency"; // Visit type for emergency highlighting
 };
 
+// Doctor Panel - Vital Signs
+export type VitalSigns = {
+  id: string;
+  patient_id: string;
+  recorded_at: string; // ISO datetime
+  recorded_by: string; // user_id
+  systolic_bp: number | null;
+  diastolic_bp: number | null;
+  pulse_rate: number | null;
+  temperature: number | null; // in Fahrenheit
+  spo2: number | null; // percentage
+  respiratory_rate: number | null;
+  weight: number | null; // in kg
+  height: number | null; // in cm
+  bmi: number | null; // calculated
+  notes: string | null;
+  tenant_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type VitalSignsTrend = {
+  date: string;
+  systolic_bp?: number;
+  diastolic_bp?: number;
+  pulse_rate?: number;
+  temperature?: number;
+  spo2?: number;
+  weight?: number;
+};
+
+// Doctor Panel - Clinical Notes
+export type ClinicalNote = {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  visit_id: string | null;
+  appointment_id?: string | null;
+  note_type: "soap" | "quick" | "voice" | "follow_up";
+  content: string;
+  voice_recording_url: string | null;
+  is_private: boolean;
+  created_at: string;
+  updated_at: string;
+  tenant_id?: string;
+};
+
+// Doctor Panel - Patient History
+export type PatientHistoryEvent = {
+  event_type: "opd_visit" | "prescription" | "lab_booking" | "admission" | "vital_signs";
+  event_id: string;
+  event_date: string;
+  title: string;
+  summary: string;
+  data: any; // Type-specific data
+};
+
+export type PatientHistoryTimeline = {
+  events: PatientHistoryEvent[];
+  total: number;
+  page: number;
+  total_pages: number;
+};
+
+// Doctor Panel - Doctor Schedule
+export type DoctorScheduleSlot = {
+  time: string; // HH:MM
+  type: "appointment" | "walk_in";
+  item_id: string; // appointment_id or visit_id
+  patient_id: string;
+  patient_name: string;
+  status: string;
+  duration_minutes: number;
+  token_number?: string | number;
+};
+
+export type DoctorSchedule = {
+  date: string;
+  total_appointments: number;
+  total_opd_visits: number;
+  slots: DoctorScheduleSlot[];
+};
+
+// Doctor Panel - Lab Results
+export type LabResult = {
+  test_id: string;
+  test_name: string;
+  result_value: string | number;
+  unit: string;
+  normal_range_min: number | null;
+  normal_range_max: number | null;
+  is_abnormal: boolean;
+  reference_text: string | null;
+};
+
+export type LabResultsResponse = {
+  booking_id: string;
+  booking_number: string;
+  scheduled_date: string;
+  status: string;
+  results: LabResult[];
+};
+
+// Doctor Panel - Stats
+export type DoctorStats = {
+  todayTotal: number;
+  todayPending: number;
+  todayInProgress: number;
+  todayCompleted: number;
+};
+

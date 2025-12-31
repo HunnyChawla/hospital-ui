@@ -206,22 +206,7 @@ export default function Home() {
   const queue = useAppSelector((s) => s.queue.entries);
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
-  const [activeSection, setActiveSection] = useState<
-    | "dashboard"
-    | "analytics"
-    | "patients"
-    | "doctors"
-    | "opd"
-    | "lab-bookings"
-    | "lab-technician"
-    | "admissions"
-    | "billing"
-    | "labs"
-    | "services"
-    | "queue"
-    | "users"
-    | "mrd"
-  >("dashboard");
+  // Removed activeSection state - using route-based navigation instead
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -233,14 +218,11 @@ export default function Home() {
   const [showOpdModal, setShowOpdModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
-  const [ipdDefaultTab, setIpdDefaultTab] = useState<"wards" | "beds" | "admissions">("wards");
   const [dashboardBillingFilter, setDashboardBillingFilter] = useState<"pending" | "paid">("pending");
   const [showAdmissionDetailModal, setShowAdmissionDetailModal] = useState(false);
   const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userActiveTab, setUserActiveTab] = useState<"admin" | "doctor" | "nurse" | "receptionist" | "all">("all");
-  const [opdActiveTab, setOpdActiveTab] = useState<"appointments" | "opd">("appointments");
   const [totalCollected, setTotalCollected] = useState(0);
   const [totalPending, setTotalPending] = useState(0);
   const [bedOccupancy, setBedOccupancy] = useState<{ occupied: number; total: number; occupancy: number } | null>(null);
@@ -254,18 +236,12 @@ export default function Home() {
   const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
   const hasLoadedInitialDataRef = useRef(false);
-  const previousSectionRef = useRef<typeof activeSection | null>(null);
 
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
 
-    // Get user role from localStorage
-    // Note: User details are fetched by the dashboard layout, no need to fetch here
-    if (typeof window !== "undefined") {
-      const role = localStorage.getItem("role");
-      setUserRole(role);
-    }
+    // Note: User details are fetched by the dashboard layout
 
     // Fetch tenant data if not already loaded
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -448,72 +424,48 @@ export default function Home() {
     }
   };
 
+  // Redirect hash-based navigation to route-based navigation
   useEffect(() => {
-    const syncHash = () => {
-      const raw = window.location.hash.replace("#", "");
-      let hash: typeof activeSection = "dashboard";
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (!hash) return;
 
-      // First, try to restore from sessionStorage if no hash
-      if (!raw && typeof window !== "undefined") {
-        const savedSection = sessionStorage.getItem("activeSection");
-        if (savedSection && ["dashboard", "analytics", "patients", "doctors", "opd", "lab-bookings", "lab-technician", "admissions", "billing", "labs", "services", "queue", "users", "mrd"].includes(savedSection)) {
-          hash = savedSection as typeof activeSection;
-          // Set hash to match saved section (for URL consistency)
-          window.location.hash = `#${hash}`;
-        }
-      } else if (raw === "lookup") {
-        hash = "patients";
-      } else if (raw === "mrd") {
-        hash = "mrd";
-      } else if (raw && ["dashboard", "analytics", "patients", "doctors", "opd", "lab-bookings", "lab-technician", "admissions", "billing", "labs", "services", "queue", "users"].includes(raw)) {
-        hash = raw as typeof activeSection;
-      }
+      // Map hash routes to new route-based paths
+      const routeMap: Record<string, string> = {
+        dashboard: "/",
+        analytics: "/analytics",
+        patients: "/patients",
+        doctors: "/doctors",
+        opd: "/opd",
+        "lab-bookings": "/lab-bookings",
+        "lab-technician": "/lab-technician",
+        admissions: "/admissions",
+        billing: "/billing",
+        labs: "/labs",
+        services: "/services",
+        queue: "/queue",
+        users: "/users",
+        mrd: "/mrd",
+        lookup: "/patients", // legacy lookup hash
+      };
 
-      setActiveSection(hash);
-      // Save to sessionStorage for persistence across refreshes
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("activeSection", hash);
-      }
-
-      // Reset IPD tab to wards when navigating away from admissions
-      if (hash !== "admissions") {
-        setIpdDefaultTab("wards");
+      const targetRoute = routeMap[hash];
+      if (targetRoute) {
+        // Remove hash and navigate to route
+        window.history.replaceState(null, "", window.location.pathname);
+        router.push(targetRoute);
       }
     };
-    syncHash();
-    window.addEventListener("hashchange", syncHash);
-    return () => window.removeEventListener("hashchange", syncHash);
-  }, []);
 
-  // Handle section changes and refresh logic
-  useEffect(() => {
-    const previousSection = previousSectionRef.current;
-    const isFirstLoad = previousSection === null;
-
-    // When returning to dashboard from another section
-    const isReturningToDashboard =
-      activeSection === "dashboard" &&
-      !isFirstLoad &&
-      previousSection !== "dashboard";
-
-    // When navigating to analytics from another section
-    const isNavigatingToAnalytics =
-      activeSection === "analytics" &&
-      !isFirstLoad &&
-      previousSection !== "analytics";
-
-    if (isReturningToDashboard) {
-      refreshDashboard();
-    } else if (isNavigatingToAnalytics) {
-      refreshDashboard();
-      // also trigger analytics child reload
-      setAnalyticsRefreshSignal((s) => s + 1);
+    // Check for hash on mount
+    if (window.location.hash) {
+      handleHashChange();
     }
 
-    // Update previous section for next time
-    previousSectionRef.current = activeSection;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection]);
+    // Listen for hash changes
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [router]);
 
   const admittedCount = admissions.length;
   const totalQueue = queue.length;
@@ -532,8 +484,6 @@ export default function Home() {
     [admissions]
   );
 
-  const show = (tab: typeof activeSection) => activeSection === tab;
-
   // Show nothing while checking auth
   if (!isAuthenticated) {
     return null;
@@ -546,7 +496,8 @@ export default function Home() {
         <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
         <LicenseExpiryAlert />
 
-        {show("dashboard") && (
+        {/* Dashboard Section - Only show dashboard content */}
+        <div className="grid gap-4">
           <div className="grid gap-4">
             <div className="flex justify-end">
               <button
@@ -772,303 +723,9 @@ export default function Home() {
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {show("analytics") && (
-          <div className="mt-4 grid gap-4">
-            <Section
-              id="analytics"
-              title=""
-              description=""
-            >
-                  <AnalyticsDashboard refreshSignal={analyticsRefreshSignal} onRequestRefresh={() => refreshDashboard()} />
-            </Section>
-          </div>
-        )}
-
-        {show("patients") && (
-          <div className="mt-6 grid gap-6">
-            <div className="grid gap-5">
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Patients
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setEditingPatient(null);
-                      setShowPatientModal(true);
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                  >
-                    <Activity className="h-4 w-4" />
-                    Add Patient
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <PatientTable
-                    onPatientClick={(id) => setSelectedPatientId(id)}
-                    onEditClick={(patient) => {
-                      setEditingPatient(patient);
-                      setShowPatientModal(true);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("doctors") && (
-          <div className="mt-6 grid gap-6">
-            <div className="grid gap-5">
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Doctors
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setEditingDoctor(null);
-                      setShowDoctorModal(true);
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                  >
-                    <Stethoscope className="h-4 w-4" />
-                    Add Doctor
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <DoctorTable
-                    onEditClick={(doctor) => {
-                      setEditingDoctor(doctor);
-                      setShowDoctorModal(true);
-                    }}
-                    onConfigureFeesClick={(doctor) => {
-                      setSelectedDoctorForFees(doctor);
-                      setShowConsultationFeeModal(true);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("opd") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              {/* Tabs */}
-              <div className="flex items-center justify-between border-b border-slate-200 px-6">
-                <div className="flex gap-2">
-                  {[
-                    { id: "appointments", label: "Appointments", icon: Calendar },
-                    { id: "opd", label: "OPD", icon: Stethoscope },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setOpdActiveTab(tab.id as typeof opdActiveTab)}
-                      className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
-                        opdActiveTab === tab.id
-                          ? "border-sky-500 text-sky-700"
-                          : "border-transparent text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      <tab.icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-                {opdActiveTab === "appointments" && (
-                  <button
-                    onClick={() => setShowAppointmentModal(true)}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                  >
-                    <CalendarPlus className="h-4 w-4" />
-                    Create Appointment
-                  </button>
-                )}
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-6">
-                {opdActiveTab === "appointments" && (
-                  <div>
-                    <div className="mb-4">
-                      <p className="text-sm font-semibold text-slate-900">Appointments List</p>
-                      <p className="text-xs text-slate-500">View and manage appointments by doctor and date</p>
-                    </div>
-                    <AppointmentsList />
-                  </div>
-                )}
-
-                {opdActiveTab === "opd" && (
-                  <div>
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">OPD Visits List</p>
-                        <p className="text-xs text-slate-500">View and manage OPD visits by doctor and date</p>
-                      </div>
-                      <button
-                        onClick={() => setShowOpdModal(true)}
-                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                      >
-                        <Stethoscope className="h-4 w-4" />
-                        Create OPD
-                      </button>
-                    </div>
-                    <OpdList />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("lab-bookings") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Lab Test Bookings</p>
-                  <p className="text-xs text-slate-500">Manage lab test bookings for patients</p>
-                </div>
-                <button
-                  onClick={() => setShowLabBookingModal(true)}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                >
-                  <Beaker className="h-4 w-4" />
-                  Create Booking
-                </button>
-              </div>
-              <div className="p-6">
-                <LabBookingsList />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("lab-technician") && (
-          <div className="mt-6 grid gap-6">
-            {userRole === "lab_technician" || userRole === "admin" ? (
-              <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-                <div className="p-6">
-                  <LabTechnicianPanel />
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
-                <p className="text-slate-600">You do not have permission to access this section.</p>
-                <p className="mt-2 text-sm text-slate-500">This section is only available to lab technicians and administrators.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {show("admissions") && (
-          <div className="mt-6">
-            <ManageIPD defaultTab={ipdDefaultTab} />
-          </div>
-        )}
-
-        {show("billing") && <BillingSection />}
-
-        {show("labs") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="labs"
-              title="Test / Lab Management"
-              description="Manage the lab test catalog used in bookings."
-            >
-              <LabTestsPanel />
-            </Section>
-          </div>
-        )}
-
-        {show("services") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="services"
-              title="Service Master"
-              description="Create and manage available services."
-            >
-              <ServicesPanel />
-            </Section>
-          </div>
-        )}
-
-        {show("queue") && (
-          <div className="mt-4">
-            <QueueBoard />
-          </div>
-        )}
-
-        {show("mrd") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              <div className="p-6">
-                <MRDPanel />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("users") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              {/* Tabs */}
-              <div className="flex items-center justify-between border-b border-slate-200 px-6">
-                <div className="flex gap-2">
-                  {[
-                    { id: "all", label: "All Staff", icon: Users2 },
-                    { id: "admin", label: "Admin", icon: Users2 },
-                    { id: "doctor", label: "Doctors", icon: Stethoscope },
-                    { id: "nurse", label: "Nurses", icon: Users2 },
-                    { id: "receptionist", label: "Receptionists", icon: Users2 },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setUserActiveTab(tab.id as typeof userActiveTab)}
-                      className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
-                        userActiveTab === tab.id
-                          ? "border-sky-500 text-sky-700"
-                          : "border-transparent text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      <tab.icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => {
-                    setEditingUser(null);
-                    setShowUserModal(true);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                >
-                  <Activity className="h-4 w-4" />
-                  Add Staff
-                </button>
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-6">
-                <UserTable
-                  roleFilter={userActiveTab === "all" ? undefined : userActiveTab}
-                  onEditClick={(user) => {
-                    setEditingUser(user);
-                    setShowUserModal(true);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* All other sections have been moved to route-based pages */}
 
         {selectedPatientId && (
           <PatientDetailView

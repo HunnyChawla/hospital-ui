@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
+import { LabResultsResponse } from "@/types";
 
 export type BookingStatus = "scheduled" | "sample_collected" | "in_progress" | "completed" | "cancelled";
 export type TestPriority = "routine" | "urgent" | "stat";
@@ -119,6 +120,22 @@ export const labBookingsApi = {
     const response = await apiClient.patch<LabBooking>(
       `/lab-bookings/${bookingId}/status`,
       { status },
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get lab test results with normal ranges
+   */
+  async getResults(
+    bookingId: string,
+    tenantId?: string
+  ): Promise<LabResultsResponse> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<LabResultsResponse>(
+      `/lab-bookings/${bookingId}/results`,
       { params }
     );
     return response.data;
