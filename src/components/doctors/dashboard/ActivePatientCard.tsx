@@ -19,6 +19,8 @@ interface ActivePatientCardProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
+  onCreatePrescription?: () => void;
+  showPrescriptionButton?: boolean;
   children: React.ReactNode;
 }
 
@@ -36,6 +38,8 @@ export const ActivePatientCard: React.FC<ActivePatientCardProps> = ({
   activeTab,
   onTabChange,
   onClose,
+  onCreatePrescription,
+  showPrescriptionButton = false,
   children,
 }) => {
   if (!patientId) {
@@ -71,13 +75,25 @@ export const ActivePatientCard: React.FC<ActivePatientCardProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
-            title="Clear selection"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {showPrescriptionButton && onCreatePrescription && (
+              <button
+                onClick={onCreatePrescription}
+                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+              >
+                <FileText className="h-4 w-4" />
+                Create Prescription
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+              title="Clear selection"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
 

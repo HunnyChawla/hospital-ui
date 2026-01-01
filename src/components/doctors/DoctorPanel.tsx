@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Stethoscope, RefreshCw, FileText } from "lucide-react";
 import { useDoctorPanel } from "@/hooks/useDoctorPanel";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
-import { DoctorDashboardLayout } from "./dashboard/DoctorDashboardLayout";
+import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
+import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
 import { PatientHistoryTimeline } from "./patient-details/PatientHistoryTimeline";
 import { VitalSignsPanel } from "./patient-details/VitalSignsPanel";
 import { LabResultsPanel } from "./patient-details/LabResultsPanel";
@@ -25,6 +26,8 @@ type QueuePatient = {
   token_number: string | number;
   status: string;
   visit_type?: "walk_in" | "appointment" | "emergency";
+  item_id: string;
+  time: string;
 };
 
 export function DoctorPanel() {
@@ -64,6 +67,14 @@ export function DoctorPanel() {
     autoFetch: true,
   });
 
+  // UI preferences hook
+  const {
+    preferences,
+    toggleStats,
+    toggleQueue,
+    setQueueFilter,
+  } = useDoctorPanelPreferences();
+
   // Local state
   const [selectedPatientName, setSelectedPatientName] = useState<string>("");
   const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
@@ -97,21 +108,18 @@ export function DoctorPanel() {
     }
   }, [selectedPatientId, todaySchedule]);
 
-  // Generate queue from schedule
+  // Generate queue from schedule (include ALL patients, filtering done in EnhancedQueueBoard)
   useEffect(() => {
     if (todaySchedule && todaySchedule.slots) {
-      const queue: QueuePatient[] = todaySchedule.slots
-        .filter(
-          (slot) =>
-            slot.status === "checked_in" || slot.status === "in_consultation"
-        )
-        .map((slot) => ({
-          patient_id: slot.patient_id,
-          patient_name: slot.patient_name,
-          token_number: slot.token_number || "",
-          status: slot.status,
-          visit_type: slot.type === "appointment" ? "appointment" : "walk_in",
-        }));
+      const queue: QueuePatient[] = todaySchedule.slots.map((slot) => ({
+        patient_id: slot.patient_id,
+        patient_name: slot.patient_name,
+        token_number: slot.token_number || "",
+        status: slot.status,
+        visit_type: slot.type === "appointment" ? "appointment" : "walk_in",
+        item_id: slot.item_id,
+        time: slot.time,
+      }));
       setQueuePatients(queue);
     }
   }, [todaySchedule]);
@@ -297,45 +305,25 @@ export function DoctorPanel() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-2 px-4 py-2">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-slate-900">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-teal-500 shadow-lg">
-              <Stethoscope className="h-6 w-6 text-white" />
-            </div>
-            Doctor Panel
-          </h1>
-          {currentDoctor && (
-            <p className="mt-2 text-sm text-slate-600">
-              <span className="font-semibold">Dr. {currentDoctor.name || "Doctor"}</span>
-              {currentDoctor.specialization && (
-                <span className="text-slate-400"> • {currentDoctor.specialization}</span>
-              )}
-            </p>
-          )}
-        </div>
+      <div className="flex items-center justify-between py-1">
+        {currentDoctor && (
+          <p className="text-sm text-slate-600">
+            <span className="font-semibold">Dr. {currentDoctor.name || "Doctor"}</span>
+            {currentDoctor.specialization && (
+              <span className="text-slate-400"> • {currentDoctor.specialization}</span>
+            )}
+          </p>
+        )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={refreshSchedule}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-
-          {selectedPatientId && (
-            <button
-              onClick={() => setShowPrescriptionModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-            >
-              <FileText className="h-4 w-4" />
-              Create Prescription
-            </button>
-          )}
-        </div>
+        <button
+          onClick={refreshSchedule}
+          className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+          title="Refresh schedule"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Error message */}
@@ -348,13 +336,17 @@ export function DoctorPanel() {
       )}
 
       {/* Dashboard Layout */}
-      <DoctorDashboardLayout
+      <DoctorPanelVerticalLayout
         stats={todayStats}
         statsLoading={panelLoading}
-        schedule={todaySchedule}
-        scheduleLoading={panelLoading}
+        statsVisible={preferences.statsVisible}
+        onToggleStats={toggleStats}
         queuePatients={queuePatients}
+        queueFilter={preferences.queueFilter}
+        onQueueFilterChange={setQueueFilter}
         queueLoading={false}
+        queueVisible={preferences.queueVisible}
+        onToggleQueue={toggleQueue}
         selectedPatientId={selectedPatientId}
         selectedPatientName={selectedPatientName}
         activeTab={activeTab}
@@ -363,9 +355,10 @@ export function DoctorPanel() {
         onTabChange={setActiveTab}
         onUpdateVisitStatus={handleUpdateVisitStatus}
         updatingVisitId={updatingVisitId}
+        onCreatePrescription={() => setShowPrescriptionModal(true)}
       >
         {renderTabContent()}
-      </DoctorDashboardLayout>
+      </DoctorPanelVerticalLayout>
 
       {/* Prescription Modal */}
       {selectedPatientId && (

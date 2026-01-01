@@ -115,3 +115,16 @@ body {
 .animation-delay-4000 {
   animation-delay: 4s;
 }
+
+/* Doctor Panel transitions */
+.sidebar-transition {
+  transition: width 300ms ease-in-out, transform 300ms ease-in-out;
+}
+
+.stats-collapse-transition {
+  transition: max-height 300ms ease-in-out, opacity 300ms ease-in-out;
+}
+
+.filter-tab-transition {
+  transition: all 200ms ease-in-out;
+}

@@ -7,11 +7,13 @@ import { DoctorStats } from "@/types";
 interface DoctorStatsCardsProps {
   stats: DoctorStats | null;
   loading?: boolean;
+  compact?: boolean;
 }
 
 export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   stats,
   loading = false,
+  compact = false,
 }) => {
   const statItems = [
     {
@@ -58,11 +60,11 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="h-28 animate-pulse rounded-xl bg-slate-100"
+            className={compact ? "h-20 animate-pulse rounded-lg bg-slate-100" : "h-28 animate-pulse rounded-xl bg-slate-100"}
           />
         ))}
       </div>
@@ -70,36 +72,42 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
       {statItems.map((item) => {
         const Icon = item.icon;
         return (
           <div
             key={item.label}
-            className={`group relative overflow-hidden rounded-xl border border-slate-100 bg-gradient-to-br ${item.bgGradient} p-5 shadow-sm transition hover:shadow-md`}
+            className={`group relative overflow-hidden border border-slate-100 bg-gradient-to-br ${item.bgGradient} shadow-sm transition hover:shadow-md ${
+              compact ? "rounded-lg p-3" : "rounded-xl p-5"
+            }`}
           >
             {/* Background glow */}
-            <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/50 opacity-0 blur-2xl transition group-hover:opacity-100" />
+            {!compact && (
+              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/50 opacity-0 blur-2xl transition group-hover:opacity-100" />
+            )}
 
             <div className="relative flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">
+                <p className={compact ? "text-xs font-medium text-slate-600" : "text-sm font-medium text-slate-600"}>
                   {item.label}
                 </p>
-                <p className={`mt-2 text-3xl font-bold ${item.textColor}`}>
+                <p className={compact ? `mt-1 text-2xl font-bold ${item.textColor}` : `mt-2 text-3xl font-bold ${item.textColor}`}>
                   {item.value}
                 </p>
               </div>
 
               <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.iconBg} shadow-sm`}
+                className={`flex items-center justify-center rounded-xl ${item.iconBg} shadow-sm ${
+                  compact ? "h-9 w-9" : "h-12 w-12"
+                }`}
               >
-                <Icon className={`h-6 w-6 ${item.iconColor}`} />
+                <Icon className={compact ? `h-4 w-4 ${item.iconColor}` : `h-6 w-6 ${item.iconColor}`} />
               </div>
             </div>
 
             {/* Progress indicator */}
-            {stats && stats.todayTotal > 0 && item.label !== "Total Patients" && (
+            {!compact && stats && stats.todayTotal > 0 && item.label !== "Total Patients" && (
               <div className="mt-3 flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/60">
                   <div
