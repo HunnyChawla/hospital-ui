@@ -193,7 +193,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
+    <main className="min-h-screen px-3 py-4 lg:px-6">
       <TopBar onPatientSelect={(patientId) => {
         // Handle patient selection - will be implemented with patient detail route
         console.log('Selected patient:', patientId);

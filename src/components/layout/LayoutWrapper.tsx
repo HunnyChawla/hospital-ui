@@ -18,7 +18,7 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
       "transition-all duration-300 ease-in-out",
       {
         "lg:pl-0": isDesktopCollapsed,
-        "lg:pl-72": !isDesktopCollapsed,
+        "lg:pl-64": !isDesktopCollapsed,
       }
     );
   }, [isDesktopCollapsed]);
