@@ -17,8 +17,8 @@ export default function BillingPage() {
   };
 
   return (
-    <div className="mt-6">
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    <div>
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="mb-4">
           <p className="text-lg font-semibold text-slate-900">Billing & Invoices</p>
           <p className="text-xs text-slate-500">Manage invoices and patient billing</p>

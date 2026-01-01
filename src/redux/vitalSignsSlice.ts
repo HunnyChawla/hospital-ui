@@ -126,7 +126,8 @@ const vitalSignsSlice = createSlice({
       })
       .addCase(fetchVitalSignsTrends.fulfilled, (state, action) => {
         state.loading = false;
-        state.trends = action.payload;
+        // Ensure trends is always an array
+        state.trends = Array.isArray(action.payload) ? action.payload : [];
         state.error = null;
       })
       .addCase(fetchVitalSignsTrends.rejected, (state, action) => {

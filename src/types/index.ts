@@ -164,6 +164,38 @@ export type DoctorSchedule = {
 };
 
 // Doctor Panel - Lab Results
+export type LabTestParameter = {
+  id: string;
+  booking_item_id: string;
+  parameter_id: string;
+  parameter_name: string;
+  parameter_code: string;
+  unit: string;
+  result_value: string;
+  result_numeric: number | null;
+  is_abnormal: boolean;
+  normal_min: number | null;
+  normal_max: number | null;
+  normal_text: string | null;
+  notes: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LabTestResultItem = {
+  booking_item_id: string;
+  lab_test_id: string;
+  test_code: string;
+  test_name: string;
+  results: LabTestParameter[];
+};
+
+export type LabResultsResponse = LabTestResultItem[];
+
+// Legacy type for backward compatibility (deprecated)
 export type LabResult = {
   test_id: string;
   test_name: string;
@@ -173,14 +205,6 @@ export type LabResult = {
   normal_range_max: number | null;
   is_abnormal: boolean;
   reference_text: string | null;
-};
-
-export type LabResultsResponse = {
-  booking_id: string;
-  booking_number: string;
-  scheduled_date: string;
-  status: string;
-  results: LabResult[];
 };
 
 // Doctor Panel - Stats

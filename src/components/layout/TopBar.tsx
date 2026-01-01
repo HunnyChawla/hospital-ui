@@ -178,7 +178,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   })() : null;
 
   return (
-    <header className="sticky top-0 z-20 mb-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <header className="sticky top-0 z-20 mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
       {/* Hamburger Menu Button */}
       <button
         onClick={isMobile ? toggleMobileSidebar : toggleDesktopSidebar}

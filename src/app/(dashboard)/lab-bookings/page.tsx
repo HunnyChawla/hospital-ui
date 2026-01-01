@@ -18,7 +18,7 @@ export default function LabBookingsPage() {
   }, [searchParams]);
 
   return (
-    <div className="mt-6">
+    <div>
       <LabBookingsList />
       <LabBookingFormModal
         isOpen={showModal}

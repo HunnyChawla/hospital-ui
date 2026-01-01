@@ -67,7 +67,9 @@ export const VitalSignsPanel: React.FC<VitalSignsPanelProps> = ({
 
   // Calculate trends for mini charts
   const getTrendData = (metric: keyof VitalSignsTrend) => {
-    return trends
+    // Ensure trends is an array
+    const trendsArray = Array.isArray(trends) ? trends : [];
+    return trendsArray
       .map((t) => t[metric])
       .filter((v) => v !== undefined && v !== null) as number[];
   };

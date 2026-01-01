@@ -135,7 +135,7 @@ export const labBookingsApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get<LabResultsResponse>(
-      `/lab-bookings/${bookingId}/results`,
+      `/lab-tests/bookings/${bookingId}/results`,
       { params }
     );
     return response.data;

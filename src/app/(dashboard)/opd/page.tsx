@@ -48,7 +48,7 @@ export default function OpdPage() {
   };
 
   return (
-    <div className="mt-6 grid gap-6">
+    <div className="grid gap-3">
       <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
         {/* Tabs */}
         <div className="border-b border-slate-200 px-6 py-4">

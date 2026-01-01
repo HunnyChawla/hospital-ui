@@ -4,7 +4,7 @@ import { LabTechnicianPanel } from "@/components/lab-technician/LabTechnicianPan
 
 export default function LabTechnicianPage() {
   return (
-    <div className="mt-6">
+    <div>
       <LabTechnicianPanel />
     </div>
   );

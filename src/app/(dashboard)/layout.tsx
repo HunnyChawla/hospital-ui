@@ -83,7 +83,7 @@ function LicenseExpiryAlert() {
   const iconColor = isUrgent ? "text-rose-600" : "text-amber-600";
 
   return (
-    <div className={`mx-4 mb-4 rounded-xl border ${bgColor} p-4 shadow-sm`}>
+    <div className={`mx-3 mb-2 rounded-xl border ${bgColor} p-3 shadow-sm`}>
       <div className="flex items-start gap-3">
         <svg className={`h-5 w-5 shrink-0 ${iconColor} mt-0.5`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -193,7 +193,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <main className="min-h-screen px-3 py-4 lg:px-6">
+    <main className="min-h-screen px-3 py-3 lg:px-6">
       <TopBar onPatientSelect={(patientId) => {
         // Handle patient selection - will be implemented with patient detail route
         console.log('Selected patient:', patientId);

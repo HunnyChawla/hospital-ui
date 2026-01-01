@@ -4,7 +4,7 @@ import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 
 export default function AnalyticsPage() {
   return (
-    <div className="mt-6">
+    <div>
       <AnalyticsDashboard />
     </div>
   );

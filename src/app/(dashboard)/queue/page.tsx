@@ -4,7 +4,7 @@ import { QueueBoard } from "@/components/queue/QueueBoard";
 
 export default function QueuePage() {
   return (
-    <div className="mt-6">
+    <div>
       <QueueBoard />
     </div>
   );

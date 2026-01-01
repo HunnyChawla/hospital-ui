@@ -137,7 +137,7 @@ function LicenseExpiryAlert() {
   const iconColor = isUrgent ? "text-rose-600" : "text-amber-600";
   
   return (
-    <div className={`mx-4 mb-4 rounded-xl border ${bgColor} p-4 shadow-sm`}>
+    <div className={`mx-3 mb-2 rounded-xl border ${bgColor} p-3 shadow-sm`}>
       <div className="flex items-start gap-3">
         <AlertTriangle className={`h-5 w-5 shrink-0 ${iconColor} mt-0.5`} />
         <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ function BillingSection() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "partial" | "refunded">("all");
 
   return (
-    <div className="mt-6 grid gap-6">
+    <div className="grid gap-3">
       <Section
         id="billing"
         title="Billing & Receipts"
@@ -489,21 +489,22 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen px-3 py-4 lg:px-6">
+    <main className="min-h-screen px-3 py-3 lg:px-6">
         <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
         <LicenseExpiryAlert />
 
         {/* Dashboard Section - Only show dashboard content */}
-        <div className="grid gap-4">
-          <div className="grid gap-4">
+        <div className="grid gap-3">
+          <div className="grid gap-3">
             <div className="flex justify-end">
               <button
                 onClick={() => refreshDashboard()}
                 disabled={dashboardRefreshing}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 disabled:opacity-50"
+                aria-label="Refresh dashboard"
+                title={dashboardRefreshing ? "Refreshing..." : "Refresh dashboard"}
               >
-                <RefreshCw className="h-4 w-4" />
-                <span>{dashboardRefreshing ? "Refreshing..." : "Refresh"}</span>
+                <RefreshCw className={`h-4 w-4 ${dashboardRefreshing ? "animate-spin" : ""}`} />
               </button>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -567,7 +568,7 @@ export default function Home() {
 
             {/* Quick Actions - Enhanced for Hospital Staff */}
             <div className="card p-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {/* Patient Management */}
                 <button
                   onClick={() => {
@@ -654,7 +655,7 @@ export default function Home() {
               </div>
 
               {/* Additional Quick Links */}
-              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-4">
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
                 <button
                   onClick={() => {
                     router.push("/queue");

@@ -46,8 +46,8 @@ export default function AdmissionsPage() {
   };
 
   return (
-    <div className="mt-6">
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    <div>
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="mb-4">
           <p className="text-lg font-semibold text-slate-900">IPD Management</p>
           <p className="text-xs text-slate-500">Manage wards, beds, and patient admissions</p>

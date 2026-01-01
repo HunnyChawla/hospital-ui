@@ -25,8 +25,8 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="mt-6 grid gap-6">
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    <div className="grid gap-3">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold text-slate-900">Staff Management</p>

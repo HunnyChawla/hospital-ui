@@ -11,24 +11,36 @@ interface LabBooking {
   status: string;
 }
 
-interface LabResult {
-  test_id: string;
-  test_name: string;
-  result_value: string | number;
+interface LabTestParameter {
+  id: string;
+  booking_item_id: string;
+  parameter_id: string;
+  parameter_name: string;
+  parameter_code: string;
   unit: string;
-  normal_range_min: number | null;
-  normal_range_max: number | null;
+  result_value: string;
+  result_numeric: number | null;
   is_abnormal: boolean;
-  reference_text: string | null;
+  normal_min: number | null;
+  normal_max: number | null;
+  normal_text: string | null;
+  notes: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
-interface LabResultsResponse {
-  booking_id: string;
-  booking_number: string;
-  scheduled_date: string;
-  status: string;
-  results: LabResult[];
+interface LabTestResultItem {
+  booking_item_id: string;
+  lab_test_id: string;
+  test_code: string;
+  test_name: string;
+  results: LabTestParameter[];
 }
+
+type LabResultsResponse = LabTestResultItem[];
 
 interface LabResultsPanelProps {
   patientId: string;
@@ -46,7 +58,7 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
   onGetResults,
 }) => {
   const [expandedBooking, setExpandedBooking] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, LabResultsResponse>>({});
+  const [results, setResults] = useState<Record<string, LabTestResultItem[]>>({});
   const [loadingResults, setLoadingResults] = useState<Record<string, boolean>>({});
 
   const getStatusColor = (status: string) => {
@@ -193,26 +205,51 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
                         />
                       ))}
                     </div>
-                  ) : bookingResults && bookingResults.results.length > 0 ? (
+                  ) : bookingResults && bookingResults.length > 0 ? (
                     <div className="space-y-4">
-                      {bookingResults.results.map((result) => (
-                        <div
-                          key={result.test_id}
-                          className="rounded-lg border border-slate-200 bg-white p-4"
-                        >
-                          <NormalRangeIndicator
-                            label={result.test_name}
-                            value={result.result_value}
-                            normalMin={result.normal_range_min}
-                            normalMax={result.normal_range_max}
-                            unit={result.unit}
-                            size="md"
-                          />
-                          {result.reference_text && (
-                            <p className="mt-2 text-xs text-slate-600">
-                              {result.reference_text}
+                      {bookingResults.map((testItem) => (
+                        <div key={testItem.booking_item_id} className="space-y-3">
+                          {/* Test name header */}
+                          <div className="rounded-lg bg-sky-50 px-3 py-2">
+                            <h4 className="font-semibold text-sky-900">
+                              {testItem.test_name}
+                            </h4>
+                            <p className="text-xs text-sky-700">
+                              Code: {testItem.test_code}
                             </p>
-                          )}
+                          </div>
+
+                          {/* Test parameters */}
+                          {testItem.results.map((parameter) => (
+                            <div
+                              key={parameter.id}
+                              className="rounded-lg border border-slate-200 bg-white p-4"
+                            >
+                              <NormalRangeIndicator
+                                label={parameter.parameter_name}
+                                value={parameter.result_numeric ?? parameter.result_value}
+                                normalMin={parameter.normal_min}
+                                normalMax={parameter.normal_max}
+                                unit={parameter.unit}
+                                size="md"
+                              />
+                              {parameter.normal_text && (
+                                <p className="mt-2 text-xs text-slate-600">
+                                  Normal: {parameter.normal_text}
+                                </p>
+                              )}
+                              {parameter.notes && (
+                                <p className="mt-1 text-xs italic text-slate-500">
+                                  Note: {parameter.notes}
+                                </p>
+                              )}
+                              {parameter.verified_at && (
+                                <p className="mt-1 text-xs text-emerald-600">
+                                  ✓ Verified on {new Date(parameter.verified_at).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       ))}
 
