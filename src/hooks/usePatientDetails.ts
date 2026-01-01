@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchVitalSignsForPatient,
@@ -82,8 +82,8 @@ export const usePatientDetails = ({
     }
   }, [patientId, autoFetch, dispatch, currentDoctor?.id]);
 
-  // Refresh functions
-  const refreshHistory = () => {
+  // Memoized refresh functions to prevent unnecessary re-renders
+  const refreshHistory = useCallback(() => {
     if (patientId) {
       dispatch(
         fetchPatientHistory({
@@ -94,9 +94,9 @@ export const usePatientDetails = ({
         })
       );
     }
-  };
+  }, [patientId, dispatch]);
 
-  const refreshVitals = () => {
+  const refreshVitals = useCallback(() => {
     if (patientId) {
       dispatch(
         fetchVitalSignsForPatient({
@@ -112,9 +112,9 @@ export const usePatientDetails = ({
         })
       );
     }
-  };
+  }, [patientId, dispatch]);
 
-  const refreshNotes = () => {
+  const refreshNotes = useCallback(() => {
     if (patientId && currentDoctor?.id) {
       dispatch(
         fetchNotesForPatient({
@@ -125,7 +125,13 @@ export const usePatientDetails = ({
         })
       );
     }
-  };
+  }, [patientId, currentDoctor?.id, dispatch]);
+
+  const refreshAll = useCallback(() => {
+    refreshHistory();
+    refreshVitals();
+    refreshNotes();
+  }, [refreshHistory, refreshVitals, refreshNotes]);
 
   return {
     // Data
@@ -144,10 +150,6 @@ export const usePatientDetails = ({
     refreshHistory,
     refreshVitals,
     refreshNotes,
-    refreshAll: () => {
-      refreshHistory();
-      refreshVitals();
-      refreshNotes();
-    },
+    refreshAll,
   };
 };

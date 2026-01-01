@@ -25,12 +25,21 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
 body {
   background: radial-gradient(circle at 20% 20%, #e0f2fe 0, transparent 28%),
     radial-gradient(circle at 80% 0, #d1fae5 0, transparent 22%),
     var(--background);
   color: var(--text);
   min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
 }
 
 ::-webkit-scrollbar {
@@ -127,4 +136,8 @@ body {
 
 .filter-tab-transition {
   transition: all 200ms ease-in-out;
+}
+
+.patient-content-transition {
+  transition: opacity 150ms ease-in-out;
 }

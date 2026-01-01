@@ -15,9 +15,9 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
   // Dynamic padding based on sidebar state
   const mainPadding = useMemo(() => {
     return clsx(
-      "transition-all duration-300 ease-in-out",
+      "transition-all duration-300 ease-in-out max-w-full overflow-x-hidden",
       {
-        "lg:pl-0": isDesktopCollapsed,
+        "lg:pl-16": isDesktopCollapsed,
         "lg:pl-64": !isDesktopCollapsed,
       }
     );

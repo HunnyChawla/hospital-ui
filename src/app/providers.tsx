@@ -12,6 +12,7 @@ import { ServiceWorkerRegistration } from "@/components/common/ServiceWorkerRegi
 import { SidebarProvider } from "@/hooks/useSidebar";
 import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { isPlatformOwner } from "@/utils/auth";
 
 export default function Providers({
@@ -27,6 +28,11 @@ export default function Providers({
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
 
+  // Get current pathname to conditionally render sidebar
+  const pathname = usePathname();
+  // Handle both /login and /login/ paths
+  const isLoginPage = pathname === "/login" || pathname === "/login/";
+
   useEffect(() => {
     // Read tenant_id and role from localStorage
     if (typeof window !== "undefined") {
@@ -41,12 +47,25 @@ export default function Providers({
       <TenantContext.Provider value={{ tenantId, isPlatformOwner: platformOwner }}>
         <QueryClientProvider client={queryClient}>
           <SidebarProvider>
-            <LayoutWrapper>
-              <ServiceWorkerRegistration />
-              {children}
-              <Toaster richColors position="top-right" />
-              <ReactQueryDevtools initialIsOpen={false} />
-            </LayoutWrapper>
+            <div className="overflow-x-hidden w-full">
+              {isLoginPage ? (
+                // Login page - no sidebar/layout wrapper
+                <>
+                  <ServiceWorkerRegistration />
+                  {children}
+                  <Toaster richColors position="top-right" />
+                  <ReactQueryDevtools initialIsOpen={false} />
+                </>
+              ) : (
+                // All other pages - with sidebar
+                <LayoutWrapper>
+                  <ServiceWorkerRegistration />
+                  {children}
+                  <Toaster richColors position="top-right" />
+                  <ReactQueryDevtools initialIsOpen={false} />
+                </LayoutWrapper>
+              )}
+            </div>
           </SidebarProvider>
         </QueryClientProvider>
       </TenantContext.Provider>

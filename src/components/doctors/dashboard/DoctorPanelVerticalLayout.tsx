@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import { CollapsibleStatsSection } from "./CollapsibleStatsSection";
 import { CollapsibleQueueSection } from "./CollapsibleQueueSection";
 import { ActivePatientCard } from "./ActivePatientCard";
@@ -28,6 +28,7 @@ interface DoctorPanelVerticalLayoutProps {
   // Selected patient
   selectedPatientId: string | null;
   selectedPatientName?: string;
+  selectedPatientUhid?: string;
   activeTab: ActiveTab;
   onSelectPatient: (patientId: string) => void;
   onClearPatient: () => void;
@@ -44,7 +45,7 @@ interface DoctorPanelVerticalLayoutProps {
   children: React.ReactNode;
 }
 
-export const DoctorPanelVerticalLayout: React.FC<DoctorPanelVerticalLayoutProps> = ({
+const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProps> = ({
   stats,
   statsLoading,
   statsVisible,
@@ -57,6 +58,7 @@ export const DoctorPanelVerticalLayout: React.FC<DoctorPanelVerticalLayoutProps>
   onToggleQueue,
   selectedPatientId,
   selectedPatientName,
+  selectedPatientUhid,
   activeTab,
   onSelectPatient,
   onClearPatient,
@@ -84,6 +86,7 @@ export const DoctorPanelVerticalLayout: React.FC<DoctorPanelVerticalLayoutProps>
           <ActivePatientCard
             patientId={selectedPatientId}
             patientName={selectedPatientName}
+            patientUhid={selectedPatientUhid}
             activeTab={activeTab}
             onTabChange={onTabChange}
             onClose={onClearPatient}
@@ -145,3 +148,6 @@ export const DoctorPanelVerticalLayout: React.FC<DoctorPanelVerticalLayoutProps>
     </div>
   );
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export const DoctorPanelVerticalLayout = memo(DoctorPanelVerticalLayoutComponent);

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchTodaySchedule,
@@ -46,16 +46,16 @@ export const useDoctorPanel = () => {
     }
   }, [currentDoctor?.id, dispatch]);
 
-  // Handlers
-  const handleSelectPatient = (patientId: string | null) => {
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleSelectPatient = useCallback((patientId: string | null) => {
     dispatch(selectPatient(patientId));
-  };
+  }, [dispatch]);
 
-  const handleSetActiveTab = (tab: "history" | "vitals" | "labs" | "notes" | "ipd") => {
+  const handleSetActiveTab = useCallback((tab: "history" | "vitals" | "labs" | "notes" | "ipd") => {
     dispatch(setActiveTab(tab));
-  };
+  }, [dispatch]);
 
-  const handleRefreshSchedule = () => {
+  const handleRefreshSchedule = useCallback(() => {
     if (currentDoctor?.id) {
       const today = new Date().toISOString().split("T")[0];
       dispatch(
@@ -65,11 +65,11 @@ export const useDoctorPanel = () => {
         })
       );
     }
-  };
+  }, [currentDoctor?.id, dispatch]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     dispatch(resetDoctorPanel());
-  };
+  }, [dispatch]);
 
   return {
     // Doctor info

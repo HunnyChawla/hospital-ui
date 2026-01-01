@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export type QueueFilter = "all" | "pending";
 
@@ -43,27 +43,27 @@ export const useDoctorPanelPreferences = () => {
     }
   }, [preferences]);
 
-  // Toggle functions
-  const toggleStats = () => {
+  // Memoized toggle functions to prevent unnecessary re-renders
+  const toggleStats = useCallback(() => {
     setPreferences((prev) => ({
       ...prev,
       statsVisible: !prev.statsVisible,
     }));
-  };
+  }, []);
 
-  const toggleQueue = () => {
+  const toggleQueue = useCallback(() => {
     setPreferences((prev) => ({
       ...prev,
       queueVisible: !prev.queueVisible,
     }));
-  };
+  }, []);
 
-  const setQueueFilter = (filter: QueueFilter) => {
+  const setQueueFilter = useCallback((filter: QueueFilter) => {
     setPreferences((prev) => ({
       ...prev,
       queueFilter: filter,
     }));
-  };
+  }, []);
 
   return {
     preferences,

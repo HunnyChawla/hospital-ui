@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import {
   User,
   History,
@@ -16,6 +16,7 @@ type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 interface ActivePatientCardProps {
   patientId: string | null;
   patientName?: string;
+  patientUhid?: string;
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
@@ -32,9 +33,10 @@ const tabs = [
   { id: "ipd" as ActiveTab, label: "IPD", icon: BedDouble },
 ];
 
-export const ActivePatientCard: React.FC<ActivePatientCardProps> = ({
+const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   patientId,
   patientName,
+  patientUhid,
   activeTab,
   onTabChange,
   onClose,
@@ -71,7 +73,7 @@ export const ActivePatientCard: React.FC<ActivePatientCardProps> = ({
               <h2 className="text-lg font-bold text-slate-900">
                 {patientName || "Patient Details"}
               </h2>
-              <p className="text-xs text-slate-600">ID: {patientId}</p>
+              <p className="text-xs text-slate-600">UHID: {patientUhid || patientId}</p>
             </div>
           </div>
 
@@ -123,9 +125,12 @@ export const ActivePatientCard: React.FC<ActivePatientCardProps> = ({
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+      <div className="patient-content-transition flex-1 overflow-y-auto bg-slate-50 p-6">
         {children}
       </div>
     </div>
   );
 };
+
+// Memoize to prevent re-render when parent re-renders
+export const ActivePatientCard = memo(ActivePatientCardComponent);

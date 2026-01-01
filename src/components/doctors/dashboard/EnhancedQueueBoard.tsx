@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import { User, AlertCircle, Loader2 } from "lucide-react";
 import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
 import {
@@ -22,7 +22,7 @@ interface EnhancedQueueBoardProps {
   loading?: boolean;
 }
 
-export const EnhancedQueueBoard: React.FC<EnhancedQueueBoardProps> = ({
+const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
   queuePatients,
   activeFilter,
   onFilterChange,
@@ -232,3 +232,6 @@ export const EnhancedQueueBoard: React.FC<EnhancedQueueBoardProps> = ({
     </div>
   );
 };
+
+// Memoize to prevent re-render when parent re-renders
+export const EnhancedQueueBoard = memo(EnhancedQueueBoardComponent);
