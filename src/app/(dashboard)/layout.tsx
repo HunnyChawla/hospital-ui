@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
@@ -9,6 +9,7 @@ import { fetchDoctors } from "@/redux/doctorsSlice";
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
 import { TopBar } from "@/components/layout/TopBar";
+import { PatientDetailView } from "@/components/patients/PatientDetailView";
 
 /**
  * LicenseExpiryAlert Component
@@ -133,6 +134,7 @@ export default function DashboardLayout({
   const wards = useAppSelector((s) => s.wards);
   const beds = useAppSelector((s) => s.beds);
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
   useEffect(() => {
     // Restore session on mount
@@ -195,11 +197,18 @@ export default function DashboardLayout({
   return (
     <main className="min-h-screen px-3 py-3 lg:px-6">
       <TopBar onPatientSelect={(patientId) => {
-        // Handle patient selection - will be implemented with patient detail route
-        console.log('Selected patient:', patientId);
+        setSelectedPatientId(patientId);
       }} />
       <LicenseExpiryAlert />
       {children}
+
+      {/* Patient Detail Modal - Opens when patient selected from global search */}
+      {selectedPatientId && (
+        <PatientDetailView
+          patientId={selectedPatientId}
+          onClose={() => setSelectedPatientId(null)}
+        />
+      )}
     </main>
   );
 }
