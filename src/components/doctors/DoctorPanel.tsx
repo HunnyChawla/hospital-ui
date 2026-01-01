@@ -111,15 +111,25 @@ export function DoctorPanel() {
   // Generate queue from schedule (include ALL patients, filtering done in EnhancedQueueBoard)
   useEffect(() => {
     if (todaySchedule && todaySchedule.slots) {
-      const queue: QueuePatient[] = todaySchedule.slots.map((slot) => ({
-        patient_id: slot.patient_id,
-        patient_name: slot.patient_name,
-        token_number: slot.token_number || "",
-        status: slot.status,
-        visit_type: slot.type === "appointment" ? "appointment" : "walk_in",
-        item_id: slot.item_id,
-        time: slot.time,
-      }));
+      const queue: QueuePatient[] = todaySchedule.slots.map((slot: any) => {
+        // Determine visit type with emergency check
+        const visitType = (slot.type === "emergency" || slot.visit_type === "emergency" || slot.is_emergency)
+          ? "emergency"
+          : slot.type === "appointment" || slot.visit_type === "appointment"
+          ? "appointment"
+          : "walk_in";
+
+        return {
+          patient_id: slot.patient_id,
+          patient_name: slot.patient_name,
+          token_number: slot.token_number || "",
+          status: slot.status,
+          visit_type: visitType,
+          item_id: slot.item_id,
+          time: slot.time,
+        };
+      });
+
       setQueuePatients(queue);
     }
   }, [todaySchedule]);

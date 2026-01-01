@@ -19,9 +19,19 @@ function mapVisitToSlot(visit: Visit): DoctorScheduleSlot {
     hour12: false
   }) : '00:00';
 
+  // Map visit_type correctly, including emergency
+  let type: "appointment" | "walk_in" | "emergency";
+  if (visit.visit_type === 'emergency') {
+    type = 'emergency';
+  } else if (visit.visit_type === 'appointment') {
+    type = 'appointment';
+  } else {
+    type = 'walk_in';
+  }
+
   return {
     time,
-    type: visit.visit_type === 'appointment' ? 'appointment' : 'walk_in',
+    type,
     item_id: visit.id,
     patient_id: visit.patient_id,
     patient_name: visit.patient_name || 'Unknown Patient',
@@ -54,9 +64,9 @@ export const doctorScheduleApi = {
     // Map visits to schedule slots
     const slots = response.items.map(mapVisitToSlot);
 
-    // Count visits by type
+    // Count visits by type (emergency counted as walk-in for totals)
     const appointmentCount = slots.filter(s => s.type === 'appointment').length;
-    const opdVisitCount = slots.filter(s => s.type === 'walk_in').length;
+    const opdVisitCount = slots.filter(s => s.type === 'walk_in' || s.type === 'emergency').length;
 
     return {
       date: params.date,

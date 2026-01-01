@@ -147,7 +147,7 @@ export type PatientHistoryTimeline = {
 // Doctor Panel - Doctor Schedule
 export type DoctorScheduleSlot = {
   time: string; // HH:MM
-  type: "appointment" | "walk_in";
+  type: "appointment" | "walk_in" | "emergency";
   item_id: string; // appointment_id or visit_id
   patient_id: string;
   patient_name: string;

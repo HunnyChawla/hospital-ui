@@ -77,28 +77,21 @@ export const DoctorPanelVerticalLayout: React.FC<DoctorPanelVerticalLayoutProps>
         compact={false}
       />
 
-      {/* Main content area: Queue Sidebar + Patient Area */}
+      {/* Main content area: Patient Area + Queue Sidebar */}
       <div className="flex gap-3">
-        {/* Queue Sidebar - Left side (collapses to save space) */}
-        <div
-          className={`sidebar-transition flex-shrink-0 ${
-            queueVisible ? "w-80" : "w-0 overflow-hidden"
-          }`}
-        >
-          {queueVisible && (
-            <CollapsibleQueueSection
-              queuePatients={queuePatients}
-              activeFilter={queueFilter}
-              onFilterChange={onQueueFilterChange}
-              onSelectPatient={onSelectPatient}
-              selectedPatientId={selectedPatientId}
-              onUpdateStatus={onUpdateVisitStatus}
-              updatingVisitId={updatingVisitId}
-              loading={queueLoading}
-              isVisible={queueVisible}
-              onToggle={onToggleQueue}
-            />
-          )}
+        {/* Patient Card - Takes remaining space */}
+        <div className="flex-1">
+          <ActivePatientCard
+            patientId={selectedPatientId}
+            patientName={selectedPatientName}
+            activeTab={activeTab}
+            onTabChange={onTabChange}
+            onClose={onClearPatient}
+            onCreatePrescription={onCreatePrescription}
+            showPrescriptionButton={!!selectedPatientId}
+          >
+            {children}
+          </ActivePatientCard>
         </div>
 
         {/* Queue Toggle Button (visible when sidebar is collapsed) */}
@@ -127,19 +120,26 @@ export const DoctorPanelVerticalLayout: React.FC<DoctorPanelVerticalLayoutProps>
           </button>
         )}
 
-        {/* Patient Card - Takes remaining space */}
-        <div className="flex-1">
-          <ActivePatientCard
-            patientId={selectedPatientId}
-            patientName={selectedPatientName}
-            activeTab={activeTab}
-            onTabChange={onTabChange}
-            onClose={onClearPatient}
-            onCreatePrescription={onCreatePrescription}
-            showPrescriptionButton={!!selectedPatientId}
-          >
-            {children}
-          </ActivePatientCard>
+        {/* Queue Sidebar - Right side (collapses to save space) */}
+        <div
+          className={`sidebar-transition flex-shrink-0 ${
+            queueVisible ? "w-80" : "w-0 overflow-hidden"
+          }`}
+        >
+          {queueVisible && (
+            <CollapsibleQueueSection
+              queuePatients={queuePatients}
+              activeFilter={queueFilter}
+              onFilterChange={onQueueFilterChange}
+              onSelectPatient={onSelectPatient}
+              selectedPatientId={selectedPatientId}
+              onUpdateStatus={onUpdateVisitStatus}
+              updatingVisitId={updatingVisitId}
+              loading={queueLoading}
+              isVisible={queueVisible}
+              onToggle={onToggleQueue}
+            />
+          )}
         </div>
       </div>
     </div>

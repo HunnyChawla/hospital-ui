@@ -132,12 +132,12 @@ export const EnhancedQueueBoard: React.FC<EnhancedQueueBoardProps> = ({
               return (
                 <div
                   key={`${patient.patient_id}-${patient.item_id}`}
-                  className={`group cursor-pointer rounded-lg border bg-white p-3 shadow-sm transition ${
+                  className={`group cursor-pointer rounded-lg border p-3 transition ${
                     isSelected
-                      ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200"
+                      ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200 shadow-md"
                       : isEmergency
-                      ? "border-red-300 hover:border-red-400 hover:shadow-md"
-                      : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                      ? "border-red-500 bg-red-50 ring-2 ring-red-300 shadow-lg hover:border-red-600 hover:shadow-xl"
+                      : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md"
                   }`}
                   onClick={() => onSelectPatient(patient.patient_id)}
                 >
@@ -148,7 +148,7 @@ export const EnhancedQueueBoard: React.FC<EnhancedQueueBoardProps> = ({
                       <div
                         className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg font-bold ${
                           isEmergency
-                            ? "bg-red-100 text-red-700"
+                            ? "bg-red-600 text-white ring-2 ring-red-300"
                             : "bg-slate-100 text-slate-700"
                         }`}
                       >
@@ -172,8 +172,8 @@ export const EnhancedQueueBoard: React.FC<EnhancedQueueBoardProps> = ({
                             {patient.status.replace("_", " ")}
                           </span>
                           {patient.visit_type === "emergency" && (
-                            <span className="inline-block rounded border border-red-300 bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
-                              EMERGENCY
+                            <span className="inline-block rounded border-2 border-red-500 bg-red-600 px-2 py-0.5 text-xs font-bold text-white shadow-md">
+                              🚨 EMERGENCY
                             </span>
                           )}
                         </div>

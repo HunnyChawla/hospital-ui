@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, Users } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
 import { EnhancedQueueBoard } from "./EnhancedQueueBoard";
 import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
 import type { QueuePatient } from "@/utils/queueFilters";
@@ -43,7 +43,7 @@ export const CollapsibleQueueSection: React.FC<CollapsibleQueueSectionProps> = (
           <Users className="h-4 w-4 text-slate-600" />
           <span className="text-sm font-semibold text-slate-700">Patient Queue</span>
         </div>
-        <ChevronLeft className="h-4 w-4 text-slate-400 transition-transform duration-200" />
+        <ChevronRight className="h-4 w-4 text-slate-400 transition-transform duration-200" />
       </button>
 
       {/* Queue Content */}
