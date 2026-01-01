@@ -14,6 +14,8 @@ import {
   UserCog,
   Package,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -49,7 +51,7 @@ export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const { hospitalName } = useTenant();
-  const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar } = useSidebar();
+  const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar, toggleDesktopSidebar } = useSidebar();
 
   useEffect(() => {
     const updateHash = () => {
@@ -88,26 +90,37 @@ export function Sidebar() {
   };
 
   // Render navigation content (shared between desktop and mobile)
-  const renderSidebarContent = () => (
+  const renderSidebarContent = (showCollapseButton: boolean = false) => (
     <>
-      <div className="mb-8 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
-          <Image
-            src="/cura-logo-v2.png"
-            alt="CURA Logo"
-            width={500}
-            height={500}
-            className="h-full w-full object-contain"
-            priority
-            unoptimized
-          />
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
+            <Image
+              src="/cura-logo-v2.png"
+              alt="CURA Logo"
+              width={500}
+              height={500}
+              className="h-full w-full object-contain"
+              priority
+              unoptimized
+            />
+          </div>
+          <div>
+            <p className="text-base font-bold uppercase tracking-wide text-teal-600">
+              CURA
+            </p>
+            <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-base font-bold uppercase tracking-wide text-teal-600">
-            CURA
-          </p>
-          <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
-        </div>
+        {showCollapseButton && (
+          <button
+            onClick={toggleDesktopSidebar}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
+            title="Collapse sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <nav className="space-y-1">
@@ -185,6 +198,18 @@ export function Sidebar() {
 
     return (
       <>
+        {/* Expand Button */}
+        <div className="mb-2 flex flex-shrink-0 justify-center">
+          <Tooltip content="Expand sidebar" side="right">
+            <button
+              onClick={toggleDesktopSidebar}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </div>
+
         {/* Logo Icon Only */}
         <div className="mb-2 flex flex-shrink-0 items-center justify-center sm:mb-3 md:mb-4">
           <Tooltip content="CURA" side="right">
@@ -273,7 +298,7 @@ export function Sidebar() {
         "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-visible",
         isDesktopCollapsed ? "w-16 px-2 py-8" : "w-64 px-6 py-8"
       )}>
-        {isDesktopCollapsed ? renderCollapsedIcons() : renderSidebarContent()}
+        {isDesktopCollapsed ? renderCollapsedIcons() : renderSidebarContent(true)}
       </aside>
 
       {/* Mobile Drawer - Slides in from left */}
@@ -284,7 +309,7 @@ export function Sidebar() {
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {renderSidebarContent()}
+        {renderSidebarContent(false)}
       </aside>
 
       {/* Mobile Backdrop Overlay */}

@@ -33,7 +33,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const router = useRouter();
   const { user, userDetails } = useAppSelector((s) => s.auth);
   const { hospitalName, tenant } = useTenant();
-  const { toggleMobileSidebar, toggleDesktopSidebar, isMobile } = useSidebar();
+  const { toggleMobileSidebar, isMobile } = useSidebar();
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -179,15 +179,17 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
 
   return (
     <header className="sticky top-0 z-20 mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-      {/* Hamburger Menu Button */}
-      <button
-        onClick={isMobile ? toggleMobileSidebar : toggleDesktopSidebar}
-        className="flex shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-gradient-to-r from-sky-50 to-teal-50 p-2.5 text-slate-700 transition hover:border-sky-400 hover:from-sky-100 hover:to-teal-100 hover:shadow-md"
-        aria-label={isMobile ? "Open menu" : "Toggle sidebar"}
-        title={isMobile ? "Open menu" : "Toggle sidebar"}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
+      {/* Hamburger Menu Button - Mobile only */}
+      {isMobile && (
+        <button
+          onClick={toggleMobileSidebar}
+          className="flex shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-gradient-to-r from-sky-50 to-teal-50 p-2.5 text-slate-700 transition hover:border-sky-400 hover:from-sky-100 hover:to-teal-100 hover:shadow-md lg:hidden"
+          aria-label="Open menu"
+          title="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
 
       <div ref={searchRef} className="relative flex flex-1 items-center">
         <div className="relative flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-all focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
