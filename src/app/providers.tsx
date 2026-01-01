@@ -9,6 +9,8 @@ import { store } from "@/redux/store";
 import { getQueryClient } from "@/lib/react-query";
 import { TenantContext } from "@/lib/tenant-context";
 import { ServiceWorkerRegistration } from "@/components/common/ServiceWorkerRegistration";
+import { SidebarProvider } from "@/hooks/useSidebar";
+import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 import { useEffect, useState } from "react";
 import { isPlatformOwner } from "@/utils/auth";
 
@@ -38,10 +40,14 @@ export default function Providers({
     <ReduxProvider store={store}>
       <TenantContext.Provider value={{ tenantId, isPlatformOwner: platformOwner }}>
         <QueryClientProvider client={queryClient}>
-          <ServiceWorkerRegistration />
-          {children}
-          <Toaster richColors position="top-right" />
-          <ReactQueryDevtools initialIsOpen={false} />
+          <SidebarProvider>
+            <LayoutWrapper>
+              <ServiceWorkerRegistration />
+              {children}
+              <Toaster richColors position="top-right" />
+              <ReactQueryDevtools initialIsOpen={false} />
+            </LayoutWrapper>
+          </SidebarProvider>
         </QueryClientProvider>
       </TenantContext.Provider>
     </ReduxProvider>

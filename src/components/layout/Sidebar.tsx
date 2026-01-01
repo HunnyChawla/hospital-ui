@@ -21,6 +21,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useTenant } from "@/hooks/useTenant";
+import { useSidebar } from "@/hooks/useSidebar";
 import { FEATURES } from "@/lib/feature-flags";
 
 // Navigation items with both legacy hash and new route paths
@@ -47,6 +48,7 @@ export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const { hospitalName } = useTenant();
+  const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar } = useSidebar();
 
   useEffect(() => {
     const updateHash = () => {
@@ -77,8 +79,16 @@ export function Sidebar() {
     return FEATURES[item.featureFlag as keyof typeof FEATURES] === true;
   };
 
-  return (
-    <aside className="glass fixed left-0 top-0 hidden h-screen w-64 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 lg:flex">
+  // Handle navigation click - close mobile drawer if on mobile
+  const handleNavClick = () => {
+    if (isMobile) {
+      closeMobileSidebar();
+    }
+  };
+
+  // Render navigation content (shared between desktop and mobile)
+  const renderSidebarContent = () => (
+    <>
       <div className="mb-8 flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
           <Image
@@ -125,6 +135,7 @@ export function Sidebar() {
                 key={item.label}
                 href={item.newRoute}
                 className={baseClassName}
+                onClick={handleNavClick}
               >
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>
@@ -139,6 +150,7 @@ export function Sidebar() {
                     window.location.hash = item.legacyHref;
                   }
                   setHash(item.legacyHref);
+                  handleNavClick();
                 }}
                 className={baseClassName}
               >
@@ -162,7 +174,38 @@ export function Sidebar() {
           <p className="text-xs text-slate-500 mt-1">99.9% uptime</p>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar - Conditionally rendered based on isDesktopCollapsed */}
+      {!isDesktopCollapsed && (
+        <aside className="glass fixed left-0 top-0 hidden h-screen w-64 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 transition-all duration-300 lg:flex">
+          {renderSidebarContent()}
+        </aside>
+      )}
+
+      {/* Mobile Drawer - Slides in from left */}
+      <aside
+        className={clsx(
+          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700",
+          "transition-transform duration-300 ease-in-out lg:hidden",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {renderSidebarContent()}
+      </aside>
+
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden"
+          onClick={closeMobileSidebar}
+          aria-label="Close menu"
+        />
+      )}
+    </>
   );
 }
 

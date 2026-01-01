@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, UserCircle2, LogOut, User, Plus, ChevronDown } from "lucide-react";
+import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -12,6 +12,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { usersApi } from "@/services/usersApi";
 import { useTenant } from "@/hooks/useTenant";
+import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
 
 interface TopBarProps {
@@ -32,6 +33,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const router = useRouter();
   const { user, userDetails } = useAppSelector((s) => s.auth);
   const { hospitalName, tenant } = useTenant();
+  const { toggleMobileSidebar, toggleDesktopSidebar, isMobile } = useSidebar();
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -176,7 +178,17 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   })() : null;
 
   return (
-    <header className="sticky top-0 z-20 mb-4 flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <header className="sticky top-0 z-20 mb-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      {/* Hamburger Menu Button */}
+      <button
+        onClick={isMobile ? toggleMobileSidebar : toggleDesktopSidebar}
+        className="flex shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-gradient-to-r from-sky-50 to-teal-50 p-2.5 text-slate-700 transition hover:border-sky-400 hover:from-sky-100 hover:to-teal-100 hover:shadow-md"
+        aria-label={isMobile ? "Open menu" : "Toggle sidebar"}
+        title={isMobile ? "Open menu" : "Toggle sidebar"}
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       <div ref={searchRef} className="relative flex flex-1 items-center">
         <div className="relative flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-all focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />

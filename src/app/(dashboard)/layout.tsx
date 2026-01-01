@@ -8,7 +8,6 @@ import { fetchTenant } from "@/redux/tenantSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 
 /**
@@ -194,16 +193,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="lg:pl-72">
-      <Sidebar />
-      <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
-        <TopBar onPatientSelect={(patientId) => {
-          // Handle patient selection - will be implemented with patient detail route
-          console.log('Selected patient:', patientId);
-        }} />
-        <LicenseExpiryAlert />
-        {children}
-      </main>
-    </div>
+    <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
+      <TopBar onPatientSelect={(patientId) => {
+        // Handle patient selection - will be implemented with patient detail route
+        console.log('Selected patient:', patientId);
+      }} />
+      <LicenseExpiryAlert />
+      {children}
+    </main>
   );
 }

@@ -30,7 +30,7 @@ export function DoctorTable({ onDoctorClick, onEditClick, onConfigureFeesClick }
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
         <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
           <tr>

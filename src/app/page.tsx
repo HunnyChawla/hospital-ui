@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatCard } from "@/components/common/StatCard";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
@@ -490,9 +489,7 @@ export default function Home() {
   }
 
   return (
-    <div className="lg:pl-72">
-      <Sidebar />
-      <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
+    <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
         <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
         <LicenseExpiryAlert />
 
@@ -800,7 +797,6 @@ export default function Home() {
           }}
           defaultValues={editingUser ?? undefined}
         />
-      </main>
-    </div>
+    </main>
   );
 }
