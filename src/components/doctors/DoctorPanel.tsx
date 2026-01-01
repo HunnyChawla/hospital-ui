@@ -371,10 +371,11 @@ export function DoctorPanel() {
       </DoctorPanelVerticalLayout>
 
       {/* Prescription Modal */}
-      {selectedPatientId && (
+      {selectedPatientId && currentVisitId && (
         <PrescriptionFormModal
           isOpen={showPrescriptionModal}
           onClose={() => setShowPrescriptionModal(false)}
+          visitId={currentVisitId}
           patientId={selectedPatientId}
           doctorId={currentDoctor?.id || ""}
           onSuccess={() => {

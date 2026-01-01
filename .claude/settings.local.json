@@ -4,7 +4,9 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)"
     ]
   }
 }

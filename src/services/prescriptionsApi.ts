@@ -1,143 +1,158 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export interface PrescriptionMedicine {
-  id: string;
+// Request types - for creating/updating prescriptions
+export interface PrescriptionItemRequest {
   medicine_id: string;
-  medicine_name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-  instructions: string | null;
-  quantity: number;
-  unit: string; // e.g., "tablets", "ml", "bottles"
-}
-
-export interface Prescription {
-  id: string;
-  tenant_id: string;
-  visit_id: string | null;
-  appointment_id: string | null;
-  patient_id: string;
-  doctor_id: string;
-  medicines: PrescriptionMedicine[];
-  diagnosis: string | null;
-  notes: string | null;
-  status: "draft" | "finalized" | "dispensed";
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreatePrescriptionMedicine {
-  medicine_id: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-  instructions?: string | null;
-  quantity: number;
-  unit: string;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
 }
 
 export interface CreatePrescriptionRequest {
-  visit_id?: string | null;
-  appointment_id?: string | null;
   patient_id: string;
   doctor_id: string;
-  medicines: CreatePrescriptionMedicine[];
-  diagnosis?: string | null;
-  notes?: string | null;
+  visit_id: string; // Required
+  diagnosis?: string;
+  notes?: string;
+  items: PrescriptionItemRequest[];
 }
 
 export interface UpdatePrescriptionRequest {
-  medicines?: CreatePrescriptionMedicine[];
-  diagnosis?: string | null;
-  notes?: string | null;
+  items?: PrescriptionItemRequest[];
+  diagnosis?: string;
+  notes?: string;
 }
 
+// Response types - for API responses
+export interface PrescriptionItemResponse {
+  id: string;
+  prescription_id: string;
+  medicine_id: string;
+  medicine_name: string;
+  dosage: string | null;
+  frequency: string | null;
+  duration: string | null;
+  instructions: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface PrescriptionResponse {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  patient_name: string;
+  doctor_id: string;
+  doctor_name: string;
+  visit_id: string;
+  visit_number: string | null;
+  prescription_number: string;
+  status: "draft" | "finalized" | "dispensed";
+  diagnosis: string | null;
+  notes: string | null;
+  finalized_at: string | null;
+  items: PrescriptionItemResponse[];
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+// Search/List params and response
 export interface PrescriptionsSearchParams {
   visit_id?: string;
-  appointment_id?: string;
   patient_id?: string;
   doctor_id?: string;
+  status?: "draft" | "finalized" | "dispensed";
+  start_date?: string;
+  end_date?: string;
   page?: number;
   page_size?: number;
   tenant_id?: string;
 }
 
 export interface PrescriptionsSearchResponse {
-  items: Prescription[];
+  items: PrescriptionResponse[];
   total: number;
   page: number;
   page_size: number;
   total_pages: number;
 }
 
+// Legacy type aliases for backward compatibility during migration
+/** @deprecated Use PrescriptionItemResponse instead */
+export type PrescriptionMedicine = PrescriptionItemResponse;
+/** @deprecated Use PrescriptionResponse instead */
+export type Prescription = PrescriptionResponse;
+/** @deprecated Use PrescriptionItemRequest instead */
+export type CreatePrescriptionMedicine = PrescriptionItemRequest;
+
 export const prescriptionsApi = {
-  async create(prescription: CreatePrescriptionRequest, tenantId?: string): Promise<Prescription> {
+  async create(prescription: CreatePrescriptionRequest, tenantId?: string): Promise<PrescriptionResponse> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.post<Prescription>("/prescriptions", prescription, { params });
+    const response = await apiClient.post<PrescriptionResponse>("/prescriptions", prescription, { params });
     return response.data;
   },
 
   async list(params?: PrescriptionsSearchParams): Promise<PrescriptionsSearchResponse> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.visit_id) queryParams.append("visit_id", params.visit_id);
-    if (params?.appointment_id) queryParams.append("appointment_id", params.appointment_id);
     if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
     if (params?.doctor_id) queryParams.append("doctor_id", params.doctor_id);
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
-    
+
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
-    
+
     const queryString = queryParams.toString();
     const url = `/prescriptions${queryString ? `?${queryString}` : ""}`;
-    
+
     const response = await apiClient.get<PrescriptionsSearchResponse>(url);
     return response.data;
   },
 
-  async getById(prescriptionId: string, tenantId?: string): Promise<Prescription> {
+  async getById(prescriptionId: string, tenantId?: string): Promise<PrescriptionResponse> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.get<Prescription>(`/prescriptions/${prescriptionId}`, { params });
+    const response = await apiClient.get<PrescriptionResponse>(`/prescriptions/${prescriptionId}`, { params });
     return response.data;
   },
 
-  async update(prescriptionId: string, updates: UpdatePrescriptionRequest, tenantId?: string): Promise<Prescription> {
+  async update(prescriptionId: string, updates: UpdatePrescriptionRequest, tenantId?: string): Promise<PrescriptionResponse> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.put<Prescription>(`/prescriptions/${prescriptionId}`, updates, { params });
+    const response = await apiClient.put<PrescriptionResponse>(`/prescriptions/${prescriptionId}`, updates, { params });
     return response.data;
   },
 
-  async finalize(prescriptionId: string, tenantId?: string): Promise<Prescription> {
+  async finalize(prescriptionId: string, tenantId?: string): Promise<PrescriptionResponse> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.patch<Prescription>(`/prescriptions/${prescriptionId}/finalize`, {}, { params });
+    const response = await apiClient.patch<PrescriptionResponse>(`/prescriptions/${prescriptionId}/finalize`, {}, { params });
     return response.data;
   },
 
   async getByPatient(patientId: string, params?: { page?: number; page_size?: number; tenant_id?: string }): Promise<PrescriptionsSearchResponse> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
-    
+
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
-    
+
     const queryString = queryParams.toString();
     const url = `/prescriptions/patient/${patientId}${queryString ? `?${queryString}` : ""}`;
-    
+
     const response = await apiClient.get<PrescriptionsSearchResponse>(url);
     return response.data;
   },
 };
-
-
-
-

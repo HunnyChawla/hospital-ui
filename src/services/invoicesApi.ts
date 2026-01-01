@@ -64,6 +64,8 @@ export interface InvoicesSearchParams {
   page_size?: number;
   patient_id?: string;
   status?: InvoiceStatus;
+  start_date?: string;
+  end_date?: string;
   tenant_id?: string; // PlatformOwner only
 }
 

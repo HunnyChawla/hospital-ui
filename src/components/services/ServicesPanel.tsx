@@ -150,25 +150,25 @@ export function ServicesPanel() {
           icon={Package}
           label="Total Services"
           value={stats.total.toString()}
-          iconBgColor="from-sky-500 to-teal-500"
+          tone="sky"
         />
         <EnhancedStatCard
           icon={ToggleRight}
           label="Active Services"
           value={stats.active.toString()}
-          iconBgColor="from-emerald-500 to-teal-500"
+          tone="emerald"
         />
         <EnhancedStatCard
           icon={Layers}
           label="Categories"
           value={stats.categories.toString()}
-          iconBgColor="from-purple-500 to-pink-500"
+          tone="fuchsia"
         />
         <EnhancedStatCard
           icon={DollarSign}
           label="Avg Price"
           value={currency(stats.avgPrice)}
-          iconBgColor="from-orange-500 to-amber-500"
+          tone="amber"
         />
       </div>
 

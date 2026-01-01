@@ -464,25 +464,25 @@ export function BillingManagement({
           icon={DollarSign}
           label="Total Revenue"
           value={currency(stats.totalRevenue)}
-          iconBgColor="from-sky-500 to-teal-500"
+          tone="sky"
         />
         <EnhancedStatCard
           icon={CreditCard}
           label="Paid Amount"
           value={currency(stats.paidAmount)}
-          iconBgColor="from-emerald-500 to-teal-500"
+          tone="emerald"
         />
         <EnhancedStatCard
           icon={AlertCircle}
           label="Pending Amount"
           value={currency(stats.pendingAmount)}
-          iconBgColor="from-orange-500 to-amber-500"
+          tone="amber"
         />
         <EnhancedStatCard
           icon={FileText}
           label="Total Invoices"
           value={stats.totalInvoices.toString()}
-          iconBgColor="from-purple-500 to-pink-500"
+          tone="fuchsia"
         />
       </div>
 

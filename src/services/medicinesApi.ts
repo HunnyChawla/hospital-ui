@@ -3,13 +3,17 @@ import { getTenantIdForApi } from "@/utils/auth";
 
 export interface Medicine {
   id: string;
-  tenant_id: string;
+  tenant_id?: string;
   name: string;
   generic_name: string | null;
   dosage_form: string | null; // e.g., "Tablet", "Capsule", "Syrup", "Injection"
   strength: string | null; // e.g., "500mg", "250mg"
-  unit: string | null; // e.g., "tablets", "ml", "bottles"
   manufacturer: string | null;
+  // Default values for prescription autofill
+  default_dosage: string | null;
+  default_frequency: string | null;
+  default_duration: string | null;
+  default_instructions: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
