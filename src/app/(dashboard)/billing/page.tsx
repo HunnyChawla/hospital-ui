@@ -17,17 +17,18 @@ export default function BillingPage() {
   };
 
   return (
-    <div>
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-4">
-          <p className="text-lg font-semibold text-slate-900">Billing & Invoices</p>
-          <p className="text-xs text-slate-500">Manage invoices and patient billing</p>
-        </div>
-        <BillingManagement
-          statusFilter={statusFilter}
-          onStatusFilterChange={handleStatusFilterChange}
-        />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Billing & Invoices</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage patient invoices, collect payments, and track billing history
+        </p>
       </div>
+
+      <BillingManagement
+        statusFilter={statusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
+      />
     </div>
   );
 }
