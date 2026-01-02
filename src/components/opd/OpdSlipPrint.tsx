@@ -3,6 +3,8 @@
 import { Patient } from "@/types";
 import { useTenant } from "@/hooks/useTenant";
 import { PrintHeader } from "@/components/common/PrintHeader";
+import React from "react";
+
 
 interface OpdSlipPrintProps {
   patient: Patient;
@@ -136,31 +138,38 @@ export function OpdSlipPrint({
                   <th className="border-b border-slate-300 px-2 py-1 text-left text-[10px] font-semibold text-slate-700">Dosage</th>
                   <th className="border-b border-slate-300 px-2 py-1 text-left text-[10px] font-semibold text-slate-700">Frequency</th>
                   <th className="border-b border-slate-300 px-2 py-1 text-left text-[10px] font-semibold text-slate-700">Duration</th>
+                  <th className="border-b border-slate-300 px-2 py-1 text-left text-[10px] font-semibold text-slate-700">Instructions</th>
                 </tr>
               </thead>
               <tbody>
                 {prescription.items.map((item, index) => (
-                  <>
-                    <tr key={`item-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-600">{index + 1}</td>
+                  <React.Fragment key={`item-${index}`}>
+                    <tr className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-600">
+                        {index + 1}
+                      </td>
                       <td className="border-b border-slate-200 px-2 py-1.5">
                         <p className="font-semibold text-slate-900">{item.medicine_name}</p>
                         {item.generic_name && (
-                          <p className="text-[10px] italic text-slate-600">({item.generic_name})</p>
+                          <p className="text-[10px] italic text-slate-600">
+                            ({item.generic_name})
+                          </p>
                         )}
                       </td>
-                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">{item.dosage || "-"}</td>
-                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">{item.frequency || "-"}</td>
-                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">{item.duration || "-"}</td>
+                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">
+                        {item.dosage || "-"}
+                      </td>
+                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">
+                        {item.frequency || "-"}
+                      </td>
+                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">
+                        {item.duration || "-"}
+                      </td>
+                      <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">
+                        {item.instructions || "-"}
+                      </td>
                     </tr>
-                    {item.instructions && (
-                      <tr key={`instructions-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                        <td colSpan={5} className="border-b border-slate-200 px-2 pb-1.5 pt-0 text-[10px] italic text-slate-600">
-                          <span className="font-semibold">Instructions:</span> {item.instructions}
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

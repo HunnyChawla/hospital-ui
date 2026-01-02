@@ -99,7 +99,7 @@ export function DoctorPanel() {
       diagnosis: string | null;
       items: Array<{
         medicine_name: string;
-        generic_name?: string | null;
+        medicine_generic_name?: string | null;
         dosage: string | null;
         frequency: string | null;
         duration: string | null;
