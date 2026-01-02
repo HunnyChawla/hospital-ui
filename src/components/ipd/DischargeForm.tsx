@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { DischargeRequest, DischargeType, admissionsApi } from "@/services/admissionsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, CreatePaymentRequest } from "@/services/paymentsApi";
-import { currency } from "@/utils/format";
+import { currency, getTodayDateLocal } from "@/utils/format";
 import { getTenantIdForApi } from "@/utils/auth";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -131,7 +131,7 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
         }
 
         // Then discharge without creating invoice - discharge fields already set during initiate discharge
-        const today = new Date().toISOString().split("T")[0];
+        const today = getTodayDateLocal();
         const isNegativeTotal = invoice.total_amount < 0;
         
         // Build discharge data - exclude payment details if total amount is negative
@@ -163,7 +163,7 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
           return;
         }
 
-        const today = new Date().toISOString().split("T")[0];
+        const today = getTodayDateLocal();
         const dischargeData: DischargeRequest = {
           discharge_date: today, // Use today's date as fallback
           discharge_type: "normal", // Use default as fallback

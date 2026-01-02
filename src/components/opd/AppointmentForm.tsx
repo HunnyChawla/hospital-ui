@@ -9,6 +9,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTodayDateLocal } from "@/utils/format";
 import { Calendar, Search, User, Stethoscope, Plus } from "lucide-react";
 
 interface AppointmentFormProps {
@@ -62,7 +63,7 @@ export function AppointmentForm({
 
   useEffect(() => {
     // Set default date to today
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateLocal();
     setAppointmentDate(today);
   }, []);
 
@@ -407,7 +408,7 @@ export function AppointmentForm({
           type="date"
           value={appointmentDate}
           onChange={(e) => setAppointmentDate(e.target.value)}
-          min={new Date().toISOString().split("T")[0]}
+          min={getTodayDateLocal()}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
           required
         />

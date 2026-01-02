@@ -154,7 +154,6 @@ export function PrescriptionForm({
               tempId: `draft-${index}-${Date.now()}`,
               medicine_id: item.medicine_id,
               medicine_name: item.medicine_name,
-              generic_name: item.generic_name || undefined,
               dosage: item.dosage || "",
               frequency: item.frequency || "",
               duration: item.duration || "",
@@ -257,7 +256,6 @@ export function PrescriptionForm({
       tempId: Math.random().toString(36).substring(7),
       medicine_id: item.medicine_id,
       medicine_name: item.medicine_name,
-      generic_name: item.generic_name || undefined,
       dosage: item.dosage || "",
       frequency: item.frequency || "",
       duration: item.duration || "",
@@ -339,7 +337,7 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
@@ -378,7 +376,7 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };

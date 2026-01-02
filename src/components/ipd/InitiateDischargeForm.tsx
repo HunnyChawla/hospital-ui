@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { InitiateDischargeRequest, DischargeType } from "@/services/admissionsApi";
+import { getTodayDateLocal } from "@/utils/format";
 import { Calendar } from "lucide-react";
 
 interface InitiateDischargeFormProps {
@@ -19,7 +20,7 @@ export function InitiateDischargeForm({ onSuccess, onSubmit }: InitiateDischarge
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateLocal();
     setDischargeDate(today);
   }, []);
 

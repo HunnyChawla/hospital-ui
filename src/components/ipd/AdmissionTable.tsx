@@ -582,7 +582,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
+              max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
               min={endDate ? getMinStartDate() : undefined}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
             />
@@ -598,7 +598,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
-              max={startDate ? getMaxEndDate() : getTodayDate()}
+              max={startDate ? getMaxEndDate() : getTodayDateLocal()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
             />
           </label>

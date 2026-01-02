@@ -99,7 +99,7 @@ export function DoctorPanel() {
       diagnosis: string | null;
       items: Array<{
         medicine_name: string;
-        medicine_generic_name?: string | null;
+        generic_name?: string | null;
         dosage: string | null;
         frequency: string | null;
         duration: string | null;
@@ -274,7 +274,7 @@ export function DoctorPanel() {
             diagnosis: rxData.diagnosis,
             items: rxData.items.map(item => ({
               medicine_name: item.medicine_name,
-              generic_name: item.generic_name,
+              medicine_generic_name: item.medicine_generic_name,
               dosage: item.dosage,
               frequency: item.frequency,
               duration: item.duration,
