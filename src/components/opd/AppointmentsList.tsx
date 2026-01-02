@@ -7,7 +7,7 @@ import { useAppointmentsByDoctor } from "@/hooks/queries/useAppointments";
 import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
-import { formatDate } from "@/utils/format";
+import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -30,9 +30,8 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
 
   // Date range state - default to today
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
+  const [endDate, setEndDate] = useState<string>(getTodayDateLocal());
   const [dateRangeError, setDateRangeError] = useState<string>("");
 
   // Pagination state
@@ -57,16 +56,12 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
   // Set default dates on client side only to avoid hydration mismatch
   useEffect(() => {
-    const today = getTodayDate();
-    if (!startDate && !appointmentDate) {
-      setStartDate(today);
-      setEndDate(today);
-    } else if (appointmentDate) {
+    if (appointmentDate) {
       // Legacy support: if appointmentDate is provided, use it for both dates
       setStartDate(appointmentDate);
       setEndDate(appointmentDate);
     }
-  }, [appointmentDate, startDate]);
+  }, [appointmentDate]);
 
   useEffect(() => {
     // Set default doctor when doctors are loaded
@@ -109,15 +104,15 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
   // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return getTodayDate();
+    if (!startDate) return getTodayDateLocal();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    const today = new Date(getTodayDate());
+    const today = new Date(getTodayDateLocal());
     // Return the earlier of: calculated max date or today
-    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -460,7 +455,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
+              max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
               min={endDate ? getMinStartDate() : undefined}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
@@ -476,7 +471,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
-              max={startDate ? getMaxEndDate() : getTodayDate()}
+              max={startDate ? getMaxEndDate() : getTodayDateLocal()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
           </label>

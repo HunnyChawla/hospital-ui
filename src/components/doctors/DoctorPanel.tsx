@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Stethoscope, RefreshCw, FileText } from "lucide-react";
 import { useDoctorPanel } from "@/hooks/useDoctorPanel";
@@ -13,12 +13,16 @@ import { LabResultsPanel } from "./patient-details/LabResultsPanel";
 import { QuickNotesPanel } from "./patient-details/QuickNotesPanel";
 import { IpdInfoPanel } from "./patient-details/IpdInfoPanel";
 import { PrescriptionFormModal } from "./PrescriptionFormModal";
+import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { useAppSelector } from "@/redux/hooks";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
 import { patientsApi } from "@/services/patientsApi";
-import { opdVisitsApi } from "@/services/opdVisitsApi";
+import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
+import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { toast } from "sonner";
+import { useReactToPrint } from "react-to-print";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type QueuePatient = {
   patient_id: string;
@@ -77,6 +81,7 @@ export function DoctorPanel() {
 
   // Local state
   const [selectedPatientName, setSelectedPatientName] = useState<string>("");
+  const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
   const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
   const [labBookings, setLabBookings] = useState<any[]>([]);
   const [currentAdmission, setCurrentAdmission] = useState<any>(null);
@@ -84,6 +89,26 @@ export function DoctorPanel() {
   const [ipdLoading, setIpdLoading] = useState(false);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
+
+  // Print state
+  const [printVisitData, setPrintVisitData] = useState<{
+    visit: Visit;
+    patient: any;
+    prescription?: {
+      prescription_number: string;
+      diagnosis: string | null;
+      items: Array<{
+        medicine_name: string;
+        generic_name?: string | null;
+        dosage: string | null;
+        frequency: string | null;
+        duration: string | null;
+        instructions: string | null;
+      }>;
+      doctor_name: string;
+    };
+  } | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   // Mock queue data (you can replace this with actual queue API)
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
@@ -140,6 +165,7 @@ export function DoctorPanel() {
       setSelectedPatientName(
         `${patient.first_name} ${patient.last_name || ""}`.trim()
       );
+      setSelectedPatientUhid(patient.uhid);
     } catch (error) {
       console.error("Failed to fetch patient name:", error);
     }
@@ -179,6 +205,7 @@ export function DoctorPanel() {
   const handleClearPatient = () => {
     selectPatient(null);
     setSelectedPatientName("");
+    setSelectedPatientUhid("");
     setCurrentVisitId(undefined);
     setLabBookings([]);
     setCurrentAdmission(null);
@@ -215,6 +242,74 @@ export function DoctorPanel() {
       setUpdatingVisitId(null);
     }
   };
+
+  const handlePrintOpd = async () => {
+    if (!currentVisitId || !selectedPatientId) {
+      toast.error("No active visit to print");
+      return;
+    }
+
+    try {
+      // Fetch full visit details
+      const visit = await opdVisitsApi.getById(currentVisitId);
+
+      // Fetch patient details
+      const patient = await patientsApi.getById(selectedPatientId);
+
+      // Fetch finalized prescription for this visit (if exists)
+      let prescription = undefined;
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const prescriptions = await prescriptionsApi.list({
+          visit_id: currentVisitId,
+          status: "finalized",
+          page_size: 1,
+          tenant_id: tenantId || undefined,
+        });
+
+        if (prescriptions.items.length > 0) {
+          const rxData = prescriptions.items[0];
+          prescription = {
+            prescription_number: rxData.prescription_number,
+            diagnosis: rxData.diagnosis,
+            items: rxData.items.map(item => ({
+              medicine_name: item.medicine_name,
+              generic_name: item.generic_name,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions,
+            })),
+            doctor_name: rxData.doctor_name,
+          };
+        }
+      } catch (error) {
+        // Continue without prescription if fetch fails
+        console.warn("Failed to fetch prescription for OPD slip:", error);
+      }
+
+      // Set print data - this will trigger the useEffect to print
+      setPrintVisitData({ visit, patient, prescription });
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage);
+    }
+  };
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: printVisitData ? `OPD_Slip_${printVisitData.visit.visit_number}` : "OPD_Slip",
+  });
+
+  // Trigger print when printVisitData is set
+  useEffect(() => {
+    if (printVisitData && printRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrint();
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [printVisitData, handlePrint]);
 
   // Show loading state
   if (panelLoading) {
@@ -359,6 +454,7 @@ export function DoctorPanel() {
         onToggleQueue={toggleQueue}
         selectedPatientId={selectedPatientId}
         selectedPatientName={selectedPatientName}
+        selectedPatientUhid={selectedPatientUhid}
         activeTab={activeTab}
         onSelectPatient={selectPatient}
         onClearPatient={handleClearPatient}
@@ -366,6 +462,7 @@ export function DoctorPanel() {
         onUpdateVisitStatus={handleUpdateVisitStatus}
         updatingVisitId={updatingVisitId}
         onCreatePrescription={() => setShowPrescriptionModal(true)}
+        onPrintOpd={handlePrintOpd}
       >
         {renderTabContent()}
       </DoctorPanelVerticalLayout>
@@ -384,6 +481,35 @@ export function DoctorPanel() {
             refreshHistory();
           }}
         />
+      )}
+
+      {/* Hidden printable OPD slip */}
+      {printVisitData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printRef} className="print-content">
+            <OpdSlipPrint
+              patient={{
+                id: printVisitData.patient.id,
+                name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
+                mobile: printVisitData.patient.mobile,
+                healthId: printVisitData.patient.abha_id || "",
+                age: printVisitData.patient.date_of_birth
+                  ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
+                  : 0,
+                gender: printVisitData.patient.gender as "Male" | "Female" | "Other",
+                outstanding: 0,
+                doctor: currentDoctor?.name || "",
+                lastVisit: printVisitData.visit.created_at || "",
+                status: "Active" as const,
+              }}
+              doctor={currentDoctor?.name || ""}
+              symptoms={printVisitData.visit.chief_complaint || ""}
+              opdNumber={printVisitData.visit.visit_number}
+              tokenNumber={printVisitData.visit.token_number || 0}
+              prescription={printVisitData.prescription}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

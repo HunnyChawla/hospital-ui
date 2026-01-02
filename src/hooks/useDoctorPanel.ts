@@ -7,6 +7,7 @@ import {
   resetDoctorPanel,
 } from "@/redux/doctorPanelSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
+import { getTodayDateLocal } from "@/utils/format";
 
 export const useDoctorPanel = () => {
   const dispatch = useAppDispatch();
@@ -36,7 +37,7 @@ export const useDoctorPanel = () => {
   // Fetch today's schedule when doctor is identified
   useEffect(() => {
     if (currentDoctor?.id) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDateLocal();
       dispatch(
         fetchTodaySchedule({
           doctor_id: currentDoctor.id,
@@ -57,7 +58,7 @@ export const useDoctorPanel = () => {
 
   const handleRefreshSchedule = useCallback(() => {
     if (currentDoctor?.id) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDateLocal();
       dispatch(
         fetchTodaySchedule({
           doctor_id: currentDoctor.id,

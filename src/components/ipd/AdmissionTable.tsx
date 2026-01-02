@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/redux/hooks";
 import { useAdmissions, admissionKeys, useDischargeAdmission } from "@/hooks/queries/useAdmissions";
 import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
-import { formatDate } from "@/utils/format";
+import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
@@ -78,8 +78,6 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
   const totalPages = admissionsResponse?.total_pages ?? 1;
   const total = admissionsResponse?.total ?? 0;
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
 
   // Validate date range (max 3 months)
   const validateDateRange = useCallback((start: string, end: string): string => {
@@ -115,15 +113,15 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 
   // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return getTodayDate();
+    if (!startDate) return getTodayDateLocal();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    const today = new Date(getTodayDate());
+    const today = new Date(getTodayDateLocal());
     // Return the earlier of: calculated max date or today
-    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -531,7 +529,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
       // Generate filename
       const filename = startDate && endDate
         ? `admissions_${startDate}_to_${endDate}.pdf`
-        : `admissions_all_${new Date().toISOString().split("T")[0]}.pdf`;
+        : `admissions_all_${getTodayDateLocal()}.pdf`;
 
       // Save PDF
       doc.save(filename);

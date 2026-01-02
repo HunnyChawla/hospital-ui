@@ -11,7 +11,7 @@ import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
-import { currency } from "@/utils/format";
+import { currency, getTodayDateLocal } from "@/utils/format";
 import { Calendar, Clock, Search, User, Stethoscope, Plus, BedDouble, PlusCircle, Loader2, X, CreditCard } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 
@@ -209,7 +209,7 @@ export function AdmissionForm({
   }, [showBedDropdown]);
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateLocal();
     setAdmissionDate(today);
   }, []);
 

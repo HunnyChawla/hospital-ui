@@ -77,6 +77,7 @@ export function PrescriptionForm({
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
+  const [draftPrescriptionId, setDraftPrescriptionId] = useState<string | null>(null);
 
   const medicineSearchRef = useRef<HTMLDivElement>(null);
   const { register, handleSubmit, setValue, watch, reset } = useForm<FormData>();
@@ -120,6 +121,56 @@ export function PrescriptionForm({
     };
     fetchPreviousPrescriptions();
   }, [patientId]);
+
+  // Load existing draft prescription for this visit and autopopulate
+  useEffect(() => {
+    const fetchDraftPrescription = async () => {
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const response = await prescriptionsApi.list({
+          visit_id: visitId,
+          status: "draft",
+          page_size: 1,
+          tenant_id: tenantId || undefined,
+        });
+
+        if (response.items.length > 0) {
+          const draft = response.items[0];
+
+          // Store draft prescription ID for updates
+          setDraftPrescriptionId(draft.id);
+
+          // Autopopulate diagnosis and notes
+          if (draft.diagnosis) {
+            setValue("diagnosis", draft.diagnosis);
+          }
+          if (draft.notes) {
+            setValue("notes", draft.notes);
+          }
+
+          // Autopopulate medicines
+          if (draft.items && draft.items.length > 0) {
+            const draftMedicines: MedicineFormData[] = draft.items.map((item, index) => ({
+              tempId: `draft-${index}-${Date.now()}`,
+              medicine_id: item.medicine_id,
+              medicine_name: item.medicine_name,
+              generic_name: item.generic_name || undefined,
+              dosage: item.dosage || "",
+              frequency: item.frequency || "",
+              duration: item.duration || "",
+              instructions: item.instructions || "",
+            }));
+            setMedicines(draftMedicines);
+            toast.info("Draft prescription loaded");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch draft prescription:", error);
+        // Don't show error toast - it's okay if there's no draft
+      }
+    };
+    fetchDraftPrescription();
+  }, [visitId, setValue]);
 
   // Search medicines with debounce
   useEffect(() => {
@@ -206,6 +257,7 @@ export function PrescriptionForm({
       tempId: Math.random().toString(36).substring(7),
       medicine_id: item.medicine_id,
       medicine_name: item.medicine_name,
+      generic_name: item.generic_name || undefined,
       dosage: item.dosage || "",
       frequency: item.frequency || "",
       duration: item.duration || "",
@@ -287,16 +339,24 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, ...med }) => med),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
 
-      await prescriptionsApi.create(prescriptionData);
-      toast.success("Prescription saved as draft");
+      // Update existing draft or create new one
+      if (draftPrescriptionId) {
+        await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
+        toast.success("Draft prescription updated");
+      } else {
+        const newPrescription = await prescriptionsApi.create(prescriptionData);
+        setDraftPrescriptionId(newPrescription.id);
+        toast.success("Prescription saved as draft");
+      }
 
       setMedicines([]);
       reset();
+      setDraftPrescriptionId(null);
       onSuccess?.();
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
@@ -318,18 +378,30 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, ...med }) => med),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
 
-      const prescription = await prescriptionsApi.create(prescriptionData);
-      await prescriptionsApi.finalize(prescription.id);
+      let prescriptionId: string;
+
+      // Update existing draft or create new one
+      if (draftPrescriptionId) {
+        await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
+        prescriptionId = draftPrescriptionId;
+      } else {
+        const prescription = await prescriptionsApi.create(prescriptionData);
+        prescriptionId = prescription.id;
+      }
+
+      // Finalize the prescription
+      await prescriptionsApi.finalize(prescriptionId);
 
       toast.success("Prescription finalized successfully");
 
       setMedicines([]);
       reset();
+      setDraftPrescriptionId(null);
       onSuccess?.();
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);

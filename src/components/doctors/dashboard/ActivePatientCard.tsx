@@ -9,6 +9,7 @@ import {
   FileText,
   BedDouble,
   X,
+  Printer,
 } from "lucide-react";
 
 type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
@@ -21,6 +22,7 @@ interface ActivePatientCardProps {
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
   onCreatePrescription?: () => void;
+  onPrintOpd?: () => void;
   showPrescriptionButton?: boolean;
   children: React.ReactNode;
 }
@@ -41,6 +43,7 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   onTabChange,
   onClose,
   onCreatePrescription,
+  onPrintOpd,
   showPrescriptionButton = false,
   children,
 }) => {
@@ -85,6 +88,16 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
               >
                 <FileText className="h-4 w-4" />
                 Create Prescription
+              </button>
+            )}
+
+            {onPrintOpd && (
+              <button
+                onClick={onPrintOpd}
+                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+              >
+                <Printer className="h-4 w-4" />
+                Print OPD
               </button>
             )}
 

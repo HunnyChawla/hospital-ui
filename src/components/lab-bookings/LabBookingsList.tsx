@@ -6,7 +6,7 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
-import { formatDate, currency, formatCurrencyForPDF } from "@/utils/format";
+import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
 import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -37,8 +37,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
   const [loading, setLoading] = useState(false);
   const [searchBookingId, setSearchBookingId] = useState("");
   const [searching, setSearching] = useState(false);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
+  const [endDate, setEndDate] = useState<string>(getTodayDateLocal());
   const [dateRangeError, setDateRangeError] = useState<string>("");
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">("all");

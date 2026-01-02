@@ -4,6 +4,7 @@ import { getTenantIdForApi } from "@/utils/auth";
 // Request types - for creating/updating prescriptions
 export interface PrescriptionItemRequest {
   medicine_id: string;
+  generic_name?: string;
   dosage?: string;
   frequency?: string;
   duration?: string;
@@ -31,6 +32,7 @@ export interface PrescriptionItemResponse {
   prescription_id: string;
   medicine_id: string;
   medicine_name: string;
+  generic_name?: string | null;
   dosage: string | null;
   frequency: string | null;
   duration: string | null;

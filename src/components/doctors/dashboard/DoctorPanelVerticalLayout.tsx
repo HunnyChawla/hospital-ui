@@ -41,6 +41,9 @@ interface DoctorPanelVerticalLayoutProps {
   // Prescription
   onCreatePrescription?: () => void;
 
+  // Print
+  onPrintOpd?: () => void;
+
   // Tab content
   children: React.ReactNode;
 }
@@ -66,6 +69,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   onUpdateVisitStatus,
   updatingVisitId,
   onCreatePrescription,
+  onPrintOpd,
   children,
 }) => {
   return (
@@ -91,6 +95,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
             onTabChange={onTabChange}
             onClose={onClearPatient}
             onCreatePrescription={onCreatePrescription}
+            onPrintOpd={onPrintOpd}
             showPrescriptionButton={!!selectedPatientId}
           >
             {children}

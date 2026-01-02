@@ -5,7 +5,8 @@ import { useAppSelector } from "@/redux/hooks";
 import { useOpdVisits, useUpdateOpdVisitStatus } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
-import { formatDate } from "@/utils/format";
+import { prescriptionsApi } from "@/services/prescriptionsApi";
+import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -187,9 +188,8 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
 
   // Date range state - default to today
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
+  const [endDate, setEndDate] = useState<string>(getTodayDateLocal());
   const [dateRangeError, setDateRangeError] = useState<string>("");
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -211,7 +211,23 @@ export function OpdList({ doctorId }: OpdListProps) {
   // React Query mutation for updating visit status
   const updateStatusMutation = useUpdateOpdVisitStatus();
 
-  const [printVisitData, setPrintVisitData] = useState<{ visit: Visit; patient: any } | null>(null);
+  const [printVisitData, setPrintVisitData] = useState<{
+    visit: Visit;
+    patient: any;
+    prescription?: {
+      prescription_number: string;
+      diagnosis: string | null;
+      items: Array<{
+        medicine_name: string;
+        generic_name?: string | null;
+        dosage: string | null;
+        frequency: string | null;
+        duration: string | null;
+        instructions: string | null;
+      }>;
+      doctor_name: string;
+    };
+  } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
@@ -247,7 +263,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   // Set default dates on client side only to avoid hydration mismatch
   useEffect(() => {
-    const today = getTodayDate();
+    const today = getTodayDateLocal();
     if (!startDate) {
       setStartDate(today);
       setEndDate(today);
@@ -288,15 +304,15 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return getTodayDate();
+    if (!startDate) return getTodayDateLocal();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    const today = new Date(getTodayDate());
+    const today = new Date(getTodayDateLocal());
     // Return the earlier of: calculated max date or today
-    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -443,12 +459,44 @@ export function OpdList({ doctorId }: OpdListProps) {
     try {
       // Fetch full visit details
       const visit = await opdVisitsApi.getById(visitId);
-      
+
       // Fetch patient details
       const patient = await patientsApi.getById(visit.patient_id);
-      
+
+      // Fetch finalized prescription for this visit (if exists)
+      let prescription = undefined;
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const prescriptions = await prescriptionsApi.list({
+          visit_id: visitId,
+          status: "finalized",
+          page_size: 1,
+          tenant_id: tenantId || undefined,
+        });
+
+        if (prescriptions.items.length > 0) {
+          const rxData = prescriptions.items[0];
+          prescription = {
+            prescription_number: rxData.prescription_number,
+            diagnosis: rxData.diagnosis,
+            items: rxData.items.map(item => ({
+              medicine_name: item.medicine_name,
+              generic_name: item.generic_name,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions,
+            })),
+            doctor_name: rxData.doctor_name,
+          };
+        }
+      } catch (error) {
+        // Continue without prescription if fetch fails
+        console.warn("Failed to fetch prescription for OPD slip:", error);
+      }
+
       // Set print data - this will trigger the useEffect to print
-      setPrintVisitData({ visit, patient });
+      setPrintVisitData({ visit, patient, prescription });
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage);
@@ -818,7 +866,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
+              max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
               min={endDate ? getMinStartDate() : undefined}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
@@ -833,7 +881,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
-              max={startDate ? getMaxEndDate() : getTodayDate()}
+              max={startDate ? getMaxEndDate() : getTodayDateLocal()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
           </label>
@@ -1120,7 +1168,7 @@ export function OpdList({ doctorId }: OpdListProps) {
                 name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
                 mobile: printVisitData.patient.mobile,
                 healthId: printVisitData.patient.abha_id || "",
-                age: printVisitData.patient.date_of_birth 
+                age: printVisitData.patient.date_of_birth
                   ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
                   : 0,
                 gender: printVisitData.patient.gender as "Male" | "Female" | "Other",
@@ -1139,6 +1187,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               symptoms={printVisitData.visit.chief_complaint || ""}
               opdNumber={printVisitData.visit.visit_number}
               tokenNumber={printVisitData.visit.token_number || 0}
+              prescription={printVisitData.prescription}
             />
           </div>
         </div>
