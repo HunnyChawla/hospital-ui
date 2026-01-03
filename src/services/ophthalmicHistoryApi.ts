@@ -5,11 +5,12 @@ import type { OphthalmicSurgeryRecord } from "@/types";
 // Request types
 export interface CreateOphthalmicSurgeryRequest {
   patient_id: string;
-  surgery_type: string;
-  eye: "OD" | "OS" | "Both";
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
   surgery_date: string;
-  hospital: string | null;
-  surgeon: string | null;
+  hospital_name: string | null;
+  surgeon_name: string | null;
+  complications: string | null;
   notes: string | null;
 }
 

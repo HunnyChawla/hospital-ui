@@ -509,23 +509,32 @@ const optometryDataSlice = createSlice({
       })
       .addCase(fetchMedicalConditions.fulfilled, (state, action) => {
         state.loading.medicalConditions = false;
-        state.medicalConditions = action.payload;
+        // Ensure the payload is an array
+        state.medicalConditions = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchMedicalConditions.rejected, (state, action) => {
         state.loading.medicalConditions = false;
         state.error = action.payload as string;
       })
       .addCase(addMedicalCondition.fulfilled, (state, action) => {
-        state.medicalConditions.unshift(action.payload);
+        if (Array.isArray(state.medicalConditions)) {
+          state.medicalConditions.unshift(action.payload);
+        } else {
+          state.medicalConditions = [action.payload];
+        }
       })
       .addCase(updateMedicalCondition.fulfilled, (state, action) => {
-        const index = state.medicalConditions.findIndex((c) => c.id === action.payload.id);
-        if (index !== -1) {
-          state.medicalConditions[index] = action.payload;
+        if (Array.isArray(state.medicalConditions)) {
+          const index = state.medicalConditions.findIndex((c) => c.id === action.payload.id);
+          if (index !== -1) {
+            state.medicalConditions[index] = action.payload;
+          }
         }
       })
       .addCase(deleteMedicalCondition.fulfilled, (state, action) => {
-        state.medicalConditions = state.medicalConditions.filter((c) => c.id !== action.payload);
+        if (Array.isArray(state.medicalConditions)) {
+          state.medicalConditions = state.medicalConditions.filter((c) => c.id !== action.payload);
+        }
       })
       // Ophthalmic History
       .addCase(fetchOphthalmicHistory.pending, (state) => {

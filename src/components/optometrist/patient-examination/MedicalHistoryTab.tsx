@@ -24,7 +24,6 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import type { MedicalConditionRecord } from "@/types";
 import { ToggleSwitch } from "../shared";
-import { CopyFromPreviousButton } from "../templates";
 import {
   medicalHistoryPatterns,
   type MedicalHistoryPattern,
@@ -40,6 +39,7 @@ interface ConditionDetails {
   duration?: string;
   medication?: string;
   controlled?: boolean;
+  notes?: string;
 }
 
 interface MedicalHistoryFormData {
@@ -240,39 +240,57 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     setIsLoading(true);
     try {
       const result = await dispatch(fetchMedicalConditions({ patient_id: patientId })).unwrap();
-      setMedicalConditions(result);
+      
+      // Handle different possible response formats
+      let conditions: MedicalConditionRecord[] = [];
+      
+      if (Array.isArray(result)) {
+        // Direct array response
+        conditions = result;
+      } else if (result && typeof result === 'object') {
+        // Object with data/items properties
+        const resultObj = result as any;
+        if (Array.isArray(resultObj.data)) {
+          conditions = resultObj.data;
+        } else if (Array.isArray(resultObj.items)) {
+          conditions = resultObj.items;
+        }
+      }
+      
+      setMedicalConditions(conditions);
 
       // Build form data from fetched conditions
       const recordMap = new Map<string, MedicalConditionRecord>();
       const newFormData = { ...initialFormData };
 
-      result.forEach((condition) => {
+      conditions.forEach((condition) => {
         recordMap.set(condition.condition_name, condition);
 
         // Set the condition status
         if (condition.condition_name in newFormData) {
-          (newFormData as any)[condition.condition_name] = condition.status;
+          (newFormData as any)[condition.condition_name] = condition.status ?? true;
 
           // Set the details
           const detailsKey = getDetailsKeyForCondition(condition.condition_name);
           if (detailsKey) {
             (newFormData as any)[detailsKey] = {
               duration: condition.duration,
-              medication: condition.medication,
-              controlled: condition.controlled,
+              medication: condition.on_medication ? "yes" : "no",
+              controlled: condition.is_controlled,
+              notes: condition.remarks,
             };
           }
         }
 
         // Handle text fields
         if (condition.condition_name === "other_conditions") {
-          newFormData.other_conditions = condition.notes || "";
+          newFormData.other_conditions = condition.remarks || "";
         } else if (condition.condition_name === "current_medications") {
-          newFormData.current_medications = condition.notes || "";
+          newFormData.current_medications = condition.remarks || "";
         } else if (condition.condition_name === "family_history") {
-          newFormData.family_history = condition.notes || "";
+          newFormData.family_history = condition.remarks || "";
         } else if (condition.condition_name === "lifestyle_notes") {
-          newFormData.lifestyle_notes = condition.notes || "";
+          newFormData.lifestyle_notes = condition.remarks || "";
         }
       });
 
@@ -307,11 +325,14 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     key: keyof MedicalHistoryFormData,
     value: boolean
   ) => {
+    // Get the current details before updating form
+    const detailsKey = getDetailsKeyForCondition(key as string);
+    const currentDetails = detailsKey ? (formData as any)[detailsKey] : {};
+    
     setFormData((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
-
-    // Immediately save to API
-    await saveCondition(key as string, value, (formData as any)[getDetailsKeyForCondition(key as string) || ""]);
+    
+    // Remove immediate save - will be saved with save button
   };
 
   const handleConditionDetailChange = async (
@@ -327,84 +348,8 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
       },
     }));
     setHasChanges(true);
-
-    // Find the condition key for this details key
-    const conditionKey = Object.keys(formData).find(k =>
-      getDetailsKeyForCondition(k) === detailsKey
-    );
-
-    if (conditionKey) {
-      const updatedDetails = {
-        ...(formData[detailsKey as keyof MedicalHistoryFormData] as ConditionDetails),
-        [field]: value,
-      };
-      await saveCondition(conditionKey, (formData as any)[conditionKey], updatedDetails);
-    }
-  };
-
-  const saveCondition = async (
-    conditionType: string,
-    status: boolean,
-    details: ConditionDetails
-  ) => {
-    const optometristId = localStorage.getItem("user_id");
-    if (!optometristId) {
-      toast.error("Optometrist ID not found");
-      return;
-    }
-
-    try {
-      const existingRecord = conditionRecordMap.get(conditionType);
-
-      if (status) {
-        // Create or update the condition
-        if (existingRecord) {
-          // Update existing
-          const updated = await dispatch(updateMedicalCondition({
-            id: existingRecord.id,
-            data: {
-              status: true,
-              duration: details.duration || null,
-              medication: details.medication || null,
-              controlled: details.controlled ?? null,
-            },
-          })).unwrap();
-
-          setConditionRecordMap(prev => new Map(prev).set(conditionType, updated));
-        } else {
-          // Create new
-          const created = await dispatch(addMedicalCondition({
-            data: {
-              patient_id: patientId,
-              optometrist_id: optometristId,
-              visit_id: visitId || null,
-              condition_name: conditionType,
-              status: true,
-              duration: details.duration || null,
-              medication: details.medication || null,
-              controlled: details.controlled ?? null,
-            },
-          })).unwrap();
-
-          setConditionRecordMap(prev => new Map(prev).set(conditionType, created));
-        }
-      } else {
-        // Delete the condition if it exists
-        if (existingRecord) {
-          await dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap();
-          setConditionRecordMap(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(conditionType);
-            return newMap;
-          });
-        }
-      }
-
-      setHasChanges(false);
-    } catch (error) {
-      toast.error("Failed to save condition");
-      console.error("Save condition error:", error);
-    }
+    
+    // Remove immediate save - will be saved with save button
   };
 
   const handleTextChange = (key: keyof MedicalHistoryFormData, value: string) => {
@@ -427,7 +372,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
         if (existingRecord) {
           await dispatch(updateMedicalCondition({
             id: existingRecord.id,
-            data: { notes: value, status: true },
+            data: { remarks: value, status: true },
           })).unwrap();
         } else {
           const created = await dispatch(addMedicalCondition({
@@ -437,7 +382,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
               visit_id: visitId || null,
               condition_name: fieldName,
               status: true,
-              notes: value,
+              remarks: value,
             },
           })).unwrap();
 
@@ -484,11 +429,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     }
   };
 
-  const handleCopyPrevious = (data: unknown) => {
-    // This would need to be implemented based on your previous visit data structure
-    toast.success("Previous medical history loaded");
-  };
-
   const handleClear = async () => {
     if (!confirm("Are you sure you want to clear all medical history data?")) return;
 
@@ -507,6 +447,146 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     } catch (error) {
       toast.error("Failed to clear medical history");
       console.error("Clear error:", error);
+    }
+  };
+
+  const saveAllChanges = async () => {
+    const optometristId = localStorage.getItem("user_id");
+    if (!optometristId) {
+      toast.error("Optometrist ID not found");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const savePromises: Promise<any>[] = [];
+      
+      // Process each condition
+      for (const [conditionType, detailsKey] of Object.entries({
+        diabetes: "diabetesDetails",
+        thyroid_disorder: "thyroidDetails", 
+        hypertension: "hypertensionDetails",
+        heart_disease: "heartDetails",
+        asthma: "asthmaDetails",
+        tuberculosis: "tbDetails",
+        kidney_disease: "kidneyDetails",
+        liver_disease: "liverDetails", 
+        cancer: "cancerDetails",
+        hiv_aids: "hivDetails",
+      })) {
+        const status = (formData as any)[conditionType] as boolean;
+        const details = (formData as any)[detailsKey] as ConditionDetails;
+        const existingRecord = conditionRecordMap.get(conditionType);
+
+        if (status) {
+          // Create or update condition
+          if (existingRecord) {
+            savePromises.push(
+              dispatch(updateMedicalCondition({
+                id: existingRecord.id,
+                data: {
+                  status: true,
+                  duration: details.duration || null,
+                  on_medication: details.medication === "yes",
+                  is_controlled: details.controlled ?? null,
+                  remarks: details.notes || null,
+                },
+              })).unwrap()
+            );
+          } else {
+            savePromises.push(
+              dispatch(addMedicalCondition({
+                data: {
+                  patient_id: patientId,
+                  optometrist_id: optometristId,
+                  visit_id: visitId || null,
+                  condition_name: conditionType,
+                  status: true,
+                  duration: details.duration || null,
+                  on_medication: details.medication === "yes",
+                  is_controlled: details.controlled ?? null,
+                  remarks: details.notes || null,
+                },
+              })).unwrap()
+            );
+          }
+        } else {
+          // Delete condition if it exists
+          if (existingRecord) {
+            savePromises.push(
+              dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap()
+            );
+          }
+        }
+      }
+
+      // Handle text fields
+      const textFields = [
+        { key: "other_conditions", value: formData.other_conditions },
+        { key: "current_medications", value: formData.current_medications },
+        { key: "family_history", value: formData.family_history },
+        { key: "lifestyle_notes", value: formData.lifestyle_notes },
+      ];
+
+      for (const field of textFields) {
+        const existingRecord = conditionRecordMap.get(field.key);
+        
+        if (field.value.trim()) {
+          // Create or update
+          if (existingRecord) {
+            savePromises.push(
+              dispatch(updateMedicalCondition({
+                id: existingRecord.id,
+                data: { remarks: field.value, status: true },
+              })).unwrap()
+            );
+          } else {
+            savePromises.push(
+              dispatch(addMedicalCondition({
+                data: {
+                  patient_id: patientId,
+                  optometrist_id: optometristId,
+                  visit_id: visitId || null,
+                  condition_name: field.key,
+                  status: true,
+                  remarks: field.value,
+                },
+              })).unwrap()
+            );
+          }
+        } else {
+          // Delete if empty
+          if (existingRecord) {
+            savePromises.push(
+              dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap()
+            );
+          }
+        }
+      }
+
+      await Promise.all(savePromises);
+      
+      // Refresh data to get updated records
+      await fetchConditions();
+      
+      setHasChanges(false);
+      toast.success("All changes saved successfully");
+    } catch (error: any) {
+      console.error("Batch save error:", error);
+      
+      if (error.response?.status === 201) {
+        // API returned 201 but Redux Toolkit unwrap still threw
+        setHasChanges(false);
+        toast.success("All changes saved successfully");
+      } else if (error.response?.data?.message) {
+        toast.error(`Failed to save: ${error.response.data.message}`);
+      } else if (error.message) {
+        toast.error(`Failed to save: ${error.message}`);
+      } else {
+        toast.error("Failed to save changes");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -556,18 +636,26 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
               <button
                 type="button"
                 onClick={fetchConditions}
-                disabled={isLoading}
+                disabled={isLoading || isSubmitting}
                 className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
               >
                 <RefreshCw className={clsx("h-4 w-4", isLoading && "animate-spin")} />
                 Refresh
               </button>
-              <CopyFromPreviousButton
-                patientId={patientId}
-                dataType="medical_history"
-                onDataLoaded={handleCopyPrevious}
-                size="sm"
-              />
+              <button
+                type="button"
+                onClick={saveAllChanges}
+                disabled={!hasChanges || isSubmitting}
+                className={clsx(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
+                  hasChanges 
+                    ? "bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50" 
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                )}
+              >
+                <Save className="h-4 w-4" />
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
 
@@ -624,7 +712,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
         </div>
         {hasChanges && (
           <span className="ml-auto text-xs text-amber-600 font-medium">
-            Saving...
+            {isSubmitting ? "Saving..." : "Unsaved changes"}
           </span>
         )}
       </div>
@@ -679,7 +767,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
                       {/* Conditional Details - shown when condition is active */}
                       {isActive && (
-                        <div className="mt-3 ml-14 grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="mt-3 ml-14 grid grid-cols-1 gap-3 md:grid-cols-4">
                           <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">
                               Duration
@@ -795,6 +883,27 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               </button>
                             </div>
                           </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Remarks
+                            </label>
+                            <textarea
+                              value={
+                                (formData[condition.detailsKey] as ConditionDetails)
+                                  ?.notes || ""
+                              }
+                              onChange={(e) =>
+                                handleConditionDetailChange(
+                                  condition.detailsKey,
+                                  "notes",
+                                  e.target.value
+                                )
+                              }
+                              rows={1}
+                              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/20 resize-none"
+                              placeholder="Add notes..."
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -883,12 +992,12 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
               {hasChanges ? (
                 <span className="flex items-center gap-2 text-amber-600">
                   <AlertCircle className="h-4 w-4" />
-                  Saving changes...
+                  {isSubmitting ? "Saving changes..." : "Unsaved changes"}
                 </span>
               ) : (
                 <span className="flex items-center gap-2 text-emerald-600">
                   <Check className="h-4 w-4" />
-                  All changes saved automatically
+                  All changes saved
                 </span>
               )}
             </div>

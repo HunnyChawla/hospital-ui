@@ -357,30 +357,35 @@ export type MedicalConditionRecord = {
   optometrist_id: string;
   visit_id: string | null;
   condition_name: string; // e.g., "diabetes", "hypertension", etc.
-  status: boolean; // true if patient has this condition
+  status?: boolean; // true if patient has this condition
   duration: string | null; // "less_than_1", "1_to_5", "5_to_10", "more_than_10"
-  medication: string | null; // "yes" or "no"
-  controlled: boolean | null; // true if well controlled
-  notes: string | null;
+  on_medication: boolean | null; // true if on medication
+  is_controlled: boolean | null; // true if well controlled
+  remarks: string | null;
   recorded_at: string;
   created_at: string;
   updated_at: string;
   tenant_id: string;
+  created_by?: string;
+  updated_by?: string;
 };
 
 // Ophthalmic Surgery History
 export type OphthalmicSurgeryRecord = {
   id: string;
   patient_id: string;
-  surgery_type: string;
-  eye: string;
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
   surgery_date: string;
-  hospital: string | null;
-  surgeon: string | null;
+  hospital_name: string | null;
+  surgeon_name: string | null;
+  complications: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
   tenant_id: string;
+  created_by?: string | null;
+  updated_by?: string | null;
 };
 
 // Drug Allergies

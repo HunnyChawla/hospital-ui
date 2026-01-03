@@ -9,17 +9,17 @@ export interface CreateMedicalConditionRequest {
   condition_name: string;
   status: boolean;
   duration?: string | null;
-  medication?: string | null;
-  controlled?: boolean | null;
-  notes?: string | null;
+  on_medication?: boolean | null;
+  is_controlled?: boolean | null;
+  remarks?: string | null;
 }
 
 export interface UpdateMedicalConditionRequest {
   status?: boolean;
   duration?: string | null;
-  medication?: string | null;
-  controlled?: boolean | null;
-  notes?: string | null;
+  on_medication?: boolean | null;
+  is_controlled?: boolean | null;
+  remarks?: string | null;
 }
 
 export interface MedicalConditionSearchParams {

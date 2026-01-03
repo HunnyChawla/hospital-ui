@@ -122,10 +122,10 @@ export function ExaminationTabs({
   refreshHistory,
 }: ExaminationTabsProps) {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full">
       {/* Tab Navigation */}
-      <div className="overflow-x-auto">
-        <div className="flex gap-2 border-b border-slate-200 pb-2">
+      <div className="flex-shrink-0">
+        <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -135,14 +135,15 @@ export function ExaminationTabs({
                 key={tab.id}
                 onClick={() => onTabChange(tab.id as ActiveTab)}
                 className={clsx(
-                  "flex items-center gap-2 whitespace-nowrap rounded-t-lg px-4 py-2.5 text-sm font-medium transition",
+                  "flex items-center gap-1 sm:gap-2 whitespace-nowrap rounded-t-lg px-2 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition min-w-0 flex-shrink-0",
                   isActive
-                    ? "bg-sky-100 text-sky-700 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-sky-100 text-sky-700 border-sky-600"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {tab.label}
+                <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline truncate">{tab.label}</span>
+                <span className="sm:hidden truncate">{tab.label.split(' ')[0]}</span>
               </button>
             );
           })}
@@ -150,7 +151,7 @@ export function ExaminationTabs({
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[400px]">
+      <div className="flex-1 overflow-y-auto">
         {activeTab === "complaints" && (
           <ComplaintsTab
             patientId={patientId}
@@ -163,12 +164,19 @@ export function ExaminationTabs({
         )}
 
         {activeTab === "medical_history" && (
-          <MedicalHistoryTab patientId={patientId} visitId={visitId} />
+          <MedicalHistoryTab
+            patientId={patientId}
+            visitId={visitId}
+            medicalHistory={medicalHistory}
+            loading={loading.medicalHistory}
+            onRefresh={refreshMedicalHistory}
+          />
         )}
 
         {activeTab === "ophthalmic_history" && (
           <OphthalHistoryTab
             patientId={patientId}
+            visitId={visitId}
             ophthalmicHistory={ophthalmicHistory}
             loading={loading.ophthalmicHistory}
             onRefresh={refreshOphthalmicHistory}
@@ -178,6 +186,7 @@ export function ExaminationTabs({
         {activeTab === "allergies" && (
           <DrugAllergyTab
             patientId={patientId}
+            visitId={visitId}
             drugAllergies={drugAllergies}
             loading={loading.drugAllergies}
             onRefresh={refreshDrugAllergies}

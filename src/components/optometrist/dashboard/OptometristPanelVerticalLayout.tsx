@@ -1,0 +1,146 @@
+"use client";
+
+import React, { memo, useEffect } from "react";
+import { OptometristCollapsibleStatsSection } from "./OptometristCollapsibleStatsSection";
+import { OptometristCollapsibleQueueSection } from "./OptometristCollapsibleQueueSection";
+import { OptometristActivePatientCard } from "./OptometristActivePatientCard";
+import type { OptometristStats } from "@/types";
+import type { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
+
+type ActiveTab = 
+  | "complaints"
+  | "medical_history"
+  | "ophthalmic_history"
+  | "allergies"
+  | "ar_data"
+  | "refraction"
+  | "iop"
+  | "previous_history"
+  | "diagnosis";
+
+interface OptometristPanelVerticalLayoutProps {
+  // Stats
+  stats: OptometristStats | null;
+  statsLoading?: boolean;
+  statsVisible: boolean;
+  onToggleStats: () => void;
+
+  // Queue
+  queuePatients: any[];
+  queueFilter: OptometristQueueFilter;
+  onQueueFilterChange: (filter: OptometristQueueFilter) => void;
+  queueLoading?: boolean;
+  queueVisible: boolean;
+  onToggleQueue: () => void;
+
+  // Selected patient
+  selectedPatientId: string | null;
+  selectedPatientName?: string;
+  selectedPatientUhid?: string;
+  activeTab: ActiveTab;
+  onSelectPatient: (patientId: string) => void;
+  onClearPatient: () => void;
+  onTabChange: (tab: ActiveTab) => void;
+
+  // Tab content
+  children: React.ReactNode;
+}
+
+const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVerticalLayoutProps> = ({
+  stats,
+  statsLoading,
+  statsVisible,
+  onToggleStats,
+  queuePatients,
+  queueFilter,
+  onQueueFilterChange,
+  queueLoading,
+  queueVisible,
+  onToggleQueue,
+  selectedPatientId,
+  selectedPatientName,
+  selectedPatientUhid,
+  activeTab,
+  onSelectPatient,
+  onClearPatient,
+  onTabChange,
+  children,
+}) => {
+  console.log("Rendering - Queue visible:", queueVisible, "Patients:", queuePatients.length);
+  
+  return (
+    <div className="flex flex-col space-y-3 h-full">
+      {/* Stats Section - Horizontal 4-column layout at top */}
+      <OptometristCollapsibleStatsSection
+        stats={stats}
+        loading={statsLoading}
+        isVisible={statsVisible}
+        onToggle={onToggleStats}
+        compact={false}
+      />
+
+      {/* Main content area: Patient Area + Queue Sidebar */}
+      <div className="flex gap-2 sm:gap-3 relative h-full overflow-hidden">
+        {/* Patient Card - Takes remaining space */}
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+          <OptometristActivePatientCard
+            patientId={selectedPatientId}
+            patientName={selectedPatientName}
+            patientUhid={selectedPatientUhid}
+            activeTab={activeTab}
+            onTabChange={onTabChange}
+            onClose={onClearPatient}
+            showPatientCard={!!selectedPatientId}
+          >
+            {children}
+          </OptometristActivePatientCard>
+        </div>
+
+        {/* Queue Sidebar - Right side with responsive width */}
+        <div
+          className="flex-shrink-0 relative z-10 overflow-hidden bg-white border-l border-slate-200 w-72 sm:w-80"
+        >
+          <OptometristCollapsibleQueueSection
+            queuePatients={queuePatients}
+            activeFilter={queueFilter}
+            onFilterChange={onQueueFilterChange}
+            onSelectPatient={onSelectPatient}
+            selectedPatientId={selectedPatientId}
+            loading={queueLoading}
+            isVisible={true}
+            onToggle={onToggleQueue}
+          />
+        </div>
+
+        {/* Queue Toggle Button (visible when sidebar is collapsed) */}
+        {!queueVisible && (
+          <button
+            onClick={onToggleQueue}
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 z-20 relative"
+            title="Show patient queue"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Memoize component to prevent unnecessary re-renders
+export const OptometristPanelVerticalLayout = memo(OptometristPanelVerticalLayoutComponent);
