@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Radio,
+  Eye,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -45,6 +46,7 @@ const navItems = [
   { label: "MRD Documents", legacyHref: "#mrd", newRoute: "/mrd", icon: FileText, featureFlag: "NEW_MRD" },
   { label: "Doctors", legacyHref: "#doctors", newRoute: "/doctors", icon: Stethoscope, featureFlag: "NEW_DOCTORS" },
   { label: "My Panel", legacyHref: "#doctor-panel", newRoute: "/doctor-panel", icon: Stethoscope, roles: ["doctor"], featureFlag: "NEW_DOCTOR_PANEL" },
+  { label: "Optometry Panel", legacyHref: "#optometrist-panel", newRoute: "/optometrist-panel", icon: Eye, roles: ["optometrist", "admin"], featureFlag: "NEW_OPTOMETRIST_PANEL" },
   { label: "Staff", legacyHref: "#users", newRoute: "/users", icon: UserCog, featureFlag: "NEW_USERS" },
 ];
 

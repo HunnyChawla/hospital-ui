@@ -53,6 +53,9 @@ export const FEATURES = {
   // Doctor Panel Module - Phase 2
   NEW_DOCTOR_PANEL: process.env.NEXT_PUBLIC_FF_DOCTOR_PANEL === 'true',
 
+  // Optometrist Panel Module - Phase 5
+  NEW_OPTOMETRIST_PANEL: process.env.NEXT_PUBLIC_FF_OPTOMETRIST_PANEL === 'true',
+
   // Dashboard Module - Phase 1
   NEW_DASHBOARD: process.env.NEXT_PUBLIC_FF_DASHBOARD === 'true',
 } as const;

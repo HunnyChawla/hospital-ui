@@ -274,7 +274,6 @@ export function DoctorPanel() {
             diagnosis: rxData.diagnosis,
             items: rxData.items.map(item => ({
               medicine_name: item.medicine_name,
-              medicine_generic_name: item.medicine_generic_name,
               dosage: item.dosage,
               frequency: item.frequency,
               duration: item.duration,

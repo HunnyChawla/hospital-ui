@@ -215,3 +215,217 @@ export type DoctorStats = {
   todayCompleted: number;
 };
 
+// ============================================
+// OPTOMETRY PANEL TYPES
+// ============================================
+
+// Optometrist Panel - Schedule & Stats
+export type OptometristScheduleSlot = {
+  time: string;
+  type: "appointment" | "walk_in" | "emergency";
+  visit_id: string;
+  patient_id: string;
+  patient_name: string;
+  status: string;
+  duration_minutes: number;
+  token_number?: string | number;
+};
+
+export type OptometristSchedule = {
+  date: string;
+  total_appointments: number;
+  total_opd_visits: number;
+  slots: OptometristScheduleSlot[];
+};
+
+export type OptometristStats = {
+  todayTotal: number;
+  todayPending: number;
+  todayInProgress: number;
+  todayCompleted: number;
+};
+
+// Refraction Records
+export type RefractionRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string;
+  eye: "OD" | "OS";
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  visual_acuity_uncorrected: string;
+  visual_acuity_corrected: string;
+  add_power: number | null;
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// IOP (Intraocular Pressure) Records
+export type IOPRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string | null;
+  eye: "OD" | "OS";
+  pressure: number;
+  measurement_method: string;
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+export type IOPTrend = {
+  date: string;
+  od_pressure: number | null;
+  os_pressure: number | null;
+};
+
+// AR (Auto-Refraction) Data Records
+export type ARDataRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string;
+  eye: "OD" | "OS";
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  visual_acuity: string | null;
+  pupillary_distance: number | null;
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// Complaints Records
+export type ComplaintRecord = {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  visit_id: string;
+  complaint: string;
+  severity: "mild" | "moderate" | "severe" | null;
+  duration: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+// Medical History
+export type MedicalHistoryRecord = {
+  id: string;
+  patient_id: string;
+  diabetes: boolean;
+  hypertension: boolean;
+  heart_disease: boolean;
+  thyroid_disorder: boolean;
+  asthma: boolean;
+  tuberculosis: boolean;
+  kidney_disease: boolean;
+  liver_disease: boolean;
+  cancer: boolean;
+  hiv_aids: boolean;
+  other_conditions: string | null;
+  current_medications: string | null;
+  family_history: string | null;
+  lifestyle_notes: string | null;
+  updated_by: string | null;
+  created_by: string | null;
+  updated_at: string;
+  created_at: string;
+  tenant_id: string;
+};
+
+// Ophthalmic Surgery History
+export type OphthalmicSurgeryRecord = {
+  id: string;
+  patient_id: string;
+  surgery_type: string;
+  eye: string;
+  surgery_date: string;
+  hospital: string | null;
+  surgeon: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// Drug Allergies
+export type DrugAllergyRecord = {
+  id: string;
+  patient_id: string;
+  drug_name: string;
+  reaction: string;
+  severity: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// Optometry Prescriptions
+export type OptometryPrescriptionItem = {
+  eye: "OD" | "OS";
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  add_power: number | null;
+  prism: string | null;
+  lens_type: string | null;
+};
+
+export type OptometryPrescription = {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  patient_name: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string;
+  prescription_number: string;
+  status: "draft" | "finalized";
+  diagnosis: string | null;
+  notes: string | null;
+  items: OptometryPrescriptionItem[];
+  pupillary_distance: number | null;
+  frame_fitting_notes: string | null;
+  finalized_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Patient Optometry History
+export type PatientOptometryEvent = {
+  event_type: "visit" | "refraction" | "iop" | "prescription" | "ar_data";
+  event_id: string;
+  timestamp: string;
+  title: string;
+  description: string | null;
+  optometrist_name: string | null;
+  visit_id: string | null;
+  metadata: any;
+};
+
+export type PatientOptometryTimeline = {
+  patient_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  events: PatientOptometryEvent[];
+  total_events: number;
+};
+

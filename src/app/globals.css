@@ -141,3 +141,19 @@ body {
 .patient-content-transition {
   transition: opacity 150ms ease-in-out;
 }
+
+/* Inline complaint form animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 200ms ease-out;
+}

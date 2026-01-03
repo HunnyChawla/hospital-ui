@@ -6,7 +6,11 @@
       "Bash(git checkout:*)",
       "Bash(curl:*)",
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(python3:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }

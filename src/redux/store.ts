@@ -14,6 +14,8 @@ import bedsReducer from "./bedsSlice";
 import vitalSignsReducer from "./vitalSignsSlice";
 import clinicalNotesReducer from "./clinicalNotesSlice";
 import doctorPanelReducer from "./doctorPanelSlice";
+import optometristPanelReducer from "./optometristPanelSlice";
+import optometryDataReducer from "./optometryDataSlice";
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +34,8 @@ export const store = configureStore({
     vitalSigns: vitalSignsReducer,
     clinicalNotes: clinicalNotesReducer,
     doctorPanel: doctorPanelReducer,
+    optometristPanel: optometristPanelReducer,
+    optometryData: optometryDataReducer,
   },
 });
 
