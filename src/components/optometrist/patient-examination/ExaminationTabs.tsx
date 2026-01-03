@@ -163,7 +163,7 @@ export function ExaminationTabs({
         )}
 
         {activeTab === "medical_history" && (
-          <MedicalHistoryTab patientId={patientId} />
+          <MedicalHistoryTab patientId={patientId} visitId={visitId} />
         )}
 
         {activeTab === "ophthalmic_history" && (

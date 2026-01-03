@@ -47,7 +47,7 @@ export const medicalHistoryApi = {
       const apiTenantId = getTenantIdForApi(tenantId);
       const params = apiTenantId ? { tenant_id: apiTenantId } : {};
       const response = await apiClient.get<MedicalHistoryRecord>(
-        `/medical-history/${patientId}`,
+        `/medical-conditions/${patientId}`,
         { params }
       );
       return response.data;
@@ -70,7 +70,7 @@ export const medicalHistoryApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<MedicalHistoryRecord>(
-      "/medical-history",
+      "/medical-conditions",
       data,
       { params }
     );
@@ -88,7 +88,7 @@ export const medicalHistoryApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<MedicalHistoryRecord>(
-      `/medical-history/${patientId}`,
+      `/medical-conditions/${patientId}`,
       data,
       { params }
     );
@@ -101,6 +101,6 @@ export const medicalHistoryApi = {
   async delete(patientId: string, tenantId?: string): Promise<void> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    await apiClient.delete(`/medical-history/${patientId}`, { params });
+    await apiClient.delete(`/medical-conditions/${patientId}`, { params });
   },
 };

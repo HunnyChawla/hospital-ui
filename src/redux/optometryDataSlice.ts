@@ -6,6 +6,7 @@ import { complaintsApi, CreateComplaintRequest } from "@/services/complaintsApi"
 import { medicalHistoryApi, UpsertMedicalHistoryRequest } from "@/services/medicalHistoryApi";
 import { ophthalmicHistoryApi, CreateOphthalmicSurgeryRequest } from "@/services/ophthalmicHistoryApi";
 import { drugAllergyApi, CreateDrugAllergyRequest } from "@/services/drugAllergyApi";
+import { optometryMedicalConditionsApi, CreateMedicalConditionRequest, UpdateMedicalConditionRequest } from "@/services/optometryMedicalConditionsApi";
 import type {
   RefractionRecord,
   IOPRecord,
@@ -13,6 +14,7 @@ import type {
   ARDataRecord,
   ComplaintRecord,
   MedicalHistoryRecord,
+  MedicalConditionRecord,
   OphthalmicSurgeryRecord,
   DrugAllergyRecord,
 } from "@/types";
@@ -27,8 +29,10 @@ type OptometryDataState = {
   arDataRecords: ARDataRecord[];
   // Complaints
   complaints: ComplaintRecord[];
-  // Medical history
+  // Medical history (legacy)
   medicalHistory: MedicalHistoryRecord | null;
+  // Medical conditions (new API - array of condition records)
+  medicalConditions: MedicalConditionRecord[];
   // Ophthalmic surgery history
   ophthalmicHistory: OphthalmicSurgeryRecord[];
   // Drug allergies
@@ -40,6 +44,7 @@ type OptometryDataState = {
     arData: boolean;
     complaints: boolean;
     medicalHistory: boolean;
+    medicalConditions: boolean;
     ophthalmicHistory: boolean;
     drugAllergies: boolean;
   };
@@ -53,6 +58,7 @@ const initialState: OptometryDataState = {
   arDataRecords: [],
   complaints: [],
   medicalHistory: null,
+  medicalConditions: [],
   ophthalmicHistory: [],
   drugAllergies: [],
   loading: {
@@ -61,6 +67,7 @@ const initialState: OptometryDataState = {
     arData: false,
     complaints: false,
     medicalHistory: false,
+    medicalConditions: false,
     ophthalmicHistory: false,
     drugAllergies: false,
   },
@@ -253,6 +260,61 @@ export const updateMedicalHistory = createAsyncThunk(
 );
 
 // ============================================
+// MEDICAL CONDITIONS THUNKS (New API)
+// ============================================
+
+export const fetchMedicalConditions = createAsyncThunk(
+  "optometryData/fetchMedicalConditions",
+  async (params: { patient_id: string; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const conditions = await optometryMedicalConditionsApi.list(
+        { patient_id: params.patient_id },
+        params.tenant_id
+      );
+      return conditions;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const addMedicalCondition = createAsyncThunk(
+  "optometryData/addMedicalCondition",
+  async (params: { data: CreateMedicalConditionRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const condition = await optometryMedicalConditionsApi.create(params.data, params.tenant_id);
+      return condition;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const updateMedicalCondition = createAsyncThunk(
+  "optometryData/updateMedicalCondition",
+  async (params: { id: string; data: UpdateMedicalConditionRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const condition = await optometryMedicalConditionsApi.update(params.id, params.data, params.tenant_id);
+      return condition;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const deleteMedicalCondition = createAsyncThunk(
+  "optometryData/deleteMedicalCondition",
+  async (params: { id: string; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      await optometryMedicalConditionsApi.delete(params.id, params.tenant_id);
+      return params.id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// ============================================
 // OPHTHALMIC HISTORY THUNKS
 // ============================================
 
@@ -427,19 +489,43 @@ const optometryDataSlice = createSlice({
         state.complaints = state.complaints.filter((c) => c.id !== action.payload);
       })
       // Medical History
-      .addCase(fetchMedicalHistory.pending, (state) => {
-        state.loading.medicalHistory = true;
+      // .addCase(fetchMedicalHistory.pending, (state) => {
+      //   state.loading.medicalHistory = true;
+      // })
+      // .addCase(fetchMedicalHistory.fulfilled, (state, action) => {
+      //   state.loading.medicalHistory = false;
+      //   state.medicalHistory = action.payload;
+      // })
+      // .addCase(fetchMedicalHistory.rejected, (state, action) => {
+      //   state.loading.medicalHistory = false;
+      //   state.error = action.payload as string;
+      // })
+      // .addCase(updateMedicalHistory.fulfilled, (state, action) => {
+      //   state.medicalHistory = action.payload;
+      // })
+      // Medical Conditions (New API)
+      .addCase(fetchMedicalConditions.pending, (state) => {
+        state.loading.medicalConditions = true;
       })
-      .addCase(fetchMedicalHistory.fulfilled, (state, action) => {
-        state.loading.medicalHistory = false;
-        state.medicalHistory = action.payload;
+      .addCase(fetchMedicalConditions.fulfilled, (state, action) => {
+        state.loading.medicalConditions = false;
+        state.medicalConditions = action.payload;
       })
-      .addCase(fetchMedicalHistory.rejected, (state, action) => {
-        state.loading.medicalHistory = false;
+      .addCase(fetchMedicalConditions.rejected, (state, action) => {
+        state.loading.medicalConditions = false;
         state.error = action.payload as string;
       })
-      .addCase(updateMedicalHistory.fulfilled, (state, action) => {
-        state.medicalHistory = action.payload;
+      .addCase(addMedicalCondition.fulfilled, (state, action) => {
+        state.medicalConditions.unshift(action.payload);
+      })
+      .addCase(updateMedicalCondition.fulfilled, (state, action) => {
+        const index = state.medicalConditions.findIndex((c) => c.id === action.payload.id);
+        if (index !== -1) {
+          state.medicalConditions[index] = action.payload;
+        }
+      })
+      .addCase(deleteMedicalCondition.fulfilled, (state, action) => {
+        state.medicalConditions = state.medicalConditions.filter((c) => c.id !== action.payload);
       })
       // Ophthalmic History
       .addCase(fetchOphthalmicHistory.pending, (state) => {

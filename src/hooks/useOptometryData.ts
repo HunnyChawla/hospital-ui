@@ -9,6 +9,7 @@ import {
   fetchMedicalHistory,
   fetchOphthalmicHistory,
   fetchDrugAllergies,
+  fetchMedicalConditions,
 } from "@/redux/optometryDataSlice";
 import {
   fetchPatientOptometryHistory,
@@ -95,11 +96,11 @@ export const useOptometryData = ({
       );
 
       // Fetch medical history
-      dispatch(
-        fetchMedicalHistory({
-          patient_id: patientId,
-        })
-      );
+      // dispatch(
+      //   fetchMedicalHistory({
+      //     patient_id: patientId,
+      //   })
+      // );
 
       // Fetch ophthalmic surgery history
       dispatch(
@@ -177,10 +178,10 @@ export const useOptometryData = ({
     }
   }, [patientId, dispatch]);
 
-  const refreshMedicalHistory = useCallback(() => {
+  const refreshMedicalConditions = useCallback(() => {
     if (patientId) {
       dispatch(
-        fetchMedicalHistory({
+        fetchMedicalConditions({
           patient_id: patientId,
         })
       );
@@ -231,7 +232,7 @@ export const useOptometryData = ({
     refreshIOP,
     refreshARData,
     refreshComplaints,
-    refreshMedicalHistory,
+    refreshMedicalHistory: refreshMedicalConditions,
     refreshOphthalmicHistory,
     refreshDrugAllergies,
   };

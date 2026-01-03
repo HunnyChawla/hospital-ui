@@ -325,7 +325,7 @@ export type ComplaintRecord = {
   updated_by: string | null;
 };
 
-// Medical History
+// Medical History (Legacy - keeping for backward compatibility)
 export type MedicalHistoryRecord = {
   id: string;
   patient_id: string;
@@ -347,6 +347,24 @@ export type MedicalHistoryRecord = {
   created_by: string | null;
   updated_at: string;
   created_at: string;
+  tenant_id: string;
+};
+
+// Optometry Medical Condition (New API - one record per condition)
+export type MedicalConditionRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  visit_id: string | null;
+  condition_name: string; // e.g., "diabetes", "hypertension", etc.
+  status: boolean; // true if patient has this condition
+  duration: string | null; // "less_than_1", "1_to_5", "5_to_10", "more_than_10"
+  medication: string | null; // "yes" or "no"
+  controlled: boolean | null; // true if well controlled
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
   tenant_id: string;
 };
 
