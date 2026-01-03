@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { fetchDoctors } from "@/redux/doctorsSlice";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useAppSelector } from "@/redux/hooks";
 import { Edit2, Settings } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { Doctor } from "@/services/doctorsApi";
@@ -14,19 +12,25 @@ interface DoctorTableProps {
 }
 
 export function DoctorTable({ onDoctorClick, onEditClick, onConfigureFeesClick }: DoctorTableProps) {
-  const dispatch = useAppDispatch();
-  const { list, loading } = useAppSelector((s) => s.doctors);
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
+  const { list, loading: isLoading, error } = useAppSelector((s) => s.doctors);
 
-  useEffect(() => {
-    dispatch(fetchDoctors());
-  }, [dispatch]);
-
-  if (loading) {
+  if (isLoading) {
     return <SkeletonRow rows={5} />;
   }
 
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+        <p className="text-sm text-rose-800">
+          Failed to load doctors. Please try again.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
         <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
           <tr>

@@ -9,6 +9,11 @@ import servicesReducer from "./servicesSlice";
 import authReducer from "./authSlice";
 import doctorsReducer from "./doctorsSlice";
 import tenantReducer from "./tenantSlice";
+import wardsReducer from "./wardsSlice";
+import bedsReducer from "./bedsSlice";
+import vitalSignsReducer from "./vitalSignsSlice";
+import clinicalNotesReducer from "./clinicalNotesSlice";
+import doctorPanelReducer from "./doctorPanelSlice";
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +27,11 @@ export const store = configureStore({
     services: servicesReducer,
     doctors: doctorsReducer,
     tenant: tenantReducer,
+    wards: wardsReducer,
+    beds: bedsReducer,
+    vitalSigns: vitalSignsReducer,
+    clinicalNotes: clinicalNotesReducer,
+    doctorPanel: doctorPanelReducer,
   },
 });
 

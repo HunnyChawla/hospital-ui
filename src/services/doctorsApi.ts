@@ -5,18 +5,22 @@ export interface Doctor {
   id: string;
   tenant_id: string;
   user_id: string;
+  user_name: string; // User's full name from API
+  user_mobile?: string | null;
   specialization: string | null;
   qualification: string | null;
   registration_number: string | null;
-  consultation_fee: string | null;
+  consultation_fee?: string | null;
   created_at: string;
   updated_at: string;
-  name?: string; // Optional: if API includes name directly
-  user_name?: string; // User's full name from user API
+  created_by?: string | null;
+  updated_by?: string | null;
+  // Legacy fields for backwards compatibility
+  name?: string;
   user?: {
     name?: string;
     email?: string;
-  }; // Optional: if API includes user object
+  };
 }
 
 export interface CreateDoctorRequest {

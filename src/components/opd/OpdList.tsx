@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAppSelector } from "@/redux/hooks";
+import { useOpdVisits, useUpdateOpdVisitStatus } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
-import { formatDate } from "@/utils/format";
+import { prescriptionsApi } from "@/services/prescriptionsApi";
+import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -179,24 +181,53 @@ function PrintButtonsGroup({
 }
 
 export function OpdList({ doctorId }: OpdListProps) {
-  const doctors = useAppSelector((s) => s.doctors.list);
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
+  const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
-  
+
   // Date range state - default to today
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
+  const [endDate, setEndDate] = useState<string>(getTodayDateLocal());
   const [dateRangeError, setDateRangeError] = useState<string>("");
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [printVisitData, setPrintVisitData] = useState<{ visit: Visit; patient: any } | null>(null);
+
+  // React Query hook to fetch OPD visits - automatic deduplication!
+  const { data: visitsResponse, isLoading: loading, error } = useOpdVisits({
+    page: currentPage,
+    page_size: pageSize,
+    doctor_id: selectedDoctorId || undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+  });
+
+  const visits = visitsResponse?.items ?? [];
+  const totalPages = visitsResponse?.total_pages ?? 1;
+  const total = visitsResponse?.total ?? 0;
+
+  // React Query mutation for updating visit status
+  const updateStatusMutation = useUpdateOpdVisitStatus();
+
+  const [printVisitData, setPrintVisitData] = useState<{
+    visit: Visit;
+    patient: any;
+    prescription?: {
+      prescription_number: string;
+      diagnosis: string | null;
+      items: Array<{
+        medicine_name: string;
+        medicine_generic_name?: string | null;
+        dosage: string | null;
+        frequency: string | null;
+        duration: string | null;
+        instructions: string | null;
+      }>;
+      doctor_name: string;
+    };
+  } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
@@ -232,7 +263,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   // Set default dates on client side only to avoid hydration mismatch
   useEffect(() => {
-    const today = getTodayDate();
+    const today = getTodayDateLocal();
     if (!startDate) {
       setStartDate(today);
       setEndDate(today);
@@ -273,15 +304,15 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return getTodayDate();
+    if (!startDate) return getTodayDateLocal();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    const today = new Date(getTodayDate());
+    const today = new Date(getTodayDateLocal());
     // Return the earlier of: calculated max date or today
-    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -295,104 +326,9 @@ export function OpdList({ doctorId }: OpdListProps) {
     return minDate.toISOString().split("T")[0];
   }, [endDate]);
 
-  const fetchVisits = useCallback(async () => {
-    if (!selectedDoctorId || !startDate || !endDate) return;
-    
-    // Don't fetch if date range is invalid
-    if (dateRangeError) return;
-    
-    setLoading(true);
-    try {
-      // Fetch visits using the new list API (patient_name and patient_mobile are included in response)
-      const response = await opdVisitsApi.list({
-        page: currentPage,
-        page_size: pageSize,
-        doctor_id: selectedDoctorId,
-        start_date: startDate,
-        end_date: endDate,
-      });
-      
-      setVisits(response.items);
-      setTotalPages(response.total_pages);
-      setTotal(response.total);
-      // Clear any previous date range error if fetch succeeds
-      if (dateRangeError) {
-        setDateRangeError("");
-      }
-    } catch (error: any) {
-      console.error("Failed to fetch OPD visits:", error);
-      console.error("Error response:", error?.response?.data);
-      
-      // Extract error message
-      const errorMessage = getErrorMessage(error);
-      
-      // Check if it's a date range validation error from API
-      const isDateRangeError = 
-        errorMessage.includes("Date range cannot exceed 3 months") || 
-        errorMessage.includes("90 days") ||
-        errorMessage.includes("Date range") ||
-        error?.response?.data?.detail?.some?.((err: any) => 
-          err.type === "business_logic_error" && 
-          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
-        );
-      
-      if (isDateRangeError) {
-        // Set the date range error state to show validation message
-        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
-          err.type === "business_logic_error"
-        )?.msg || "Date range cannot exceed 3 months";
-        setDateRangeError(apiErrorMessage);
-        toast.error(apiErrorMessage);
-      } else {
-        // Show other errors as toast with full details
-        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to fetch OPD visits";
-        toast.error(fullErrorMessage);
-        console.error("Full error details:", {
-          status: error?.response?.status,
-          data: error?.response?.data,
-          message: errorMessage
-        });
-      }
-      
-      setVisits([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, selectedDoctorId, startDate, endDate, dateRangeError]);
-
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [selectedDoctorId, startDate, endDate]);
-
-  // Fetch visits when dependencies change - don't include fetchVisits in deps
-  useEffect(() => {
-    if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-      fetchVisits();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDoctorId, startDate, endDate, currentPage, pageSize, dateRangeError]);
-
-  // Listen for OPD visit creation events to refresh the list
-  // Use ref to store stable callback
-  const fetchVisitsRef = useRef(fetchVisits);
-  useEffect(() => {
-    fetchVisitsRef.current = fetchVisits;
-  }, [fetchVisits]);
-
-  useEffect(() => {
-    const handleOpdVisitCreated = () => {
-      if (selectedDoctorId && startDate && endDate && !dateRangeError) {
-        fetchVisitsRef.current();
-      }
-    };
-
-    window.addEventListener("opd:visit:created", handleOpdVisitCreated);
-    return () => {
-      window.removeEventListener("opd:visit:created", handleOpdVisitCreated);
-    };
-  }, [selectedDoctorId, startDate, endDate, dateRangeError]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -498,18 +434,15 @@ export function OpdList({ doctorId }: OpdListProps) {
   };
 
   const performStatusUpdate = async (visitId: string, newStatus: VisitStatus) => {
+    setCancelling(newStatus === "cancelled");
     try {
-      setCancelling(newStatus === "cancelled");
-      await opdVisitsApi.updateStatus(visitId, newStatus);
-      toast.success(`Visit status updated to ${newStatus.replace("_", " ")}`);
-      
-      // Refresh visits list
-      if (selectedDoctorId) {
-        fetchVisits();
-      }
+      await updateStatusMutation.mutateAsync({
+        visitId,
+        newStatus,
+      });
+      // React Query mutation already shows toast and invalidates cache!
     } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+      // Error handling is done in the mutation onError callback
     } finally {
       setCancelling(false);
       setShowCancellationModal(false);
@@ -526,12 +459,44 @@ export function OpdList({ doctorId }: OpdListProps) {
     try {
       // Fetch full visit details
       const visit = await opdVisitsApi.getById(visitId);
-      
+
       // Fetch patient details
       const patient = await patientsApi.getById(visit.patient_id);
-      
+
+      // Fetch finalized prescription for this visit (if exists)
+      let prescription = undefined;
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const prescriptions = await prescriptionsApi.list({
+          visit_id: visitId,
+          status: "finalized",
+          page_size: 1,
+          tenant_id: tenantId || undefined,
+        });
+
+        if (prescriptions.items.length > 0) {
+          const rxData = prescriptions.items[0];
+          prescription = {
+            prescription_number: rxData.prescription_number,
+            diagnosis: rxData.diagnosis,
+            items: rxData.items.map(item => ({
+              medicine_name: item.medicine_name,
+              generic_name: item.generic_name,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions,
+            })),
+            doctor_name: rxData.doctor_name,
+          };
+        }
+      } catch (error) {
+        // Continue without prescription if fetch fails
+        console.warn("Failed to fetch prescription for OPD slip:", error);
+      }
+
       // Set print data - this will trigger the useEffect to print
-      setPrintVisitData({ visit, patient });
+      setPrintVisitData({ visit, patient, prescription });
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage);
@@ -901,7 +866,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
+              max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
               min={endDate ? getMinStartDate() : undefined}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
@@ -916,7 +881,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
-              max={startDate ? getMaxEndDate() : getTodayDate()}
+              max={startDate ? getMaxEndDate() : getTodayDateLocal()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
           </label>
@@ -950,6 +915,12 @@ export function OpdList({ doctorId }: OpdListProps) {
 
       {loading ? (
         <SkeletonRow rows={3} />
+      ) : error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+          <p className="text-sm text-rose-800">
+            Failed to load visits. Please try again.
+          </p>
+        </div>
       ) : visits.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center">
           <p className="text-slate-500">No OPD visits found for selected doctor and date range</p>
@@ -1197,7 +1168,7 @@ export function OpdList({ doctorId }: OpdListProps) {
                 name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
                 mobile: printVisitData.patient.mobile,
                 healthId: printVisitData.patient.abha_id || "",
-                age: printVisitData.patient.date_of_birth 
+                age: printVisitData.patient.date_of_birth
                   ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
                   : 0,
                 gender: printVisitData.patient.gender as "Male" | "Female" | "Other",
@@ -1216,6 +1187,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               symptoms={printVisitData.visit.chief_complaint || ""}
               opdNumber={printVisitData.visit.visit_number}
               tokenNumber={printVisitData.visit.token_number || 0}
+              prescription={printVisitData.prescription}
             />
           </div>
         </div>

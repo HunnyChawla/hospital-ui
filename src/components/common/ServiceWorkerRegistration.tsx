@@ -4,12 +4,17 @@ import { useEffect } from "react";
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
+    // Disable PWA/service worker in development mode
+    if (process.env.NODE_ENV === "development") {
+      return;
+    }
+
     if (
       typeof window !== "undefined" &&
       "serviceWorker" in navigator
     ) {
-      // Only register in production or when not in development
-      if (process.env.NODE_ENV === "production" || window.location.protocol === "https:") {
+      // Only register in production
+      if (process.env.NODE_ENV === "production") {
         // Register service worker
         navigator.serviceWorker
           .register("/sw.js", { scope: "/" })

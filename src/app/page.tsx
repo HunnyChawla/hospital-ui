@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatCard } from "@/components/common/StatCard";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
@@ -34,6 +33,7 @@ import { DailyRevenueCard } from "@/components/dashboard/DailyRevenueCard";
 import { DashboardBillingList } from "@/components/dashboard/DashboardBillingList";
 import { RecentAdmissionsList } from "@/components/dashboard/RecentAdmissionsList";
 import { AdmissionDetailModal } from "@/components/ipd/AdmissionDetailModal";
+import { MRDPanel } from "@/components/mrd/MRDPanel";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
 import { analyticsApi } from "@/services/analyticsApi";
@@ -44,8 +44,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchAdmissions } from "@/redux/admissionsSlice";
 import { fetchBilling } from "@/redux/billingSlice";
 import { fetchPatients } from "@/redux/patientsSlice";
-import { fetchDoctors } from "@/redux/doctorsSlice";
-import { restoreSession } from "@/redux/authSlice";
+import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { currency } from "@/utils/format";
 import {
@@ -138,7 +137,7 @@ function LicenseExpiryAlert() {
   const iconColor = isUrgent ? "text-rose-600" : "text-amber-600";
   
   return (
-    <div className={`mx-4 mb-4 rounded-xl border ${bgColor} p-4 shadow-sm`}>
+    <div className={`mx-3 mb-2 rounded-xl border ${bgColor} p-3 shadow-sm`}>
       <div className="flex items-start gap-3">
         <AlertTriangle className={`h-5 w-5 shrink-0 ${iconColor} mt-0.5`} />
         <div className="flex-1 min-w-0">
@@ -172,7 +171,7 @@ function BillingSection() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "partial" | "refunded">("all");
 
   return (
-    <div className="mt-6 grid gap-6">
+    <div className="grid gap-3">
       <Section
         id="billing"
         title="Billing & Receipts"
@@ -206,21 +205,7 @@ export default function Home() {
   const queue = useAppSelector((s) => s.queue.entries);
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
-  const [activeSection, setActiveSection] = useState<
-    | "dashboard"
-    | "analytics"
-    | "patients"
-    | "doctors"
-    | "opd"
-    | "lab-bookings"
-    | "lab-technician"
-    | "admissions"
-    | "billing"
-    | "labs"
-    | "services"
-    | "queue"
-    | "users"
-  >("dashboard");
+  // Removed activeSection state - using route-based navigation instead
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -232,33 +217,31 @@ export default function Home() {
   const [showOpdModal, setShowOpdModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
-  const [ipdDefaultTab, setIpdDefaultTab] = useState<"wards" | "beds" | "admissions">("wards");
   const [dashboardBillingFilter, setDashboardBillingFilter] = useState<"pending" | "paid">("pending");
   const [showAdmissionDetailModal, setShowAdmissionDetailModal] = useState(false);
   const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userActiveTab, setUserActiveTab] = useState<"admin" | "doctor" | "nurse" | "receptionist" | "all">("all");
-  const [opdActiveTab, setOpdActiveTab] = useState<"appointments" | "opd">("appointments");
   const [totalCollected, setTotalCollected] = useState(0);
   const [totalPending, setTotalPending] = useState(0);
   const [bedOccupancy, setBedOccupancy] = useState<{ occupied: number; total: number; occupancy: number } | null>(null);
   const [appointmentInsights, setAppointmentInsights] = useState<{ today: number; completed: number; scheduled: number } | null>(null);
+  const [dailyRevenue, setDailyRevenue] = useState<{
+    today: { collected: number; outstanding: number; invoiced: number };
+    yesterday: { collected: number; outstanding: number; invoiced: number };
+  } | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const hasLoadedInitialDataRef = useRef(false);
 
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
-    
-    // Get user role from localStorage
-    if (typeof window !== "undefined") {
-      const role = localStorage.getItem("role");
-      setUserRole(role);
-    }
-    
+
+    // Note: User details are fetched by the dashboard layout
+
     // Fetch tenant data if not already loaded
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
     if (tenantId && (!tenant.tenant && !tenant.loading)) {
@@ -274,15 +257,20 @@ export default function Home() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !hasLoadedInitialDataRef.current) {
+      // Only fetch on initial authentication, not on every re-render
       dispatch(fetchAdmissions({}));
       dispatch(fetchBilling());
       dispatch(fetchPatients({}));
-      dispatch(fetchDoctors());
+      // Note: fetchDoctors removed - doctors are now fetched once in dashboard layout
       fetchPaymentTotals();
       fetchDashboardInsights();
+
+      // Mark initial load as complete
+      hasLoadedInitialDataRef.current = true;
     }
-  }, [dispatch, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const fetchPaymentTotals = async () => {
     try {
@@ -320,10 +308,11 @@ export default function Home() {
     setInsightsLoading(true);
     try {
       const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
       const todayStr = today.toISOString().split("T")[0];
-      const oneWeekAgo = new Date(today);
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const oneWeekAgoStr = oneWeekAgo.toISOString().split("T")[0];
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
 
       // Fetch bed occupancy
       try {
@@ -362,6 +351,49 @@ export default function Home() {
       } catch (err) {
         console.error("Failed to fetch appointment summary:", err);
       }
+
+      // Fetch daily revenue (today and yesterday in one batch)
+      try {
+        const [todayRevenueResponse, yesterdayRevenueResponse] = await Promise.all([
+          analyticsApi.revenue({
+            start_date: todayStr,
+            end_date: todayStr,
+            granularity: "daily",
+          }),
+          analyticsApi.revenue({
+            start_date: yesterdayStr,
+            end_date: yesterdayStr,
+            granularity: "daily",
+          }),
+        ]);
+
+        const todayData = todayRevenueResponse.data[0] || {
+          collected_amount: 0,
+          outstanding_amount: 0,
+          invoiced_amount: 0,
+        };
+
+        const yesterdayData = yesterdayRevenueResponse.data[0] || {
+          collected_amount: 0,
+          outstanding_amount: 0,
+          invoiced_amount: 0,
+        };
+
+        setDailyRevenue({
+          today: {
+            collected: todayData.collected_amount,
+            outstanding: todayData.outstanding_amount,
+            invoiced: todayData.invoiced_amount,
+          },
+          yesterday: {
+            collected: yesterdayData.collected_amount,
+            outstanding: yesterdayData.outstanding_amount,
+            invoiced: yesterdayData.invoiced_amount,
+          },
+        });
+      } catch (err) {
+        console.error("Failed to fetch daily revenue:", err);
+      }
     } catch (err) {
       console.error("Failed to fetch dashboard insights:", err);
     } finally {
@@ -376,7 +408,8 @@ export default function Home() {
       dispatch(fetchAdmissions({}));
       dispatch(fetchBilling());
       dispatch(fetchPatients({}));
-      dispatch(fetchDoctors());
+      // Note: fetchDoctors removed - doctors are now cached and don't need refresh
+      // If doctors update, components should manually invalidate via Redux dispatch
 
       // Refresh analytics-derived numbers
       await Promise.all([fetchPaymentTotals(), fetchDashboardInsights()]);
@@ -390,39 +423,48 @@ export default function Home() {
     }
   };
 
+  // Redirect hash-based navigation to route-based navigation
   useEffect(() => {
-    const syncHash = () => {
-      const raw = window.location.hash.replace("#", "");
-      const hash =
-        raw === "lookup" ? "patients" : (raw as typeof activeSection);
-      setActiveSection(hash || "dashboard");
-      // Reset IPD tab to wards when navigating away from admissions
-      if (hash !== "admissions") {
-        setIpdDefaultTab("wards");
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (!hash) return;
+
+      // Map hash routes to new route-based paths
+      const routeMap: Record<string, string> = {
+        dashboard: "/",
+        analytics: "/analytics",
+        patients: "/patients",
+        doctors: "/doctors",
+        opd: "/opd",
+        "lab-bookings": "/lab-bookings",
+        "lab-technician": "/lab-technician",
+        admissions: "/admissions",
+        billing: "/billing",
+        labs: "/labs",
+        services: "/services",
+        queue: "/queue",
+        users: "/users",
+        mrd: "/mrd",
+        lookup: "/patients", // legacy lookup hash
+      };
+
+      const targetRoute = routeMap[hash];
+      if (targetRoute) {
+        // Remove hash and navigate to route
+        window.history.replaceState(null, "", window.location.pathname);
+        router.push(targetRoute);
       }
     };
-    syncHash();
-    window.addEventListener("hashchange", syncHash);
-    return () => window.removeEventListener("hashchange", syncHash);
-  }, []);
 
-  // When the dashboard tab becomes active, refresh dashboard data
-  useEffect(() => {
-    if (activeSection === "dashboard") {
-      refreshDashboard();
+    // Check for hash on mount
+    if (window.location.hash) {
+      handleHashChange();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection]);
 
-  // When analytics tab becomes active, refresh dashboard & analytics
-  useEffect(() => {
-    if (activeSection === "analytics") {
-      refreshDashboard();
-      // also trigger analytics child reload
-      setAnalyticsRefreshSignal((s) => s + 1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection]);
+    // Listen for hash changes
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [router]);
 
   const admittedCount = admissions.length;
   const totalQueue = queue.length;
@@ -441,30 +483,28 @@ export default function Home() {
     [admissions]
   );
 
-  const show = (tab: typeof activeSection) => activeSection === tab;
-
   // Show nothing while checking auth
   if (!isAuthenticated) {
     return null;
   }
 
   return (
-    <div className="lg:pl-72">
-      <Sidebar />
-      <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
+    <main className="min-h-screen px-3 py-3 lg:px-6">
         <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
         <LicenseExpiryAlert />
 
-        {show("dashboard") && (
-          <div className="grid gap-4">
+        {/* Dashboard Section - Only show dashboard content */}
+        <div className="grid gap-3">
+          <div className="grid gap-3">
             <div className="flex justify-end">
               <button
                 onClick={() => refreshDashboard()}
                 disabled={dashboardRefreshing}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 disabled:opacity-50"
+                aria-label="Refresh dashboard"
+                title={dashboardRefreshing ? "Refreshing..." : "Refresh dashboard"}
               >
-                <RefreshCw className="h-4 w-4" />
-                <span>{dashboardRefreshing ? "Refreshing..." : "Refresh"}</span>
+                <RefreshCw className={`h-4 w-4 ${dashboardRefreshing ? "animate-spin" : ""}`} />
               </button>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -523,19 +563,16 @@ export default function Home() {
                 ]}
                 loading={false}
               />
-              <DailyRevenueCard />
+              <DailyRevenueCard data={dailyRevenue} loading={insightsLoading} />
             </div>
 
             {/* Quick Actions - Enhanced for Hospital Staff */}
             <div className="card p-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {/* Patient Management */}
                 <button
                   onClick={() => {
-                    window.location.hash = "patients";
-                    setActiveSection("patients");
-                    setEditingPatient(null);
-                    setShowPatientModal(true);
+                    router.push("/patients?action=add");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
                 >
@@ -549,10 +586,7 @@ export default function Home() {
                 {/* Appointment Booking */}
                 <button
                   onClick={() => {
-                    window.location.hash = "opd";
-                    setActiveSection("opd");
-                    setOpdActiveTab("appointments");
-                    setShowAppointmentModal(true);
+                    router.push("/opd?action=appointment&tab=appointments");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
                 >
@@ -566,10 +600,7 @@ export default function Home() {
                 {/* OPD Visit */}
                 <button
                   onClick={() => {
-                    window.location.hash = "opd";
-                    setActiveSection("opd");
-                    setOpdActiveTab("opd");
-                    setShowOpdModal(true);
+                    router.push("/opd?action=opd&tab=opd");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
                 >
@@ -583,9 +614,7 @@ export default function Home() {
                 {/* Lab Booking */}
                 <button
                   onClick={() => {
-                    window.location.hash = "lab-bookings";
-                    setActiveSection("lab-bookings");
-                    setShowLabBookingModal(true);
+                    router.push("/lab-bookings?action=add");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
                 >
@@ -599,8 +628,7 @@ export default function Home() {
                 {/* Billing */}
                 <button
                   onClick={() => {
-                    window.location.hash = "billing";
-                    setActiveSection("billing");
+                    router.push("/billing");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
                 >
@@ -614,10 +642,7 @@ export default function Home() {
                 {/* Admissions */}
                 <button
                   onClick={() => {
-                    window.location.hash = "admissions";
-                    setActiveSection("admissions");
-                    setIpdDefaultTab("admissions");
-                    setShowAdmissionModal(true);
+                    router.push("/admissions?action=add&tab=admissions");
                   }}
                   className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
                 >
@@ -630,11 +655,10 @@ export default function Home() {
               </div>
 
               {/* Additional Quick Links */}
-              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-4">
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
                 <button
                   onClick={() => {
-                    window.location.hash = "queue";
-                    setActiveSection("queue");
+                    router.push("/queue");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -643,8 +667,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = "patients";
-                    setActiveSection("patients");
+                    router.push("/patients");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -653,8 +676,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = "analytics";
-                    setActiveSection("analytics");
+                    router.push("/analytics");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -663,8 +685,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = "labs";
-                    setActiveSection("labs");
+                    router.push("/labs");
                   }}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
                 >
@@ -687,9 +708,7 @@ export default function Home() {
                     setShowAdmissionDetailModal(true);
                   }}
                   onViewAll={() => {
-                    window.location.hash = "admissions";
-                    setActiveSection("admissions");
-                    setIpdDefaultTab("admissions");
+                    router.push("/admissions?tab=admissions");
                   }}
                 />
               </div>
@@ -702,293 +721,9 @@ export default function Home() {
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {show("analytics") && (
-          <div className="mt-4 grid gap-4">
-            <Section
-              id="analytics"
-              title=""
-              description=""
-            >
-                  <AnalyticsDashboard refreshSignal={analyticsRefreshSignal} onRequestRefresh={() => refreshDashboard()} />
-            </Section>
-          </div>
-        )}
-
-        {show("patients") && (
-          <div className="mt-6 grid gap-6">
-            <div className="grid gap-5">
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Patients
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setEditingPatient(null);
-                      setShowPatientModal(true);
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                  >
-                    <Activity className="h-4 w-4" />
-                    Add Patient
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <PatientTable
-                    onPatientClick={(id) => setSelectedPatientId(id)}
-                    onEditClick={(patient) => {
-                      setEditingPatient(patient);
-                      setShowPatientModal(true);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("doctors") && (
-          <div className="mt-6 grid gap-6">
-            <div className="grid gap-5">
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Doctors
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setEditingDoctor(null);
-                      setShowDoctorModal(true);
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                  >
-                    <Stethoscope className="h-4 w-4" />
-                    Add Doctor
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <DoctorTable
-                    onEditClick={(doctor) => {
-                      setEditingDoctor(doctor);
-                      setShowDoctorModal(true);
-                    }}
-                    onConfigureFeesClick={(doctor) => {
-                      setSelectedDoctorForFees(doctor);
-                      setShowConsultationFeeModal(true);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("opd") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              {/* Tabs */}
-              <div className="flex items-center justify-between border-b border-slate-200 px-6">
-                <div className="flex gap-2">
-                  {[
-                    { id: "appointments", label: "Appointments", icon: Calendar },
-                    { id: "opd", label: "OPD", icon: Stethoscope },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setOpdActiveTab(tab.id as typeof opdActiveTab)}
-                      className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
-                        opdActiveTab === tab.id
-                          ? "border-sky-500 text-sky-700"
-                          : "border-transparent text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      <tab.icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-                {opdActiveTab === "appointments" && (
-                  <button
-                    onClick={() => setShowAppointmentModal(true)}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                  >
-                    <CalendarPlus className="h-4 w-4" />
-                    Create Appointment
-                  </button>
-                )}
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-6">
-                {opdActiveTab === "appointments" && (
-                  <div>
-                    <div className="mb-4">
-                      <p className="text-sm font-semibold text-slate-900">Appointments List</p>
-                      <p className="text-xs text-slate-500">View and manage appointments by doctor and date</p>
-                    </div>
-                    <AppointmentsList />
-                  </div>
-                )}
-
-                {opdActiveTab === "opd" && (
-                  <div>
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">OPD Visits List</p>
-                        <p className="text-xs text-slate-500">View and manage OPD visits by doctor and date</p>
-                      </div>
-                      <button
-                        onClick={() => setShowOpdModal(true)}
-                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                      >
-                        <Stethoscope className="h-4 w-4" />
-                        Create OPD
-                      </button>
-                    </div>
-                    <OpdList />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("lab-bookings") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Lab Test Bookings</p>
-                  <p className="text-xs text-slate-500">Manage lab test bookings for patients</p>
-                </div>
-                <button
-                  onClick={() => setShowLabBookingModal(true)}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                >
-                  <Beaker className="h-4 w-4" />
-                  Create Booking
-                </button>
-              </div>
-              <div className="p-6">
-                <LabBookingsList />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {show("lab-technician") && (
-          <div className="mt-6 grid gap-6">
-            {userRole === "lab_technician" || userRole === "admin" ? (
-              <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-                <div className="p-6">
-                  <LabTechnicianPanel />
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
-                <p className="text-slate-600">You do not have permission to access this section.</p>
-                <p className="mt-2 text-sm text-slate-500">This section is only available to lab technicians and administrators.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {show("admissions") && (
-          <div className="mt-6">
-            <ManageIPD defaultTab={ipdDefaultTab} />
-          </div>
-        )}
-
-        {show("billing") && <BillingSection />}
-
-        {show("labs") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="labs"
-              title="Test / Lab Management"
-              description="Manage the lab test catalog used in bookings."
-            >
-              <LabTestsPanel />
-            </Section>
-          </div>
-        )}
-
-        {show("services") && (
-          <div className="mt-6 grid gap-6">
-            <Section
-              id="services"
-              title="Service Master"
-              description="Create and manage available services."
-            >
-              <ServicesPanel />
-            </Section>
-          </div>
-        )}
-
-        {show("queue") && (
-          <div className="mt-4">
-            <QueueBoard />
-          </div>
-        )}
-
-        {show("users") && (
-          <div className="mt-6 grid gap-6">
-            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-              {/* Tabs */}
-              <div className="flex items-center justify-between border-b border-slate-200 px-6">
-                <div className="flex gap-2">
-                  {[
-                    { id: "all", label: "All Staff", icon: Users2 },
-                    { id: "admin", label: "Admin", icon: Users2 },
-                    { id: "doctor", label: "Doctors", icon: Stethoscope },
-                    { id: "nurse", label: "Nurses", icon: Users2 },
-                    { id: "receptionist", label: "Receptionists", icon: Users2 },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setUserActiveTab(tab.id as typeof userActiveTab)}
-                      className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
-                        userActiveTab === tab.id
-                          ? "border-sky-500 text-sky-700"
-                          : "border-transparent text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      <tab.icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => {
-                    setEditingUser(null);
-                    setShowUserModal(true);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                >
-                  <Activity className="h-4 w-4" />
-                  Add Staff
-                </button>
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-6">
-                <UserTable
-                  roleFilter={userActiveTab === "all" ? undefined : userActiveTab}
-                  onEditClick={(user) => {
-                    setEditingUser(user);
-                    setShowUserModal(true);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* All other sections have been moved to route-based pages */}
 
         {selectedPatientId && (
           <PatientDetailView
@@ -1063,7 +798,6 @@ export default function Home() {
           }}
           defaultValues={editingUser ?? undefined}
         />
-      </main>
-    </div>
+    </main>
   );
 }

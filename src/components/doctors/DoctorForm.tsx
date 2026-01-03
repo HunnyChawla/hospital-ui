@@ -2,9 +2,10 @@
 
 import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
+import { useDoctor } from "@/hooks/queries/useDoctors";
 import { useAppDispatch } from "@/redux/hooks";
 import { createDoctor, updateDoctor, fetchDoctors } from "@/redux/doctorsSlice";
-import { Doctor, CreateDoctorRequest, doctorsApi } from "@/services/doctorsApi";
+import { Doctor, CreateDoctorRequest } from "@/services/doctorsApi";
 import { usersApi, User } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -45,13 +46,17 @@ const SPECIALIZATIONS = [
 
 export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
   const dispatch = useAppDispatch();
-  
+
+  // Fetch full doctor details when editing (React Query auto-deduplicates this!)
+  const { data: fullDoctorData } = useDoctor(defaultValues?.id || null);
+
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CreateDoctorRequest & { user_id: string }>();
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const specializationRef = useRef<HTMLDivElement>(null);
@@ -80,41 +85,27 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
     }
   }, [defaultValues]);
 
-  // Fetch full doctor details when editing
+  // Populate form when full doctor data is loaded
   useEffect(() => {
-    if (defaultValues?.id) {
-      // Fetch full doctor details from API to get all fields
-      doctorsApi.getById(defaultValues.id)
-        .then(async (apiDoctor) => {
-          // Fetch user details to show name
-          if (apiDoctor.user_id) {
-            try {
-              const user = await usersApi.getById(apiDoctor.user_id);
-              setSelectedUserDetails(user);
-            } catch (error) {
-              console.error("Failed to fetch user details:", error);
-              setSelectedUserDetails(null);
-            }
-          }
-          // Set form values with full API data
-          reset({
-            user_id: apiDoctor.user_id,
-            specialization: apiDoctor.specialization || "",
-            qualification: apiDoctor.qualification || "",
-            registration_number: apiDoctor.registration_number || "",
+    if (fullDoctorData && defaultValues?.id) {
+      // React Query fetched the full data - no manual API call needed!
+      // Fetch user details to show name
+      if (fullDoctorData.user_id) {
+        usersApi.getById(fullDoctorData.user_id)
+          .then((user) => setSelectedUserDetails(user))
+          .catch((error) => {
+            console.error("Failed to fetch user details:", error);
+            setSelectedUserDetails(null);
           });
-        })
-        .catch((error) => {
-          console.error("Failed to fetch doctor details:", error);
-          // Fallback to defaultValues if API call fails
-          reset({
-            user_id: defaultValues.user_id,
-            specialization: defaultValues.specialization || "",
-            qualification: defaultValues.qualification || "",
-            registration_number: defaultValues.registration_number || "",
-          });
-        });
-    } else {
+      }
+      // Set form values with full API data
+      reset({
+        user_id: fullDoctorData.user_id,
+        specialization: fullDoctorData.specialization || "",
+        qualification: fullDoctorData.qualification || "",
+        registration_number: fullDoctorData.registration_number || "",
+      });
+    } else if (!defaultValues) {
       // Reset form for new doctor
       reset({
         user_id: "",
@@ -125,7 +116,7 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       setSearchTerm("");
       setSelectedUserDetails(null);
     }
-  }, [defaultValues?.id, reset]);
+  }, [fullDoctorData, defaultValues, reset]);
 
   // Filter users based on search term
   useEffect(() => {
@@ -214,43 +205,45 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
   }, [specializationValue]);
 
   const onSubmit = async (values: CreateDoctorRequest & { user_id: string }) => {
-    try {
-      const doctorData: CreateDoctorRequest = {
-        user_id: values.user_id,
-        specialization: values.specialization || undefined,
-        qualification: values.qualification || undefined,
-        registration_number: values.registration_number || undefined,
-      };
+    const doctorData: CreateDoctorRequest = {
+      user_id: values.user_id,
+      specialization: values.specialization || undefined,
+      qualification: values.qualification || undefined,
+      registration_number: values.registration_number || undefined,
+    };
 
+    setIsSubmitting(true);
+    try {
       if (defaultValues) {
-        // Update doctor
-        await dispatch(
-          updateDoctor({
-            doctorId: defaultValues.id,
-            updates: {
-              specialization: doctorData.specialization,
-              qualification: doctorData.qualification,
-              registration_number: doctorData.registration_number,
-            },
-          })
-        ).unwrap();
-        toast.success("Doctor updated");
-        // Refresh doctors list
+        // Update existing doctor via Redux
+        await dispatch(updateDoctor({
+          doctorId: defaultValues.id,
+          updates: {
+            specialization: doctorData.specialization,
+            qualification: doctorData.qualification,
+            registration_number: doctorData.registration_number,
+          },
+        })).unwrap();
+        toast.success("Doctor updated successfully");
+        // Refresh doctors list with enriched user data
         dispatch(fetchDoctors());
+        onSuccess?.();
       } else {
-        // Create doctor
+        // Create new doctor via Redux
         await dispatch(createDoctor(doctorData)).unwrap();
-        toast.success("Doctor created");
-        reset();
-        // Refresh doctors list
+        toast.success("Doctor created successfully");
+        // Refresh doctors list with enriched user data
         dispatch(fetchDoctors());
+        reset();
         // Dispatch custom event
         window.dispatchEvent(new CustomEvent("doctor:created"));
+        onSuccess?.();
       }
-      onSuccess?.();
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+      toast.error(errorMessage || (defaultValues ? "Failed to update doctor" : "Failed to create doctor"));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -408,9 +401,14 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       <div className="col-span-2 flex justify-end gap-3">
         <button
           type="submit"
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm hover:shadow"
+          disabled={isSubmitting}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {defaultValues ? "Update Doctor" : "Create Doctor"}
+          {isSubmitting
+            ? "Saving..."
+            : defaultValues
+            ? "Update Doctor"
+            : "Create Doctor"}
         </button>
       </div>
     </form>

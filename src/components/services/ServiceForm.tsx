@@ -1,20 +1,25 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { CreateServiceRequest } from "@/services/servicesApi";
-import { createService, fetchServices } from "@/redux/servicesSlice";
+import { CreateServiceRequest, Service, UpdateServiceRequest } from "@/services/servicesApi";
+import { createService, updateService, fetchServices } from "@/redux/servicesSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Package, Plus } from "lucide-react";
+import { Package, Plus, Check } from "lucide-react";
 
 type ServiceFormProps = {
   onCreated?: () => void;
+  onSuccess?: () => void;
+  defaultValues?: Service;
 };
 
-export function ServiceForm({ onCreated }: ServiceFormProps) {
+export function ServiceForm({ onCreated, onSuccess, defaultValues }: ServiceFormProps) {
   const dispatch = useAppDispatch();
-  const { creating, lastQuery } = useAppSelector((s) => s.services);
+  const { creating, updatingId, lastQuery } = useAppSelector((s) => s.services);
+  const isEditing = !!defaultValues;
+  const originalValuesRef = useRef<Service | null>(null);
 
   const {
     register,
@@ -31,18 +36,77 @@ export function ServiceForm({ onCreated }: ServiceFormProps) {
     },
   });
 
+  // Reset form when defaultValues change
+  useEffect(() => {
+    if (defaultValues) {
+      originalValuesRef.current = defaultValues;
+      reset({
+        name: defaultValues.name,
+        description: defaultValues.description || "",
+        category: defaultValues.category,
+        price: defaultValues.price,
+        is_active: defaultValues.is_active ?? true,
+      });
+    } else {
+      originalValuesRef.current = null;
+      reset({
+        name: "",
+        description: "",
+        category: "",
+        price: 0,
+        is_active: true,
+      });
+    }
+  }, [defaultValues, reset]);
+
   const onSubmit = async (values: CreateServiceRequest) => {
     try {
-      const payload: CreateServiceRequest = {
-        ...values,
-        price: Number(values.price),
-        description: values.description?.trim() || undefined,
-        is_active: values.is_active ?? true,
-      };
+      if (isEditing && defaultValues) {
+        // Update service - only send changed fields
+        const updateData: UpdateServiceRequest = {};
+        
+        if (values.name !== originalValuesRef.current?.name) {
+          updateData.name = values.name;
+        }
+        if (values.description?.trim() !== (originalValuesRef.current?.description || "")) {
+          updateData.description = values.description?.trim() || undefined;
+        }
+        if (values.category !== originalValuesRef.current?.category) {
+          updateData.category = values.category;
+        }
+        const originalPrice = originalValuesRef.current?.price || 0;
+        const currentPrice = Number(values.price);
+        if (Math.abs(originalPrice - currentPrice) > 0.01) {
+          updateData.price = currentPrice;
+        }
+        const currentIsActive = values.is_active === true;
+        const originalIsActive = originalValuesRef.current?.is_active === true;
+        if (currentIsActive !== originalIsActive) {
+          updateData.is_active = currentIsActive;
+        }
 
-      await dispatch(createService({ payload })).unwrap();
-      toast.success("Service added");
-      reset();
+        // Only make API call if there are changes
+        if (Object.keys(updateData).length > 0) {
+          await dispatch(updateService({ id: defaultValues.id, updates: updateData })).unwrap();
+          toast.success("Service updated");
+        } else {
+          toast.info("No changes to save");
+        }
+      } else {
+        // Create service
+        const payload: CreateServiceRequest = {
+          ...values,
+          price: Number(values.price),
+          description: values.description?.trim() || undefined,
+          is_active: values.is_active ?? true,
+        };
+
+        await dispatch(createService({ payload })).unwrap();
+        toast.success("Service added");
+        reset();
+      }
+
+      onSuccess?.();
       onCreated?.();
 
       // Refresh the list with the last used filters
@@ -60,11 +124,13 @@ export function ServiceForm({ onCreated }: ServiceFormProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2 text-slate-900">
-        <Package className="h-4 w-4 text-sky-600" />
-        <h3 className="text-sm font-semibold">Add Service</h3>
-      </div>
+    <div className={isEditing ? "" : "rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"}>
+      {!isEditing && (
+        <div className="mb-3 flex items-center gap-2 text-slate-900">
+          <Package className="h-4 w-4 text-sky-600" />
+          <h3 className="text-sm font-semibold">Add Service</h3>
+        </div>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3 text-sm">
         <label className="col-span-2 space-y-1">
           <span className="text-slate-600">
@@ -129,11 +195,20 @@ export function ServiceForm({ onCreated }: ServiceFormProps) {
         <div className="col-span-2 flex justify-end">
           <button
             type="submit"
-            disabled={creating}
+            disabled={creating || (isEditing && updatingId === defaultValues?.id)}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:shadow disabled:opacity-60"
           >
-            <Plus className="h-4 w-4" />
-            {creating ? "Saving..." : "Add Service"}
+            {isEditing ? (
+              <>
+                <Check className="h-4 w-4" />
+                {updatingId === defaultValues?.id ? "Updating..." : "Update Service"}
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                {creating ? "Saving..." : "Add Service"}
+              </>
+            )}
           </button>
         </div>
       </form>

@@ -83,7 +83,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
         page_size: 10,
         is_active: true,
         search: searchTerm.trim() || undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
 
       if (append) {

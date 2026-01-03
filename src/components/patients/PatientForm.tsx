@@ -2,12 +2,9 @@
 
 import { useForm } from "react-hook-form";
 import { useEffect } from "react";
-import { useAppDispatch } from "@/redux/hooks";
-import { addPatient, updatePatient } from "@/redux/patientsSlice";
+import { useCreatePatient, useUpdatePatient, usePatient } from "@/hooks/queries/usePatients";
 import { Patient } from "@/types";
-import { toast } from "sonner";
-import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
-import { getErrorMessage } from "@/utils/errorHandler";
+import { CreatePatientRequest } from "@/services/patientsApi";
 
 interface PatientFormProps {
   defaultValues?: Patient;
@@ -15,53 +12,39 @@ interface PatientFormProps {
 }
 
 export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
-  const dispatch = useAppDispatch();
-  
-  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm<CreatePatientRequest>({
+  // React Query mutations - automatic cache invalidation and optimistic updates!
+  const createPatient = useCreatePatient();
+  const updatePatient = useUpdatePatient();
+
+  // Fetch full patient details when editing (React Query auto-deduplicates this!)
+  const { data: fullPatientData } = usePatient(defaultValues?.id || null);
+  const apiData = fullPatientData as any;
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreatePatientRequest>({
     mode: "onChange",
     reValidateMode: "onChange",
   });
 
-  // Fetch full patient details when editing
+  // Populate form when full patient data is loaded
   useEffect(() => {
-    if (defaultValues?.id) {
-      // Fetch full patient details from API to get all fields
-      patientsApi.getById(defaultValues.id)
-        .then((apiPatient) => {
-          // Set form values with full API data
-          reset({
-            first_name: apiPatient.first_name,
-            last_name: apiPatient.last_name || "",
-            mobile: apiPatient.mobile,
-            email: apiPatient.email || "",
-            date_of_birth: apiPatient.date_of_birth,
-            gender: apiPatient.gender.toLowerCase() as "male" | "female" | "other",
-            abha_id: apiPatient.abha_id || "",
-            address: apiPatient.address || "",
-            city: apiPatient.city || "",
-            state: apiPatient.state || "",
-            pincode: apiPatient.pincode || "",
-          });
-        })
-        .catch((error) => {
-          console.error("Failed to fetch patient details:", error);
-          // Fallback to defaultValues if API call fails
-          const nameParts = defaultValues.name.split(/\s+/);
-          reset({
-            first_name: nameParts[0] || "",
-            last_name: nameParts.slice(1).join(" ") || "",
-            mobile: defaultValues.mobile,
-            email: "",
-            date_of_birth: "",
-            gender: defaultValues.gender.toLowerCase() as "male" | "female" | "other",
-            abha_id: defaultValues.healthId || "",
-            address: "",
-            city: "",
-            state: "",
-            pincode: "",
-          });
-        });
-    } else {
+    if (fullPatientData && defaultValues?.id) {
+      // React Query fetched the full data - no manual API call needed!
+      // fullPatientData is now PatientApiResponse with all fields preserved
+      const apiData = fullPatientData as any;
+      reset({
+        first_name: apiData.first_name || "",
+        last_name: apiData.last_name || "",
+        mobile: apiData.mobile || "",
+        email: apiData.email || "",
+        date_of_birth: apiData.date_of_birth || "",
+        gender: apiData.gender?.toLowerCase() as "male" | "female" | "other",
+        abha_id: apiData.abha_id || "",
+        address: apiData.address || "",
+        city: apiData.city || "",
+        state: apiData.state || "",
+        pincode: apiData.pincode || "",
+      });
+    } else if (!defaultValues) {
       // Reset form for new patient
       reset({
         first_name: "",
@@ -77,47 +60,40 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         pincode: "",
       });
     }
-  }, [defaultValues?.id, reset]);
+  }, [fullPatientData, defaultValues, reset]);
 
   const onSubmit = async (values: CreatePatientRequest) => {
-    try {
-      // Ensure gender is lowercase
-      const gender = (values.gender || "male").toLowerCase() as "male" | "female" | "other";
-      
-      const patientData: CreatePatientRequest = {
-        first_name: values.first_name,
-        last_name: values.last_name || undefined,
-        mobile: values.mobile,
-        email: values.email || undefined,
-        date_of_birth: values.date_of_birth,
-        gender,
-        abha_id: values.abha_id || undefined,
-        address: values.address || undefined,
-        city: values.city || undefined,
-        state: values.state || undefined,
-        pincode: values.pincode || undefined,
-      };
+    // Ensure gender is lowercase
+    const gender = (values.gender || "male").toLowerCase() as "male" | "female" | "other";
 
-      if (defaultValues) {
-        await dispatch(
-          updatePatient({
-            patientId: defaultValues.id,
-            updates: patientData,
-          })
-        ).unwrap();
-        toast.success("Patient updated");
-      } else {
-        const createdPatient = await dispatch(addPatient(patientData)).unwrap();
-        toast.success("Patient created");
-        reset();
-        // Dispatch custom event with the created patient ID
-        window.dispatchEvent(new CustomEvent("patient:created", { detail: { patientId: createdPatient.id } }));
-      }
+    const patientData: CreatePatientRequest = {
+      first_name: values.first_name,
+      last_name: values.last_name || undefined,
+      mobile: values.mobile,
+      email: values.email || undefined,
+      date_of_birth: values.date_of_birth,
+      gender,
+      abha_id: values.abha_id || undefined,
+      address: values.address || undefined,
+      city: values.city || undefined,
+      state: values.state || undefined,
+      pincode: values.pincode || undefined,
+    };
+
+    if (defaultValues) {
+      // Update existing patient
+      await updatePatient.mutateAsync({
+        patientId: defaultValues.id,
+        updates: patientData,
+      });
+      // React Query mutation already shows toast and invalidates cache!
       onSuccess?.();
-    } catch (error: any) {
-      // Handle both updatePatient and addPatient errors
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+    } else {
+      // Create new patient
+      await createPatient.mutateAsync(patientData);
+      // React Query mutation already shows toast and invalidates cache!
+      reset();
+      onSuccess?.();
     }
   };
 
@@ -126,6 +102,20 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="grid grid-cols-2 gap-3 text-sm"
     >
+      {/* UHID Display (read-only, shown only when editing) */}
+      {defaultValues && apiData?.uhid && (
+        <div className="col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-3">
+          <label className="space-y-1">
+            <span className="text-xs font-semibold text-sky-700">Patient ID (UHID)</span>
+            <input
+              value={apiData.uhid}
+              disabled
+              className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-sky-900 opacity-75"
+            />
+          </label>
+        </div>
+      )}
+
       {/* Required Fields */}
       <div className="col-span-2 grid grid-cols-2 gap-3">
         <label className="space-y-1">
@@ -267,15 +257,21 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         <button
           type="button"
           onClick={() => reset()}
-          className="rounded-xl border border-slate-200 px-4 py-2 text-slate-600 transition hover:border-slate-300"
+          disabled={createPatient.isPending || updatePatient.isPending}
+          className="rounded-xl border border-slate-200 px-4 py-2 text-slate-600 transition hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Reset
         </button>
         <button
           type="submit"
-          className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-md transition hover:shadow-lg"
+          disabled={createPatient.isPending || updatePatient.isPending}
+          className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {defaultValues ? "Save changes" : "Add patient"}
+          {createPatient.isPending || updatePatient.isPending
+            ? "Saving..."
+            : defaultValues
+            ? "Save changes"
+            : "Add patient"}
         </button>
       </div>
     </form>

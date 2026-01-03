@@ -10,14 +10,8 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
+      "src": "/cura-logo-v2.png",
+      "sizes": "any",
       "type": "image/png",
       "purpose": "any maskable"
     }

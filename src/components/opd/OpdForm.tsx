@@ -9,9 +9,12 @@ import { fetchDoctors } from "@/redux/doctorsSlice";
 import { Patient } from "@/types";
 import { OpdSlipPrint } from "./OpdSlipPrint";
 import { opdVisitsApi, CreateVisitRequest, Visit } from "@/services/opdVisitsApi";
+import { prescriptionsApi } from "@/services/prescriptionsApi";
+import { useCreateOpdVisit } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { doctorsApi, ConsultationFeeCalculation } from "@/services/doctorsApi";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 import { currency } from "@/utils/format";
 
 interface OpdFormProps {
@@ -23,6 +26,7 @@ interface OpdFormProps {
 
 export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess, onOpenPatientModal }: OpdFormProps = {} as OpdFormProps) {
   const dispatch = useAppDispatch();
+  const createOpdVisit = useCreateOpdVisit();
   const patients = useAppSelector((s) => s.patients.list);
   const queue = useAppSelector((s) => s.queue.entries);
   const doctors = useAppSelector((s) => s.doctors.list);
@@ -43,6 +47,18 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const [paymentReference, setPaymentReference] = useState("");
   const [createdVisitId, setCreatedVisitId] = useState<string | null>(null);
   const [visitData, setVisitData] = useState<Visit | null>(null);
+  const [prescription, setPrescription] = useState<{
+    prescription_number: string;
+    diagnosis: string | null;
+    items: Array<{
+      medicine_name: string;
+      dosage: string | null;
+      frequency: string | null;
+      duration: string | null;
+      instructions: string | null;
+    }>;
+    doctor_name: string;
+  } | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
   const [shouldPrint, setShouldPrint] = useState(false);
   const [consultationFee, setConsultationFee] = useState<string | null>(null);
@@ -296,7 +312,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
     setIsCreating(true);
     try {
-      // Create OPD visit using the API
+      // Create OPD visit using React Query mutation for automatic cache invalidation
       const visitRequest: CreateVisitRequest = {
         patient_id: selectedPatient.id,
         doctor_id: doctorId, // Required
@@ -309,20 +325,16 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         consultation_fee_override: feeOverride && parseFloat(feeOverride) > 0 ? parseFloat(feeOverride) : null,
       };
 
-      const visit = await opdVisitsApi.create(visitRequest);
-      
-      // Dispatch custom event to refresh OPD visits list
-      window.dispatchEvent(new CustomEvent("opd:visit:created"));
-      
+      const visit = await createOpdVisit.mutateAsync(visitRequest);
+
       // Store visit ID for later fetching
       setCreatedVisitId(visit.id);
       setOpdNumber(visit.visit_number);
       setTokenNumber(visit.token_number || 0);
-      
-      toast.success(`OPD visit created #${visit.visit_number}`);
+
+      // Success toast is shown by the mutation's onSuccess callback
     } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
+      // Error toast is shown by the mutation's onError callback
     } finally {
       setIsCreating(false);
     }
@@ -337,11 +349,45 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
     try {
       // Fetch full visit details
       const visit = await opdVisitsApi.getById(createdVisitId);
-      
+
       // Update opdNumber and tokenNumber from fetched visit
       setOpdNumber(visit.visit_number);
       setTokenNumber(visit.token_number || 0);
-      
+
+      // Fetch finalized prescription for this visit (if exists)
+      let prescriptionData = undefined;
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const prescriptions = await prescriptionsApi.list({
+          visit_id: createdVisitId,
+          status: "finalized",
+          page_size: 1,
+          tenant_id: tenantId || undefined,
+        });
+
+        if (prescriptions.items.length > 0) {
+          const rxData = prescriptions.items[0];
+          prescriptionData = {
+            prescription_number: rxData.prescription_number,
+            diagnosis: rxData.diagnosis,
+            items: rxData.items.map(item => ({
+              medicine_name: item.medicine_name,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions,
+            })),
+            doctor_name: rxData.doctor_name,
+          };
+        }
+      } catch (error) {
+        // Continue without prescription if fetch fails
+        console.warn("Failed to fetch prescription for OPD slip:", error);
+      }
+
+      // Set prescription state
+      setPrescription(prescriptionData);
+
       // Set shouldPrint flag and visitData - this will trigger the useEffect to print
       setShouldPrint(true);
       setVisitData(visit);
@@ -689,6 +735,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
               symptoms={visitData.chief_complaint || symptoms}
               opdNumber={visitData.visit_number}
               tokenNumber={visitData.token_number || 0}
+              prescription={prescription}
             />
           </div>
         </div>

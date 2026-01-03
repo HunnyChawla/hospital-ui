@@ -6,6 +6,7 @@ import { Edit2, Trash2, BedDouble, ChevronLeft, ChevronRight, Building2 } from "
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface WardTableProps {
   onEditClick?: (ward: Ward) => void;
@@ -26,7 +27,7 @@ export function WardTable({ onEditClick }: WardTableProps) {
       const response = await wardsApi.list({
         page: currentPage,
         page_size: pageSize,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
       setWards(response.items);
       setTotalPages(response.total_pages);
@@ -41,10 +42,13 @@ export function WardTable({ onEditClick }: WardTableProps) {
     }
   }, [currentPage, pageSize]);
 
+  // Fetch wards when page changes
   useEffect(() => {
     fetchWards();
-  }, [fetchWards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
+  // Event listeners for ward create/update
   useEffect(() => {
     const handleWardCreated = () => {
       fetchWards();
@@ -60,7 +64,8 @@ export function WardTable({ onEditClick }: WardTableProps) {
       window.removeEventListener("ward:created", handleWardCreated);
       window.removeEventListener("ward:updated", handleWardUpdated);
     };
-  }, [fetchWards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async (wardId: string) => {
     if (!confirm("Are you sure you want to delete this ward?")) return;
@@ -81,7 +86,7 @@ export function WardTable({ onEditClick }: WardTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
         <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
           <tr>

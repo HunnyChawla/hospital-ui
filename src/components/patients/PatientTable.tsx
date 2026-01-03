@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import {
-  fetchPatients,
-  selectPatient,
-} from "@/redux/patientsSlice";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { usePatients } from "@/hooks/queries/usePatients";
 import { formatDate } from "@/utils/format";
 import { Edit2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { Patient } from "@/types";
+import { useState } from "react";
 
 interface PatientTableProps {
   onPatientClick?: (patientId: string) => void;
@@ -17,19 +13,29 @@ interface PatientTableProps {
 }
 
 export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps) {
-  const dispatch = useAppDispatch();
-  const { list, loading, selected } = useAppSelector((s) => s.patients);
+  // Use React Query hook instead of Redux - automatic deduplication!
+  const { data, isLoading, error } = usePatients({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    dispatch(fetchPatients({}));
-  }, [dispatch]);
+  // Extract patients from React Query response
+  const list = data?.patients ?? [];
 
-  if (loading) {
+  if (isLoading) {
     return <SkeletonRow rows={5} />;
   }
 
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+        <p className="text-sm text-rose-800">
+          Failed to load patients. Please try again.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
         <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
           <tr>
@@ -45,7 +51,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
               key={patient.id}
               className="cursor-pointer hover:bg-sky-50/50 transition"
               onClick={() => {
-                dispatch(selectPatient(patient.id));
+                setSelectedId(patient.id);
                 onPatientClick?.(patient.id);
               }}
             >
@@ -79,7 +85,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                       onEditClick?.(patient);
                     }}
                     className={`group relative flex items-center justify-center overflow-hidden rounded-lg p-2 text-xs font-semibold text-white transition-all duration-300 ${
-                      selected?.id === patient.id
+                      selectedId === patient.id
                         ? "bg-sky-500 hover:bg-sky-600"
                         : "bg-slate-500 hover:bg-slate-600"
                     }`}

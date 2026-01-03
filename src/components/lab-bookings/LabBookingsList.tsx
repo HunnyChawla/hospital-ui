@@ -6,7 +6,7 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi } from "@/services/patientsApi";
-import { formatDate, currency, formatCurrencyForPDF } from "@/utils/format";
+import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
 import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -17,6 +17,8 @@ import { Modal } from "../common/Modal";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { getPatientById } from "@/redux/patientsSlice";
 
 interface LabBookingWithPatient extends LabBooking {
   patient_name?: string;
@@ -29,12 +31,14 @@ interface LabBookingsListProps {
 
 export function LabBookingsList({ patientId }: LabBookingsListProps) {
   const { tenant, hospitalName, logoDataUrl } = useTenant();
+  const dispatch = useAppDispatch();
+  const patientsCache = useAppSelector((s) => s.patients.list);
   const [bookings, setBookings] = useState<LabBookingWithPatient[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchBookingId, setSearchBookingId] = useState("");
   const [searching, setSearching] = useState(false);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
+  const [endDate, setEndDate] = useState<string>(getTodayDateLocal());
   const [dateRangeError, setDateRangeError] = useState<string>("");
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">("all");
@@ -67,6 +71,42 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     contentRef: printReportRef,
     documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
   });
+
+  // Helper function to batch fetch patients and enrich bookings
+  const enrichBookingsWithPatients = async (bookingsList: LabBooking[]): Promise<LabBookingWithPatient[]> => {
+    // Extract unique patient IDs
+    const uniquePatientIds = Array.from(new Set(bookingsList.map((b) => b.patient_id)));
+
+    // Fetch all unique patients using Redux (checks cache first, only fetches if not cached)
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    const patientResults = await Promise.all(
+      uniquePatientIds.map((patientId) =>
+        dispatch(getPatientById({ patientId, tenantId: tenantId || undefined })).unwrap()
+      )
+    );
+
+    // Create a map of patient ID to patient data
+    const patientsMap = new Map(
+      patientResults.map((p) => [p.id, p])
+    );
+
+    // Enrich bookings with patient data
+    return bookingsList.map((booking) => {
+      const patient = patientsMap.get(booking.patient_id);
+      if (patient) {
+        return {
+          ...booking,
+          patient_name: patient.name,
+          patient_mobile: patient.mobile,
+        };
+      }
+      return {
+        ...booking,
+        patient_name: "Unknown",
+        patient_mobile: "",
+      };
+    });
+  };
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -142,25 +182,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
 
-      // Fetch patient details for bookings
-      const bookingsWithPatients = await Promise.all(
-        response.items.map(async (booking) => {
-          try {
-            const patient = await patientsApi.getById(booking.patient_id);
-            return {
-              ...booking,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-              patient_mobile: patient.mobile,
-            };
-          } catch {
-            return {
-              ...booking,
-              patient_name: "Unknown",
-              patient_mobile: "",
-            };
-          }
-        })
-      );
+      // Batch fetch patient details using Redux cache
+      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
 
       // Deduplicate bookings by ID to prevent duplicate key errors
       const uniqueBookings = Array.from(
@@ -258,25 +281,9 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         toast.error("Booking not found");
         setBookings([]);
       } else {
-        // Fetch patient details for bookings
-        const bookingsWithPatients = await Promise.all(
-          response.items.map(async (booking) => {
-            try {
-              const patient = await patientsApi.getById(booking.patient_id);
-              return {
-                ...booking,
-                patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-                patient_mobile: patient.mobile,
-              };
-            } catch {
-              return {
-                ...booking,
-                patient_name: "Unknown",
-                patient_mobile: "",
-              };
-            }
-          })
-        );
+        // Batch fetch patient details using Redux cache
+        const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
+
         // Deduplicate bookings by ID to prevent duplicate key errors
         const uniqueBookings = Array.from(
           new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
@@ -349,25 +356,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
         // Omit page and page_size to get all results
       });
 
-      // Fetch patient details for bookings
-      const bookingsWithPatients = await Promise.all(
-        response.items.map(async (booking) => {
-          try {
-            const patient = await patientsApi.getById(booking.patient_id);
-            return {
-              ...booking,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-              patient_mobile: patient.mobile,
-            };
-          } catch {
-            return {
-              ...booking,
-              patient_name: "Unknown",
-              patient_mobile: "",
-            };
-          }
-        })
-      );
+      // Batch fetch patient details using Redux cache
+      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
 
       // Deduplicate bookings by ID to prevent duplicate key errors
       const allBookings = Array.from(
@@ -736,8 +726,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     <div className="space-y-4">
       {/* Search and Filters */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-          <div className="md:col-span-2">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Search by Booking Number
             </label>
@@ -753,14 +743,14 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                       handleSearchByBookingNumber();
                     }
                   }}
-                  placeholder="Enter booking number (e.g., LAB-20251215-00003)"
+                  placeholder="Enter booking number"
                   className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400"
                 />
               </div>
               <button
                 onClick={handleSearchByBookingNumber}
                 disabled={searching}
-                className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+                className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50 whitespace-nowrap"
               >
                 {searching ? "Searching..." : "Search"}
               </button>
@@ -770,18 +760,18 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                     setSearchBookingId("");
                     fetchBookings();
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap"
                 >
                   Clear
                 </button>
               )}
             </div>
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-1">
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1 text-sm">
               <Calendar className="h-4 w-4" />
               Start Date
-            </label>
+            </span>
             <input
               type="date"
               value={startDate}
@@ -790,12 +780,12 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
               min={endDate ? getMinStartDate() : undefined}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
             />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-1">
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1 text-sm">
               <Calendar className="h-4 w-4" />
               End Date
-            </label>
+            </span>
             <input
               type="date"
               value={endDate}
@@ -804,15 +794,11 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
               max={startDate ? getMaxEndDate() : getTodayDate()}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
             />
-          </div>
-        </div>
-
-        <div className="mb-4 flex items-end justify-between gap-3">
-          <div className="flex-1"></div>
+          </label>
           <button
             onClick={handleExportPDF}
             disabled={!!dateRangeError || exporting}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 whitespace-nowrap"
             title="Export all lab bookings to PDF"
           >
             {exporting ? (

@@ -5,7 +5,7 @@ import { useReactToPrint } from "react-to-print";
 import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/services/labBookingsApi";
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { patientsApi } from "@/services/patientsApi";
-import { formatDate, currency, formatCurrencyForPDF } from "@/utils/format";
+import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
 import { Beaker, Calendar, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, FlaskConical, Eye, Lock, Download, List, Activity, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ import autoTable from "jspdf-autotable";
 import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
 import { paymentsApi } from "@/services/paymentsApi";
 import { getTenantIdForApi } from "@/utils/auth";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { getPatientById } from "@/redux/patientsSlice";
 
 interface LabBookingWithPatient extends LabBooking {
   patient_name?: string;
@@ -28,6 +30,8 @@ interface LabBookingWithPatient extends LabBooking {
 
 export function LabTechnicianPanel() {
   const { tenant, hospitalName, logoDataUrl } = useTenant();
+  const dispatch = useAppDispatch();
+  const patientsCache = useAppSelector((s) => s.patients.list);
   const [bookings, setBookings] = useState<LabBookingWithPatient[]>([]);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState<string>("");
@@ -71,8 +75,55 @@ export function LabTechnicianPanel() {
   const [pendingCancellation, setPendingCancellation] = useState<{ bookingId: string; bookingNumber?: string; paymentAmount?: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
+  // Helper function to batch fetch patients and enrich bookings
+  const enrichBookingsWithPatients = async (bookingsList: LabBooking[]): Promise<LabBookingWithPatient[]> => {
+    // Extract unique patient IDs
+    const uniquePatientIds = Array.from(new Set(bookingsList.map((b) => b.patient_id)));
+
+    // Fetch all unique patients using Redux (checks cache first, only fetches if not cached)
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    const patientResults = await Promise.all(
+      uniquePatientIds.map((patientId) =>
+        dispatch(getPatientById({ patientId, tenantId: tenantId || undefined })).unwrap()
+      )
+    );
+
+    // Create a map of patient ID to patient data
+    const patientsMap = new Map(
+      patientResults.map((p) => [p.id, p])
+    );
+
+    // Enrich bookings with patient data
+    return bookingsList.map((booking) => {
+      const patient = patientsMap.get(booking.patient_id);
+      if (patient) {
+        // Map gender to F/M format for API
+        const genderMap: Record<string, string> = {
+          "male": "M",
+          "Male": "M",
+          "female": "F",
+          "Female": "F",
+          "other": "M", // Default to M if other
+          "Other": "M",
+        };
+        const patientGender = genderMap[patient.gender] || "M";
+
+        return {
+          ...booking,
+          patient_name: patient.name,
+          patient_mobile: patient.mobile,
+          patient_gender: patientGender,
+        };
+      }
+      return {
+        ...booking,
+        patient_name: "Unknown",
+        patient_mobile: "",
+        patient_gender: undefined,
+      };
+    });
+  };
+
 
   // Validate date range (max 3 months)
   const validateDateRange = useCallback((start: string, end: string): string => {
@@ -108,15 +159,15 @@ export function LabTechnicianPanel() {
 
   // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return getTodayDate();
+    if (!startDate) return getTodayDateLocal();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    const today = new Date(getTodayDate());
+    const today = new Date(getTodayDateLocal());
     // Return the earlier of: calculated max date or today
-    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -144,37 +195,8 @@ export function LabTechnicianPanel() {
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
 
-      // Fetch patient details for bookings
-      const bookingsWithPatients = await Promise.all(
-        response.items.map(async (booking) => {
-          try {
-            const patient = await patientsApi.getById(booking.patient_id);
-            // Map gender to F/M format for API
-            const genderMap: Record<string, string> = {
-              "male": "M",
-              "Male": "M",
-              "female": "F",
-              "Female": "F",
-              "other": "M", // Default to M if other
-              "Other": "M",
-            };
-            const patientGender = genderMap[patient.gender] || "M";
-            return {
-              ...booking,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-              patient_mobile: patient.mobile,
-              patient_gender: patientGender,
-            };
-          } catch {
-            return {
-              ...booking,
-              patient_name: "Unknown",
-              patient_mobile: "",
-              patient_gender: undefined,
-            };
-          }
-        })
-      );
+      // Batch fetch patient details using Redux cache
+      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
 
       // Deduplicate bookings by ID to prevent duplicate key errors
       const uniqueBookings = Array.from(
@@ -316,37 +338,8 @@ export function LabTechnicianPanel() {
         // Omit page and page_size to get all results
       });
 
-      // Fetch patient details for bookings
-      const bookingsWithPatients = await Promise.all(
-        response.items.map(async (booking) => {
-          try {
-            const patient = await patientsApi.getById(booking.patient_id);
-            // Map gender to F/M format for API
-            const genderMap: Record<string, string> = {
-              "male": "M",
-              "Male": "M",
-              "female": "F",
-              "Female": "F",
-              "other": "M", // Default to M if other
-              "Other": "M",
-            };
-            const patientGender = genderMap[patient.gender] || "M";
-            return {
-              ...booking,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
-              patient_mobile: patient.mobile,
-              patient_gender: patientGender,
-            };
-          } catch {
-            return {
-              ...booking,
-              patient_name: "Unknown",
-              patient_mobile: "",
-              patient_gender: undefined,
-            };
-          }
-        })
-      );
+      // Batch fetch patient details using Redux cache
+      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
 
       // Deduplicate bookings by ID to prevent duplicate key errors
       const allBookings = Array.from(
@@ -553,7 +546,7 @@ export function LabTechnicianPanel() {
       // Generate filename
       const filename = startDate && endDate
         ? `lab_reports_${startDate}_to_${endDate}.pdf`
-        : `lab_reports_all_${new Date().toISOString().split("T")[0]}.pdf`;
+        : `lab_reports_all_${getTodayDateLocal()}.pdf`;
 
       // Save PDF
       doc.save(filename);

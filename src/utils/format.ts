@@ -21,3 +21,12 @@ export const formatDate = (value: string) =>
     year: "numeric",
   }).format(new Date(value));
 
+// Get today's date in YYYY-MM-DD format in local timezone (not UTC)
+export const getTodayDateLocal = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+

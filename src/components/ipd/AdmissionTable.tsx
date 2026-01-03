@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useAppDispatch } from "@/redux/hooks";
-import { fetchAdmissions, dischargePatient } from "@/redux/admissionsSlice";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAppSelector } from "@/redux/hooks";
+import { useAdmissions, admissionKeys, useDischargeAdmission } from "@/hooks/queries/useAdmissions";
 import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
-import { wardsApi, Ward } from "@/services/wardsApi";
-import { bedsApi, Bed } from "@/services/bedsApi";
-import { doctorsApi } from "@/services/doctorsApi";
-import { formatDate } from "@/utils/format";
+import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
@@ -30,16 +28,18 @@ import { getTenantIdForApi } from "@/utils/auth";
 interface AdmissionTableProps {
   patientId?: string;
   onEditClick?: (admission: Admission) => void;
+  selectedAdmissionId?: string | null;
+  action?: string | null;
 }
 
-export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) {
-  const dispatch = useAppDispatch();
+export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: externalAdmissionId, action }: AdmissionTableProps) {
+  const queryClient = useQueryClient();
+  const dischargeAdmission = useDischargeAdmission();
   const { tenant, hospitalName, logoDataUrl } = useTenant();
-  const [admissions, setAdmissions] = useState<Admission[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
-  const [beds, setBeds] = useState<Bed[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Use Redux centralized caches (fetched once in dashboard layout)
+  const doctors = useAppSelector((s) => s.doctors.list);
+  const wards = useAppSelector((s) => s.wards.list);
+  const beds = useAppSelector((s) => s.beds.list);
   const [selectedWardId, setSelectedWardId] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showDischargeModal, setShowDischargeModal] = useState(false);
@@ -56,17 +56,28 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
   const [dischargingAdmissionStatus, setDischargingAdmissionStatus] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  
+
   // Date range state - optional
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [dateRangeError, setDateRangeError] = useState<string>("");
   const [exporting, setExporting] = useState(false);
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
+  // React Query hook to fetch admissions - automatic deduplication!
+  const { data: admissionsResponse, isLoading: loading, error } = useAdmissions({
+    page: currentPage,
+    page_size: pageSize,
+    patient_id: patientId || undefined,
+    ward_id: selectedWardId || undefined,
+    status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+  });
+
+  const admissions = admissionsResponse?.items ?? [];
+  const totalPages = admissionsResponse?.total_pages ?? 1;
+  const total = admissionsResponse?.total ?? 0;
+
 
   // Validate date range (max 3 months)
   const validateDateRange = useCallback((start: string, end: string): string => {
@@ -102,15 +113,15 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
 
   // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
-    if (!startDate) return getTodayDate();
+    if (!startDate) return getTodayDateLocal();
     const startDateObj = new Date(startDate);
     const maxDate = new Date(startDateObj);
     maxDate.setMonth(maxDate.getMonth() + 3);
     // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
     maxDate.setDate(maxDate.getDate() - 1);
-    const today = new Date(getTodayDate());
+    const today = new Date(getTodayDateLocal());
     // Return the earlier of: calculated max date or today
-    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDate();
+    return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
   // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
@@ -124,128 +135,39 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
     return minDate.toISOString().split("T")[0];
   }, [endDate]);
 
-  const fetchAdmissionsList = useCallback(async () => {
-    // Don't fetch if date range is invalid (only when both dates are provided)
-    if (dateRangeError) return;
-    
-    setLoading(true);
-    try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const response = await admissionsApi.list({
-        page: currentPage,
-        page_size: pageSize,
-        patient_id: patientId,
-        ward_id: selectedWardId || undefined,
-        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
-        tenant_id: tenantId || undefined,
-      });
-      setAdmissions(response.items);
-      setTotalPages(response.total_pages);
-      setTotal(response.total);
-    } catch (error: any) {
-      console.error("Failed to fetch admissions:", error);
-      
-      // Handle API-returned date range validation errors
-      const errorMessage = getErrorMessage(error);
-      if (
-        error?.response?.data?.detail &&
-        Array.isArray(error.response.data.detail)
-      ) {
-        const dateRangeErrorDetail = error.response.data.detail.find(
-          (detail: any) =>
-            detail.type === "business_logic_error" ||
-            (detail.msg && (
-              detail.msg.includes("Date range cannot exceed 3 months") ||
-              detail.msg.includes("90 days")
-            ))
-        );
-        if (dateRangeErrorDetail) {
-          setDateRangeError(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
-          toast.error(dateRangeErrorDetail.msg || "Date range cannot exceed 3 months");
-        } else {
-          toast.error(errorMessage || "Failed to fetch admissions");
-        }
-      } else {
-        toast.error(errorMessage || "Failed to fetch admissions");
-      }
-      
-      setAdmissions([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, patientId, selectedWardId, statusFilter, startDate, endDate, dateRangeError]);
-
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [patientId, selectedWardId, statusFilter, startDate, endDate]);
 
-  // Auto-fetch when any filter changes - also runs on initial mount
+  // Handle external admission ID and action from URL parameters (Doctor Panel navigation)
   useEffect(() => {
-    if (!dateRangeError) {
-      fetchAdmissionsList();
+    if (externalAdmissionId) {
+      // Set the selected admission ID for the detail modal
+      setSelectedAdmissionId(externalAdmissionId);
+
+      if (action === "discharge") {
+        // If action is discharge, open the discharge flow
+        setInitiatingAdmissionId(externalAdmissionId);
+        setShowInitiateDischargeModal(true);
+      } else {
+        // Otherwise, just open the detail view modal
+        setShowDetailModal(true);
+      }
     }
-  }, [selectedWardId, statusFilter, patientId, startDate, endDate, fetchAdmissionsList, dateRangeError]);
+  }, [externalAdmissionId, action]);
 
-  useEffect(() => {
-    const fetchWards = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await wardsApi.list({
-          page: 1,
-          page_size: 100,
-          tenant_id: tenantId || undefined,
-        });
-        setWards(response.items);
-      } catch (error) {
-        console.error("Failed to fetch wards:", error);
-      }
-    };
-    fetchWards();
-  }, []);
-
-  useEffect(() => {
-    const fetchBeds = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await bedsApi.list({
-          page: 1,
-          page_size: 99,
-          tenant_id: tenantId || undefined,
-        });
-        setBeds(response.items);
-      } catch (error) {
-        console.error("Failed to fetch beds:", error);
-      }
-    };
-    fetchBeds();
-  }, []);
-
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const response = await doctorsApi.list();
-        setDoctors(response);
-      } catch (error) {
-        console.error("Failed to fetch doctors:", error);
-      }
-    };
-    fetchDoctors();
-  }, []);
+  // Note: fetchWards, fetchBeds, and fetchDoctors removed - all are now fetched once in dashboard layout and cached in Redux
 
   useEffect(() => {
     const handleAdmissionCreated = () => {
-      fetchAdmissionsList();
+      queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
     };
 
     window.addEventListener("admission:created", handleAdmissionCreated);
     return () => {
       window.removeEventListener("admission:created", handleAdmissionCreated);
     };
-  }, [fetchAdmissionsList]);
+  }, [queryClient]);
 
   const handleDischargeClick = (e: React.MouseEvent, admissionId: string, admissionStatus?: string) => {
     e.stopPropagation(); // Prevent row click
@@ -289,22 +211,18 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
 
   const handleInitiateDischargeSuccess = async (updatedAdmission: Admission) => {
     // Refresh the admissions list to show updated status
-    await fetchAdmissionsList();
+    await queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
     setShowInitiateDischargeModal(false);
     setInitiatingAdmissionId(null);
   };
 
   const handleDischargeSubmit = async (admissionId: string, dischargeData: DischargeRequest) => {
     try {
-      await dispatch(
-        dischargePatient({
-          admissionId,
-          dischargeData,
-        })
-      ).unwrap();
+      await dischargeAdmission.mutateAsync({
+        admissionId,
+        dischargeData,
+      });
 
-      toast.success("Patient discharged successfully!");
-      fetchAdmissionsList();
       setShowDischargeModal(false);
       setDischargingAdmissionId(null);
     } catch (error: any) {
@@ -320,7 +238,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
       await admissionsApi.transferBed(admissionId, transferData, tenantId || undefined);
 
       toast.success("Bed transferred successfully!");
-      fetchAdmissionsList();
+      queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
       setShowTransferModal(false);
       setTransferringAdmissionId(null);
       setTransferringBedId(null);
@@ -393,7 +311,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
         status: statusFilter !== "all" ? (statusFilter as any) : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
         // Omit page and page_size to get all results
       });
 
@@ -611,7 +529,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
       // Generate filename
       const filename = startDate && endDate
         ? `admissions_${startDate}_to_${endDate}.pdf`
-        : `admissions_all_${new Date().toISOString().split("T")[0]}.pdf`;
+        : `admissions_all_${getTodayDateLocal()}.pdf`;
 
       // Save PDF
       doc.save(filename);
@@ -744,7 +662,7 @@ export function AdmissionTable({ patientId, onEditClick }: AdmissionTableProps) 
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
         <table className="min-w-full divide-y divide-slate-100 text-sm">
           <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
             <tr>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useAppSelector } from "@/redux/hooks";
 import { bedsApi, Bed, BedType } from "@/services/bedsApi";
-import { wardsApi, Ward } from "@/services/wardsApi";
 import { Edit2, Trash2, BedDouble, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Users2 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface BedTableProps {
   wardId?: string;
@@ -15,7 +16,8 @@ interface BedTableProps {
 
 export function BedTable({ wardId, onEditClick }: BedTableProps) {
   const [beds, setBeds] = useState<Bed[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
+  // Use Redux centralized wards cache (fetched once in dashboard layout)
+  const wards = useAppSelector((s) => s.wards.list);
   const [bedTypes, setBedTypes] = useState<BedType[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedWardId, setSelectedWardId] = useState<string>(wardId || "");
@@ -26,24 +28,10 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const fetchWards = async () => {
-    try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const response = await wardsApi.list({
-        page: 1,
-        page_size: 100,
-        tenant_id: tenantId || undefined,
-      });
-      setWards(response.items);
-    } catch (error) {
-      console.error("Failed to fetch wards:", error);
-    }
-  };
-
   const fetchBedTypes = async () => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const response = await bedsApi.getBedTypes(tenantId || undefined);
+      const response = await bedsApi.getBedTypes(getTenantIdForApi(tenantId));
       setBedTypes(response.bed_types);
     } catch (error) {
       console.error("Failed to fetch bed types:", error);
@@ -60,7 +48,7 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
         ward_id: selectedWardId || undefined,
         bed_type: selectedBedType !== "all" ? selectedBedType : undefined,
         status: availabilityFilter !== "all" ? availabilityFilter : undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
       setBeds(response.items);
       setTotalPages(response.total_pages);
@@ -75,8 +63,8 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
     }
   }, [currentPage, pageSize, selectedWardId, selectedBedType, availabilityFilter]);
 
+  // Fetch bed types once on mount (wards now come from Redux)
   useEffect(() => {
-    fetchWards();
     fetchBedTypes();
   }, []);
 
@@ -84,10 +72,13 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
     setCurrentPage(1); // Reset to first page when filter changes
   }, [selectedWardId, selectedBedType, availabilityFilter]);
 
+  // Fetch beds when dependencies change
   useEffect(() => {
     fetchBeds();
-  }, [fetchBeds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, selectedWardId, selectedBedType, availabilityFilter]);
 
+  // Event listeners for bed create/update
   useEffect(() => {
     const handleBedCreated = () => {
       fetchBeds();
@@ -103,6 +94,7 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
       window.removeEventListener("bed:created", handleBedCreated);
       window.removeEventListener("bed:updated", handleBedUpdated);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (bedId: string) => {
@@ -243,7 +235,7 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
         <table className="min-w-full divide-y divide-slate-100 text-sm">
           <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
             <tr>

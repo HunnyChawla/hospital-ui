@@ -8,7 +8,7 @@ import { currency } from "@/utils/format";
 import { getTenantIdForApi } from "@/utils/auth";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, CreditCard, AlertCircle } from "lucide-react";
+import { CreditCard, AlertCircle } from "lucide-react";
 
 interface DischargeFormProps {
   onSuccess?: () => void;
@@ -18,14 +18,9 @@ interface DischargeFormProps {
 }
 
 export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatus }: DischargeFormProps) {
-  const [dischargeDate, setDischargeDate] = useState("");
-  const [dischargeType, setDischargeType] = useState<DischargeType>("normal");
-  const [dischargeSummary, setDischargeSummary] = useState("");
-  const [dischargeInstructions, setDischargeInstructions] = useState("");
-  const [finalDiagnosis, setFinalDiagnosis] = useState("");
   const [createInvoice, setCreateInvoice] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
-  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentReference, setPaymentReference] = useState<string>("");
   const [taxRate, setTaxRate] = useState<number>(0);
   const [discount, setDiscount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,11 +31,6 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentNotes, setPaymentNotes] = useState<string>("");
   const isDischargeInitiated = admissionStatus === "discharge_initiated";
-
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    setDischargeDate(today);
-  }, []);
 
   // Fetch invoice for discharge_initiated admissions
   useEffect(() => {
@@ -57,11 +47,11 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
             const invoiceData = await invoicesApi.getById(admission.invoice_id, apiTenantId);
             setInvoice(invoiceData);
             
-            // Set default payment amount to balance due
+            // Set default payment amount to balance due, or 0 if negative
             const balanceDue = invoiceData.balance_amount !== undefined 
               ? invoiceData.balance_amount 
               : (invoiceData.total_amount - invoiceData.paid_amount);
-            setPaymentAmount(balanceDue);
+            setPaymentAmount(balanceDue < 0 ? 0 : balanceDue);
           }
         } catch (error) {
           console.error("Failed to fetch invoice:", error);
@@ -78,73 +68,94 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!dischargeDate || !dischargeType) {
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       // For discharge_initiated: collect payment first, then discharge
       if (isDischargeInitiated && invoice) {
-        // Validate payment
-        if (!paymentMethod) {
-          toast.error("Please select a payment method");
-          setIsSubmitting(false);
-          return;
-        }
-
-        // Validate payment reference for methods that require it
-        if ((paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
-          toast.error("Payment reference is required for " + paymentMethod);
-          setIsSubmitting(false);
-          return;
-        }
-
         // Validate payment amount
         const balanceDue = invoice.balance_amount !== undefined 
           ? invoice.balance_amount 
           : (invoice.total_amount - invoice.paid_amount);
         
-        if (paymentAmount <= 0 || paymentAmount > balanceDue) {
-          toast.error(`Payment amount must be between 0 and ${currency(balanceDue)}`);
-          setIsSubmitting(false);
-          return;
+        // If balance is negative, skip payment collection (refund scenario)
+        if (balanceDue < 0) {
+          // Payment amount should be 0, skip payment creation
+          if (paymentAmount !== 0) {
+            toast.error("Payment amount must be 0 when balance is negative (refund scenario)");
+            setIsSubmitting(false);
+            return;
+          }
+          // Skip payment creation for refund scenario
+        } else {
+          // Normal validation for positive balance
+          if (!paymentMethod) {
+            toast.error("Please select a payment method");
+            setIsSubmitting(false);
+            return;
+          }
+
+          // Validate payment reference for methods that require it
+          if ((paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
+            toast.error("Payment reference is required for " + paymentMethod);
+            setIsSubmitting(false);
+            return;
+          }
+
+          if (paymentAmount <= 0 || paymentAmount > balanceDue) {
+            toast.error(`Payment amount must be greater than 0 and up to ${currency(balanceDue)}`);
+            setIsSubmitting(false);
+            return;
+          }
+
+          // Create payment only if amount > 0
+          if (paymentAmount > 0) {
+            try {
+              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+              const paymentData: CreatePaymentRequest = {
+                invoice_id: invoice.id,
+                amount: paymentAmount,
+                payment_method: paymentMethod as any,
+                payment_reference: paymentReference.trim() || undefined,
+                notes: paymentNotes.trim() || undefined,
+              };
+              
+              await paymentsApi.create(paymentData, tenantId || undefined);
+              toast.success("Payment collected successfully");
+            } catch (error) {
+              const errorMessage = getErrorMessage(error);
+              toast.error(errorMessage || "Failed to collect payment");
+              setIsSubmitting(false);
+              return;
+            }
+          }
         }
 
-        // Create payment
-        try {
-          const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-          const paymentData: CreatePaymentRequest = {
-            invoice_id: invoice.id,
-            amount: paymentAmount,
-            payment_method: paymentMethod as any,
-            payment_reference: paymentReference.trim() || undefined,
-            notes: paymentNotes.trim() || undefined,
-          };
-          
-          await paymentsApi.create(paymentData, tenantId || undefined);
-          toast.success("Payment collected successfully");
-        } catch (error) {
-          const errorMessage = getErrorMessage(error);
-          toast.error(errorMessage || "Failed to collect payment");
-          setIsSubmitting(false);
-          return;
-        }
-
-        // Then discharge without creating invoice
+        // Then discharge without creating invoice - discharge fields already set during initiate discharge
+        const today = new Date().toISOString().split("T")[0];
+        const isNegativeTotal = invoice.total_amount < 0;
+        
+        // Build discharge data - exclude payment details if total amount is negative
         const dischargeData: DischargeRequest = {
-          discharge_date: dischargeDate,
-          discharge_type: dischargeType,
-          discharge_summary: dischargeSummary.trim() || null,
-          discharge_instructions: dischargeInstructions.trim() || null,
-          final_diagnosis: finalDiagnosis.trim() || null,
+          discharge_date: today, // Use today's date as fallback
+          discharge_type: "normal", // Use default as fallback
+          discharge_summary: null,
+          discharge_instructions: null,
+          final_diagnosis: null,
           create_invoice: false,
         };
+        
+        // Only include payment fields if total amount is not negative
+        if (!isNegativeTotal) {
+          dischargeData.payment_method = null;
+          dischargeData.payment_reference = null;
+          dischargeData.tax_rate = null;
+          dischargeData.discount = null;
+        }
 
         await onSubmit(dischargeData);
         onSuccess?.();
       } else {
-        // For admitted status: existing flow
+        // For admitted status: existing flow (shouldn't happen if we always initiate discharge first)
         // Validate payment reference if payment method is upi
         if (createInvoice && paymentMethod === "upi" && !paymentReference.trim()) {
           toast.error("Payment reference is required when payment method is UPI");
@@ -152,12 +163,13 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
           return;
         }
 
+        const today = new Date().toISOString().split("T")[0];
         const dischargeData: DischargeRequest = {
-          discharge_date: dischargeDate,
-          discharge_type: dischargeType,
-          discharge_summary: dischargeSummary.trim() || null,
-          discharge_instructions: dischargeInstructions.trim() || null,
-          final_diagnosis: finalDiagnosis.trim() || null,
+          discharge_date: today, // Use today's date as fallback
+          discharge_type: "normal", // Use default as fallback
+          discharge_summary: null,
+          discharge_instructions: null,
+          final_diagnosis: null,
           create_invoice: createInvoice,
           payment_method: paymentMethod || null,
           payment_reference: paymentReference.trim() || null,
@@ -183,6 +195,9 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
         : (invoice.total_amount - invoice.paid_amount))
     : 0;
 
+  // Check if total amount is negative (refund scenario)
+  const isNegativeAmount = invoice && invoice.total_amount < 0;
+
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {/* Payment Section for discharge_initiated */}
@@ -204,7 +219,9 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-500">Total Amount</p>
-                  <p className="text-sm font-bold text-slate-900">{currency(invoice.total_amount)}</p>
+                  <p className={`text-sm font-bold ${isNegativeAmount ? 'text-rose-600' : 'text-slate-900'}`}>
+                    {currency(invoice.total_amount)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-500">Paid Amount</p>
@@ -212,35 +229,55 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-500">Balance Due</p>
-                  <p className="text-lg font-bold text-purple-600">{currency(balanceDue)}</p>
+                  <p className={`text-lg font-bold ${balanceDue < 0 ? 'text-rose-600' : 'text-purple-600'}`}>
+                    {currency(balanceDue)}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="space-y-1">
-                  <span className="text-slate-600">
-                    Payment Method <span className="text-rose-500">*</span>
-                  </span>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => {
-                      setPaymentMethod(e.target.value);
-                      if (e.target.value !== "upi" && e.target.value !== "card" && e.target.value !== "cheque") {
-                        setPaymentReference("");
+              {(isNegativeAmount || balanceDue < 0) && (
+                <div className="flex items-start gap-2 rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+                  <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-900">Refund Notice</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      {isNegativeAmount 
+                        ? "The total amount is negative. This transaction will be marked as "
+                        : "The balance due is negative. This transaction will be marked as "
                       }
-                    }}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-                    required
-                  >
-                    <option value="">Select payment method</option>
-                    <option value="cash">Cash</option>
-                    <option value="upi">UPI</option>
-                    <option value="card">Card</option>
-                    <option value="cheque">Cheque</option>
-                  </select>
-                </label>
+                      <span className="font-bold">refunded</span> in the system.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+              <div className="space-y-3">
+                {balanceDue >= 0 && (
+                  <label className="space-y-1">
+                    <span className="text-slate-600">
+                      Payment Method <span className="text-rose-500">*</span>
+                    </span>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => {
+                        setPaymentMethod(e.target.value);
+                        if (e.target.value !== "upi" && e.target.value !== "card" && e.target.value !== "cheque") {
+                          setPaymentReference("");
+                        }
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                      required
+                    >
+                      <option value="">Select payment method</option>
+                      <option value="cash">Cash</option>
+                      <option value="upi">UPI</option>
+                      <option value="card">Card</option>
+                      <option value="cheque">Cheque</option>
+                    </select>
+                  </label>
+                )}
+
+                {balanceDue >= 0 && (paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
                   <label className="space-y-1">
                     <span className="text-slate-600">
                       Payment Reference <span className="text-rose-500">*</span>
@@ -258,19 +295,24 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
 
                 <label className="space-y-1">
                   <span className="text-slate-600">
-                    Payment Amount <span className="text-rose-500">*</span>
+                    Payment Amount {balanceDue >= 0 && <span className="text-rose-500">*</span>}
                   </span>
                   <input
                     type="number"
-                    min="0"
-                    max={balanceDue}
+                    min={balanceDue < 0 ? "0" : "0.01"}
+                    max={balanceDue < 0 ? 0 : balanceDue}
                     step="0.01"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-                    required
+                    required={balanceDue >= 0}
+                    disabled={balanceDue < 0}
                   />
-                  <p className="text-xs text-slate-500">Maximum: {currency(balanceDue)}</p>
+                  {balanceDue < 0 ? (
+                    <p className="text-xs text-amber-600 font-medium">Payment amount is set to 0 for refund scenario</p>
+                  ) : (
+                    <p className="text-xs text-slate-500">Minimum: ₹0.01 | Maximum: {currency(balanceDue)}</p>
+                  )}
                 </label>
 
                 <label className="space-y-1 md:col-span-2">
@@ -293,71 +335,6 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
           )}
         </div>
       )}
-
-      <label className="space-y-1">
-        <span className="text-slate-600 flex items-center gap-1">
-          <Calendar className="h-4 w-4" />
-          Discharge Date <span className="text-rose-500">*</span>
-        </span>
-        <input
-          type="date"
-          value={dischargeDate}
-          onChange={(e) => setDischargeDate(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          required
-        />
-      </label>
-
-      <label className="space-y-1">
-        <span className="text-slate-600">
-          Discharge Type <span className="text-rose-500">*</span>
-        </span>
-        <select
-          value={dischargeType}
-          onChange={(e) => setDischargeType(e.target.value as DischargeType)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          required
-        >
-          <option value="normal">Normal</option>
-          <option value="ama">AMA (Against Medical Advice)</option>
-          <option value="transfer">Transfer</option>
-          <option value="deceased">Deceased</option>
-          <option value="lama">LAMA (Leave Against Medical Advice)</option>
-        </select>
-      </label>
-
-      <label className="md:col-span-2 space-y-1">
-        <span className="text-slate-600">Discharge Summary</span>
-        <textarea
-          value={dischargeSummary}
-          onChange={(e) => setDischargeSummary(e.target.value)}
-          rows={3}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          placeholder="Enter discharge summary"
-        />
-      </label>
-
-      <label className="md:col-span-2 space-y-1">
-        <span className="text-slate-600">Discharge Instructions</span>
-        <textarea
-          value={dischargeInstructions}
-          onChange={(e) => setDischargeInstructions(e.target.value)}
-          rows={3}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          placeholder="Enter discharge instructions for the patient"
-        />
-      </label>
-
-      <label className="md:col-span-2 space-y-1">
-        <span className="text-slate-600">Final Diagnosis</span>
-        <textarea
-          value={finalDiagnosis}
-          onChange={(e) => setFinalDiagnosis(e.target.value)}
-          rows={2}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          placeholder="Enter final diagnosis"
-        />
-      </label>
 
       {!isDischargeInitiated && (
         <>
