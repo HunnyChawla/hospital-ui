@@ -20,6 +20,7 @@ interface ConditionDetails {
   duration?: string;
   medication?: string;
   controlled?: boolean;
+  notes?: string;
 }
 
 interface MedicalHistoryFormData {
@@ -292,6 +293,13 @@ export function ConfirmedMedicalHistorySummary({
                                 </span>
                               </>
                             )}
+                          </div>
+                        )}
+
+                        {details.notes && (
+                          <div className="flex items-start gap-1.5 text-xs text-slate-600">
+                            <FileText className="h-3 w-3 mt-0.5 text-slate-500" />
+                            <span className="whitespace-pre-wrap">{details.notes}</span>
                           </div>
                         )}
                       </div>
