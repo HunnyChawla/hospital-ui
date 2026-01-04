@@ -23,7 +23,6 @@ import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
 import { DiagnosisNotesTab } from "./DiagnosisNotesTab";
 import type {
   ComplaintRecord,
-  MedicalHistoryRecord,
   OphthalmicSurgeryRecord,
   DrugAllergyRecord,
   ARDataRecord,
@@ -53,7 +52,6 @@ interface ExaminationTabsProps {
 
   // Data props
   complaints: ComplaintRecord[];
-  medicalHistory?: MedicalHistoryRecord | null; // Optional - MedicalHistoryTab manages its own data
   ophthalmicHistory: OphthalmicSurgeryRecord[];
   drugAllergies: DrugAllergyRecord[];
   arDataRecords: ARDataRecord[];
@@ -68,20 +66,17 @@ interface ExaminationTabsProps {
     iop: boolean;
     arData: boolean;
     complaints: boolean;
-    medicalHistory?: boolean; // Optional - MedicalHistoryTab manages its own loading
     ophthalmicHistory: boolean;
     drugAllergies: boolean;
   };
 
   // Refresh functions
   refreshComplaints: () => void;
-  refreshMedicalHistory?: () => void; // Optional - MedicalHistoryTab manages its own refresh
   refreshOphthalmicHistory: () => void;
   refreshDrugAllergies: () => void;
   refreshARData: () => void;
   refreshRefraction: () => void;
   refreshIOP: () => void;
-  refreshHistory: () => void;
 }
 
 const tabs = [
@@ -103,7 +98,6 @@ export function ExaminationTabs({
   activeTab,
   onTabChange,
   complaints,
-  medicalHistory,
   ophthalmicHistory,
   drugAllergies,
   arDataRecords,
@@ -113,45 +107,45 @@ export function ExaminationTabs({
   patientOptometryHistory,
   loading,
   refreshComplaints,
-  refreshMedicalHistory,
   refreshOphthalmicHistory,
   refreshDrugAllergies,
   refreshARData,
   refreshRefraction,
   refreshIOP,
-  refreshHistory,
 }: ExaminationTabsProps) {
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Tab Navigation */}
-      <div className="flex-shrink-0">
-        <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-hide">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+      <div className="flex-shrink-0 border-b border-slate-200 bg-slate-50">
+        <div className="flex gap-1 px-2 py-1 sm:px-4">
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hide">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
 
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id as ActiveTab)}
-                className={clsx(
-                  "flex items-center gap-1 sm:gap-2 whitespace-nowrap rounded-t-lg px-2 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition min-w-0 flex-shrink-0",
-                  isActive
-                    ? "bg-sky-100 text-sky-700 border-sky-600"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                )}
-              >
-                <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                <span className="hidden sm:inline truncate">{tab.label}</span>
-                <span className="sm:hidden truncate">{tab.label.split(' ')[0]}</span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => onTabChange(tab.id as ActiveTab)}
+                  className={clsx(
+                    "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-3 sm:text-sm",
+                    isActive
+                      ? "border-sky-500 bg-white text-sky-700"
+                      : "border-transparent text-slate-600 hover:bg-white/50 hover:text-slate-900"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-3 sm:p-6">
         {activeTab === "complaints" && (
           <ComplaintsTab
             patientId={patientId}
@@ -167,16 +161,12 @@ export function ExaminationTabs({
           <MedicalHistoryTab
             patientId={patientId}
             visitId={visitId}
-            medicalHistory={medicalHistory}
-            loading={loading.medicalHistory}
-            onRefresh={refreshMedicalHistory}
           />
         )}
 
         {activeTab === "ophthalmic_history" && (
           <OphthalHistoryTab
             patientId={patientId}
-            visitId={visitId}
             ophthalmicHistory={ophthalmicHistory}
             loading={loading.ophthalmicHistory}
             onRefresh={refreshOphthalmicHistory}
@@ -186,7 +176,6 @@ export function ExaminationTabs({
         {activeTab === "allergies" && (
           <DrugAllergyTab
             patientId={patientId}
-            visitId={visitId}
             drugAllergies={drugAllergies}
             loading={loading.drugAllergies}
             onRefresh={refreshDrugAllergies}

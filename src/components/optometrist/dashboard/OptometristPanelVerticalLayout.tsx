@@ -1,9 +1,9 @@
 "use client";
 
-import React, { memo, useEffect } from "react";
+import React, { memo } from "react";
 import { OptometristCollapsibleStatsSection } from "./OptometristCollapsibleStatsSection";
 import { OptometristCollapsibleQueueSection } from "./OptometristCollapsibleQueueSection";
-import { OptometristActivePatientCard } from "./OptometristActivePatientCard";
+import { OptometristActivePatientCard } from "@/components/optometrist/dashboard/OptometristActivePatientCard";
 import type { OptometristStats } from "@/types";
 import type { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
 
@@ -66,10 +66,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   onTabChange,
   children,
 }) => {
-  console.log("Rendering - Queue visible:", queueVisible, "Patients:", queuePatients.length);
-  
   return (
-    <div className="flex flex-col space-y-3 h-full">
+    <div className="flex flex-col space-y-3 h-full min-h-0">
       {/* Stats Section - Horizontal 4-column layout at top */}
       <OptometristCollapsibleStatsSection
         stats={stats}
@@ -80,9 +78,9 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
       />
 
       {/* Main content area: Patient Area + Queue Sidebar */}
-      <div className="flex gap-2 sm:gap-3 relative h-full overflow-hidden">
+      <div className="flex gap-2 sm:gap-3 relative flex-1 min-h-0 overflow-hidden">
         {/* Patient Card - Takes remaining space */}
-        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+        <div className="flex-1 h-full min-h-0 min-w-0 overflow-hidden">
           <OptometristActivePatientCard
             patientId={selectedPatientId}
             patientName={selectedPatientName}
@@ -94,22 +92,6 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
           >
             {children}
           </OptometristActivePatientCard>
-        </div>
-
-        {/* Queue Sidebar - Right side with responsive width */}
-        <div
-          className="flex-shrink-0 relative z-10 overflow-hidden bg-white border-l border-slate-200 w-72 sm:w-80"
-        >
-          <OptometristCollapsibleQueueSection
-            queuePatients={queuePatients}
-            activeFilter={queueFilter}
-            onFilterChange={onQueueFilterChange}
-            onSelectPatient={onSelectPatient}
-            selectedPatientId={selectedPatientId}
-            loading={queueLoading}
-            isVisible={true}
-            onToggle={onToggleQueue}
-          />
         </div>
 
         {/* Queue Toggle Button (visible when sidebar is collapsed) */}
@@ -137,6 +119,26 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             </svg>
           </button>
         )}
+
+        {/* Queue Sidebar - Right side with responsive width */}
+        <div
+          className={`sidebar-transition flex-shrink-0 h-full min-h-0 ${
+            queueVisible ? "w-72 sm:w-80" : "w-0 overflow-hidden"
+          }`}
+        >
+          {queueVisible && (
+            <OptometristCollapsibleQueueSection
+              queuePatients={queuePatients}
+              activeFilter={queueFilter}
+              onFilterChange={onQueueFilterChange}
+              onSelectPatient={onSelectPatient}
+              selectedPatientId={selectedPatientId}
+              loading={queueLoading}
+              isVisible={queueVisible}
+              onToggle={onToggleQueue}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

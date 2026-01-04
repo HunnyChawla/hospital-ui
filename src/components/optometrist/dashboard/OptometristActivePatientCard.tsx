@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Eye, X, FileText } from "lucide-react";
+import { Eye, X } from "lucide-react";
 import { PrescriptionButton } from "../prescriptions/PrescriptionButton";
 
 type ActiveTab = 
@@ -30,21 +30,17 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   patientId,
   patientName,
   patientUhid,
-  activeTab,
-  onTabChange,
   onClose,
   showPatientCard,
   children,
 }) => {
   if (!showPatientCard) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12">
         <div className="text-center">
-          <Eye className="w-20 h-20 mx-auto mb-4 text-slate-300" />
-          <h3 className="text-xl font-semibold text-slate-700 mb-2">
-            No Patient Selected
-          </h3>
-          <p className="text-slate-500">
+          <Eye className="mx-auto h-16 w-16 text-slate-300" />
+          <h3 className="mt-4 text-lg font-semibold text-slate-600">No Patient Selected</h3>
+          <p className="mt-2 text-sm text-slate-500">
             Select a patient from the queue to begin examination
           </p>
         </div>
@@ -53,38 +49,44 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   }
 
   return (
-    <div className="flex flex-col h-full min-w-0 overflow-hidden">
-      {/* Patient Info Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 sm:p-6 flex-shrink-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-1 sm:mb-2 truncate">
-              {patientName}
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 truncate">UHID: {patientUhid || patientId}</p>
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-md">
+      <div className="border-b border-slate-200 bg-gradient-to-r from-sky-50 to-teal-50 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700 sm:h-12 sm:w-12">
+              <Eye className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-bold text-slate-900 sm:text-lg">
+                {patientName || "Patient Details"}
+              </h2>
+              <p className="truncate text-xs text-slate-600 sm:text-sm">
+                UHID: {patientUhid || patientId}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+
+          <div className="flex flex-shrink-0 items-center gap-2">
             <PrescriptionButton
               patientId={patientId || ""}
               patientName={patientName || ""}
               patientUhid={patientUhid || ""}
-              visitId={""} // Will be populated when visit is selected
-              optometristId={""} // Will be populated when optometrist is available
-              optometristName={"Optometrist"} // Will be populated when optometrist is available
+              visitId={""}
+              optometristId={""}
+              optometristName={"Optometrist"}
             />
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 sm:p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-              title="Clear patient selection"
+              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+              title="Clear selection"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Examination Tabs - Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto min-w-0">
+      <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
         {children}
       </div>
     </div>

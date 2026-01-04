@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { Eye, RefreshCw } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
@@ -32,7 +32,6 @@ export function OptometristPanel() {
     selectPatient,
     setActiveTab,
     refreshSchedule,
-    reset,
   } = useOptometristPanel();
 
   // Use optometry data hook
@@ -42,18 +41,14 @@ export function OptometristPanel() {
     iopTrends,
     arDataRecords,
     complaints,
-    medicalHistory,
     ophthalmicHistory,
     drugAllergies,
     patientOptometryHistory,
     loading: dataLoading,
-    error: dataError,
-    refreshHistory,
     refreshRefraction,
     refreshIOP,
     refreshARData,
     refreshComplaints,
-    refreshMedicalHistory,
     refreshOphthalmicHistory,
     refreshDrugAllergies,
   } = useOptometryData({
@@ -102,8 +97,6 @@ export function OptometristPanel() {
 
   // Find current visit ID when patient selected
   useEffect(() => {
-    console.log("Selected Patient ID changed:", selectedPatientId);
-    console.log("Today's Schedule:", todaySchedule);
     if (selectedPatientId && todaySchedule?.slots) {
       const currentSlot = todaySchedule.slots.find(
         slot => slot.patient_id === selectedPatientId &&
@@ -154,8 +147,8 @@ export function OptometristPanel() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <div className="flex-1 overflow-hidden space-y-2 px-2 sm:px-4 py-2">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden space-y-2 px-2 sm:px-4 py-2">
         {/* Header */}
         <div className="flex items-center justify-between py-1 flex-shrink-0">
           {currentOptometrist && (
@@ -188,7 +181,7 @@ export function OptometristPanel() {
         )}
 
         {/* Dashboard Layout */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <OptometristPanelVerticalLayout
             stats={todayStats}
             statsLoading={panelLoading}
@@ -222,7 +215,6 @@ export function OptometristPanel() {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
                 complaints={complaints}
-                medicalHistory={medicalHistory}
                 ophthalmicHistory={ophthalmicHistory}
                 drugAllergies={drugAllergies}
                 arDataRecords={arDataRecords}
@@ -232,13 +224,11 @@ export function OptometristPanel() {
                 patientOptometryHistory={patientOptometryHistory}
                 loading={dataLoading}
                 refreshComplaints={refreshComplaints}
-                refreshMedicalHistory={refreshMedicalHistory}
                 refreshOphthalmicHistory={refreshOphthalmicHistory}
                 refreshDrugAllergies={refreshDrugAllergies}
                 refreshARData={refreshARData}
                 refreshRefraction={refreshRefraction}
                 refreshIOP={refreshIOP}
-                refreshHistory={refreshHistory}
               />
             )}
           </OptometristPanelVerticalLayout>
