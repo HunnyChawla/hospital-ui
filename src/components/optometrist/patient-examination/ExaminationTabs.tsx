@@ -145,7 +145,7 @@ export function ExaminationTabs({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-3 sm:p-6">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-slate-50 p-3 sm:p-6">
         {activeTab === "complaints" && (
           <ComplaintsTab
             patientId={patientId}
