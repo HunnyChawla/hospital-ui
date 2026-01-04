@@ -14,17 +14,7 @@ import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { toast } from "sonner";
 import { getTenantIdForApi } from "@/utils/auth";
 
-type QueuePatient = {
-  patient_id: string;
-  patient_name: string;
-  patient_uhid: string | null;
-  token_number: string | number;
-  status: string;
-  visit_type?: "walk_in" | "appointment" | "emergency";
-  visit_id: string;
-  item_id: string;
-  time: string;
-};
+
 
 export function OptometristPanel() {
   // Use our custom hooks

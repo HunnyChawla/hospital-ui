@@ -11,6 +11,7 @@ type QueuePatient = {
   visit_id: string;
   item_id: string;
   time: string;
+  checked_in_at?: string;
 };
 
 function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
@@ -27,6 +28,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       visit_id: item.visit_id || item.id || "",
       item_id: item.item_id || "",
       time: item.time || item.start_time || "",
+      checked_in_at: item.checked_in_at,
     }));
   }
 
@@ -41,6 +43,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       visit_id: item.visit_id || item.id || "",
       item_id: item.item_id || "",
       time: item.time || item.start_time || "",
+      checked_in_at: item.checked_in_at,
     }));
   }
 
@@ -55,6 +58,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       visit_id: item.visit_id || item.id || "",
       item_id: item.item_id || "",
       time: item.time || item.start_time || "",
+      checked_in_at: item.checked_in_at,
     }));
   }
 
@@ -69,6 +73,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       visit_id: item.visit_id || item.id || "",
       item_id: item.item_id || "",
       time: item.time || item.start_time || "",
+      checked_in_at: item.checked_in_at,
     }));
   }
 
@@ -84,6 +89,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
         visit_id: data.visit_id || data.id || "",
         item_id: data.item_id || "",
         time: data.time || data.start_time || "",
+        checked_in_at: data.checked_in_at,
       },
     ];
   }
@@ -101,7 +107,8 @@ function areQueuePatientsEqual(prev: QueuePatient[], next: QueuePatient[]): bool
       p.token_number === n.token_number &&
       p.status === n.status &&
       p.visit_id === n.visit_id &&
-      p.visit_type === n.visit_type
+      p.visit_type === n.visit_type &&
+      p.checked_in_at === n.checked_in_at
     );
   });
 }
@@ -138,7 +145,8 @@ export function useOptometristLiveQueue({
             existing.patient_name === updated.patient_name &&
             existing.token_number === updated.token_number &&
             existing.status === updated.status &&
-            existing.visit_type === updated.visit_type
+            existing.visit_type === updated.visit_type &&
+            existing.checked_in_at === updated.checked_in_at
           ) {
             return prev;
           }

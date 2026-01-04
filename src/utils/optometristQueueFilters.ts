@@ -10,6 +10,7 @@ export interface OptometristQueuePatient {
   visit_id: string;
   item_id: string;
   time: string;
+  checked_in_at?: string;
 }
 
 export interface FilterConfig {

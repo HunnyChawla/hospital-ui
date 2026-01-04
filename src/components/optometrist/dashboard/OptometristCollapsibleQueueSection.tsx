@@ -138,7 +138,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                         Token: {patient.token_number}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
-                        {formatDateTime(patient.time)}
+                        {formatDateTime(patient.checked_in_at || patient.time)}
                       </div>
                     </div>
                     <div>
