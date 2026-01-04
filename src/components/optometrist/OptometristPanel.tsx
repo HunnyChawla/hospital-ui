@@ -148,7 +148,7 @@ export function OptometristPanel() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <div className="flex-1 min-h-0 overflow-hidden space-y-2 px-2 sm:px-4 py-2">
+      <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-2 px-2 sm:px-4 py-2">
         {/* Header */}
         <div className="flex items-center justify-between py-1 flex-shrink-0">
           {currentOptometrist && (
@@ -173,7 +173,7 @@ export function OptometristPanel() {
 
         {/* Error message */}
         {panelError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 flex-shrink-0">
             <p className="text-sm text-rose-700">
               {typeof panelError === 'string' ? panelError : JSON.stringify(panelError)}
             </p>
