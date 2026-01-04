@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Eye, X } from "lucide-react";
-import { PrescriptionButton } from "../prescriptions/PrescriptionButton";
+import { ShowSummaryButton } from "../summary/ShowSummaryButton";
 
 type ActiveTab = 
   | "complaints"
@@ -19,6 +19,7 @@ interface OptometristActivePatientCardProps {
   patientId: string | null;
   patientName?: string;
   patientUhid?: string;
+  visitId?: string;
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
@@ -30,6 +31,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   patientId,
   patientName,
   patientUhid,
+  visitId,
   onClose,
   showPatientCard,
   children,
@@ -61,19 +63,17 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
                 {patientName || "Patient Details"}
               </h2>
               <p className="truncate text-xs text-slate-600 sm:text-sm">
-                UHID: {patientUhid || patientId}
+                {patientUhid || patientId}
               </p>
             </div>
           </div>
 
           <div className="flex flex-shrink-0 items-center gap-2">
-            <PrescriptionButton
+            <ShowSummaryButton
               patientId={patientId || ""}
               patientName={patientName || ""}
               patientUhid={patientUhid || ""}
-              visitId={""}
-              optometristId={""}
-              optometristName={"Optometrist"}
+              visitId={visitId}
             />
             <button
               onClick={onClose}

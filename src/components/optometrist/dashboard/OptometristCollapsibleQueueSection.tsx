@@ -35,6 +35,22 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   isVisible,
   onToggle,
 }) => {
+  // Format date and time for display
+  const formatDateTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   // Filter patients based on active filter
   const filteredPatients = React.useMemo(() => {
     return filterOptometristQueuePatients(queuePatients, activeFilter);
@@ -116,13 +132,13 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                     <div className="flex-1">
                       <div className="font-medium text-slate-900">{patient.patient_name}</div>
                       {patient.patient_uhid && (
-                        <div className="text-xs text-slate-500 mt-1">UHID: {patient.patient_uhid}</div>
+                        <div className="text-xs text-slate-500 mt-1">{patient.patient_uhid}</div>
                       )}
                       <div className="text-sm text-slate-600 mt-1">
                         Token: {patient.token_number}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
-                        {patient.time}
+                        {formatDateTime(patient.time)}
                       </div>
                     </div>
                     <div>

@@ -261,6 +261,7 @@ export function OptometristPanel() {
             selectedPatientId={selectedPatientId}
             selectedPatientName={selectedPatientName}
             selectedPatientUhid={selectedPatientUhid}
+            visitId={currentVisitId}
             activeTab={activeTab}
             onSelectPatient={selectPatient}
             onClearPatient={() => {

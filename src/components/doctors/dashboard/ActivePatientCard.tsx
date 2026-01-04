@@ -76,7 +76,7 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
               <h2 className="text-lg font-bold text-slate-900">
                 {patientName || "Patient Details"}
               </h2>
-              <p className="text-xs text-slate-600">UHID: {patientUhid || patientId}</p>
+              <p className="text-xs text-slate-600">{patientUhid || patientId}</p>
             </div>
           </div>
 

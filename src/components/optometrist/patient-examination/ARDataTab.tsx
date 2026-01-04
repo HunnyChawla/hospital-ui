@@ -23,18 +23,18 @@ interface ARDataTabProps {
 
 interface ARDataFormData {
   od: {
-    sphere: number | null;
-    cylinder: number | null;
-    axis: number | null;
+    sphere: number | string | null;
+    cylinder: number | string | null;
+    axis: number | string | null;
     visual_acuity: string | null;
   };
   os: {
-    sphere: number | null;
-    cylinder: number | null;
-    axis: number | null;
+    sphere: number | string | null;
+    cylinder: number | string | null;
+    axis: number | string | null;
     visual_acuity: string | null;
   };
-  pupillary_distance: number | null;
+  pupillary_distance: number | string | null;
   notes: string;
 }
 
@@ -195,10 +195,10 @@ export function ARDataTab({
     }
 
     // At least one eye should have data
-    if (
-      formData.od.sphere === null &&
-      formData.os.sphere === null
-    ) {
+    const odHasData = formData.od.sphere !== null && formData.od.sphere !== undefined && formData.od.sphere !== "";
+    const osHasData = formData.os.sphere !== null && formData.os.sphere !== undefined && formData.os.sphere !== "";
+    
+    if (!odHasData && !osHasData) {
       toast.error("Please enter AR data for at least one eye");
       return;
     }
@@ -209,15 +209,15 @@ export function ARDataTab({
       const payload: any = {
         patient_id: patientId,
         visit_id: visitId,
-        od_sphere: formData.od.sphere,
-        od_cylinder: formData.od.cylinder,
-        od_axis: formData.od.axis,
+        od_sphere: formData.od.sphere === "" || formData.od.sphere === null ? null : Number(formData.od.sphere),
+        od_cylinder: formData.od.cylinder === "" || formData.od.cylinder === null ? null : Number(formData.od.cylinder),
+        od_axis: formData.od.axis === "" || formData.od.axis === null ? null : Number(formData.od.axis),
         od_visual_acuity: formData.od.visual_acuity,
-        os_sphere: formData.os.sphere,
-        os_cylinder: formData.os.cylinder,
-        os_axis: formData.os.axis,
+        os_sphere: formData.os.sphere === "" || formData.os.sphere === null ? null : Number(formData.os.sphere),
+        os_cylinder: formData.os.cylinder === "" || formData.os.cylinder === null ? null : Number(formData.os.cylinder),
+        os_axis: formData.os.axis === "" || formData.os.axis === null ? null : Number(formData.os.axis),
         os_visual_acuity: formData.os.visual_acuity,
-        pupillary_distance: formData.pupillary_distance,
+        pupillary_distance: formData.pupillary_distance === "" || formData.pupillary_distance === null ? null : Number(formData.pupillary_distance),
         notes: formData.notes || null,
       };
 
@@ -431,8 +431,8 @@ export function ARDataTab({
             {/* Sphere */}
             <EyeValueInput
               label="Sphere (SPH)"
-              odValue={formData.od.sphere}
-              osValue={formData.os.sphere}
+              odValue={formData.od.sphere === "" || formData.od.sphere === null ? null : Number(formData.od.sphere)}
+              osValue={formData.os.sphere === "" || formData.os.sphere === null ? null : Number(formData.os.sphere)}
               onODChange={(v) => updateField("od", "sphere", v)}
               onOSChange={(v) => updateField("os", "sphere", v)}
               step={0.25}
@@ -445,8 +445,8 @@ export function ARDataTab({
             {/* Cylinder */}
             <EyeValueInput
               label="Cylinder (CYL)"
-              odValue={formData.od.cylinder}
-              osValue={formData.os.cylinder}
+              odValue={formData.od.cylinder === "" || formData.od.cylinder === null ? null : Number(formData.od.cylinder)}
+              osValue={formData.os.cylinder === "" || formData.os.cylinder === null ? null : Number(formData.os.cylinder)}
               onODChange={(v) => updateField("od", "cylinder", v)}
               onOSChange={(v) => updateField("os", "cylinder", v)}
               step={0.25}
@@ -459,8 +459,8 @@ export function ARDataTab({
             {/* Axis */}
             <EyeValueInput
               label="Axis"
-              odValue={formData.od.axis}
-              osValue={formData.os.axis}
+              odValue={formData.od.axis === "" || formData.od.axis === null ? null : Number(formData.od.axis)}
+              osValue={formData.os.axis === "" || formData.os.axis === null ? null : Number(formData.os.axis)}
               onODChange={(v) => updateField("od", "axis", v)}
               onOSChange={(v) => updateField("os", "axis", v)}
               step={1}
@@ -505,7 +505,7 @@ export function ARDataTab({
             <div className="border-t border-slate-200 pt-6">
               <NumericStepper
                 label="Pupillary Distance (PD)"
-                value={formData.pupillary_distance}
+                value={formData.pupillary_distance === "" || formData.pupillary_distance === null ? null : Number(formData.pupillary_distance)}
                 onChange={(v) =>
                   setFormData((prev) => ({ ...prev, pupillary_distance: v }))
                 }

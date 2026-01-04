@@ -37,6 +37,7 @@ interface OptometristPanelVerticalLayoutProps {
   selectedPatientId: string | null;
   selectedPatientName?: string;
   selectedPatientUhid?: string;
+  visitId?: string;
   activeTab: ActiveTab;
   onSelectPatient: (patientId: string) => void;
   onClearPatient: () => void;
@@ -64,6 +65,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   selectedPatientId,
   selectedPatientName,
   selectedPatientUhid,
+  visitId,
   activeTab,
   onSelectPatient,
   onClearPatient,
@@ -91,6 +93,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             patientId={selectedPatientId}
             patientName={selectedPatientName}
             patientUhid={selectedPatientUhid}
+            visitId={visitId}
             activeTab={activeTab}
             onTabChange={onTabChange}
             onClose={onClearPatient}
