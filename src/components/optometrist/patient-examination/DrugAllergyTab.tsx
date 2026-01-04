@@ -3,22 +3,13 @@
 import { useState, useMemo } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { addDrugAllergy, deleteDrugAllergy } from "@/redux/optometryDataSlice";
-import {
-  Plus,
-  Trash2,
-  AlertTriangle,
-  Search,
-  X,
-  Check,
-  ShieldCheck,
-  Pill,
-  AlertCircle,
-} from "lucide-react";
+import { AlertTriangle, Search, X, Check, Pill } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { DrugAllergyRecord } from "@/types";
 import { SeveritySelector } from "../shared";
 import { commonDrugs, commonReactions } from "../mock/mockTemplates";
+import { ConfirmedDrugAllergiesSummary } from "./ConfirmedDrugAllergiesSummary";
 
 interface DrugAllergyTabProps {
   patientId: string;
@@ -50,7 +41,6 @@ export function DrugAllergyTab({
   onRefresh,
 }: DrugAllergyTabProps) {
   const dispatch = useAppDispatch();
-  const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<AllergyFormData>(initialFormData);
   const [drugSearch, setDrugSearch] = useState("");
@@ -64,8 +54,6 @@ export function DrugAllergyTab({
     return commonDrugs.filter((drug) => drug.toLowerCase().includes(search));
   }, [drugSearch]);
 
-  const hasSevereAllergies = drugAllergies.some((a) => a.severity === "severe");
-  const allergyCount = drugAllergies.length;
 
   const handleDrugSelect = (drug: string) => {
     setFormData((prev) => ({ ...prev, drug_name: drug }));
@@ -143,148 +131,27 @@ export function DrugAllergyTab({
     setDrugSearch("");
     setSelectedReactions([]);
     setShowDrugDropdown(false);
-    setIsAdding(false);
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "mild":
-        return "bg-emerald-100 text-emerald-700 border-emerald-300";
-      case "moderate":
-        return "bg-amber-100 text-amber-700 border-amber-300";
-      case "severe":
-        return "bg-red-100 text-red-700 border-red-300";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-300";
-    }
-  };
-
-  const getSeverityBg = (severity: string) => {
-    switch (severity) {
-      case "severe":
-        return "border-red-300 bg-red-50";
-      case "moderate":
-        return "border-amber-200 bg-amber-50";
-      default:
-        return "border-slate-200 bg-white";
-    }
-  };
+  // Removed list item severity helpers; list is now rendered in the right summary component
 
   return (
-    <div className="space-y-4">
-      {/* Header with Actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">
-            Drug Allergies
-          </h3>
-          <p className="text-sm text-slate-600">
-            Record known drug allergies and adverse reactions
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!isAdding && (
-            <button
-              onClick={() => setIsAdding(true)}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition"
-            >
-              <Plus className="h-4 w-4" />
-              Add Allergy
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Critical Allergy Alert Banner */}
-      {hasSevereAllergies && (
-        <div className="flex items-center gap-3 rounded-xl border-2 border-red-300 bg-gradient-to-r from-red-50 to-rose-50 p-4 shadow-sm">
-          <div className="rounded-full bg-red-100 p-2">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-red-900">
-              Critical Allergy Alert
-            </p>
-            <p className="text-sm text-red-700">
-              Patient has{" "}
-              {drugAllergies.filter((a) => a.severity === "severe").length}{" "}
-              severe allergy record(s). Review before prescribing any
-              medications.
-            </p>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Left Column: Add Allergy Section (2/3 width on large screens) */}
+      <div className="lg:col-span-2 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">Drug Allergies</h3>
+            <p className="text-sm text-slate-600">Record known drug allergies and adverse reactions</p>
           </div>
         </div>
-      )}
 
-      {/* Allergy Status Summary */}
-      <div
-        className={clsx(
-          "flex items-center justify-between rounded-lg px-4 py-3",
-          allergyCount === 0
-            ? "bg-emerald-50 border border-emerald-200"
-            : hasSevereAllergies
-            ? "bg-red-50 border border-red-200"
-            : "bg-amber-50 border border-amber-200"
-        )}
-      >
-        <div className="flex items-center gap-3">
-          {allergyCount === 0 ? (
-            <>
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
-              <span className="font-medium text-emerald-700">
-                No Known Drug Allergies (NKDA)
-              </span>
-            </>
-          ) : (
-            <>
-              <AlertCircle
-                className={clsx(
-                  "h-5 w-5",
-                  hasSevereAllergies ? "text-red-600" : "text-amber-600"
-                )}
-              />
-              <span
-                className={clsx(
-                  "font-medium",
-                  hasSevereAllergies ? "text-red-700" : "text-amber-700"
-                )}
-              >
-                {allergyCount} Drug Allerg{allergyCount !== 1 ? "ies" : "y"}{" "}
-                Recorded
-              </span>
-            </>
-          )}
-        </div>
-        {allergyCount > 0 && (
-          <div className="flex items-center gap-3 text-xs">
-            {drugAllergies.filter((a) => a.severity === "severe").length >
-              0 && (
-              <span className="flex items-center gap-1 text-red-600 font-medium">
-                <span className="h-2 w-2 rounded-full bg-red-500"></span>
-                {drugAllergies.filter((a) => a.severity === "severe").length}{" "}
-                Severe
-              </span>
-            )}
-            {drugAllergies.filter((a) => a.severity === "moderate").length >
-              0 && (
-              <span className="flex items-center gap-1 text-amber-600 font-medium">
-                <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                {drugAllergies.filter((a) => a.severity === "moderate").length}{" "}
-                Moderate
-              </span>
-            )}
-            {drugAllergies.filter((a) => a.severity === "mild").length > 0 && (
-              <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                {drugAllergies.filter((a) => a.severity === "mild").length} Mild
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+        {/* Critical Allergy Alert removed as requested */}
 
-      {/* Add Allergy Form */}
-      {isAdding && (
+        {/* Removed the status summary as requested */}
+
+        {/* Add Allergy Form - always visible */}
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           {/* Form Header */}
           <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4">
@@ -302,12 +169,7 @@ export function DrugAllergyTab({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={resetForm}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              {/* Close button removed to keep form always visible */}
             </div>
           </div>
 
@@ -346,7 +208,7 @@ export function DrugAllergyTab({
               </div>
 
               {/* Dropdown */}
-              {showDrugDropdown && filteredDrugs.length > 0 && (
+              {showDrugDropdown && (filteredDrugs.length > 0 || drugSearch.trim()) && (
                 <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
                   {filteredDrugs.map((drug) => (
                     <button
@@ -359,6 +221,17 @@ export function DrugAllergyTab({
                       {drug}
                     </button>
                   ))}
+                  {drugSearch.trim() && !filteredDrugs.some((d) => d.toLowerCase() === drugSearch.toLowerCase()) && (
+                    <button
+                      key="custom"
+                      type="button"
+                      onClick={() => handleDrugSelect(drugSearch.trim())}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-slate-50 transition border-t border-slate-100"
+                    >
+                      <Pill className="h-4 w-4 text-slate-400" />
+                      Add "{drugSearch.trim()}" as custom drug
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -486,102 +359,16 @@ export function DrugAllergyTab({
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Allergies List */}
-      {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
-          <div className="mx-auto mb-3 h-8 w-8 border-2 border-sky-600/30 border-t-sky-600 rounded-full animate-spin" />
-          <p className="text-slate-600">Loading drug allergies...</p>
-        </div>
-      ) : drugAllergies.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-8 text-center">
-          <ShieldCheck className="mx-auto mb-3 h-12 w-12 text-emerald-400" />
-          <p className="text-emerald-700 font-medium">
-            No Known Drug Allergies (NKDA)
-          </p>
-          <p className="text-sm text-emerald-600 mt-1">
-            Click &quot;Add Allergy&quot; if patient reports any drug allergies
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {/* Sort severe first, then moderate, then mild */}
-          {[...drugAllergies]
-            .sort((a, b) => {
-              const order = { severe: 0, moderate: 1, mild: 2 };
-              return (
-                (order[a.severity as keyof typeof order] || 3) -
-                (order[b.severity as keyof typeof order] || 3)
-              );
-            })
-            .map((allergy) => (
-              <div
-                key={allergy.id}
-                className={clsx(
-                  "group rounded-xl border-2 p-4 shadow-sm hover:shadow-md transition",
-                  getSeverityBg(allergy.severity)
-                )}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="mb-2 flex items-center gap-3">
-                      {allergy.severity === "severe" && (
-                        <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                      )}
-                      <h5 className="font-semibold text-slate-900 text-lg">
-                        {allergy.drug_name}
-                      </h5>
-                      <span
-                        className={clsx(
-                          "rounded-full border px-3 py-0.5 text-xs font-semibold",
-                          getSeverityColor(allergy.severity)
-                        )}
-                      >
-                        {allergy.severity.charAt(0).toUpperCase() +
-                          allergy.severity.slice(1)}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {allergy.reaction.split(",").map((reaction, idx) => (
-                        <span
-                          key={idx}
-                          className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700"
-                        >
-                          {reaction.trim()}
-                        </span>
-                      ))}
-                    </div>
-
-                    {allergy.notes && (
-                      <p className="text-sm text-slate-600 italic">
-                        {allergy.notes}
-                      </p>
-                    )}
-
-                    <p className="mt-2 text-xs text-slate-400">
-                      Recorded on{" "}
-                      {new Date(allergy.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => handleDelete(allergy.id)}
-                    className="ml-4 rounded-lg p-2 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition"
-                    title="Delete allergy record"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-        </div>
-      )}
+      {/* Right Column: Confirmed Allergies Summary (1/3 width on large screens) */}
+      <div className="lg:col-span-1">
+        <ConfirmedDrugAllergiesSummary
+          drugAllergies={drugAllergies}
+          loading={loading}
+          onDelete={handleDelete}
+        />
+      </div>
     </div>
   );
 }
