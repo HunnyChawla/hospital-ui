@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export type OptometristQueueFilter = "all" | "pending" | "in_progress" | "completed";
+export type OptometristQueueFilter = "pending" | "completed";
 
 export interface OptometristPanelPreferences {
   queueVisible: boolean;
@@ -13,7 +13,7 @@ export interface OptometristPanelPreferences {
 
 const DEFAULT_PREFERENCES: OptometristPanelPreferences = {
   queueVisible: true,
-  queueFilter: "all",
+  queueFilter: "pending",
   statsVisible: true,
   autoCollapseQueueOnMobile: false, // Disabled by default
 };

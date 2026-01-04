@@ -1,19 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Eye, RefreshCw } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
 import { useOptometristPanelPreferences } from "@/hooks/useOptometristPanelPreferences";
 import { OptometristPanelVerticalLayout } from "./dashboard/OptometristPanelVerticalLayout";
 import { ExaminationTabs } from "./patient-examination/ExaminationTabs";
+import { patientsApi } from "@/services/patientsApi";
+import { opdVisitsApi } from "@/services/opdVisitsApi";
+import { toast } from "sonner";
+import { getTenantIdForApi } from "@/utils/auth";
 
 type QueuePatient = {
   patient_id: string;
   patient_name: string;
+  patient_uhid: string | null;
   token_number: string | number;
   status: string;
   visit_type?: "walk_in" | "appointment" | "emergency";
+  visit_id: string;
   item_id: string;
   time: string;
 };
@@ -69,6 +75,7 @@ export function OptometristPanel() {
   const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
   const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
+  const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
 
   // Generate queue from schedule
   useEffect(() => {
@@ -83,9 +90,11 @@ export function OptometristPanel() {
         return {
           patient_id: slot.patient_id,
           patient_name: slot.patient_name,
+          patient_uhid: slot.patient_uhid || null,
           token_number: slot.token_number || "",
           status: slot.status,
           visit_type: visitType,
+          visit_id: slot.visit_id,
           item_id: slot.item_id,
           time: slot.time,
         };
@@ -95,6 +104,48 @@ export function OptometristPanel() {
     }
   }, [todaySchedule]);
 
+  const fetchPatientDetails = useCallback(async (patientId: string) => {
+    try {
+      const patient = await patientsApi.getById(patientId);
+      setSelectedPatientName(
+        `${patient.first_name} ${patient.last_name || ""}`.trim()
+      );
+      setSelectedPatientUhid(patient.uhid);
+    } catch (error) {
+      console.error("Failed to fetch patient details:", error);
+    }
+  }, []);
+
+  // Fetch patient details when selected
+  useEffect(() => {
+    if (selectedPatientId) {
+      fetchPatientDetails(selectedPatientId);
+    }
+  }, [selectedPatientId, fetchPatientDetails]);
+
+  const handleUpdateVisitStatus = useCallback(async (
+    visitId: string,
+    newStatus: "checked_in" | "in_consultation" | "completed"
+  ) => {
+    setUpdatingVisitId(visitId);
+    try {
+      await opdVisitsApi.updateStatus(visitId, newStatus);
+
+      // Success notification
+      const statusText = newStatus === "in_consultation" ? "Consultation started" : 
+                        newStatus === "completed" ? "Consultation completed" : "Patient checked in";
+      toast.success(statusText);
+
+      // Refresh the schedule to get updated data
+      refreshSchedule();
+    } catch (error: any) {
+      console.error("Failed to update visit status:", error);
+      toast.error(error?.response?.data?.detail || error?.response?.data?.message || "Failed to update status");
+    } finally {
+      setUpdatingVisitId(null);
+    }
+  }, [refreshSchedule]);
+
   // Find current visit ID when patient selected
   useEffect(() => {
     if (selectedPatientId && todaySchedule?.slots) {
@@ -103,24 +154,10 @@ export function OptometristPanel() {
         (slot.status === "checked_in" || slot.status === "in_consultation")
       );
       setCurrentVisitId(currentSlot?.visit_id);
-      setSelectedPatientName(currentSlot?.patient_name || "");
     } else {
       setCurrentVisitId(undefined);
-      setSelectedPatientName("");
-      setSelectedPatientUhid("");
     }
   }, [selectedPatientId, todaySchedule]);
-
-  // Check authentication
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const role = localStorage.getItem("role");
-      if (!userId || (role !== "optometrist" && role !== "admin")) {
-        // Not authorized - could redirect or show message
-        console.warn("User is not authorized as optometrist");
-      }
-    }
-  }, [userId]);
 
   if (!userId) {
     return (
@@ -205,6 +242,8 @@ export function OptometristPanel() {
               setCurrentVisitId(undefined);
             }}
             onTabChange={setActiveTab}
+            onUpdateVisitStatus={handleUpdateVisitStatus}
+            updatingVisitId={updatingVisitId}
           >
             {/* Tab content will be rendered inside layout */}
             {selectedPatientId && (

@@ -1,25 +1,23 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, Users } from "lucide-react";
+import { ChevronRight, Users, CheckCircle } from "lucide-react";
 import { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
-
-type QueuePatient = {
-  patient_id: string;
-  patient_name: string;
-  token_number: string | number;
-  status: string;
-  visit_type?: "walk_in" | "appointment" | "emergency";
-  item_id: string;
-  time: string;
-};
+import { 
+  filterOptometristQueuePatients, 
+  getOptometristQueueCounts, 
+  getStatusColor,
+  type OptometristQueuePatient 
+} from "@/utils/optometristQueueFilters";
 
 interface OptometristCollapsibleQueueSectionProps {
-  queuePatients: QueuePatient[];
+  queuePatients: OptometristQueuePatient[];
   activeFilter: OptometristQueueFilter;
   onFilterChange: (filter: OptometristQueueFilter) => void;
   onSelectPatient: (patientId: string) => void;
   selectedPatientId: string | null;
+  onUpdateStatus?: (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed") => void;
+  updatingVisitId?: string | null;
   loading?: boolean;
   isVisible: boolean;
   onToggle: () => void;
@@ -31,23 +29,21 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   onFilterChange,
   onSelectPatient,
   selectedPatientId,
+  onUpdateStatus,
+  updatingVisitId,
   loading = false,
   isVisible,
   onToggle,
 }) => {
   // Filter patients based on active filter
   const filteredPatients = React.useMemo(() => {
-    switch (activeFilter) {
-      case "pending":
-        return queuePatients.filter(p => p.status === "scheduled" || p.status === "checked_in");
-      case "in_progress":
-        return queuePatients.filter(p => p.status === "in_consultation");
-      case "completed":
-        return queuePatients.filter(p => p.status === "completed");
-      default:
-        return queuePatients;
-    }
+    return filterOptometristQueuePatients(queuePatients, activeFilter);
   }, [queuePatients, activeFilter]);
+
+  // Get counts for each filter
+  const queueCounts = React.useMemo(() => {
+    return getOptometristQueueCounts(queuePatients);
+  }, [queuePatients]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col h-full">
@@ -77,14 +73,12 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
           {/* Filter Tabs */}
           <div className="flex border-b border-slate-100 flex-shrink-0">
             {[
-              { key: "all", label: "All", count: queuePatients.length },
-              { key: "pending", label: "Pending", count: queuePatients.filter(p => p.status === "scheduled" || p.status === "checked_in").length },
-              { key: "in_progress", label: "In Progress", count: queuePatients.filter(p => p.status === "in_consultation").length },
-              { key: "completed", label: "Completed", count: queuePatients.filter(p => p.status === "completed").length },
+              { key: "pending" as const, label: "Pending", count: queueCounts.pending },
+              { key: "completed" as const, label: "Completed", count: queueCounts.completed },
             ].map((filter) => (
               <button
                 key={filter.key}
-                onClick={() => onFilterChange(filter.key as OptometristQueueFilter)}
+                onClick={() => onFilterChange(filter.key)}
                 className={`flex-1 px-3 py-2 text-xs font-medium transition-colors border-b-2 ${
                   activeFilter === filter.key
                     ? "text-sky-600 border-sky-600 bg-sky-50"
@@ -121,6 +115,9 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="font-medium text-slate-900">{patient.patient_name}</div>
+                      {patient.patient_uhid && (
+                        <div className="text-xs text-slate-500 mt-1">UHID: {patient.patient_uhid}</div>
+                      )}
                       <div className="text-sm text-slate-600 mt-1">
                         Token: {patient.token_number}
                       </div>
@@ -129,23 +126,58 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                       </div>
                     </div>
                     <div>
-                      {patient.visit_type === "emergency" && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
-                          Emergency
-                        </span>
-                      )}
-                      {patient.status === "in_consultation" && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          In Progress
-                        </span>
-                      )}
-                      {patient.status === "completed" && (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
-                          Completed
-                        </span>
-                      )}
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getStatusColor(patient.status)}`}>
+                        {patient.status === "in_consultation" && "In Progress"}
+                        {patient.status === "completed" && "Completed"}
+                        {patient.status === "checked_in" && "Checked In"}
+                        {patient.status === "scheduled" && "Scheduled"}
+                      </span>
                     </div>
                   </div>
+
+                  {/* Action Buttons */}
+                  {onUpdateStatus && (
+                    <div className="mt-2 flex gap-2">
+                      {patient.status === "checked_in" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdateStatus(patient.visit_id, "in_consultation");
+                          }}
+                          disabled={updatingVisitId === patient.visit_id}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {updatingVisitId === patient.visit_id ? (
+                            <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+                          ) : (
+                            <>
+                              <Users className="h-3 w-3" />
+                              Start Consultation
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {patient.status === "in_consultation" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdateStatus(patient.visit_id, "completed");
+                          }}
+                          disabled={updatingVisitId === patient.visit_id}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {updatingVisitId === patient.visit_id ? (
+                            <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+                          ) : (
+                            <>
+                              <CheckCircle className="h-3 w-3" />
+                              Complete
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )}

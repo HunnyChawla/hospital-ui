@@ -226,6 +226,7 @@ export type OptometristScheduleSlot = {
   visit_id: string;
   patient_id: string;
   patient_name: string;
+  patient_uhid: string | null;
   status: string;
   duration_minutes: number;
   token_number?: string | number;

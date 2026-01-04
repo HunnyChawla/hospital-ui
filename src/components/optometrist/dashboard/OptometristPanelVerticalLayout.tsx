@@ -42,6 +42,10 @@ interface OptometristPanelVerticalLayoutProps {
   onClearPatient: () => void;
   onTabChange: (tab: ActiveTab) => void;
 
+  // Visit status
+  onUpdateVisitStatus?: (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed") => void;
+  updatingVisitId?: string | null;
+
   // Tab content
   children: React.ReactNode;
 }
@@ -64,6 +68,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   onSelectPatient,
   onClearPatient,
   onTabChange,
+  onUpdateVisitStatus,
+  updatingVisitId,
   children,
 }) => {
   return (
@@ -133,6 +139,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
               onFilterChange={onQueueFilterChange}
               onSelectPatient={onSelectPatient}
               selectedPatientId={selectedPatientId}
+              onUpdateStatus={onUpdateVisitStatus}
+              updatingVisitId={updatingVisitId}
               loading={queueLoading}
               isVisible={queueVisible}
               onToggle={onToggleQueue}
