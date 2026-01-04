@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useAppDispatch } from "@/redux/hooks";
-import { addIOPRecord } from "@/redux/optometryDataSlice";
+import { useMemo, useState, useEffect } from "react";
 import { Plus, Save, X, RotateCcw, Activity, TrendingUp, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
-import type { IOPRecord, IOPTrend } from "@/types";
+import type { IOPRecord } from "@/types";
+import { iopApi } from "@/services/iopApi";
 
 // Import shared components
 import { NumericStepper, QuickSelectButtons } from "../shared";
@@ -54,10 +53,77 @@ export function IOPTab({
   loading,
   onRefresh,
 }: IOPTabProps) {
-  const dispatch = useAppDispatch();
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<IOPFormData>(initialFormData);
+  const [editingODId, setEditingODId] = useState<string | null>(null);
+  const [editingOSId, setEditingOSId] = useState<string | null>(null);
+  const [visitIOPItems, setVisitIOPItems] = useState<any[]>([]);
+
+  const toNumberOrNull = (v: any): number | null => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  const formatNumber = (value: number | string | null | undefined, digits: number = 1): string => {
+    if (value === null || value === undefined || value === "") return "—";
+    const n = typeof value === "number" ? value : Number(value);
+    if (Number.isNaN(n)) return "—";
+    return n.toFixed(digits);
+  };
+
+  const startOfDay = (d: Date) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+
+  const getRecordDateString = (r: any): string => {
+    const ts: string | undefined = r?.recorded_at ?? r?.measurement_time ?? r?.created_at ?? r?.updated_at;
+    if (!ts) return "—";
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return "—";
+    const today = startOfDay(new Date());
+    const day = startOfDay(d);
+    const diffDays = Math.floor((today.getTime() - day.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return d.toLocaleDateString();
+  };
+
+  const normalizeCombined = (r: any) => {
+    if (!r) return null;
+    const hasFlat = "od_pressure" in r || "os_pressure" in r;
+    if (!hasFlat) return null;
+    return {
+      id: r.id,
+      recorded_at: r.recorded_at,
+      od_pressure: toNumberOrNull(r.od_pressure),
+      os_pressure: toNumberOrNull(r.os_pressure),
+      measurement_time: r.measurement_time ?? r.recorded_at,
+      measurement_method: r.measurement_method ?? "NCT",
+      notes: r.notes ?? "",
+    };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!visitId) {
+        if (mounted) setVisitIOPItems([]);
+        return;
+      }
+      try {
+        const res = await iopApi.list({ visit_id: visitId });
+        if (mounted) setVisitIOPItems(res.items || []);
+      } catch (e) {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [visitId]);
 
   // Get IOP status with color coding
   const getIOPStatus = (pressure: number) => {
@@ -92,10 +158,49 @@ export function IOPTab({
   // Reset form
   const handleReset = () => {
     setFormData(initialFormData);
+    setEditingODId(null);
+    setEditingOSId(null);
   };
+
+  // Detect existing visit records and prefill when visit changes or when starting to add/edit
+  const visitSource = (visitIOPItems && visitIOPItems.length > 0) ? visitIOPItems : (iopRecords as any[]);
+  const visitCombined = useMemo(() => {
+    const rec = (visitSource as any[]).find((r: any) => r.visit_id === visitId && ("od_pressure" in r || "os_pressure" in r));
+    return rec ? normalizeCombined(rec) : undefined;
+  }, [visitSource, visitId]) as any | undefined;
+  const visitOD = useMemo(() => (visitSource as any[]).find((r: any) => r.visit_id === visitId && r.eye === "OD"), [visitSource, visitId]) as any | undefined;
+  const visitOS = useMemo(() => (visitSource as any[]).find((r: any) => r.visit_id === visitId && r.eye === "OS"), [visitSource, visitId]) as any | undefined;
+  const hasExistingForVisit = !!visitCombined || !!visitOD || !!visitOS;
+
+  useEffect(() => {
+    if (!visitId) {
+      handleReset();
+      return;
+    }
+
+    if (visitCombined || visitOD || visitOS) {
+      setFormData((prev) => ({
+        ...prev,
+        od_pressure: visitCombined?.od_pressure ?? visitOD?.pressure ?? null,
+        os_pressure: visitCombined?.os_pressure ?? visitOS?.pressure ?? null,
+        measurement_method: visitCombined?.measurement_method ?? visitOD?.measurement_method ?? visitOS?.measurement_method ?? "NCT",
+        notes: visitCombined?.notes ?? visitOD?.notes ?? visitOS?.notes ?? "",
+      }));
+      setEditingODId(visitOD?.id || null);
+      setEditingOSId(visitOS?.id || null);
+    } else {
+      setFormData(initialFormData);
+      setEditingODId(null);
+      setEditingOSId(null);
+    }
+  }, [visitId, visitOD, visitOS, visitCombined]);
 
   // Submit form
   const handleSubmit = async () => {
+    if (!visitId) {
+      toast.error("No active visit found. Please select/start a visit before saving IOP.");
+      return;
+    }
     if (formData.od_pressure === null || formData.os_pressure === null) {
       toast.error("Please enter IOP for both eyes");
       return;
@@ -110,40 +215,30 @@ export function IOPTab({
     setIsSubmitting(true);
 
     try {
-      // Create record for OD (Right Eye)
-      await dispatch(
-        addIOPRecord({
-          data: {
-            patient_id: patientId,
-            optometrist_id: optometristId,
-            visit_id: visitId || null,
-            eye: "OD",
-            pressure: formData.od_pressure,
-            measurement_method: formData.measurement_method,
-            notes: formData.notes || null,
-          },
-        })
-      ).unwrap();
+      const payload = {
+        patient_id: patientId,
+        visit_id: visitId,
+        od_pressure: formData.od_pressure!,
+        os_pressure: formData.os_pressure!,
+        measurement_time: new Date().toISOString(),
+        measurement_method: formData.measurement_method,
+        notes: formData.notes || null,
+      };
 
-      // Create record for OS (Left Eye)
-      await dispatch(
-        addIOPRecord({
-          data: {
-            patient_id: patientId,
-            optometrist_id: optometristId,
-            visit_id: visitId || null,
-            eye: "OS",
-            pressure: formData.os_pressure,
-            measurement_method: formData.measurement_method,
-            notes: formData.notes || null,
-          },
-        })
-      ).unwrap();
+      if (visitCombined) {
+        await iopApi.updateCombined(visitCombined.id, payload);
+      } else {
+        await iopApi.createCombined(payload);
+      }
 
       toast.success("IOP measurements saved successfully");
       setIsAdding(false);
       handleReset();
       onRefresh();
+      try {
+        const res = await iopApi.list({ visit_id: visitId });
+        setVisitIOPItems(res.items || []);
+      } catch (e) {}
     } catch (error) {
       toast.error("Failed to save IOP measurements");
       console.error("Save IOP error:", error);
@@ -179,7 +274,7 @@ export function IOPTab({
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
           >
             <Plus className="h-4 w-4" />
-            Add IOP
+            {hasExistingForVisit ? "Edit IOP" : "Add IOP"}
           </button>
         )}
       </div>
@@ -233,12 +328,12 @@ export function IOPTab({
             </div>
             <p className="text-4xl font-bold text-slate-900">
               {iopTrends.average_od != null && iopTrends.average_os != null
-                ? ((iopTrends.average_od + iopTrends.average_os) / 2).toFixed(1)
+                ? ((Number(iopTrends.average_od) + Number(iopTrends.average_os)) / 2).toFixed(1)
                 : "—"}
               <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              OD: {iopTrends.average_od?.toFixed(1) ?? "—"} / OS: {iopTrends.average_os?.toFixed(1) ?? "—"}
+              OD: {formatNumber(iopTrends.average_od, 1)} / OS: {formatNumber(iopTrends.average_os, 1)}
             </p>
           </div>
         </div>
@@ -465,7 +560,7 @@ export function IOPTab({
                     {/* Time */}
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Clock className="h-4 w-4" />
-                      {new Date(record.recorded_at).toLocaleString()}
+                      {getRecordDateString(record)}
                     </div>
 
                     {/* Eye and Pressure */}

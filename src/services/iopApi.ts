@@ -13,6 +13,23 @@ export interface CreateIOPRequest {
   notes: string | null;
 }
 
+export interface UpdateIOPRequest {
+  pressure?: number;
+  measurement_method?: string;
+  notes?: string | null;
+}
+
+// Combined IOP create/update payload (one record per visit)
+export interface CreateIOPCombinedRequest {
+  patient_id: string;
+  visit_id: string;
+  od_pressure: number;
+  os_pressure: number;
+  measurement_time?: string;
+  measurement_method: string;
+  notes: string | null;
+}
+
 // Search/List params and response
 export interface IOPSearchParams {
   patient_id?: string;
@@ -39,6 +56,27 @@ export const iopApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<IOPRecord>("/iop", data, { params });
+    return response.data;
+  },
+
+  async createCombined(data: CreateIOPCombinedRequest, tenantId?: string): Promise<any> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post("/iop", data, { params });
+    return response.data;
+  },
+
+  async update(id: string, data: UpdateIOPRequest, tenantId?: string): Promise<IOPRecord> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put<IOPRecord>(`/iop/${id}`, data, { params });
+    return response.data;
+  },
+
+  async updateCombined(id: string, data: CreateIOPCombinedRequest, tenantId?: string): Promise<any> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put(`/iop/${id}`, data, { params });
     return response.data;
   },
 

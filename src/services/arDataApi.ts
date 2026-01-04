@@ -5,13 +5,15 @@ import type { ARDataRecord } from "@/types";
 // Request types
 export interface CreateARDataRequest {
   patient_id: string;
-  optometrist_id: string;
   visit_id: string;
-  eye: "OD" | "OS";
-  sphere: number;
-  cylinder: number | null;
-  axis: number | null;
-  visual_acuity: string | null;
+  od_sphere: number | null;
+  od_cylinder: number | null;
+  od_axis: number | null;
+  od_visual_acuity: string | null;
+  os_sphere: number | null;
+  os_cylinder: number | null;
+  os_axis: number | null;
+  os_visual_acuity: string | null;
   pupillary_distance: number | null;
   notes: string | null;
 }
@@ -42,6 +44,13 @@ export const arDataApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<ARDataRecord>("/ar-data", data, { params });
+    return response.data;
+  },
+
+  async update(id: string, data: CreateARDataRequest, tenantId?: string): Promise<ARDataRecord> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put<ARDataRecord>(`/ar-data/${id}`, data, { params });
     return response.data;
   },
 

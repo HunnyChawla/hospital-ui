@@ -59,6 +59,8 @@ interface ExaminationTabsProps {
   iopRecords: IOPRecord[];
   iopTrends: IOPTrend[] | any; // TODO: Fix type - should be IOPTrendSummary
   patientOptometryHistory: PatientOptometryTimeline | null;
+  historyLoading?: boolean;
+  refreshHistory?: () => void;
 
   // Loading states
   loading: {
@@ -105,6 +107,8 @@ export function ExaminationTabs({
   iopRecords,
   iopTrends,
   patientOptometryHistory,
+  historyLoading,
+  refreshHistory,
   loading,
   refreshComplaints,
   refreshOphthalmicHistory,
@@ -126,7 +130,13 @@ export function ExaminationTabs({
               return (
                 <button
                   key={tab.id}
-                  onClick={() => onTabChange(tab.id as ActiveTab)}
+                  onClick={() => {
+                    // Always trigger a refresh when clicking Previous History
+                    if (tab.id === "previous_history") {
+                      refreshHistory && refreshHistory();
+                    }
+                    onTabChange(tab.id as ActiveTab);
+                  }}
                   className={clsx(
                     "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-3 sm:text-sm",
                     isActive
@@ -186,6 +196,7 @@ export function ExaminationTabs({
           <ARDataTab
             patientId={patientId}
             visitId={visitId}
+            optometristId={optometristId}
             arDataRecords={arDataRecords}
             loading={loading.arData}
             onRefresh={refreshARData}
@@ -217,7 +228,7 @@ export function ExaminationTabs({
         {activeTab === "previous_history" && (
           <PreviousHistoryTimeline
             patientOptometryHistory={patientOptometryHistory}
-            loading={false}
+            loading={!!historyLoading}
           />
         )}
 

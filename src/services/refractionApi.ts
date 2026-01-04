@@ -7,14 +7,24 @@ export interface CreateRefractionRequest {
   patient_id: string;
   optometrist_id: string;
   visit_id: string;
-  eye: "OD" | "OS";
-  sphere: number;
-  cylinder: number | null;
-  axis: number | null;
-  visual_acuity_uncorrected: string;
-  visual_acuity_corrected: string;
-  add_power: number | null;
+  od: {
+    sphere: number;
+    cylinder: number | null;
+    axis: number | null;
+    visual_acuity_uncorrected: string;
+    visual_acuity_corrected: string;
+    add_power: number | null;
+  };
+  os: {
+    sphere: number;
+    cylinder: number | null;
+    axis: number | null;
+    visual_acuity_uncorrected: string;
+    visual_acuity_corrected: string;
+    add_power: number | null;
+  };
   notes: string | null;
+  recorded_at?: string;
 }
 
 export interface UpdateRefractionRequest {
@@ -103,6 +113,13 @@ export const refractionApi = {
   },
 
   async update(id: string, data: UpdateRefractionRequest, tenantId?: string): Promise<RefractionRecord> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put<RefractionRecord>(`/refraction/${id}`, data, { params });
+    return response.data;
+  },
+
+  async updateCombined(id: string, data: CreateRefractionRequest, tenantId?: string): Promise<RefractionRecord> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<RefractionRecord>(`/refraction/${id}`, data, { params });

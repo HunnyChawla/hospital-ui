@@ -98,11 +98,14 @@ export function NumericStepper({
   const colors = colorSchemes[colorScheme];
   const sizeClasses = sizes[size];
 
-  function formatValue(val: number): string {
+  function formatValue(val: number | string | null | undefined): string {
+    if (val === null || val === undefined || val === "") return "";
+    const num = typeof val === "number" ? val : Number(val);
+    if (Number.isNaN(num)) return String(val);
     if (step >= 1) {
-      return val.toString();
+      return num.toString();
     }
-    return val >= 0 ? `+${val.toFixed(2)}` : val.toFixed(2);
+    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   }
 
   function parseInputValue(val: string): number | null {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useAppSelector } from "@/redux/hooks";
 import { Eye, RefreshCw } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
@@ -51,6 +52,7 @@ export function OptometristPanel() {
     drugAllergies,
     patientOptometryHistory,
     loading: dataLoading,
+    refreshHistory,
     refreshRefraction,
     refreshIOP,
     refreshARData,
@@ -61,6 +63,9 @@ export function OptometristPanel() {
     patientId: selectedPatientId,
     autoFetch: true,
   });
+
+  // Loading for patient optometry history fetches (from optometristPanel slice)
+  const historyLoading = useAppSelector((state) => state.optometristPanel.loading);
 
   // UI preferences hook
   const {
@@ -149,15 +154,37 @@ export function OptometristPanel() {
   // Find current visit ID when patient selected
   useEffect(() => {
     if (selectedPatientId && todaySchedule?.slots) {
-      const currentSlot = todaySchedule.slots.find(
-        slot => slot.patient_id === selectedPatientId &&
-        (slot.status === "checked_in" || slot.status === "in_consultation")
+      const patientSlots = todaySchedule.slots.filter(
+        (slot: any) => slot.patient_id === selectedPatientId
       );
-      setCurrentVisitId(currentSlot?.visit_id);
+
+      // Prefer in_consultation, then checked_in
+      const inConsultation = patientSlots.find((s: any) => s.status === "in_consultation");
+      const checkedIn = patientSlots.find((s: any) => s.status === "checked_in");
+
+      let chosen = inConsultation || checkedIn;
+
+      // Fallback: latest by time for any status
+      if (!chosen && patientSlots.length > 0) {
+        chosen = [...patientSlots].sort((a: any, b: any) => {
+          const ta = new Date(a.time || a.start_time || 0).getTime();
+          const tb = new Date(b.time || b.start_time || 0).getTime();
+          return tb - ta;
+        })[0];
+      }
+
+      setCurrentVisitId(chosen?.visit_id);
     } else {
       setCurrentVisitId(undefined);
     }
   }, [selectedPatientId, todaySchedule]);
+
+  // Refresh patient optometry history when switching to Previous History tab
+  useEffect(() => {
+    if (activeTab === "previous_history" && selectedPatientId) {
+      refreshHistory();
+    }
+  }, [activeTab, selectedPatientId, refreshHistory]);
 
   if (!userId) {
     return (
@@ -261,6 +288,8 @@ export function OptometristPanel() {
                 iopRecords={iopRecords}
                 iopTrends={iopTrends}
                 patientOptometryHistory={patientOptometryHistory}
+                historyLoading={historyLoading}
+                refreshHistory={refreshHistory}
                 loading={dataLoading}
                 refreshComplaints={refreshComplaints}
                 refreshOphthalmicHistory={refreshOphthalmicHistory}

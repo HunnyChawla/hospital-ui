@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
-import { addARData } from "@/redux/optometryDataSlice";
+import { addARData, updateARData } from "@/redux/optometryDataSlice";
 import { Plus, Save, X, RotateCcw, Scan, History } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -15,6 +15,7 @@ import { CopyFromPreviousButton } from "../templates";
 interface ARDataTabProps {
   patientId: string;
   visitId: string;
+  optometristId: string;
   arDataRecords: ARDataRecord[];
   loading: boolean;
   onRefresh: () => void;
@@ -53,6 +54,7 @@ const PD_PRESETS = [58, 60, 62, 64, 66, 68];
 export function ARDataTab({
   patientId,
   visitId,
+  optometristId,
   arDataRecords,
   loading,
   onRefresh,
@@ -61,15 +63,18 @@ export function ARDataTab({
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ARDataFormData>(initialFormData);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   // Format display values
   const formatValue = (
-    value: number | null,
+    value: number | string | null | undefined,
     type: "sphere" | "cylinder" | "axis"
   ) => {
-    if (value === null) return "—";
-    if (type === "axis") return `${value}°`;
-    return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+    if (value === null || value === undefined || value === "") return "—";
+    const num = typeof value === "number" ? value : Number(value);
+    if (Number.isNaN(num)) return `${value}`;
+    if (type === "axis") return `${Math.round(num)}°`;
+    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   };
 
   // Update form field
@@ -122,8 +127,73 @@ export function ARDataTab({
     setFormData(initialFormData);
   };
 
+  // Compute existing record for this visit (combined preferred; else merge per-eye)
+  const visitCombinedRecord = useMemo(() => {
+    return (arDataRecords as any[]).find(
+      (r: any) => r?.visit_id === visitId && ("od_sphere" in r || ("os_sphere" in r))
+    ) as any | undefined;
+  }, [arDataRecords, visitId]);
+
+  const visitOD = useMemo(() => arDataRecords.find((r: any) => r.visit_id === visitId && r.eye === "OD") as any | undefined, [arDataRecords, visitId]);
+  const visitOS = useMemo(() => arDataRecords.find((r: any) => r.visit_id === visitId && r.eye === "OS") as any | undefined, [arDataRecords, visitId]);
+
+  const hasExistingForVisit = !!visitCombinedRecord || !!visitOD || !!visitOS;
+
+  // Prefill form when opening add/edit or when visit data arrives
+  useEffect(() => {
+    if (!visitId) return;
+
+    if (visitCombinedRecord) {
+      setFormData({
+        od: {
+          sphere: visitCombinedRecord.od_sphere ?? null,
+          cylinder: visitCombinedRecord.od_cylinder ?? null,
+          axis: visitCombinedRecord.od_axis ?? null,
+          visual_acuity: visitCombinedRecord.od_visual_acuity ?? null,
+        },
+        os: {
+          sphere: visitCombinedRecord.os_sphere ?? null,
+          cylinder: visitCombinedRecord.os_cylinder ?? null,
+          axis: visitCombinedRecord.os_axis ?? null,
+          visual_acuity: visitCombinedRecord.os_visual_acuity ?? null,
+        },
+        pupillary_distance: visitCombinedRecord.pupillary_distance ?? null,
+        notes: visitCombinedRecord.notes ?? "",
+      });
+      setEditingRecordId(visitCombinedRecord.id || null);
+    } else if (visitOD || visitOS) {
+      setFormData({
+        od: {
+          sphere: visitOD?.sphere ?? null,
+          cylinder: visitOD?.cylinder ?? null,
+          axis: visitOD?.axis ?? null,
+          visual_acuity: visitOD?.visual_acuity ?? null,
+        },
+        os: {
+          sphere: visitOS?.sphere ?? null,
+          cylinder: visitOS?.cylinder ?? null,
+          axis: visitOS?.axis ?? null,
+          visual_acuity: visitOS?.visual_acuity ?? null,
+        },
+        pupillary_distance: visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
+        notes: visitOD?.notes ?? visitOS?.notes ?? "",
+      });
+      // Use whichever per-eye record exists for update to enforce one-record-per-visit on subsequent save
+      setEditingRecordId(visitOD?.id || visitOS?.id || null);
+    } else {
+      setFormData(initialFormData);
+      setEditingRecordId(null);
+    }
+  }, [visitId, visitCombinedRecord, visitOD, visitOS]);
+
   // Submit form
   const handleSubmit = async () => {
+    // Require a valid visit id
+    if (!visitId) {
+      toast.error("No active visit found. Please select/start a visit before saving AR data.");
+      return;
+    }
+
     // At least one eye should have data
     if (
       formData.od.sphere === null &&
@@ -136,25 +206,30 @@ export function ARDataTab({
     setIsSubmitting(true);
 
     try {
-      // TODO: Fix this - should create two separate AR data records (one for OD, one for OS)
-      await dispatch(
-        addARData({
-          data: {
-            patient_id: patientId,
-            visit_id: visitId,
-            od_sphere: formData.od.sphere,
-            od_cylinder: formData.od.cylinder,
-            od_axis: formData.od.axis,
-            od_visual_acuity: formData.od.visual_acuity,
-            os_sphere: formData.os.sphere,
-            os_cylinder: formData.os.cylinder,
-            os_axis: formData.os.axis,
-            os_visual_acuity: formData.os.visual_acuity,
-            pupillary_distance: formData.pupillary_distance,
-            notes: formData.notes || null,
-          } as any, // Temporary fix - API expects separate records per eye
-        })
-      ).unwrap();
+      const payload: any = {
+        patient_id: patientId,
+        visit_id: visitId,
+        od_sphere: formData.od.sphere,
+        od_cylinder: formData.od.cylinder,
+        od_axis: formData.od.axis,
+        od_visual_acuity: formData.od.visual_acuity,
+        os_sphere: formData.os.sphere,
+        os_cylinder: formData.os.cylinder,
+        os_axis: formData.os.axis,
+        os_visual_acuity: formData.os.visual_acuity,
+        pupillary_distance: formData.pupillary_distance,
+        notes: formData.notes || null,
+      };
+
+      if (visitCombinedRecord && editingRecordId) {
+        await dispatch(
+          updateARData({ id: editingRecordId, data: payload })
+        ).unwrap();
+      } else {
+        await dispatch(
+          addARData({ data: payload })
+        ).unwrap();
+      }
 
       toast.success("AR data saved successfully");
       setIsAdding(false);
@@ -168,14 +243,44 @@ export function ARDataTab({
     }
   };
 
-  // Get latest AR data
-  // TODO: Fix type - AR Data API structure mismatch with component expectations
-  const latestAR: any = arDataRecords.length > 0
-    ? arDataRecords.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )[0]
-    : null;
+  // Get latest AR data from either combined records (od_*/os_*) or per-eye records
+  const combinedRecords: any[] = (arDataRecords as any[]).filter(
+    (r) => r && ("od_sphere" in r || ("os_sphere" in r))
+  );
+
+  let latestAR: any = null;
+  if (combinedRecords.length > 0) {
+    const latestCombined = [...combinedRecords].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+    latestAR = latestCombined;
+  } else {
+    const latestOD = arDataRecords
+      .filter((r) => r.eye === "OD")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    const latestOS = arDataRecords
+      .filter((r) => r.eye === "OS")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    const latestCreatedAt = Math.max(
+      latestOD ? new Date(latestOD.created_at).getTime() : 0,
+      latestOS ? new Date(latestOS.created_at).getTime() : 0
+    );
+    latestAR = latestOD || latestOS
+      ? {
+          od_sphere: latestOD?.sphere ?? null,
+          od_cylinder: latestOD?.cylinder ?? null,
+          od_axis: latestOD?.axis ?? null,
+          od_visual_acuity: latestOD?.visual_acuity ?? null,
+          os_sphere: latestOS?.sphere ?? null,
+          os_cylinder: latestOS?.cylinder ?? null,
+          os_axis: latestOS?.axis ?? null,
+          os_visual_acuity: latestOS?.visual_acuity ?? null,
+          pupillary_distance: latestOD?.pupillary_distance ?? latestOS?.pupillary_distance ?? null,
+          notes: latestOD?.notes ?? latestOS?.notes ?? null,
+          created_at: latestCreatedAt ? new Date(latestCreatedAt).toISOString() : new Date().toISOString(),
+        }
+      : null;
+  }
 
   return (
     <div className="space-y-6">
@@ -195,7 +300,7 @@ export function ARDataTab({
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
           >
             <Plus className="h-4 w-4" />
-            Add AR Data
+            {hasExistingForVisit ? "Edit AR Data" : "Add AR Data"}
           </button>
         )}
       </div>
@@ -496,27 +601,35 @@ export function ARDataTab({
             </h4>
           </div>
           <div className="space-y-3">
-            {arDataRecords.slice(1, 4).map((record: any) => (
-              <div
-                key={record.id}
-                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-slate-600">
-                    OD: {formatValue(record.od_sphere, "sphere")} /{" "}
-                    {formatValue(record.od_cylinder, "cylinder")}
-                  </span>
-                  <span className="text-slate-300">|</span>
-                  <span className="text-sm text-slate-600">
-                    OS: {formatValue(record.os_sphere, "sphere")} /{" "}
-                    {formatValue(record.os_cylinder, "cylinder")}
+            {(combinedRecords.length > 0 ? combinedRecords : (arDataRecords as any[]))
+              .slice(1, 4)
+              .map((record: any) => (
+                <div
+                  key={record.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
+                >
+                  <div className="flex items-center gap-4">
+                    {combinedRecords.length > 0 ? (
+                      <>
+                        <span className="text-sm text-slate-600">
+                          OD: {formatValue(record.od_sphere, "sphere")} / {formatValue(record.od_cylinder, "cylinder")} / {formatValue(record.od_axis, "axis")}
+                        </span>
+                        <span className="text-slate-300">|</span>
+                        <span className="text-sm text-slate-600">
+                          OS: {formatValue(record.os_sphere, "sphere")} / {formatValue(record.os_cylinder, "cylinder")} / {formatValue(record.os_axis, "axis")}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-slate-600">
+                        {record.eye}: {formatValue(record.sphere, "sphere")} / {formatValue(record.cylinder, "cylinder")} / {formatValue(record.axis, "axis")}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    {new Date(record.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500">
-                  {new Date(record.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppDispatch } from "@/redux/hooks";
-import { addRefractionRecord } from "@/redux/optometryDataSlice";
+import { addRefractionRecord, updateRefractionRecord, updateRefractionCombinedRecord } from "@/redux/optometryDataSlice";
 import { Plus, Save, X, RotateCcw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -12,6 +12,7 @@ import type { RefractionRecord } from "@/types";
 import { EyeValueInput, VASelector } from "../shared";
 import { TemplateSelector, CopyFromPreviousButton } from "../templates";
 import { refractionTemplates, type RefractionTemplate } from "../mock";
+import { refractionApi } from "@/services/refractionApi";
 
 interface RefractionTabProps {
   patientId: string;
@@ -81,30 +82,107 @@ export function RefractionTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<RefractionFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [editingODId, setEditingODId] = useState<string | null>(null);
+  const [editingOSId, setEditingOSId] = useState<string | null>(null);
+  const [visitRefractions, setVisitRefractions] = useState<any[]>([]);
 
-  // Get latest refraction for each eye
-  const latestOD = refractionRecords
-    .filter((r) => r.eye === "OD")
-    .sort(
-      (a, b) =>
-        new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
-    )[0];
+  const toNumberOrNull = (v: any): number | null => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
 
-  const latestOS = refractionRecords
-    .filter((r) => r.eye === "OS")
-    .sort(
-      (a, b) =>
-        new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
+  const normalizeCombined = (r: any) => {
+    const hasNested = r && r.od && r.os;
+    const hasFlat = r && ("od_sphere" in r || "os_sphere" in r);
+    if (!hasNested && !hasFlat) return null;
+    return {
+      id: r.id,
+      recorded_at: r.recorded_at,
+      notes: r.notes ?? null,
+      od: {
+        sphere: hasNested ? toNumberOrNull(r.od.sphere) : toNumberOrNull(r.od_sphere),
+        cylinder: hasNested ? toNumberOrNull(r.od.cylinder) : toNumberOrNull(r.od_cylinder),
+        axis: hasNested ? toNumberOrNull(r.od.axis) : toNumberOrNull(r.od_axis),
+        visual_acuity_uncorrected: hasNested ? r.od.visual_acuity_uncorrected ?? null : r.od_visual_acuity_uncorrected ?? null,
+        visual_acuity_corrected: hasNested ? r.od.visual_acuity_corrected ?? null : r.od_visual_acuity_corrected ?? null,
+        add_power: hasNested ? toNumberOrNull(r.od.add_power) : toNumberOrNull(r.od_add_power),
+      },
+      os: {
+        sphere: hasNested ? toNumberOrNull(r.os.sphere) : toNumberOrNull(r.os_sphere),
+        cylinder: hasNested ? toNumberOrNull(r.os.cylinder) : toNumberOrNull(r.os_cylinder),
+        axis: hasNested ? toNumberOrNull(r.os.axis) : toNumberOrNull(r.os_axis),
+        visual_acuity_uncorrected: hasNested ? r.os.visual_acuity_uncorrected ?? null : r.os_visual_acuity_uncorrected ?? null,
+        visual_acuity_corrected: hasNested ? r.os.visual_acuity_corrected ?? null : r.os_visual_acuity_corrected ?? null,
+        add_power: hasNested ? toNumberOrNull(r.os.add_power) : toNumberOrNull(r.os_add_power),
+      },
+    };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!visitId) {
+        if (mounted) setVisitRefractions([]);
+        return;
+      }
+      try {
+        const res = await refractionApi.list({ visit_id: visitId });
+        if (mounted) setVisitRefractions(res.items || []);
+      } catch (e) {
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [visitId]);
+
+  const combinedRecords = useMemo(() => {
+    const src = refractionRecords as any[];
+    const mapped = src
+      .map((r: any) => normalizeCombined(r))
+      .filter((c: any) => !!c);
+    return mapped as any[];
+  }, [refractionRecords]) as any[];
+
+  const latestCombined = useMemo(() => {
+    if (!combinedRecords.length) return undefined as any | undefined;
+    return [...combinedRecords].sort(
+      (a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
     )[0];
+  }, [combinedRecords]);
+
+  const latestPerEyeOD = useMemo(
+    () =>
+      refractionRecords
+        .filter((r) => (r as any).eye === "OD")
+        .sort(
+          (a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
+        )[0],
+    [refractionRecords]
+  );
+
+  const latestPerEyeOS = useMemo(
+    () =>
+      refractionRecords
+        .filter((r) => (r as any).eye === "OS")
+        .sort(
+          (a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
+        )[0],
+    [refractionRecords]
+  );
+
 
   // Format refraction values for display
   const formatValue = (
-    value: number | null,
+    value: number | string | null | undefined,
     type: "sphere" | "cylinder" | "axis" | "add"
   ) => {
-    if (value === null) return "—";
-    if (type === "axis") return `${value}°`;
-    return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+    if (value === null || value === undefined || value === "") return "—";
+    const num = typeof value === "number" ? value : Number(value);
+    if (Number.isNaN(num)) return `${value}`;
+    if (type === "axis") return `${Math.round(num)}°`;
+    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   };
 
   // Update form field
@@ -188,7 +266,65 @@ export function RefractionTab({
   const handleReset = () => {
     setFormData(initialFormData);
     setErrors({});
+    setEditingODId(null);
+    setEditingOSId(null);
   };
+
+  // Detect existing visit records and prefill when visit changes or when starting to add/edit
+  const visitSource = (visitRefractions && visitRefractions.length > 0) ? visitRefractions : (refractionRecords as any[]);
+  const visitCombined = useMemo(() => {
+    const rec = (visitSource as any[]).find((r: any) => r.visit_id === visitId && (r.od && r.os || "od_sphere" in r || "os_sphere" in r));
+    return rec ? normalizeCombined(rec) : undefined;
+  }, [visitSource, visitId]) as any | undefined;
+  const visitOD = useMemo(
+    () => (visitSource as any[]).find((r: any) => r.visit_id === visitId && r.eye === "OD"),
+    [visitSource, visitId]
+  ) as any | undefined;
+  const visitOS = useMemo(
+    () => (visitSource as any[]).find((r: any) => r.visit_id === visitId && r.eye === "OS"),
+    [visitSource, visitId]
+  ) as any | undefined;
+  const hasExistingForVisit = !!visitCombined || !!visitOD || !!visitOS;
+
+  const displayCombined = visitCombined || latestCombined;
+  const latestOD: any = latestPerEyeOD || (displayCombined ? { ...displayCombined.od, recorded_at: displayCombined.recorded_at } : undefined);
+  const latestOS: any = latestPerEyeOS || (displayCombined ? { ...displayCombined.os, recorded_at: displayCombined.recorded_at } : undefined);
+
+  useEffect(() => {
+    if (!visitId) {
+      handleReset();
+      return;
+    }
+
+    if (visitCombined || visitOD || visitOS) {
+      setFormData({
+        od: {
+          sphere: visitCombined?.od?.sphere ?? visitOD?.sphere ?? null,
+          cylinder: visitCombined?.od?.cylinder ?? visitOD?.cylinder ?? null,
+          axis: visitCombined?.od?.axis ?? visitOD?.axis ?? null,
+          add_power: visitCombined?.od?.add_power ?? visitOD?.add_power ?? null,
+          va_uncorrected: visitCombined?.od?.visual_acuity_uncorrected ?? visitOD?.visual_acuity_uncorrected ?? null,
+          va_corrected: visitCombined?.od?.visual_acuity_corrected ?? visitOD?.visual_acuity_corrected ?? null,
+        },
+        os: {
+          sphere: visitCombined?.os?.sphere ?? visitOS?.sphere ?? null,
+          cylinder: visitCombined?.os?.cylinder ?? visitOS?.cylinder ?? null,
+          axis: visitCombined?.os?.axis ?? visitOS?.axis ?? null,
+          add_power: visitCombined?.os?.add_power ?? visitOS?.add_power ?? null,
+          va_uncorrected: visitCombined?.os?.visual_acuity_uncorrected ?? visitOS?.visual_acuity_uncorrected ?? null,
+          va_corrected: visitCombined?.os?.visual_acuity_corrected ?? visitOS?.visual_acuity_corrected ?? null,
+        },
+        notes: visitCombined?.notes ?? visitOD?.notes ?? visitOS?.notes ?? "",
+      });
+      setEditingODId(visitOD?.id || null);
+      setEditingOSId(visitOS?.id || null);
+    } else {
+      // No existing records for this visit
+      setFormData(initialFormData);
+      setEditingODId(null);
+      setEditingOSId(null);
+    }
+  }, [visitId, visitOD, visitOS, visitCombined]);
 
   // Validate form
   const validateForm = (): boolean => {
@@ -238,6 +374,10 @@ export function RefractionTab({
 
   // Submit form
   const handleSubmit = async () => {
+    if (!visitId) {
+      toast.error("No active visit found. Please select/start a visit before saving refraction.");
+      return;
+    }
     if (!validateForm()) {
       toast.error("Please fill in all required fields");
       return;
@@ -246,44 +386,106 @@ export function RefractionTab({
     setIsSubmitting(true);
 
     try {
-      // Save OD refraction
-      await dispatch(
-        addRefractionRecord({
-          patient_id: patientId,
-          optometrist_id: optometristId,
-          visit_id: visitId,
-          eye: "OD",
-          sphere: formData.od.sphere!,
-          cylinder: formData.od.cylinder,
-          axis: formData.od.axis,
-          visual_acuity_uncorrected: formData.od.va_uncorrected!,
-          visual_acuity_corrected: formData.od.va_corrected!,
-          add_power: formData.od.add_power,
-          notes: formData.notes || null,
-        })
-      ).unwrap();
+      if (visitCombined) {
+        await dispatch(
+          updateRefractionCombinedRecord({
+            id: visitCombined.id,
+            data: {
+              patient_id: patientId,
+              optometrist_id: optometristId,
+              visit_id: visitId,
+              od: {
+                sphere: formData.od.sphere!,
+                cylinder: formData.od.cylinder,
+                axis: formData.od.axis,
+                visual_acuity_uncorrected: formData.od.va_uncorrected!,
+                visual_acuity_corrected: formData.od.va_corrected!,
+                add_power: formData.od.add_power,
+              },
+              os: {
+                sphere: formData.os.sphere!,
+                cylinder: formData.os.cylinder,
+                axis: formData.os.axis,
+                visual_acuity_uncorrected: formData.os.va_uncorrected!,
+                visual_acuity_corrected: formData.os.va_corrected!,
+                add_power: formData.os.add_power,
+              },
+              notes: formData.notes || null,
+              recorded_at: new Date().toISOString(),
+            },
+          })
+        ).unwrap();
+      } else if (editingODId || editingOSId) {
+        if (editingODId) {
+          await dispatch(
+            updateRefractionRecord({
+              id: editingODId,
+              data: {
+                sphere: formData.od.sphere ?? undefined,
+                cylinder: formData.od.cylinder ?? undefined,
+                axis: formData.od.axis ?? undefined,
+                visual_acuity_uncorrected: formData.od.va_uncorrected ?? undefined,
+                visual_acuity_corrected: formData.od.va_corrected ?? undefined,
+                add_power: formData.od.add_power ?? undefined,
+                notes: formData.notes || null,
+              },
+            })
+          ).unwrap();
+        }
+        if (editingOSId) {
+          await dispatch(
+            updateRefractionRecord({
+              id: editingOSId,
+              data: {
+                sphere: formData.os.sphere ?? undefined,
+                cylinder: formData.os.cylinder ?? undefined,
+                axis: formData.os.axis ?? undefined,
+                visual_acuity_uncorrected: formData.os.va_uncorrected ?? undefined,
+                visual_acuity_corrected: formData.os.va_corrected ?? undefined,
+                add_power: formData.os.add_power ?? undefined,
+                notes: formData.notes || null,
+              },
+            })
+          ).unwrap();
+        }
+      } else {
+        await dispatch(
+          addRefractionRecord({
+            data: {
+              patient_id: patientId,
+              optometrist_id: optometristId,
+              visit_id: visitId,
+              od: {
+                sphere: formData.od.sphere!,
+                cylinder: formData.od.cylinder,
+                axis: formData.od.axis,
+                visual_acuity_uncorrected: formData.od.va_uncorrected!,
+                visual_acuity_corrected: formData.od.va_corrected!,
+                add_power: formData.od.add_power,
+              },
+              os: {
+                sphere: formData.os.sphere!,
+                cylinder: formData.os.cylinder,
+                axis: formData.os.axis,
+                visual_acuity_uncorrected: formData.os.va_uncorrected!,
+                visual_acuity_corrected: formData.os.va_corrected!,
+                add_power: formData.os.add_power,
+              },
+              notes: formData.notes || null,
+              recorded_at: new Date().toISOString(),
+            },
+          })
+        ).unwrap();
+      }
 
-      // Save OS refraction
-      await dispatch(
-        addRefractionRecord({
-          patient_id: patientId,
-          optometrist_id: optometristId,
-          visit_id: visitId,
-          eye: "OS",
-          sphere: formData.os.sphere!,
-          cylinder: formData.os.cylinder,
-          axis: formData.os.axis,
-          visual_acuity_uncorrected: formData.os.va_uncorrected!,
-          visual_acuity_corrected: formData.os.va_corrected!,
-          add_power: formData.os.add_power,
-          notes: formData.notes || null,
-        })
-      ).unwrap();
-
-      toast.success("Refraction saved for both eyes");
+      toast.success("Refraction saved");
       setIsAdding(false);
       handleReset();
       onRefresh();
+      try {
+        const res = await refractionApi.list({ visit_id: visitId });
+        setVisitRefractions(res.items || []);
+      } catch (e) {}
     } catch (error) {
       toast.error("Failed to save refraction data");
       console.error("Save refraction error:", error);
@@ -310,7 +512,7 @@ export function RefractionTab({
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
           >
             <Plus className="h-4 w-4" />
-            Add Refraction
+            {hasExistingForVisit ? "Edit Refraction" : "Add Refraction"}
           </button>
         )}
       </div>

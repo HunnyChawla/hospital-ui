@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { refractionApi, CreateRefractionRequest } from "@/services/refractionApi";
-import { iopApi, CreateIOPRequest } from "@/services/iopApi";
+import { refractionApi, CreateRefractionRequest, UpdateRefractionRequest } from "@/services/refractionApi";
+import { iopApi, CreateIOPRequest, UpdateIOPRequest } from "@/services/iopApi";
 import { arDataApi, CreateARDataRequest } from "@/services/arDataApi";
 import { complaintsApi, CreateComplaintRequest } from "@/services/complaintsApi";
 import { medicalHistoryApi, UpsertMedicalHistoryRequest } from "@/services/medicalHistoryApi";
@@ -106,6 +106,30 @@ export const addRefractionRecord = createAsyncThunk(
   }
 );
 
+export const updateRefractionRecord = createAsyncThunk(
+  "optometryData/updateRefractionRecord",
+  async (params: { id: string; data: UpdateRefractionRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await refractionApi.update(params.id, params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const updateRefractionCombinedRecord = createAsyncThunk(
+  "optometryData/updateRefractionCombinedRecord",
+  async (params: { id: string; data: CreateRefractionRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await refractionApi.updateCombined(params.id, params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 // ============================================
 // IOP THUNKS
 // ============================================
@@ -130,6 +154,18 @@ export const addIOPRecord = createAsyncThunk(
   async (params: { data: CreateIOPRequest; tenant_id?: string }, { rejectWithValue }) => {
     try {
       const record = await iopApi.create(params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const updateIOPRecord = createAsyncThunk(
+  "optometryData/updateIOPRecord",
+  async (params: { id: string; data: UpdateIOPRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await iopApi.update(params.id, params.data, params.tenant_id);
       return record;
     } catch (error: any) {
       return rejectWithValue(error.response?.data || error.message);
@@ -174,6 +210,18 @@ export const addARData = createAsyncThunk(
   async (params: { data: CreateARDataRequest; tenant_id?: string }, { rejectWithValue }) => {
     try {
       const record = await arDataApi.create(params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const updateARData = createAsyncThunk(
+  "optometryData/updateARData",
+  async (params: { id: string; data: CreateARDataRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await arDataApi.update(params.id, params.data, params.tenant_id);
       return record;
     } catch (error: any) {
       return rejectWithValue(error.response?.data || error.message);
@@ -435,7 +483,27 @@ const optometryDataSlice = createSlice({
         state.error = action.payload as string;
       })
       .addCase(addRefractionRecord.fulfilled, (state, action) => {
-        state.refractionRecords.unshift(action.payload);
+        const payload: any = action.payload as any;
+        // If backend returns a single per-eye record, append it; otherwise (combined response), rely on refresh
+        if (payload && typeof payload === "object" && "eye" in payload) {
+          state.refractionRecords.unshift(payload);
+        }
+      })
+      .addCase(updateRefractionRecord.fulfilled, (state, action) => {
+        const idx = state.refractionRecords.findIndex((r) => r.id === (action.payload as any).id);
+        if (idx >= 0) {
+          state.refractionRecords[idx] = action.payload as any;
+        } else {
+          state.refractionRecords.unshift(action.payload as any);
+        }
+      })
+      .addCase(updateRefractionCombinedRecord.fulfilled, (state, action) => {
+        const idx = state.refractionRecords.findIndex((r) => r.id === (action.payload as any).id);
+        if (idx >= 0) {
+          state.refractionRecords[idx] = action.payload as any;
+        } else {
+          state.refractionRecords.unshift(action.payload as any);
+        }
       })
       // IOP
       .addCase(fetchIOPRecords.pending, (state) => {
@@ -451,6 +519,14 @@ const optometryDataSlice = createSlice({
       })
       .addCase(addIOPRecord.fulfilled, (state, action) => {
         state.iopRecords.unshift(action.payload);
+      })
+      .addCase(updateIOPRecord.fulfilled, (state, action) => {
+        const idx = state.iopRecords.findIndex((r) => r.id === (action.payload as any).id);
+        if (idx >= 0) {
+          state.iopRecords[idx] = action.payload as any;
+        } else {
+          state.iopRecords.unshift(action.payload as any);
+        }
       })
       .addCase(fetchIOPTrends.fulfilled, (state, action) => {
         state.iopTrends = action.payload;
@@ -469,6 +545,14 @@ const optometryDataSlice = createSlice({
       })
       .addCase(addARData.fulfilled, (state, action) => {
         state.arDataRecords.unshift(action.payload);
+      })
+      .addCase(updateARData.fulfilled, (state, action) => {
+        const idx = state.arDataRecords.findIndex((r) => r.id === (action.payload as any).id);
+        if (idx >= 0) {
+          state.arDataRecords[idx] = action.payload as any;
+        } else {
+          state.arDataRecords.unshift(action.payload as any);
+        }
       })
       // Complaints
       .addCase(fetchComplaints.pending, (state) => {
