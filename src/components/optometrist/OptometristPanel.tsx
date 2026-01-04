@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useAppSelector } from "@/redux/hooks";
-import { Eye, RefreshCw } from "lucide-react";
+import { Eye, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
 import { useOptometristPanelPreferences } from "@/hooks/useOptometristPanelPreferences";
+import { useOptometristLiveQueue } from "@/hooks/useOptometristLiveQueue";
 import { OptometristPanelVerticalLayout } from "./dashboard/OptometristPanelVerticalLayout";
 import { ExaminationTabs } from "./patient-examination/ExaminationTabs";
 import { patientsApi } from "@/services/patientsApi";
@@ -45,8 +46,13 @@ export function OptometristPanel() {
   const [selectedPatientName, setSelectedPatientName] = useState<string>("");
   const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
   const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
-  const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
   const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
+
+  // Use live queue with SSE
+  const { queuePatients, connectionStatus } = useOptometristLiveQueue({
+    optometristId: currentOptometrist?.id || null,
+    autoConnect: true,
+  });
 
   // Use optometry data hook
   const {
@@ -82,33 +88,6 @@ export function OptometristPanel() {
     toggleQueue,
     setQueueFilter,
   } = useOptometristPanelPreferences();
-
-  // Generate queue from schedule
-  useEffect(() => {
-    if (todaySchedule && todaySchedule.slots) {
-      const queue: QueuePatient[] = todaySchedule.slots.map((slot: any) => {
-        const visitType = (slot.type === "emergency" || slot.visit_type === "emergency")
-          ? "emergency"
-          : slot.type === "appointment" || slot.visit_type === "appointment"
-          ? "appointment"
-          : "walk_in";
-
-        return {
-          patient_id: slot.patient_id,
-          patient_name: slot.patient_name,
-          patient_uhid: slot.patient_uhid || null,
-          token_number: slot.token_number || "",
-          status: slot.status,
-          visit_type: visitType,
-          visit_id: slot.visit_id,
-          item_id: slot.item_id,
-          time: slot.time,
-        };
-      });
-
-      setQueuePatients(queue);
-    }
-  }, [todaySchedule]);
 
   const fetchPatientDetails = useCallback(async (patientId: string) => {
     try {
@@ -152,24 +131,24 @@ export function OptometristPanel() {
     }
   }, [refreshSchedule]);
 
-  // Find current visit ID when patient selected
+  // Find current visit ID when patient selected from live queue
   useEffect(() => {
-    if (selectedPatientId && todaySchedule?.slots) {
-      const patientSlots = todaySchedule.slots.filter(
-        (slot: any) => slot.patient_id === selectedPatientId
+    if (selectedPatientId && queuePatients.length > 0) {
+      const patientSlots = queuePatients.filter(
+        (patient) => patient.patient_id === selectedPatientId
       );
 
       // Prefer in_consultation, then checked_in
-      const inConsultation = patientSlots.find((s: any) => s.status === "in_consultation");
-      const checkedIn = patientSlots.find((s: any) => s.status === "checked_in");
+      const inConsultation = patientSlots.find((p) => p.status === "in_consultation");
+      const checkedIn = patientSlots.find((p) => p.status === "checked_in");
 
       let chosen = inConsultation || checkedIn;
 
       // Fallback: latest by time for any status
       if (!chosen && patientSlots.length > 0) {
-        chosen = [...patientSlots].sort((a: any, b: any) => {
-          const ta = new Date(a.time || a.start_time || 0).getTime();
-          const tb = new Date(b.time || b.start_time || 0).getTime();
+        chosen = [...patientSlots].sort((a, b) => {
+          const ta = new Date(a.time || 0).getTime();
+          const tb = new Date(b.time || 0).getTime();
           return tb - ta;
         })[0];
       }
@@ -178,7 +157,7 @@ export function OptometristPanel() {
     } else {
       setCurrentVisitId(undefined);
     }
-  }, [selectedPatientId, todaySchedule]);
+  }, [selectedPatientId, queuePatients]);
 
   // Refresh patient optometry history when switching to Previous History tab
   useEffect(() => {
@@ -217,13 +196,36 @@ export function OptometristPanel() {
         {/* Header */}
         <div className="flex items-center justify-between py-1 flex-shrink-0">
           {currentOptometrist && (
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 flex items-center gap-3">
               <p className="text-sm text-slate-600 truncate">
                 <span className="font-semibold">Dr. {currentOptometrist.user_name || "Optometrist"}</span>
                 {currentOptometrist.specialization && (
                   <span className="text-slate-400 hidden sm:inline"> • {currentOptometrist.specialization}</span>
                 )}
               </p>
+              {/* Live Queue Connection Status */}
+              <div className="flex items-center gap-1.5">
+                {connectionStatus === "connected" && (
+                  <div className="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 border border-emerald-200">
+                    <Wifi className="h-3 w-3 text-emerald-600" />
+                    <span className="text-xs font-medium text-emerald-700">Live</span>
+                  </div>
+                )}
+                {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
+                  <div className="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 border border-amber-200">
+                    <Loader2 className="h-3 w-3 text-amber-600 animate-spin" />
+                    <span className="text-xs font-medium text-amber-700">
+                      {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
+                    </span>
+                  </div>
+                )}
+                {(connectionStatus === "error" || connectionStatus === "disconnected") && (
+                  <div className="flex items-center gap-1 rounded-md bg-rose-50 px-2 py-1 border border-rose-200">
+                    <WifiOff className="h-3 w-3 text-rose-600" />
+                    <span className="text-xs font-medium text-rose-700">Offline</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -255,7 +257,7 @@ export function OptometristPanel() {
             queuePatients={queuePatients}
             queueFilter={preferences.queueFilter}
             onQueueFilterChange={setQueueFilter}
-            queueLoading={false}
+            queueLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
             queueVisible={preferences.queueVisible}
             onToggleQueue={toggleQueue}
             selectedPatientId={selectedPatientId}
