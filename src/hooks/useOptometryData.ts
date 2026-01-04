@@ -17,11 +17,13 @@ import {
 
 interface UseOptometryDataOptions {
   patientId: string | null;
+  visitId?: string | null;
   autoFetch?: boolean;
 }
 
 export const useOptometryData = ({
   patientId,
+  visitId,
   autoFetch = true,
 }: UseOptometryDataOptions) => {
   const dispatch = useAppDispatch();
@@ -47,7 +49,7 @@ export const useOptometryData = ({
 
   const patientOptometryHistory = useAppSelector((state) => state.optometristPanel.patientOptometryHistory);
 
-  // Fetch all optometry data when patientId changes
+  // Fetch core optometry data when patientId changes (visit-scoped where applicable elsewhere)
   useEffect(() => {
     if (patientId && autoFetch) {
       // Fetch patient optometry history timeline
@@ -88,13 +90,6 @@ export const useOptometryData = ({
         })
       );
 
-      // Fetch complaints (all for this patient)
-      dispatch(
-        fetchComplaints({
-          patient_id: patientId,
-        })
-      );
-
       // Fetch medical history
       // dispatch(
       //   fetchMedicalHistory({
@@ -117,6 +112,17 @@ export const useOptometryData = ({
       );
     }
   }, [patientId, autoFetch, dispatch]);
+
+  // Fetch complaints strictly for the current visit when visitId changes
+  useEffect(() => {
+    if (patientId && visitId && autoFetch) {
+      dispatch(
+        fetchComplaints({
+          visit_id: visitId,
+        })
+      );
+    }
+  }, [patientId, visitId, autoFetch, dispatch]);
 
   // Memoized refresh functions to prevent unnecessary re-renders
   const refreshHistory = useCallback(() => {
@@ -168,15 +174,26 @@ export const useOptometryData = ({
     }
   }, [patientId, dispatch]);
 
-  const refreshComplaints = useCallback(() => {
-    if (patientId) {
-      dispatch(
-        fetchComplaints({
-          patient_id: patientId,
-        })
-      );
-    }
-  }, [patientId, dispatch]);
+  const refreshComplaints = useCallback(
+    (overrideVisitId?: string) => {
+      const vid = overrideVisitId || visitId;
+      if (vid) {
+        dispatch(
+          fetchComplaints({
+            visit_id: vid,
+          })
+        );
+      } else if (patientId) {
+        // Fallback: fetch by patient if no visit is available (optional)
+        dispatch(
+          fetchComplaints({
+            patient_id: patientId,
+          })
+        );
+      }
+    },
+    [dispatch, visitId, patientId]
+  );
 
   const refreshMedicalConditions = useCallback(() => {
     if (patientId) {

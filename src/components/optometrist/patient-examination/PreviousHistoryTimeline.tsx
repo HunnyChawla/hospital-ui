@@ -1,16 +1,18 @@
 "use client";
 
 import { Clock, Eye, FileText, Activity, Pill } from "lucide-react";
-import type { PatientOptometryTimeline } from "@/types";
+import type { PatientOptometryTimeline, ComplaintRecord } from "@/types";
 
 interface PreviousHistoryTimelineProps {
   patientOptometryHistory: PatientOptometryTimeline | null;
   loading: boolean;
+  currentVisitComplaints?: ComplaintRecord[];
 }
 
 export function PreviousHistoryTimeline({
   patientOptometryHistory,
   loading,
+  currentVisitComplaints,
 }: PreviousHistoryTimelineProps) {
   if (loading) {
     return (
@@ -220,6 +222,25 @@ export function PreviousHistoryTimeline({
               const t = (e?.event_type || "other").toLowerCase();
               (grouped[t] = grouped[t] || []).push(e);
             });
+
+            // Override complaints with current visit complaints if provided
+            if (Array.isArray(currentVisitComplaints) && currentVisitComplaints.length > 0) {
+              grouped["complaint"] = currentVisitComplaints.map((c) => ({
+                event_type: "complaint",
+                title: "Chief Complaint",
+                description: c.complaint,
+                optometrist_name: null,
+                visit_id: c.visit_id,
+                date: c.created_at,
+                timestamp: c.created_at,
+                details: {
+                  complaint: c.complaint,
+                  severity: c.severity,
+                  duration: c.duration,
+                  notes: c.notes,
+                },
+              }));
+            }
             const byDateDesc = (arr: any[]) =>
               arr.sort(
                 (a, b) => new Date(b?.date || b?.timestamp || 0).getTime() - new Date(a?.date || a?.timestamp || 0).getTime()

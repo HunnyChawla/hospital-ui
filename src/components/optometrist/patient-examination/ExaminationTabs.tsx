@@ -229,6 +229,7 @@ export function ExaminationTabs({
           <PreviousHistoryTimeline
             patientOptometryHistory={patientOptometryHistory}
             loading={!!historyLoading}
+            currentVisitComplaints={complaints}
           />
         )}
 

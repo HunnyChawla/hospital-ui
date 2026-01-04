@@ -41,6 +41,13 @@ export function OptometristPanel() {
     refreshSchedule,
   } = useOptometristPanel();
 
+  // Local state (must be declared before hooks that depend on it)
+  const [selectedPatientName, setSelectedPatientName] = useState<string>("");
+  const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
+  const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
+  const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
+  const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
+
   // Use optometry data hook
   const {
     refractionRecords,
@@ -61,6 +68,7 @@ export function OptometristPanel() {
     refreshDrugAllergies,
   } = useOptometryData({
     patientId: selectedPatientId,
+    visitId: currentVisitId || null,
     autoFetch: true,
   });
 
@@ -74,13 +82,6 @@ export function OptometristPanel() {
     toggleQueue,
     setQueueFilter,
   } = useOptometristPanelPreferences();
-
-  // Local state
-  const [selectedPatientName, setSelectedPatientName] = useState<string>("");
-  const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
-  const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
-  const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
-  const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
 
   // Generate queue from schedule
   useEffect(() => {
