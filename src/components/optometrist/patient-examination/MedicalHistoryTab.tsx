@@ -19,6 +19,9 @@ import {
   AlertCircle,
   Stethoscope,
   RefreshCw,
+  Clock,
+  FileText,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -102,125 +105,101 @@ const initialFormData: MedicalHistoryFormData = {
   lifestyle_notes: "",
 };
 
-const conditionGroups = [
-  {
-    id: "metabolic",
-    label: "Metabolic Disorders",
+const allConditions = [
+  { id: "diabetes", label: "Diabetes Mellitus", icon: Activity, category: "Metabolic" },
+  { id: "hypertension", label: "Hypertension", icon: Heart, category: "Cardiovascular" },
+  { id: "heart_disease", label: "Heart Disease", icon: Heart, category: "Cardiovascular" },
+  { id: "thyroid_disorder", label: "Thyroid Disorder", icon: Activity, category: "Metabolic" },
+  { id: "asthma", label: "Asthma", icon: Activity, category: "Respiratory" },
+  { id: "tuberculosis", label: "Tuberculosis", icon: Activity, category: "Respiratory" },
+  { id: "kidney_disease", label: "Kidney Disease", icon: Stethoscope, category: "Organ-Specific" },
+  { id: "liver_disease", label: "Liver Disease", icon: Stethoscope, category: "Organ-Specific" },
+  { id: "cancer", label: "Cancer", icon: AlertCircle, category: "Serious" },
+  { id: "hiv_aids", label: "HIV/AIDS", icon: AlertCircle, category: "Serious" },
+];
+
+const conditionConfig = {
+  diabetes: {
+    label: "Diabetes Mellitus",
     icon: Activity,
     color: "text-amber-600",
     bgColor: "bg-amber-50",
     borderColor: "border-amber-200",
-    conditions: [
-      {
-        key: "diabetes" as const,
-        label: "Diabetes Mellitus",
-        description: "Type 1 or Type 2 diabetes",
-        detailsKey: "diabetesDetails" as const,
-      },
-      {
-        key: "thyroid_disorder" as const,
-        label: "Thyroid Disorder",
-        description: "Hypo/Hyperthyroidism",
-        detailsKey: "thyroidDetails" as const,
-      },
-    ],
+    detailsKey: "diabetesDetails" as const,
   },
-  {
-    id: "cardiovascular",
-    label: "Cardiovascular",
+  thyroid_disorder: {
+    label: "Thyroid Disorder",
+    icon: Activity,
+    color: "text-amber-600",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-200",
+    detailsKey: "thyroidDetails" as const,
+  },
+  hypertension: {
+    label: "Hypertension",
     icon: Heart,
     color: "text-red-600",
     bgColor: "bg-red-50",
     borderColor: "border-red-200",
-    conditions: [
-      {
-        key: "hypertension" as const,
-        label: "Hypertension",
-        description: "High blood pressure",
-        detailsKey: "hypertensionDetails" as const,
-      },
-      {
-        key: "heart_disease" as const,
-        label: "Heart Disease",
-        description: "CAD, CHF, Arrhythmia, etc.",
-        detailsKey: "heartDetails" as const,
-      },
-    ],
+    detailsKey: "hypertensionDetails" as const,
   },
-  {
-    id: "respiratory",
-    label: "Respiratory",
+  heart_disease: {
+    label: "Heart Disease",
+    icon: Heart,
+    color: "text-red-600",
+    bgColor: "bg-red-50",
+    borderColor: "border-red-200",
+    detailsKey: "heartDetails" as const,
+  },
+  asthma: {
+    label: "Asthma",
     icon: Activity,
     color: "text-sky-600",
     bgColor: "bg-sky-50",
     borderColor: "border-sky-200",
-    conditions: [
-      {
-        key: "asthma" as const,
-        label: "Asthma",
-        description: "Bronchial asthma",
-        detailsKey: "asthmaDetails" as const,
-      },
-      {
-        key: "tuberculosis" as const,
-        label: "Tuberculosis",
-        description: "Active or history of TB",
-        detailsKey: "tbDetails" as const,
-      },
-    ],
+    detailsKey: "asthmaDetails" as const,
   },
-  {
-    id: "organs",
-    label: "Organ-Specific",
+  tuberculosis: {
+    label: "Tuberculosis",
+    icon: Activity,
+    color: "text-sky-600",
+    bgColor: "bg-sky-50",
+    borderColor: "border-sky-200",
+    detailsKey: "tbDetails" as const,
+  },
+  kidney_disease: {
+    label: "Kidney Disease",
     icon: Stethoscope,
     color: "text-purple-600",
     bgColor: "bg-purple-50",
     borderColor: "border-purple-200",
-    conditions: [
-      {
-        key: "kidney_disease" as const,
-        label: "Kidney Disease",
-        description: "CKD, Dialysis, Transplant",
-        detailsKey: "kidneyDetails" as const,
-      },
-      {
-        key: "liver_disease" as const,
-        label: "Liver Disease",
-        description: "Hepatitis, Cirrhosis, etc.",
-        detailsKey: "liverDetails" as const,
-      },
-    ],
+    detailsKey: "kidneyDetails" as const,
   },
-  {
-    id: "serious",
-    label: "Serious Conditions",
+  liver_disease: {
+    label: "Liver Disease",
+    icon: Stethoscope,
+    color: "text-purple-600",
+    bgColor: "bg-purple-50",
+    borderColor: "border-purple-200",
+    detailsKey: "liverDetails" as const,
+  },
+  cancer: {
+    label: "Cancer",
     icon: AlertCircle,
     color: "text-rose-600",
     bgColor: "bg-rose-50",
     borderColor: "border-rose-200",
-    conditions: [
-      {
-        key: "cancer" as const,
-        label: "Cancer",
-        description: "Any type of malignancy",
-        detailsKey: "cancerDetails" as const,
-      },
-      {
-        key: "hiv_aids" as const,
-        label: "HIV/AIDS",
-        description: "HIV positive status",
-        detailsKey: "hivDetails" as const,
-      },
-    ],
+    detailsKey: "cancerDetails" as const,
   },
-];
-
-const quickPatterns = [
-  { id: "healthy", label: "No Conditions", icon: Check },
-  { id: "diabetic", label: "Diabetic Only", icon: Activity },
-  { id: "diabetic_htn", label: "DM + HTN", icon: Heart },
-  { id: "elderly", label: "Elderly Pattern", icon: Users },
-];
+  hiv_aids: {
+    label: "HIV/AIDS",
+    icon: AlertCircle,
+    color: "text-rose-600",
+    bgColor: "bg-rose-50",
+    borderColor: "border-rose-200",
+    detailsKey: "hivDetails" as const,
+  },
+};
 
 export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps) {
   const dispatch = useAppDispatch();
@@ -230,6 +209,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [conditionRecordMap, setConditionRecordMap] = useState<Map<string, MedicalConditionRecord>>(new Map());
+  const [activeCondition, setActiveCondition] = useState<string | null>(null);
 
   // Fetch medical conditions on mount
   useEffect(() => {
@@ -321,21 +301,12 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     return mapping[conditionType] || null;
   };
 
-  const handleConditionToggle = async (
-    key: keyof MedicalHistoryFormData,
-    value: boolean
-  ) => {
-    // Get the current details before updating form
-    const detailsKey = getDetailsKeyForCondition(key as string);
-    const currentDetails = detailsKey ? (formData as any)[detailsKey] : {};
-    
+  const handleConditionToggle = (key: keyof MedicalHistoryFormData, value: boolean) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
-    
-    // Remove immediate save - will be saved with save button
   };
 
-  const handleConditionDetailChange = async (
+  const handleConditionDetailChange = (
     detailsKey: keyof MedicalHistoryFormData,
     field: keyof ConditionDetails,
     value: string | boolean
@@ -348,8 +319,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
       },
     }));
     setHasChanges(true);
-    
-    // Remove immediate save - will be saved with save button
   };
 
   const handleTextChange = (key: keyof MedicalHistoryFormData, value: string) => {
@@ -357,96 +326,13 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     setHasChanges(true);
   };
 
-  const handleTextFieldSave = async (fieldName: string, value: string) => {
-    const optometristId = localStorage.getItem("user_id");
-    if (!optometristId) {
-      toast.error("Optometrist ID not found");
-      return;
-    }
-
-    try {
-      const existingRecord = conditionRecordMap.get(fieldName);
-
-      if (value.trim()) {
-        // Create or update
-        if (existingRecord) {
-          await dispatch(updateMedicalCondition({
-            id: existingRecord.id,
-            data: { remarks: value, status: true },
-          })).unwrap();
-        } else {
-          const created = await dispatch(addMedicalCondition({
-            data: {
-              patient_id: patientId,
-              optometrist_id: optometristId,
-              visit_id: visitId || null,
-              condition_name: fieldName,
-              status: true,
-              remarks: value,
-            },
-          })).unwrap();
-
-          setConditionRecordMap(prev => new Map(prev).set(fieldName, created));
-        }
-      } else {
-        // Delete if empty
-        if (existingRecord) {
-          await dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap();
-          setConditionRecordMap(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(fieldName);
-            return newMap;
-          });
-        }
-      }
-
-      setHasChanges(false);
-      toast.success("Saved successfully");
-    } catch (error) {
-      toast.error("Failed to save");
-      console.error("Save error:", error);
-    }
-  };
-
-  const handleApplyPattern = (patternId: string) => {
-    const pattern = medicalHistoryPatterns.find((p) => p.id === `pattern_${patternId}`);
-    if (pattern) {
-      setFormData((prev) => ({
-        ...prev,
-        diabetes: pattern.conditions.diabetes,
-        hypertension: pattern.conditions.hypertension,
-        heart_disease: pattern.conditions.heart_disease,
-        thyroid_disorder: pattern.conditions.thyroid_disorder,
-        asthma: pattern.conditions.asthma,
-        tuberculosis: pattern.conditions.tuberculosis,
-        kidney_disease: pattern.conditions.kidney_disease,
-        liver_disease: pattern.conditions.liver_disease,
-        cancer: pattern.conditions.cancer,
-        hiv_aids: pattern.conditions.hiv_aids,
-      }));
-      setHasChanges(true);
-      toast.success(`Applied "${pattern.name}" pattern`);
-    }
-  };
-
-  const handleClear = async () => {
-    if (!confirm("Are you sure you want to clear all medical history data?")) return;
-
-    try {
-      // Delete all condition records
-      const deletePromises = Array.from(conditionRecordMap.values()).map(record =>
-        dispatch(deleteMedicalCondition({ id: record.id })).unwrap()
-      );
-
-      await Promise.all(deletePromises);
-
-      setFormData(initialFormData);
-      setConditionRecordMap(new Map());
-      setHasChanges(false);
-      toast.success("Medical history cleared");
-    } catch (error) {
-      toast.error("Failed to clear medical history");
-      console.error("Clear error:", error);
+  const handleConditionButtonClick = (conditionId: string) => {
+    if (activeCondition === conditionId) {
+      // Clicking the same button closes the form
+      setActiveCondition(null);
+    } else {
+      // Open form for this condition
+      setActiveCondition(conditionId);
     }
   };
 
@@ -520,50 +406,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
         }
       }
 
-      // Handle text fields
-      const textFields = [
-        { key: "other_conditions", value: formData.other_conditions },
-        { key: "current_medications", value: formData.current_medications },
-        { key: "family_history", value: formData.family_history },
-        { key: "lifestyle_notes", value: formData.lifestyle_notes },
-      ];
-
-      for (const field of textFields) {
-        const existingRecord = conditionRecordMap.get(field.key);
-        
-        if (field.value.trim()) {
-          // Create or update
-          if (existingRecord) {
-            savePromises.push(
-              dispatch(updateMedicalCondition({
-                id: existingRecord.id,
-                data: { remarks: field.value, status: true },
-              })).unwrap()
-            );
-          } else {
-            savePromises.push(
-              dispatch(addMedicalCondition({
-                data: {
-                  patient_id: patientId,
-                  optometrist_id: optometristId,
-                  visit_id: visitId || null,
-                  condition_name: field.key,
-                  status: true,
-                  remarks: field.value,
-                },
-              })).unwrap()
-            );
-          }
-        } else {
-          // Delete if empty
-          if (existingRecord) {
-            savePromises.push(
-              dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap()
-            );
-          }
-        }
-      }
-
       await Promise.all(savePromises);
       
       // Refresh data to get updated records
@@ -573,20 +415,31 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
       toast.success("All changes saved successfully");
     } catch (error: any) {
       console.error("Batch save error:", error);
-      
-      if (error.response?.status === 201) {
-        // API returned 201 but Redux Toolkit unwrap still threw
-        setHasChanges(false);
-        toast.success("All changes saved successfully");
-      } else if (error.response?.data?.message) {
-        toast.error(`Failed to save: ${error.response.data.message}`);
-      } else if (error.message) {
-        toast.error(`Failed to save: ${error.message}`);
-      } else {
-        toast.error("Failed to save changes");
-      }
+      toast.error("Failed to save changes");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!confirm("Are you sure you want to clear all medical history data?")) return;
+
+    try {
+      // Delete all condition records
+      const deletePromises = Array.from(conditionRecordMap.values()).map(record =>
+        dispatch(deleteMedicalCondition({ id: record.id })).unwrap()
+      );
+
+      await Promise.all(deletePromises);
+
+      setFormData(initialFormData);
+      setConditionRecordMap(new Map());
+      setHasChanges(false);
+      setActiveCondition(null);
+      toast.success("Medical history cleared");
+    } catch (error) {
+      toast.error("Failed to clear medical history");
+      console.error("Clear error:", error);
     }
   };
 
@@ -607,9 +460,21 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
-        <div className="mx-auto mb-3 h-8 w-8 border-2 border-sky-600/30 border-t-sky-600 rounded-full animate-spin" />
-        <p className="text-slate-600">Loading medical history...</p>
+      <div className="bg-white rounded-xl border border-slate-200/60 shadow-lg overflow-hidden backdrop-blur-sm">
+        <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-slate-100/80 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-sky-100/80 p-1.5 backdrop-blur-sm">
+                <Stethoscope className="h-4 w-4 text-sky-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-700">Medical History</h3>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 text-center">
+          <div className="mx-auto h-8 w-8 border-2 border-sky-600/30 border-t-sky-600 rounded-full animate-spin mb-3" />
+          <p className="text-sm text-slate-600">Loading medical history...</p>
+        </div>
       </div>
     );
   }
@@ -618,173 +483,110 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Left Column - Input Form (2/3 width on large screens) */}
+      {/* Left Column: Add Medical Conditions Section (2/3 width on large screens) */}
       <div className="lg:col-span-2">
-        <div className="space-y-6">
-          {/* Header with Actions */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                Medical History
-              </h3>
-              <p className="text-sm text-slate-600">
-                Record systemic conditions and medications
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={fetchConditions}
-                disabled={isLoading || isSubmitting}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
-              >
-                <RefreshCw className={clsx("h-4 w-4", isLoading && "animate-spin")} />
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={saveAllChanges}
-                disabled={!hasChanges || isSubmitting}
-                className={clsx(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-                  hasChanges 
-                    ? "bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50" 
-                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                )}
-              >
-                <Save className="h-4 w-4" />
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
-
-      {/* Quick Patterns */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-purple-500" />
-            <span className="text-sm font-medium text-slate-700">
-              Quick Patterns
-            </span>
-          </div>
-          <span className="text-xs text-slate-500">
-            Click to apply common condition sets
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {quickPatterns.map((pattern) => {
-            const Icon = pattern.icon;
-            return (
-              <button
-                key={pattern.id}
-                type="button"
-                onClick={() => handleApplyPattern(pattern.id)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition"
-              >
-                <Icon className="h-4 w-4" />
-                {pattern.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Conditions Summary */}
-      <div className="flex items-center gap-4 rounded-lg bg-slate-100 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Stethoscope className="h-5 w-5 text-slate-600" />
-          <span className="font-medium text-slate-700">
-            Active Conditions:
-          </span>
-        </div>
-        <div
-          className={clsx(
-            "rounded-full px-3 py-1 text-sm font-semibold",
-            activeCount === 0
-              ? "bg-emerald-100 text-emerald-700"
-              : activeCount <= 2
-              ? "bg-amber-100 text-amber-700"
-              : "bg-red-100 text-red-700"
-          )}
-        >
-          {activeCount === 0 ? "None" : activeCount}
-        </div>
-        {hasChanges && (
-          <span className="ml-auto text-xs text-amber-600 font-medium">
-            {isSubmitting ? "Saving..." : "Unsaved changes"}
-          </span>
-        )}
-      </div>
-
-      {/* Condition Groups */}
-      <div className="space-y-4">
-        {conditionGroups.map((group) => {
-          const Icon = group.icon;
-          return (
-            <div
-              key={group.id}
-              className={clsx(
-                "rounded-xl border bg-white shadow-sm overflow-hidden",
-                group.borderColor
-              )}
-            >
-              {/* Group Header */}
-              <div
-                className={clsx(
-                  "flex items-center gap-3 px-5 py-3",
-                  group.bgColor
-                )}
-              >
-                <Icon className={clsx("h-5 w-5", group.color)} />
-                <span className="font-semibold text-slate-900">
-                  {group.label}
-                </span>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          {/* Section Header */}
+          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4 text-sky-600" />
+                <h3 className="text-sm font-semibold text-slate-700">
+                  Add Medical Conditions
+                </h3>
               </div>
+              {hasChanges && (
+                <button
+                  type="button"
+                  onClick={saveAllChanges}
+                  disabled={!hasChanges || isSubmitting}
+                  className={clsx(
+                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                    hasChanges 
+                      ? "bg-sky-600 text-white hover:bg-sky-700" 
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  )}
+                >
+                  <Save className="h-3 w-3" />
+                  {isSubmitting ? "Saving..." : "Save"}
+                </button>
+              )}
+            </div>
+          </div>
 
-              {/* Conditions */}
-              <div className="divide-y divide-slate-100">
-                {group.conditions.map((condition) => {
-                  const isActive =
-                    formData[condition.key as keyof MedicalHistoryFormData] as boolean;
-                  return (
-                    <div key={condition.key} className="px-5 py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <ToggleSwitch
-                            checked={isActive}
-                            onChange={(checked) =>
-                              handleConditionToggle(condition.key, checked)
-                            }
-                            label={condition.label}
-                            description={condition.description}
-                            showLabels
-                            onLabel="Yes"
-                            offLabel="No"
-                          />
+          <div className="p-6 space-y-4">
+
+            {/* Medical Conditions */}
+            <div>
+              <label className="mb-3 block text-sm font-medium text-slate-700">
+                Common Medical Conditions
+              </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {allConditions.map((condition) => {
+                const Icon = condition.icon;
+                const isActive = (formData as any)[condition.id];
+                const isDisabled = Boolean(activeCondition && activeCondition !== condition.id);
+                
+                return (
+                  <button
+                    key={condition.id}
+                    type="button"
+                    onClick={() => handleConditionButtonClick(condition.id)}
+                    disabled={isDisabled}
+                    className={clsx(
+                      "w-full rounded-lg border px-3 py-2 text-sm font-medium transition text-left",
+                      activeCondition === condition.id
+                        ? "bg-sky-600 text-white border-sky-600 shadow-md"
+                        : isActive
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : isDisabled
+                        ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className={clsx("h-3.5 w-3.5 flex-shrink-0", isDisabled && "text-slate-400")} />
+                      <span className="truncate">{condition.label}</span>
+                      {isActive && activeCondition !== condition.id && !isDisabled && (
+                        <Check className="h-3 w-3 text-emerald-600 flex-shrink-0" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            
+              {/* Inline Form - appears below the grid */}
+              {activeCondition && (
+                <div className="mt-4 rounded-lg border border-sky-200 bg-white shadow-md">
+                  <div className="p-4">
+                  {Object.entries(conditionConfig).map(([key, config]) => {
+                    if (key !== activeCondition) return null;
+                    
+                    const Icon = config.icon;
+                    const isActive = (formData as any)[key];
+                    const details = (formData as any)[config.detailsKey] as ConditionDetails;
+                    
+                    return (
+                      <div key={key} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className={clsx("rounded-lg p-1.5 shadow-sm border", config.borderColor)}>
+                            <Icon className={clsx("h-3.5 w-3.5", config.color)} />
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900">{config.label}</h4>
                         </div>
-                      </div>
-
-                      {/* Conditional Details - shown when condition is active */}
-                      {isActive && (
-                        <div className="mt-3 ml-14 grid grid-cols-1 gap-3 md:grid-cols-4">
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                            <label className="block text-xs font-medium text-slate-600 mb-1">
                               Duration
                             </label>
                             <select
-                              value={
-                                (formData[condition.detailsKey] as ConditionDetails)
-                                  ?.duration || ""
-                              }
+                              value={details.duration || ""}
                               onChange={(e) =>
-                                handleConditionDetailChange(
-                                  condition.detailsKey,
-                                  "duration",
-                                  e.target.value
-                                )
+                                handleConditionDetailChange(config.detailsKey, "duration", e.target.value)
                               }
-                              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/20"
+                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                               <option value="">Select...</option>
                               <option value="less_than_1">{"< 1 year"}</option>
@@ -793,26 +595,22 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               <option value="more_than_10">{"> 10 years"}</option>
                             </select>
                           </div>
+                          
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
-                              On Medication?
+                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                              Medication
                             </label>
                             <div className="flex gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleConditionDetailChange(
-                                    condition.detailsKey,
-                                    "medication",
-                                    "yes"
-                                  )
+                                  handleConditionDetailChange(config.detailsKey, "medication", "yes")
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-1.5 text-sm transition",
-                                  (formData[condition.detailsKey] as ConditionDetails)
-                                    ?.medication === "yes"
-                                    ? "bg-emerald-50 border-emerald-500 text-emerald-700 font-medium"
-                                    : "border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
+                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  details.medication === "yes"
+                                    ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
+                                    : "bg-white border-slate-300 hover:bg-emerald-50"
                                 )}
                               >
                                 Yes
@@ -820,44 +618,35 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleConditionDetailChange(
-                                    condition.detailsKey,
-                                    "medication",
-                                    "no"
-                                  )
+                                  handleConditionDetailChange(config.detailsKey, "medication", "no")
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-1.5 text-sm transition",
-                                  (formData[condition.detailsKey] as ConditionDetails)
-                                    ?.medication === "no"
-                                    ? "bg-slate-100 border-slate-400 text-slate-700 font-medium"
-                                    : "border-slate-200 hover:bg-slate-100"
+                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  details.medication === "no"
+                                    ? "bg-slate-50 border-slate-300 text-slate-700 font-medium"
+                                    : "bg-white border-slate-300 hover:bg-slate-50"
                                 )}
                               >
                                 No
                               </button>
                             </div>
                           </div>
+                          
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
-                              Well Controlled?
+                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                              Controlled
                             </label>
                             <div className="flex gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleConditionDetailChange(
-                                    condition.detailsKey,
-                                    "controlled",
-                                    true
-                                  )
+                                  handleConditionDetailChange(config.detailsKey, "controlled", true)
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-1.5 text-sm transition",
-                                  (formData[condition.detailsKey] as ConditionDetails)
-                                    ?.controlled === true
-                                    ? "bg-emerald-50 border-emerald-500 text-emerald-700 font-medium"
-                                    : "border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
+                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  details.controlled === true
+                                    ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
+                                    : "bg-white border-slate-300 hover:bg-emerald-50"
                                 )}
                               >
                                 Yes
@@ -865,141 +654,108 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleConditionDetailChange(
-                                    condition.detailsKey,
-                                    "controlled",
-                                    false
-                                  )
+                                  handleConditionDetailChange(config.detailsKey, "controlled", false)
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-1.5 text-sm transition",
-                                  (formData[condition.detailsKey] as ConditionDetails)
-                                    ?.controlled === false
-                                    ? "bg-amber-50 border-amber-500 text-amber-700 font-medium"
-                                    : "border-slate-200 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700"
+                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  details.controlled === false
+                                    ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
+                                    : "bg-white border-slate-300 hover:bg-amber-50"
                                 )}
                               >
                                 No
                               </button>
                             </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
-                              Remarks
-                            </label>
-                            <textarea
-                              value={
-                                (formData[condition.detailsKey] as ConditionDetails)
-                                  ?.notes || ""
-                              }
-                              onChange={(e) =>
-                                handleConditionDetailChange(
-                                  condition.detailsKey,
-                                  "notes",
-                                  e.target.value
-                                )
-                              }
-                              rows={1}
-                              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/20 resize-none"
-                              placeholder="Add notes..."
-                            />
                           </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Additional Information */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Other Conditions */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <AlertCircle className="h-4 w-4 text-slate-400" />
-            Other Conditions
-          </label>
-          <textarea
-            value={formData.other_conditions}
-            onChange={(e) =>
-              handleTextChange("other_conditions", e.target.value)
-            }
-            onBlur={() => handleTextFieldSave("other_conditions", formData.other_conditions)}
-            rows={3}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            placeholder="Any other medical conditions not listed above..."
-          />
-        </div>
-
-        {/* Current Medications */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Pill className="h-4 w-4 text-sky-500" />
-            Current Medications
-          </label>
-          <textarea
-            value={formData.current_medications}
-            onChange={(e) =>
-              handleTextChange("current_medications", e.target.value)
-            }
-            onBlur={() => handleTextFieldSave("current_medications", formData.current_medications)}
-            rows={3}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            placeholder="List medications with dosage (e.g., Metformin 500mg BD)..."
-          />
-        </div>
-
-        {/* Family History */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Users className="h-4 w-4 text-purple-500" />
-            Family History
-          </label>
-          <textarea
-            value={formData.family_history}
-            onChange={(e) => handleTextChange("family_history", e.target.value)}
-            onBlur={() => handleTextFieldSave("family_history", formData.family_history)}
-            rows={3}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            placeholder="Family history of diabetes, glaucoma, retinal diseases..."
-          />
-        </div>
-
-        {/* Lifestyle Notes */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Activity className="h-4 w-4 text-emerald-500" />
-            Lifestyle & Habits
-          </label>
-          <textarea
-            value={formData.lifestyle_notes}
-            onChange={(e) => handleTextChange("lifestyle_notes", e.target.value)}
-            onBlur={() => handleTextFieldSave("lifestyle_notes", formData.lifestyle_notes)}
-            rows={3}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            placeholder="Smoking, alcohol, occupation, screen time..."
-          />
-        </div>
-      </div>
-
-          {/* Auto-save indicator */}
-          <div className="flex items-center justify-center border-t border-slate-200 pt-4">
-            <div className="text-sm text-slate-500">
-              {hasChanges ? (
-                <span className="flex items-center gap-2 text-amber-600">
-                  <AlertCircle className="h-4 w-4" />
-                  {isSubmitting ? "Saving changes..." : "Unsaved changes"}
-                </span>
-              ) : (
-                <span className="flex items-center gap-2 text-emerald-600">
-                  <Check className="h-4 w-4" />
-                  All changes saved
-                </span>
+                        
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Notes
+                          </label>
+                          <textarea
+                            value={details.notes || ""}
+                            onChange={(e) =>
+                              handleConditionDetailChange(config.detailsKey, "notes", e.target.value)
+                            }
+                            rows={2}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                            placeholder="Add notes..."
+                          />
+                        </div>
+                        
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => setActiveCondition(null)}
+                            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, [key]: true }));
+                              setHasChanges(true);
+                              setActiveCondition(null);
+                            }}
+                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition"
+                          >
+                            <Check className="h-4 w-4" />
+                            {isActive ? "Update" : "Add"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  </div>
+                </div>
               )}
+            </div>
+
+            {/* Custom Condition Input */}
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <FileText className="h-4 w-4 text-slate-400" />
+                Other Conditions
+              </label>
+              <textarea
+                value={formData.other_conditions}
+                onChange={(e) => handleTextChange("other_conditions", e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                placeholder="Enter any other medical conditions not listed above..."
+              />
+            </div>
+
+            {/* Additional Information */}
+            <div>
+              <label className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <FileText className="h-4 w-4 text-slate-400" />
+                Additional Information
+              </label>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Current Medications</label>
+                  <textarea
+                    value={formData.current_medications}
+                    onChange={(e) => handleTextChange("current_medications", e.target.value)}
+                    rows={2}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                    placeholder="List medications with dosage..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Family History</label>
+                  <textarea
+                    value={formData.family_history}
+                    onChange={(e) => handleTextChange("family_history", e.target.value)}
+                    rows={2}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                    placeholder="Family medical history..."
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
