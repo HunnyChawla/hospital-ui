@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppSelector } from "@/redux/hooks";
-import { Eye, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Eye, RefreshCw, Wifi, WifiOff, Loader2, AlertCircle } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
 import { useOptometristPanelPreferences } from "@/hooks/useOptometristPanelPreferences";
@@ -212,38 +212,46 @@ export function OptometristPanel() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-2 px-2 sm:px-4 py-2">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden">
+      <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4">
         {/* Header */}
-        <div className="flex items-center justify-between py-1 flex-shrink-0">
+        <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
           {currentOptometrist && (
-            <div className="min-w-0 flex-1 flex items-center gap-3">
-              <p className="text-sm text-slate-600 truncate">
-                <span className="font-semibold">Dr. {currentOptometrist.user_name || "Optometrist"}</span>
+            <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">
+              <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
+                <Eye className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
+                  Dr. {currentOptometrist.user_name || "Optometrist"}
+                </p>
                 {currentOptometrist.specialization && (
-                  <span className="text-slate-400 hidden sm:inline"> • {currentOptometrist.specialization}</span>
+                  <p className="text-xs text-slate-500 hidden sm:block">{currentOptometrist.specialization}</p>
                 )}
-              </p>
+              </div>
               {/* Live Queue Connection Status */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {connectionStatus === "connected" && (
-                  <div className="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 border border-emerald-200">
-                    <Wifi className="h-3 w-3 text-emerald-600" />
-                    <span className="text-xs font-medium text-emerald-700">Live</span>
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-3 py-1.5 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="relative">
+                      <Wifi className="h-3.5 w-3.5 text-white" />
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
+                    </div>
+                    <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
                   </div>
                 )}
                 {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
-                  <div className="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 border border-amber-200">
-                    <Loader2 className="h-3 w-3 text-amber-600 animate-spin" />
-                    <span className="text-xs font-medium text-amber-700">
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-400/30">
+                    <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                    <span className="text-xs font-semibold text-white hidden sm:inline">
                       {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
                     </span>
                   </div>
                 )}
                 {(connectionStatus === "error" || connectionStatus === "disconnected") && (
-                  <div className="flex items-center gap-1 rounded-md bg-rose-50 px-2 py-1 border border-rose-200">
-                    <WifiOff className="h-3 w-3 text-rose-600" />
-                    <span className="text-xs font-medium text-rose-700">Offline</span>
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 shadow-md shadow-rose-500/30">
+                    <WifiOff className="h-3.5 w-3.5 text-white" />
+                    <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
                   </div>
                 )}
               </div>
@@ -252,24 +260,27 @@ export function OptometristPanel() {
 
           <button
             onClick={refreshSchedule}
-            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 flex-shrink-0"
+            className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
             title="Refresh schedule"
           >
-            <RefreshCw className={`h-4 w-4 ${panelLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
 
         {/* Error message */}
         {panelError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 flex-shrink-0">
-            <p className="text-sm text-rose-700">
-              {typeof panelError === 'string' ? panelError : JSON.stringify(panelError)}
-            </p>
+          <div className="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 p-4 flex-shrink-0 shadow-sm animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+              <p className="text-sm text-rose-700 font-medium">
+                {typeof panelError === 'string' ? panelError : JSON.stringify(panelError)}
+              </p>
+            </div>
           </div>
         )}
 
         {/* Dashboard Layout */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-700">
           <OptometristPanelVerticalLayout
             stats={liveStats}
             statsLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}

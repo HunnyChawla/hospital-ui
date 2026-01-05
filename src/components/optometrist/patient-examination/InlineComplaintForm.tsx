@@ -82,9 +82,9 @@ export function InlineComplaintForm({
         )}
 
         {/* Form content - stacked rows */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Row 1: Eye and Severity selectors */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {/* Eye Selector */}
             <div>
               <EyeSelector
@@ -107,24 +107,24 @@ export function InlineComplaintForm({
           </div>
 
           {/* Row 2: Duration and Notes inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Duration Input */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-xs font-medium text-slate-700">
                 Duration
               </label>
               <input
                 type="text"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                placeholder="e.g., 2 weeks, 3 days..."
+                placeholder="e.g., 2 weeks"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>
 
             {/* Notes Input */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-xs font-medium text-slate-700">
                 Notes (Optional)
               </label>
               <input
@@ -138,12 +138,12 @@ export function InlineComplaintForm({
           </div>
 
           {/* Row 3: Action Buttons */}
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -152,7 +152,7 @@ export function InlineComplaintForm({
               onClick={handleSubmit}
               disabled={isSubmitting}
               className={clsx(
-                "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed",
+                "flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-medium text-white shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed",
                 isSubmitting
                   ? "bg-sky-600"
                   : "bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700"
@@ -160,12 +160,12 @@ export function InlineComplaintForm({
             >
               {isSubmitting ? (
                 <>
-                  <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Adding...
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4" />
+                  <Check className="h-3.5 w-3.5" />
                   Add
                 </>
               )}
@@ -174,9 +174,9 @@ export function InlineComplaintForm({
         </div>
 
         {/* Helper text */}
-        <div className="mt-4 text-xs text-slate-500">
-          Press <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">Esc</kbd> to cancel or{" "}
-          <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">Ctrl+Enter</kbd> to save
+        <div className="mt-3 text-xs text-slate-500">
+          Press <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">Esc</kbd> to cancel or{" "}
+          <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">Ctrl+Enter</kbd> to save
         </div>
       </div>
     </div>

@@ -149,29 +149,31 @@ export function ComplaintsTab({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Left Column: Add Complaints Section (2/3 width on large screens) */}
       <div className="lg:col-span-2">
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
           {/* Section Header */}
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-3">
+          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4 text-sky-600" />
-                <h3 className="text-sm font-semibold text-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
+                  <Plus className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">
                   Add Complaints
                 </h3>
               </div>
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
             {/* Quick Select Complaints */}
             <div>
-              <label className="mb-3 block text-sm font-medium text-slate-700">
+              <label className="mb-3 block text-sm font-semibold text-slate-700">
                 Common Complaints
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
                 {commonComplaints.map((complaint) => {
                   const isActive = activeComplaint === complaint;
                   const isOtherActive = activeComplaint && activeComplaint !== complaint;
@@ -182,12 +184,12 @@ export function ComplaintsTab({
                       type="button"
                       onClick={() => handleComplaintButtonClick(complaint)}
                       className={clsx(
-                        "w-full rounded-lg border px-3 py-2 text-sm font-medium transition text-left",
+                        "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
                         isActive
-                          ? "bg-sky-600 text-white border-sky-600 shadow-md"
+                          ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
                           : isOtherActive
-                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm"
+                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                       )}
                     >
                       {complaint}
@@ -198,7 +200,7 @@ export function ComplaintsTab({
 
               {/* Inline Form - appears below the grid */}
               {activeComplaint && commonComplaints.includes(activeComplaint) && (
-                <div className="mt-4">
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
                   <InlineComplaintForm
                     complaintText={activeComplaint}
                     onSave={handleSaveComplaint}
@@ -212,11 +214,11 @@ export function ComplaintsTab({
 
             {/* Custom Complaint Input */}
             <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
-                <FileText className="h-4 w-4 text-slate-400" />
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <FileText className="h-4 w-4 text-sky-600" />
                 Custom Complaint
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2.5">
                 <input
                   type="text"
                   value={customComplaintText}
@@ -227,14 +229,14 @@ export function ComplaintsTab({
                       handleAddCustomComplaint();
                     }
                   }}
-                  className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
                   placeholder="Type a custom complaint if not listed above..."
                 />
                 <button
                   type="button"
                   onClick={handleAddCustomComplaint}
                   disabled={!customComplaintText.trim()}
-                  className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/30 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   Add
                 </button>
@@ -242,7 +244,7 @@ export function ComplaintsTab({
 
               {/* Custom Complaint Inline Form */}
               {activeComplaint && !commonComplaints.includes(activeComplaint) && (
-                <div className="mt-3">
+                <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
                   <InlineComplaintForm
                     complaintText={activeComplaint}
                     onSave={handleSaveComplaint}

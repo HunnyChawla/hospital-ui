@@ -460,20 +460,20 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200/60 shadow-lg overflow-hidden backdrop-blur-sm">
-        <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-slate-100/80 px-4 py-3">
+      <div className="bg-white rounded-xl border border-slate-200/60 shadow-lg overflow-hidden backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-sky-100/80 p-1.5 backdrop-blur-sm">
-                <Stethoscope className="h-4 w-4 text-sky-600" />
+            <div className="flex items-center gap-2.5">
+              <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
+                <Stethoscope className="h-4 w-4 text-white" />
               </div>
-              <h3 className="text-sm font-semibold text-slate-700">Medical History</h3>
+              <h3 className="text-sm font-bold text-slate-800">Medical History</h3>
             </div>
           </div>
         </div>
-        <div className="p-6 text-center">
-          <div className="mx-auto h-8 w-8 border-2 border-sky-600/30 border-t-sky-600 rounded-full animate-spin mb-3" />
-          <p className="text-sm text-slate-600">Loading medical history...</p>
+        <div className="p-8 text-center">
+          <div className="mx-auto h-10 w-10 border-3 border-sky-600/30 border-t-sky-600 rounded-full animate-spin mb-4" />
+          <p className="text-sm font-medium text-slate-600">Loading medical history...</p>
         </div>
       </div>
     );
@@ -482,16 +482,18 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
   const activeCount = getActiveConditionsCount();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Left Column: Add Medical Conditions Section (2/3 width on large screens) */}
       <div className="lg:col-span-2">
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
           {/* Section Header */}
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-3">
+          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4 text-sky-600" />
-                <h3 className="text-sm font-semibold text-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
+                  <Plus className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">
                   Add Medical Conditions
                 </h3>
               </div>
@@ -501,27 +503,27 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                   onClick={saveAllChanges}
                   disabled={!hasChanges || isSubmitting}
                   className={clsx(
-                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                    "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-all shadow-md",
                     hasChanges 
-                      ? "bg-sky-600 text-white hover:bg-sky-700" 
-                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white hover:from-sky-700 hover:to-blue-700 hover:shadow-lg hover:scale-105 active:scale-95 shadow-sky-500/30" 
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
                   )}
                 >
-                  <Save className="h-3 w-3" />
+                  <Save className="h-3.5 w-3.5" />
                   {isSubmitting ? "Saving..." : "Save"}
                 </button>
               )}
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
 
             {/* Medical Conditions */}
             <div>
-              <label className="mb-3 block text-sm font-medium text-slate-700">
+              <label className="mb-3 block text-sm font-semibold text-slate-700">
                 Common Medical Conditions
               </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
               {allConditions.map((condition) => {
                 const Icon = condition.icon;
                 const isActive = (formData as any)[condition.id];
@@ -534,14 +536,14 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                     onClick={() => handleConditionButtonClick(condition.id)}
                     disabled={isDisabled}
                     className={clsx(
-                      "w-full rounded-lg border px-3 py-2 text-sm font-medium transition text-left",
+                      "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
                       activeCondition === condition.id
-                        ? "bg-sky-600 text-white border-sky-600 shadow-md"
+                        ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
                         : isActive
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
                         : isDisabled
-                        ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm"
+                        ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                     )}
                   >
                     <div className="flex items-center gap-2">
@@ -558,8 +560,8 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
             
               {/* Inline Form - appears below the grid */}
               {activeCondition && (
-                <div className="mt-4 rounded-lg border border-sky-200 bg-white shadow-md">
-                  <div className="p-4">
+                <div className="mt-4 rounded-lg border border-sky-200/60 bg-gradient-to-br from-white to-sky-50/20 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="p-3">
                   {Object.entries(conditionConfig).map(([key, config]) => {
                     if (key !== activeCondition) return null;
                     
@@ -568,15 +570,15 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                     const details = (formData as any)[config.detailsKey] as ConditionDetails;
                     
                     return (
-                      <div key={key} className="space-y-3">
+                      <div key={key} className="space-y-2.5">
                         <div className="flex items-center gap-2">
-                          <div className={clsx("rounded-lg p-1.5 shadow-sm border", config.borderColor)}>
-                            <Icon className={clsx("h-3.5 w-3.5", config.color)} />
+                          <div className={clsx("rounded-lg p-1 shadow-sm border", config.borderColor)}>
+                            <Icon className={clsx("h-3 w-3", config.color)} />
                           </div>
-                          <h4 className="text-sm font-bold text-slate-900">{config.label}</h4>
+                          <h4 className="text-xs font-bold text-slate-900">{config.label}</h4>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-2.5">
                           <div>
                             <label className="block text-xs font-medium text-slate-600 mb-1">
                               Duration
@@ -586,7 +588,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               onChange={(e) =>
                                 handleConditionDetailChange(config.detailsKey, "duration", e.target.value)
                               }
-                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                              className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                               <option value="">Select...</option>
                               <option value="less_than_1">{"< 1 year"}</option>
@@ -600,14 +602,14 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                             <label className="block text-xs font-medium text-slate-600 mb-1">
                               Medication
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                               <button
                                 type="button"
                                 onClick={() =>
                                   handleConditionDetailChange(config.detailsKey, "medication", "yes")
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
                                   details.medication === "yes"
                                     ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
                                     : "bg-white border-slate-300 hover:bg-emerald-50"
@@ -621,7 +623,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                                   handleConditionDetailChange(config.detailsKey, "medication", "no")
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
                                   details.medication === "no"
                                     ? "bg-slate-50 border-slate-300 text-slate-700 font-medium"
                                     : "bg-white border-slate-300 hover:bg-slate-50"
@@ -632,18 +634,18 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                             </div>
                           </div>
                           
-                          <div>
+                          <div className="col-span-2">
                             <label className="block text-xs font-medium text-slate-600 mb-1">
                               Controlled
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                               <button
                                 type="button"
                                 onClick={() =>
                                   handleConditionDetailChange(config.detailsKey, "controlled", true)
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
                                   details.controlled === true
                                     ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
                                     : "bg-white border-slate-300 hover:bg-emerald-50"
@@ -657,7 +659,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                                   handleConditionDetailChange(config.detailsKey, "controlled", false)
                                 }
                                 className={clsx(
-                                  "flex-1 rounded-lg border px-3 py-2 text-sm transition",
+                                  "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
                                   details.controlled === false
                                     ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
                                     : "bg-white border-slate-300 hover:bg-amber-50"
@@ -679,7 +681,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               handleConditionDetailChange(config.detailsKey, "notes", e.target.value)
                             }
                             rows={2}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                            className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
                             placeholder="Add notes..."
                           />
                         </div>
@@ -688,7 +690,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                           <button
                             type="button"
                             onClick={() => setActiveCondition(null)}
-                            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
                           >
                             Cancel
                           </button>
@@ -699,9 +701,9 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                               setHasChanges(true);
                               setActiveCondition(null);
                             }}
-                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition"
+                            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition"
                           >
-                            <Check className="h-4 w-4" />
+                            <Check className="h-3.5 w-3.5" />
                             {isActive ? "Update" : "Add"}
                           </button>
                         </div>
@@ -715,8 +717,8 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
             {/* Custom Condition Input */}
             <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
-                <FileText className="h-4 w-4 text-slate-400" />
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <FileText className="h-4 w-4 text-sky-600" />
                 Other Conditions
               </label>
               <textarea
@@ -730,13 +732,13 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
             {/* Additional Information */}
             <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
-                <FileText className="h-4 w-4 text-slate-400" />
+              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <FileText className="h-4 w-4 text-sky-600" />
                 Additional Information
               </label>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Current Medications</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Current Medications</label>
                   <textarea
                     value={formData.current_medications}
                     onChange={(e) => handleTextChange("current_medications", e.target.value)}
@@ -746,7 +748,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Family History</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Family History</label>
                   <textarea
                     value={formData.family_history}
                     onChange={(e) => handleTextChange("family_history", e.target.value)}

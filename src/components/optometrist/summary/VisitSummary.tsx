@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Eye, Calendar, User, Activity, Pill, AlertCircle, FileText, Gauge } from "lucide-react";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
@@ -388,6 +389,17 @@ interface VisitSummaryProps {
 }
 
 export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitSummaryProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -406,8 +418,10 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  if (!mounted) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-gradient-to-r from-sky-50 to-teal-50 px-6 py-4">
@@ -434,4 +448,6 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

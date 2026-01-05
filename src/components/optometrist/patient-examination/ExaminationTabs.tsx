@@ -120,8 +120,8 @@ export function ExaminationTabs({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Tab Navigation */}
-      <div className="flex-shrink-0 border-b border-slate-200 bg-slate-50">
-        <div className="flex gap-1 px-2 py-1 sm:px-4">
+      <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
+        <div className="flex gap-1 px-2 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -138,13 +138,16 @@ export function ExaminationTabs({
                     onTabChange(tab.id as ActiveTab);
                   }}
                   className={clsx(
-                    "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-3 sm:text-sm",
+                    "group flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-all duration-200 rounded-t-lg sm:px-4 sm:py-3 sm:text-sm whitespace-nowrap",
                     isActive
-                      ? "border-sky-500 bg-white text-sky-700"
-                      : "border-transparent text-slate-600 hover:bg-white/50 hover:text-slate-900"
+                      ? "border-sky-600 bg-white text-sky-700 shadow-sm scale-105"
+                      : "border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:border-slate-300 hover:scale-105"
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Icon className={clsx(
+                    "h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform",
+                    isActive ? "scale-110" : "group-hover:scale-110"
+                  )} />
                   <span className="hidden sm:inline">{tab.label}</span>
                   <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
                 </button>
@@ -155,7 +158,7 @@ export function ExaminationTabs({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-slate-50 p-3 sm:p-6">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
         {activeTab === "complaints" && (
           <ComplaintsTab
             patientId={patientId}

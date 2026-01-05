@@ -75,7 +75,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   children,
 }) => {
   return (
-    <div className="flex flex-col space-y-3 h-full min-h-0">
+    <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
       {/* Stats Section - Horizontal 4-column layout at top */}
       <OptometristCollapsibleStatsSection
         stats={stats}
@@ -86,9 +86,9 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
       />
 
       {/* Main content area: Patient Area + Queue Sidebar */}
-      <div className="flex gap-2 sm:gap-3 relative flex-1 min-h-0 overflow-hidden">
+      <div className="flex gap-3 sm:gap-4 relative flex-1 min-h-0 overflow-hidden">
         {/* Patient Card - Takes remaining space */}
-        <div className="flex-1 h-full min-h-0 min-w-0 overflow-hidden">
+        <div className="flex-1 h-full min-h-0 min-w-0 overflow-hidden transition-all duration-300">
           <OptometristActivePatientCard
             patientId={selectedPatientId}
             patientName={selectedPatientName}
@@ -107,7 +107,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
         {!queueVisible && (
           <button
             onClick={onToggleQueue}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 z-20 relative"
+            className="group flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-md transition-all hover:bg-sky-50 hover:border-sky-400 hover:text-sky-600 hover:scale-110 active:scale-95 z-20 relative animate-in fade-in slide-in-from-right-2 duration-300"
             title="Show patient queue"
           >
             <svg
@@ -131,8 +131,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
 
         {/* Queue Sidebar - Right side with responsive width */}
         <div
-          className={`sidebar-transition flex-shrink-0 h-full min-h-0 ${
-            queueVisible ? "w-72 sm:w-80" : "w-0 overflow-hidden"
+          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${
+            queueVisible ? "w-72 sm:w-80 lg:w-96" : "w-0 overflow-hidden"
           }`}
         >
           {queueVisible && (
