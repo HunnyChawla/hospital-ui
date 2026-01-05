@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppSelector } from "@/redux/hooks";
 import { Eye, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
@@ -13,6 +13,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { toast } from "sonner";
 import { getTenantIdForApi } from "@/utils/auth";
+import { OptometristStats } from "@/types";
 
 
 
@@ -78,6 +79,36 @@ export function OptometristPanel() {
     toggleQueue,
     setQueueFilter,
   } = useOptometristPanelPreferences();
+
+  // Calculate stats from live queue data
+  const liveStats: OptometristStats = useMemo(() => {
+    const stats = {
+      todayTotal: queuePatients.length,
+      todayPending: 0,
+      todayInProgress: 0,
+      todayCompleted: 0,
+    };
+
+    queuePatients.forEach((patient) => {
+      switch (patient.status) {
+        case "scheduled":
+        case "waiting":
+        case "checked_in":
+          stats.todayPending++;
+          break;
+        case "in_consultation":
+          stats.todayInProgress++;
+          break;
+        case "completed":
+          stats.todayCompleted++;
+          break;
+        default:
+          stats.todayPending++;
+      }
+    });
+
+    return stats;
+  }, [queuePatients]);
 
   const fetchPatientDetails = useCallback(async (patientId: string) => {
     try {
@@ -240,8 +271,8 @@ export function OptometristPanel() {
         {/* Dashboard Layout */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <OptometristPanelVerticalLayout
-            stats={todayStats}
-            statsLoading={panelLoading}
+            stats={liveStats}
+            statsLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
             statsVisible={preferences.statsVisible}
             onToggleStats={toggleStats}
             queuePatients={queuePatients}
