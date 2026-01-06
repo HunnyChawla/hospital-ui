@@ -32,11 +32,29 @@ export const useOptometristPanel = () => {
 
   // State for optometrist-doctor mappings
   const [doctorMappings, setDoctorMappings] = useState<OptometristDoctorMapping[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [mappingsLoading, setMappingsLoading] = useState(false);
   const [mappingsError, setMappingsError] = useState<string | null>(null);
 
-  // Get first active doctor from mappings (or first doctor if none are active)
-  const selectedDoctor = doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
+  // Get selected doctor from mappings - defaults to first active or first doctor
+  const selectedDoctor = selectedDoctorId
+    ? doctorMappings.find(m => m.doctor_id === selectedDoctorId) || doctorMappings[0] || null
+    : doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
+
+  // Auto-select first doctor when mappings load
+  useEffect(() => {
+    if (doctorMappings.length > 0 && !selectedDoctorId) {
+      const defaultDoctor = doctorMappings.find(m => m.is_active) || doctorMappings[0];
+      if (defaultDoctor) {
+        setSelectedDoctorId(defaultDoctor.doctor_id);
+      }
+    }
+  }, [doctorMappings, selectedDoctorId]);
+
+  // Handler to change selected doctor
+  const handleSetSelectedDoctor = useCallback((doctorId: string) => {
+    setSelectedDoctorId(doctorId);
+  }, []);
 
   // Optometrist panel state
   const {
@@ -121,7 +139,7 @@ export const useOptometristPanel = () => {
     // Optometrist user info
     userId,
     userRole,
-    
+
     // Doctor mappings
     doctorMappings,
     selectedDoctor,
@@ -143,6 +161,7 @@ export const useOptometristPanel = () => {
     // Actions
     selectPatient: handleSelectPatient,
     setActiveTab: handleSetActiveTab,
+    setSelectedDoctor: handleSetSelectedDoctor,
     refreshSchedule: handleRefreshSchedule,
     reset: handleReset,
   };

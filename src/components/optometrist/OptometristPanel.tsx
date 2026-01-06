@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppSelector } from "@/redux/hooks";
-import { Eye, RefreshCw, Wifi, WifiOff, Loader2, AlertCircle } from "lucide-react";
+import { Eye, RefreshCw, Wifi, WifiOff, Loader2, AlertCircle, ChevronDown } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
 import { useOptometristPanelPreferences } from "@/hooks/useOptometristPanelPreferences";
@@ -36,6 +36,7 @@ export function OptometristPanel() {
     error: panelError,
     selectPatient,
     setActiveTab,
+    setSelectedDoctor,
     refreshSchedule,
   } = useOptometristPanel();
 
@@ -199,22 +200,22 @@ export function OptometristPanel() {
           await optometristVisitsApi.pickOptometrist(visitId, currentUserId, apiTenantId);
           toast.success("Patient picked successfully");
           break;
-        
+
         case "unpick":
           await optometristVisitsApi.unpickOptometrist(visitId, apiTenantId);
           toast.success("Patient unpicked successfully");
           break;
-        
+
         case "start_investigation":
           await optometristVisitsApi.startInvestigation(visitId, apiTenantId);
           toast.success("Investigation started");
           break;
-        
+
         case "complete_investigation":
           await optometristVisitsApi.completeInvestigation(visitId, apiTenantId);
           toast.success("Investigation completed");
           break;
-        
+
         default:
           throw new Error(`Unknown action: ${action}`);
       }
@@ -311,10 +312,27 @@ export function OptometristPanel() {
                 {optometristUser?.full_name || "Optometrist"}
               </p>
               {selectedDoctor && (
-                <p className="text-xs text-slate-500 hidden sm:block">
-                  Assigned to: {selectedDoctor.doctor_name}
-                  {doctorMappings.length > 1 && ` (${doctorMappings.length} doctors)`}
-                </p>
+                <div className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
+                  <span>Assigned to:</span>
+                  {doctorMappings.length > 1 ? (
+                    <div className="relative">
+                      <select
+                        value={selectedDoctor.doctor_id}
+                        onChange={(e) => setSelectedDoctor(e.target.value)}
+                        className="appearance-none bg-white border border-slate-200 rounded-md px-2 py-0.5 pr-6 text-xs font-medium text-slate-700 hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 cursor-pointer transition-all"
+                      >
+                        {doctorMappings.map((mapping) => (
+                          <option key={mapping.doctor_id} value={mapping.doctor_id}>
+                            {mapping.doctor_name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                    </div>
+                  ) : (
+                    <span className="font-medium text-slate-700">{selectedDoctor.doctor_name}</span>
+                  )}
+                </div>
               )}
             </div>
             {/* Live Queue Connection Status */}
