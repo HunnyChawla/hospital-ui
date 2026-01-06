@@ -10,18 +10,24 @@ import { useOptometristLiveQueue } from "@/hooks/useOptometristLiveQueue";
 import { OptometristPanelVerticalLayout } from "./dashboard/OptometristPanelVerticalLayout";
 import { ExaminationTabs } from "./patient-examination/ExaminationTabs";
 import { patientsApi } from "@/services/patientsApi";
-import { opdVisitsApi } from "@/services/opdVisitsApi";
+import { optometristVisitsApi } from "@/services/optometristVisitsApi";
+import { usersApi } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getTenantIdForApi } from "@/utils/auth";
+import { handleError } from "@/utils/errorHandler";
 import { OptometristStats } from "@/types";
+import type { OptometristActionType } from "./dashboard/OptometristCollapsibleQueueSection";
 
 
 
 export function OptometristPanel() {
   // Use our custom hooks
   const {
-    currentOptometrist,
     userId,
+    selectedDoctor,
+    doctorMappings,
+    mappingsLoading,
+    mappingsError,
     todaySchedule,
     todayStats,
     selectedPatientId,
@@ -38,10 +44,30 @@ export function OptometristPanel() {
   const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
   const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
   const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
+  const [optometristUser, setOptometristUser] = useState<{ full_name: string } | null>(null);
 
-  // Use live queue with SSE
+  // Fetch optometrist user details
+  useEffect(() => {
+    if (userId) {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const apiTenantId = getTenantIdForApi(tenantId);
+      usersApi.getById(userId, apiTenantId)
+        .then((user) => {
+          setOptometristUser({ full_name: user.full_name });
+        })
+        .catch((error) => {
+          handleError(error, {
+            defaultMessage: "Failed to fetch optometrist user details",
+            showToast: false, // Don't show toast for background fetch
+            logError: true,
+          });
+        });
+    }
+  }, [userId]);
+
+  // Use live queue with SSE - pass doctor_id from mapping
   const { queuePatients, connectionStatus } = useOptometristLiveQueue({
-    optometristId: currentOptometrist?.id || null,
+    doctorId: selectedDoctor?.doctor_id || null,
     autoConnect: true,
   });
 
@@ -80,7 +106,7 @@ export function OptometristPanel() {
     setQueueFilter,
   } = useOptometristPanelPreferences();
 
-  // Calculate stats from live queue data
+  // Calculate stats from live queue data using new status values
   const liveStats: OptometristStats = useMemo(() => {
     const stats = {
       todayTotal: queuePatients.length,
@@ -91,6 +117,26 @@ export function OptometristPanel() {
 
     queuePatients.forEach((patient) => {
       switch (patient.status) {
+        // Pending statuses
+        case "awaiting_optometrist":
+        case "optometrist_assigned":
+          stats.todayPending++;
+          break;
+        // In progress statuses
+        case "optometrist_investigation_in_progress":
+          stats.todayInProgress++;
+          break;
+        // Completed statuses
+        case "optometrist_investigation_completed":
+        case "awaiting_doctor":
+        case "doctor_assigned":
+        case "consultation_in_progress":
+        case "dilation_in_progress":
+        case "dilation_completed":
+        case "consultation_completed":
+          stats.todayCompleted++;
+          break;
+        // Legacy statuses (for backward compatibility)
         case "scheduled":
         case "waiting":
         case "checked_in":
@@ -118,7 +164,11 @@ export function OptometristPanel() {
       );
       setSelectedPatientUhid(patient.uhid);
     } catch (error) {
-      console.error("Failed to fetch patient details:", error);
+      handleError(error, {
+        defaultMessage: "Failed to fetch patient details",
+        showToast: false, // Don't show toast for background fetch
+        logError: true,
+      });
     }
   }, []);
 
@@ -129,28 +179,57 @@ export function OptometristPanel() {
     }
   }, [selectedPatientId, fetchPatientDetails]);
 
-  const handleUpdateVisitStatus = useCallback(async (
+  // Get current user ID for optometrist actions
+  const currentUserId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+  const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+
+  const handleOptometristAction = useCallback(async (
     visitId: string,
-    newStatus: "checked_in" | "in_consultation" | "completed"
+    action: OptometristActionType
   ) => {
     setUpdatingVisitId(visitId);
     try {
-      await opdVisitsApi.updateStatus(visitId, newStatus);
+      const apiTenantId = getTenantIdForApi(tenantId);
 
-      // Success notification
-      const statusText = newStatus === "in_consultation" ? "Consultation started" : 
-                        newStatus === "completed" ? "Consultation completed" : "Patient checked in";
-      toast.success(statusText);
+      switch (action) {
+        case "pick":
+          if (!currentUserId) {
+            throw new Error("User ID not found");
+          }
+          await optometristVisitsApi.pickOptometrist(visitId, currentUserId, apiTenantId);
+          toast.success("Patient picked successfully");
+          break;
+        
+        case "unpick":
+          await optometristVisitsApi.unpickOptometrist(visitId, apiTenantId);
+          toast.success("Patient unpicked successfully");
+          break;
+        
+        case "start_investigation":
+          await optometristVisitsApi.startInvestigation(visitId, apiTenantId);
+          toast.success("Investigation started");
+          break;
+        
+        case "complete_investigation":
+          await optometristVisitsApi.completeInvestigation(visitId, apiTenantId);
+          toast.success("Investigation completed");
+          break;
+        
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
 
       // Refresh the schedule to get updated data
       refreshSchedule();
     } catch (error: any) {
-      console.error("Failed to update visit status:", error);
-      toast.error(error?.response?.data?.detail || error?.response?.data?.message || "Failed to update status");
+      handleError(error, {
+        defaultMessage: `Failed to ${action.replace(/_/g, " ")}`,
+        logError: true,
+      });
     } finally {
       setUpdatingVisitId(null);
     }
-  }, [refreshSchedule]);
+  }, [refreshSchedule, currentUserId, tenantId]);
 
   // Find current visit ID when patient selected from live queue
   useEffect(() => {
@@ -199,13 +278,20 @@ export function OptometristPanel() {
     );
   }
 
-  if (!currentOptometrist) {
+  if (mappingsLoading || !selectedDoctor) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <Eye className="w-16 h-16 mx-auto mb-4 text-sky-500 animate-pulse" />
-          <h2 className="text-2xl font-bold mb-2">Loading Optometrist Profile...</h2>
-          <p className="text-gray-600">Please wait</p>
+          <h2 className="text-2xl font-bold mb-2">
+            {mappingsLoading ? "Loading Optometrist Profile..." : "No Doctor Assignment Found"}
+          </h2>
+          <p className="text-gray-600">
+            {mappingsLoading ? "Please wait" : "Please contact administrator to assign you to a doctor"}
+          </p>
+          {mappingsError && (
+            <p className="text-red-600 mt-2 text-sm">{mappingsError}</p>
+          )}
         </div>
       </div>
     );
@@ -216,47 +302,48 @@ export function OptometristPanel() {
       <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4">
         {/* Header */}
         <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
-          {currentOptometrist && (
-            <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">
-              <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
-                <Eye className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
-                  Dr. {currentOptometrist.user_name || "Optometrist"}
-                </p>
-                {currentOptometrist.specialization && (
-                  <p className="text-xs text-slate-500 hidden sm:block">{currentOptometrist.specialization}</p>
-                )}
-              </div>
-              {/* Live Queue Connection Status */}
-              <div className="flex items-center gap-2">
-                {connectionStatus === "connected" && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-3 py-1.5 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
-                    <div className="relative">
-                      <Wifi className="h-3.5 w-3.5 text-white" />
-                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
-                    </div>
-                    <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
-                  </div>
-                )}
-                {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-400/30">
-                    <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
-                    <span className="text-xs font-semibold text-white hidden sm:inline">
-                      {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
-                    </span>
-                  </div>
-                )}
-                {(connectionStatus === "error" || connectionStatus === "disconnected") && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 shadow-md shadow-rose-500/30">
-                    <WifiOff className="h-3.5 w-3.5 text-white" />
-                    <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
-                  </div>
-                )}
-              </div>
+          <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">
+            <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
+              <Eye className="h-5 w-5 text-white" />
             </div>
-          )}
+            <div className="min-w-0">
+              <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
+                {optometristUser?.full_name || "Optometrist"}
+              </p>
+              {selectedDoctor && (
+                <p className="text-xs text-slate-500 hidden sm:block">
+                  Assigned to: {selectedDoctor.doctor_name}
+                  {doctorMappings.length > 1 && ` (${doctorMappings.length} doctors)`}
+                </p>
+              )}
+            </div>
+            {/* Live Queue Connection Status */}
+            <div className="flex items-center gap-2">
+              {connectionStatus === "connected" && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-3 py-1.5 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
+                  <div className="relative">
+                    <Wifi className="h-3.5 w-3.5 text-white" />
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
+                  </div>
+                  <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
+                </div>
+              )}
+              {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-400/30">
+                  <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                  <span className="text-xs font-semibold text-white hidden sm:inline">
+                    {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
+                  </span>
+                </div>
+              )}
+              {(connectionStatus === "error" || connectionStatus === "disconnected") && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 shadow-md shadow-rose-500/30">
+                  <WifiOff className="h-3.5 w-3.5 text-white" />
+                  <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
+                </div>
+              )}
+            </div>
+          </div>
 
           <button
             onClick={refreshSchedule}
@@ -305,7 +392,7 @@ export function OptometristPanel() {
               setCurrentVisitId(undefined);
             }}
             onTabChange={setActiveTab}
-            onUpdateVisitStatus={handleUpdateVisitStatus}
+            onAction={handleOptometristAction}
             updatingVisitId={updatingVisitId}
           >
             {/* Tab content will be rendered inside layout */}
@@ -313,7 +400,7 @@ export function OptometristPanel() {
               <ExaminationTabs
                 patientId={selectedPatientId}
                 visitId={currentVisitId || ""}
-                optometristId={currentOptometrist?.id || ""}
+                optometristId={userId || ""}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
                 complaints={complaints}

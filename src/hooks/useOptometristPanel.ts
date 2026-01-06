@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchTodayOptometrySchedule,
@@ -6,8 +6,10 @@ import {
   setActiveTab,
   resetOptometristPanel,
 } from "@/redux/optometristPanelSlice";
-import { fetchDoctors } from "@/redux/doctorsSlice";
+import { optometristMappingsApi, type OptometristDoctorMapping } from "@/services/optometristMappingsApi";
 import { getTodayDateLocal } from "@/utils/format";
+import { getTenantIdForApi } from "@/utils/auth";
+import { handleError } from "@/utils/errorHandler";
 
 type ActiveTab =
   | "complaints"
@@ -23,12 +25,18 @@ type ActiveTab =
 export const useOptometristPanel = () => {
   const dispatch = useAppDispatch();
 
-  // Get current optometrist from localStorage and Redux
+  // Get current optometrist user from localStorage
   const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
-  const doctors = useAppSelector((state) => state.doctors.list);
+  const userRole = typeof window !== "undefined" ? localStorage.getItem("role") : null;
+  const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
 
-  // Find optometrist (doctor with specialization="Optometry" or role-based)
-  const currentOptometrist = doctors.find((d) => d.user_id === userId);
+  // State for optometrist-doctor mappings
+  const [doctorMappings, setDoctorMappings] = useState<OptometristDoctorMapping[]>([]);
+  const [mappingsLoading, setMappingsLoading] = useState(false);
+  const [mappingsError, setMappingsError] = useState<string | null>(null);
+
+  // Get first active doctor from mappings (or first doctor if none are active)
+  const selectedDoctor = doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
 
   // Optometrist panel state
   const {
@@ -40,26 +48,48 @@ export const useOptometristPanel = () => {
     error,
   } = useAppSelector((state) => state.optometristPanel);
 
-  // Fetch doctors on mount if not already loaded
+  // Verify user is optometrist and fetch doctor mappings
   useEffect(() => {
-    if (doctors.length === 0) {
-      dispatch(fetchDoctors());
+    if (!userId || userRole !== "optometrist") {
+      setMappingsError("User is not an optometrist");
+      return;
     }
-  }, [dispatch, doctors.length]);
 
-  // Fetch today's schedule when optometrist is identified
+    const fetchMappings = async () => {
+      setMappingsLoading(true);
+      setMappingsError(null);
+      try {
+        const apiTenantId = getTenantIdForApi(tenantId);
+        const mappings = await optometristMappingsApi.getOptometristDoctors(userId, apiTenantId);
+        setDoctorMappings(mappings);
+      } catch (err: any) {
+        const errorMessage = handleError(err, {
+          defaultMessage: "Failed to fetch doctor mappings",
+          showToast: false, // Don't show toast here, let the component handle it
+          logError: true,
+        });
+        setMappingsError(errorMessage);
+      } finally {
+        setMappingsLoading(false);
+      }
+    };
+
+    fetchMappings();
+  }, [userId, userRole, tenantId]);
+
+  // Fetch today's schedule when doctor is identified
   useEffect(() => {
-    if (currentOptometrist?.id) {
+    if (selectedDoctor?.doctor_id) {
       const today = getTodayDateLocal();
       dispatch(
         fetchTodayOptometrySchedule({
-          optometrist_id: currentOptometrist.id,
+          optometrist_id: selectedDoctor.doctor_id, // API uses this as doctor_id internally
           start_date: today,
           end_date: today,
         })
       );
     }
-  }, [currentOptometrist?.id, dispatch]);
+  }, [selectedDoctor?.doctor_id, dispatch]);
 
   // Memoized handlers to prevent unnecessary re-renders
   const handleSelectPatient = useCallback((patientId: string | null) => {
@@ -71,26 +101,32 @@ export const useOptometristPanel = () => {
   }, [dispatch]);
 
   const handleRefreshSchedule = useCallback(() => {
-    if (currentOptometrist?.id) {
+    if (selectedDoctor?.doctor_id) {
       const today = getTodayDateLocal();
       dispatch(
         fetchTodayOptometrySchedule({
-          optometrist_id: currentOptometrist.id,
+          optometrist_id: selectedDoctor.doctor_id, // API uses this as doctor_id internally
           start_date: today,
           end_date: today,
         })
       );
     }
-  }, [currentOptometrist?.id, dispatch]);
+  }, [selectedDoctor?.doctor_id, dispatch]);
 
   const handleReset = useCallback(() => {
     dispatch(resetOptometristPanel());
   }, [dispatch]);
 
   return {
-    // Optometrist info
-    currentOptometrist,
+    // Optometrist user info
     userId,
+    userRole,
+    
+    // Doctor mappings
+    doctorMappings,
+    selectedDoctor,
+    mappingsLoading,
+    mappingsError,
 
     // Schedule and stats
     todaySchedule,
@@ -101,8 +137,8 @@ export const useOptometristPanel = () => {
     activeTab,
 
     // Loading and error states
-    loading,
-    error,
+    loading: loading || mappingsLoading,
+    error: error || mappingsError,
 
     // Actions
     selectPatient: handleSelectPatient,

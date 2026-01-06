@@ -2,7 +2,7 @@
 
 import React, { memo } from "react";
 import { OptometristCollapsibleStatsSection } from "./OptometristCollapsibleStatsSection";
-import { OptometristCollapsibleQueueSection } from "./OptometristCollapsibleQueueSection";
+import { OptometristCollapsibleQueueSection, type OptometristActionType } from "./OptometristCollapsibleQueueSection";
 import { OptometristActivePatientCard } from "@/components/optometrist/dashboard/OptometristActivePatientCard";
 import type { OptometristStats } from "@/types";
 import type { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
@@ -43,8 +43,8 @@ interface OptometristPanelVerticalLayoutProps {
   onClearPatient: () => void;
   onTabChange: (tab: ActiveTab) => void;
 
-  // Visit status
-  onUpdateVisitStatus?: (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed") => void;
+  // Visit actions
+  onAction?: (visitId: string, action: OptometristActionType) => void;
   updatingVisitId?: string | null;
 
   // Tab content
@@ -70,7 +70,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   onSelectPatient,
   onClearPatient,
   onTabChange,
-  onUpdateVisitStatus,
+  onAction,
   updatingVisitId,
   children,
 }) => {
@@ -142,7 +142,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
               onFilterChange={onQueueFilterChange}
               onSelectPatient={onSelectPatient}
               selectedPatientId={selectedPatientId}
-              onUpdateStatus={onUpdateVisitStatus}
+              onAction={onAction}
               updatingVisitId={updatingVisitId}
               loading={queueLoading}
               isVisible={queueVisible}

@@ -28,10 +28,8 @@ export const useOptometryData = ({
 }: UseOptometryDataOptions) => {
   const dispatch = useAppDispatch();
 
-  // Get current optometrist ID
+  // Get current optometrist user ID (optometrists are now users, not doctors)
   const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
-  const doctors = useAppSelector((state) => state.doctors.list);
-  const currentOptometrist = doctors.find((d) => d.user_id === userId);
 
   // Get optometry data from Redux
   const {
