@@ -28,7 +28,23 @@ export const OptometryPrescriptionPrint = forwardRef<
   },
   ref
 ) {
-  const { hospitalName, hospitalAddress, hospitalPhone, hospitalEmail } = useTenant();
+  const { tenant, hospitalName } = useTenant();
+
+  // Format address
+  const formatAddress = () => {
+    if (!tenant) return null;
+    const parts = [
+      tenant.address,
+      tenant.city,
+      tenant.state,
+      tenant.pincode,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : null;
+  };
+
+  const hospitalAddress = formatAddress();
+  const hospitalPhone = tenant?.phone_no || null;
+  const hospitalEmail = tenant?.email || null;
 
   const odItem = prescription.items.find((i) => i.eye === "OD");
   const osItem = prescription.items.find((i) => i.eye === "OS");

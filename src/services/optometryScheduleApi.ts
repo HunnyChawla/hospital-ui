@@ -21,20 +21,44 @@ export interface OptometryScheduleParams {
  * Maps OPD visits to optometrist schedule format
  */
 function mapVisitsToSchedule(visits: Visit[], startDate: string): OptometristSchedule {
-  return {
-    doctor_id: visits[0]?.doctor_id || "",
-    date: startDate,
-    slots: visits.map((visit) => ({
+  // Extract time from checked_in_at or use created_at as fallback
+  const formatTime = (timeString: string | null): string => {
+    if (!timeString) return '00:00';
+    const date = new Date(timeString);
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
+
+  // Map visit_type to type (they're the same type)
+  const mapVisitType = (visitType: string): "appointment" | "walk_in" | "emergency" => {
+    if (visitType === 'emergency') return 'emergency';
+    if (visitType === 'appointment') return 'appointment';
+    return 'walk_in';
+  };
+
+  const slots = visits.map((visit) => {
+    const timeString = visit.checked_in_at || visit.created_at;
+    return {
       patient_id: visit.patient_id,
       patient_name: visit.patient_name || "Unknown",
       patient_uhid: null, // Visit type doesn't have patient object
       visit_id: visit.id,
-      token_number: visit.token_number,
-      time: visit.checked_in_at, // Use checked_in_at as time
+      token_number: visit.token_number ?? undefined,
+      time: formatTime(timeString),
+      type: mapVisitType(visit.visit_type),
       status: visit.status,
-      visit_type: visit.visit_type,
-    })),
-    total_patients: visits.length,
+      duration_minutes: 20, // Default duration
+    };
+  });
+
+  return {
+    date: startDate,
+    total_appointments: visits.filter(v => v.visit_type === 'appointment').length,
+    total_opd_visits: visits.length,
+    slots,
   };
 }
 
@@ -43,10 +67,10 @@ function mapVisitsToSchedule(visits: Visit[], startDate: string): OptometristSch
  */
 function calculateStats(visits: Visit[]): OptometristStats {
   return {
-    total_patients: visits.length,
-    completed: visits.filter((v) => v.status === "completed").length,
-    in_progress: visits.filter((v) => v.status === "in_consultation").length,
-    waiting: visits.filter((v) => v.status === "checked_in").length, // "checked_in" is the waiting status
+    todayTotal: visits.length,
+    todayCompleted: visits.filter((v) => v.status === "completed").length,
+    todayInProgress: visits.filter((v) => v.status === "in_consultation").length,
+    todayPending: visits.filter((v) => v.status === "checked_in").length, // "checked_in" is the waiting status
   };
 }
 

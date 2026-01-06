@@ -96,7 +96,7 @@ export function Sidebar() {
   // Render navigation content (shared between desktop and mobile)
   const renderSidebarContent = (showCollapseButton: boolean = false) => (
     <>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-shrink-0 items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
             <Image
@@ -127,7 +127,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide min-h-0">
         {navItems.map((item) => {
           if (!isRoleAllowed(item)) return null;
 
@@ -180,7 +180,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 p-[1px] shadow-lg">
+      <div className="mt-auto flex-shrink-0 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 p-[1px] shadow-lg">
         <div className="rounded-[11px] bg-white px-4 py-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
             Live
@@ -232,7 +232,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Icons - Scrollable with dynamic sizing */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto min-h-0">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto scrollbar-hide min-h-0">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const useNewRoute = isNewRouteEnabled(item);
@@ -299,7 +299,7 @@ export function Sidebar() {
     <>
       {/* Desktop Sidebar - Always visible, width changes based on isDesktopCollapsed */}
       <aside className={clsx(
-        "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-visible",
+        "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-hidden",
         isDesktopCollapsed ? "w-16 px-2 py-8" : "w-64 px-6 py-8"
       )}>
         {isDesktopCollapsed ? renderCollapsedIcons() : renderSidebarContent(true)}
@@ -308,7 +308,7 @@ export function Sidebar() {
       {/* Mobile Drawer - Slides in from left */}
       <aside
         className={clsx(
-          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700",
+          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 overflow-hidden",
           "transition-transform duration-300 ease-in-out lg:hidden",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
