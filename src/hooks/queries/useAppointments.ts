@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appointmentsApi, Appointment, CreateAppointmentRequest, AppointmentStatus } from '@/services/appointmentsApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
+import { createMutationErrorHandler } from '@/utils/errorHandler';
 
 /**
  * Query Keys Factory for Appointments
@@ -93,10 +94,7 @@ export function useCreateAppointment() {
       // Invalidate relevant appointment queries
       queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
     },
-    onError: (err) => {
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to create appointment';
-      toast.error(errorMessage);
-    },
+    onError: createMutationErrorHandler('Failed to create appointment'),
   });
 }
 
@@ -157,8 +155,7 @@ export function useUpdateAppointmentStatus() {
         });
       }
 
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update appointment status';
-      toast.error(errorMessage);
+      createMutationErrorHandler('Failed to update appointment status')(err);
     },
     onSuccess: () => {
       toast.success('Appointment status updated successfully');
