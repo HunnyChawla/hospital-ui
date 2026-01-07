@@ -10,12 +10,14 @@ interface OptometristQueuePanelProps {
     patients: TVQueuePatient[];
     stats: TVDisplayQueueStats;
     connectionStatus: SSEConnectionStatus;
+    showStats?: boolean;
 }
 
 export function OptometristQueuePanel({
     patients,
     stats,
     connectionStatus,
+    showStats = true,
 }: OptometristQueuePanelProps) {
     // Sort patients: emergency first, then by token number
     const sortedPatients = useMemo(() => {
@@ -51,51 +53,53 @@ export function OptometristQueuePanel({
             </div>
 
             {/* Stats Bar */}
-            <div className="flex-shrink-0 grid grid-cols-4 gap-3 border-b border-slate-200 bg-white px-4 py-3">
-                {/* Total */}
-                <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-slate-100">
-                        <Activity className="h-4 w-4 text-slate-500" />
+            {showStats && (
+                <div className="flex-shrink-0 grid grid-cols-4 gap-3 border-b border-slate-200 bg-white px-4 py-3">
+                    {/* Total */}
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-slate-100">
+                            <Activity className="h-4 w-4 text-slate-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</p>
+                            <p className="text-lg font-bold text-slate-700 leading-none">{stats.total}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</p>
-                        <p className="text-lg font-bold text-slate-700 leading-none">{stats.total}</p>
-                    </div>
-                </div>
 
-                {/* Waiting */}
-                <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-amber-100">
-                        <Clock className="h-4 w-4 text-amber-500" />
+                    {/* Waiting */}
+                    <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-amber-100">
+                            <Clock className="h-4 w-4 text-amber-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600/70">Waiting</p>
+                            <p className="text-lg font-bold text-amber-700 leading-none">{stats.waiting}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600/70">Waiting</p>
-                        <p className="text-lg font-bold text-amber-700 leading-none">{stats.waiting}</p>
-                    </div>
-                </div>
 
-                {/* In Progress */}
-                <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-blue-100">
-                        <UserCheck className="h-4 w-4 text-blue-500" />
+                    {/* In Progress */}
+                    <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-blue-100">
+                            <UserCheck className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600/70">Active</p>
+                            <p className="text-lg font-bold text-blue-700 leading-none">{stats.inProgress}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600/70">Active</p>
-                        <p className="text-lg font-bold text-blue-700 leading-none">{stats.inProgress}</p>
-                    </div>
-                </div>
 
-                {/* Emergency */}
-                <div className="flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/30 p-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-rose-100">
-                        <AlertCircle className="h-4 w-4 text-rose-500" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600/70">Ugent</p>
-                        <p className="text-lg font-bold text-rose-700 leading-none">{stats.emergency}</p>
+                    {/* Emergency */}
+                    <div className="flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/30 p-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-rose-100">
+                            <AlertCircle className="h-4 w-4 text-rose-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600/70">Ugent</p>
+                            <p className="text-lg font-bold text-rose-700 leading-none">{stats.emergency}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Queue List */}
             <div className="flex-1 overflow-y-auto p-4">
