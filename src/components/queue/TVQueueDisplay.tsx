@@ -14,7 +14,9 @@ import {
     Settings,
     Layout,
     Activity,
-    Eye
+    Eye,
+    Grid,
+    List
 } from "lucide-react";
 import { useTVDisplayQueue } from "@/hooks/useTVDisplayQueue";
 import { OptometristQueuePanel } from "./OptometristQueuePanel";
@@ -26,6 +28,7 @@ interface TVQueueSettings {
     showStats: boolean;
     showOptometristQueue: boolean;
     showDoctorQueue: boolean;
+    viewMode: 'list' | 'tiles';
 }
 
 interface TVQueueDisplayProps {
@@ -82,7 +85,25 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
         showStats: true,
         showOptometristQueue: true,
         showDoctorQueue: true,
+        viewMode: 'list',
     });
+
+    // Load settings from localStorage
+    useEffect(() => {
+        const savedSettings = localStorage.getItem('tv-queue-settings');
+        if (savedSettings) {
+            try {
+                setSettings(JSON.parse(savedSettings));
+            } catch (e) {
+                console.error("Failed to parse settings", e);
+            }
+        }
+    }, []);
+
+    // Save settings to localStorage
+    useEffect(() => {
+        localStorage.setItem('tv-queue-settings', JSON.stringify(settings));
+    }, [settings]);
 
     // Auto-select first doctor
     useEffect(() => {
@@ -152,7 +173,34 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             </div>
 
                             <div className="p-4 space-y-4">
-                                {/* Top Bar Toggle */}
+                                {/* View Mode Toggle */}
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                                            {settings.viewMode === 'list' ? <List className="h-4 w-4 text-sky-600" /> : <Grid className="h-4 w-4 text-sky-600" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-slate-700">Display View</p>
+                                            <p className="text-xs text-slate-500">List or Tiles orientation</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 rounded-lg bg-white p-1 border border-slate-200 shadow-sm">
+                                        <button
+                                            onClick={() => setSettings(s => ({ ...s, viewMode: 'list' }))}
+                                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${settings.viewMode === 'list' ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            LIST
+                                        </button>
+                                        <button
+                                            onClick={() => setSettings(s => ({ ...s, viewMode: 'tiles' }))}
+                                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${settings.viewMode === 'tiles' ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            TILES
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Top Header Toggle */}
                                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-white rounded-lg shadow-sm">
@@ -244,7 +292,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             <div className="p-4 bg-slate-50 border-t border-slate-100">
                                 <button
                                     onClick={() => setShowSettings(false)}
-                                    className="w-full py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-strong)] text-white font-semibold rounded-xl transition-colors shadow-lg shadow-sky-500/20"
+                                    className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-sky-500/20"
                                 >
                                     Done
                                 </button>
@@ -253,22 +301,10 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                     </div>
                 )}
 
-                {/* Settings Button - Hidden in full screen mode or if top bar is hidden (handled by floating controls) */}
-                {!isFullScreen && settings.showTopBar && (
-                    <button
-                        onClick={() => setShowSettings(true)}
-                        className="absolute top-8 right-8 z-40 p-3 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-105"
-                        title="Display Settings"
-                    >
-                        <Settings className="h-5 w-5" />
-                    </button>
-                )}
-
                 {/* Header */}
                 {settings.showTopBar && (
                     <div className="flex-shrink-0 mb-4">
                         <div className="flex items-center justify-between rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50 to-white p-4 shadow-sm">
-                            {/* Title and Doctor Selector */}
                             <div className="flex items-center gap-6">
                                 <div className="flex items-center gap-3">
                                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 shadow-lg shadow-sky-500/20">
@@ -280,6 +316,28 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                     </div>
                                 </div>
 
+                                {/* View Mode Toggle */}
+                                <div className="hidden md:flex items-center gap-1 rounded-lg bg-slate-100 p-1 border border-slate-200">
+                                    <button
+                                        onClick={() => setSettings(s => ({ ...s, viewMode: 'list' }))}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all text-sm font-medium ${settings.viewMode === 'list' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
+                                        title="List View"
+                                    >
+                                        <List className="h-4 w-4" />
+                                        <span>List</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setSettings(s => ({ ...s, viewMode: 'tiles' }))}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all text-sm font-medium ${settings.viewMode === 'tiles' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
+                                        title="Tiles View"
+                                    >
+                                        <Grid className="h-4 w-4" />
+                                        <span>Tiles</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
                                 {/* Doctor Selector */}
                                 {doctors.length > 0 && (
                                     <div className="flex items-center gap-2 border-l border-slate-200 pl-6">
@@ -290,7 +348,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                             <select
                                                 value={selectedDoctorId}
                                                 onChange={(e) => setSelectedDoctorId(e.target.value)}
-                                                className="appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 pr-10 text-sm font-semibold text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 min-w-[240px]"
+                                                className="appearance-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 pr-10 text-sm font-semibold text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 min-w-[200px]"
                                             >
                                                 {doctors.map((doc) => (
                                                     <option key={doc.id} value={doc.id}>
@@ -302,10 +360,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                         </div>
                                     </div>
                                 )}
-                            </div>
 
-                            {/* Right Side: Connection Status & Actions */}
-                            <div className="flex items-center gap-3">
                                 {/* Connection Status */}
                                 <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${connectionBadge.className} shadow-sm border border-white/20`}>
                                     <div className="relative">
@@ -329,7 +384,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                 {onFullScreenToggle && (
                                     <button
                                         onClick={onFullScreenToggle}
-                                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900"
+                                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900"
                                     >
                                         {isFullScreen ? (
                                             <>
@@ -361,16 +416,25 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                 {isFullScreen ? <X className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
                             </button>
                         )}
-                        {!isFullScreen && (
-                            <button
-                                onClick={() => setShowSettings(true)}
-                                className="p-3 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-105"
-                                title="Display Settings"
-                            >
-                                <Settings className="h-5 w-5" />
-                            </button>
-                        )}
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className="p-3 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-105"
+                            title="Display Settings"
+                        >
+                            <Settings className="h-5 w-5" />
+                        </button>
                     </div>
+                )}
+
+                {/* Settings Button - Hidden in full screen mode or if top bar is hidden (handled by floating controls) */}
+                {!isFullScreen && settings.showTopBar && (
+                    <button
+                        onClick={() => setShowSettings(true)}
+                        className="absolute top-8 right-8 z-40 p-3 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-105"
+                        title="Display Settings"
+                    >
+                        <Settings className="h-5 w-5" />
+                    </button>
                 )}
 
                 {/* Queue Panels */}
@@ -384,6 +448,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             stats={optometristStats}
                             connectionStatus={optometristStatus}
                             showStats={settings.showStats}
+                            viewMode={settings.viewMode}
                         />
                     )}
 
@@ -393,6 +458,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             stats={doctorStats}
                             connectionStatus={doctorStatus}
                             showStats={settings.showStats}
+                            viewMode={settings.viewMode}
                         />
                     )}
                 </div>

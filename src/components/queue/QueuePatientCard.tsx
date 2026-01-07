@@ -8,7 +8,9 @@ interface QueuePatientCardProps {
     patient: TVQueuePatient;
     isNext?: boolean;
     isGreyed?: boolean;
+    isEmergency?: boolean;
     queueType: "optometrist" | "doctor";
+    viewMode?: 'list' | 'tiles';
 }
 
 export function QueuePatientCard({
@@ -16,6 +18,7 @@ export function QueuePatientCard({
     isNext = false,
     isGreyed = false,
     queueType,
+    viewMode = 'list',
 }: QueuePatientCardProps) {
     const isEmergency = patient.visit_type === "emergency";
     const tokenNumber =
@@ -183,29 +186,31 @@ export function QueuePatientCard({
                 </div>
             )}
 
-            <div className="flex items-center gap-4">
+            <div className={`flex h-full ${viewMode === 'tiles' ? 'flex-col items-center text-center justify-between gap-4' : 'items-center gap-4'}`}>
                 {/* Token Number */}
                 <div
-                    className={`flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl ${styles.tokenBg} shadow-lg`}
+                    className={`flex flex-shrink-0 items-center justify-center rounded-2xl ${styles.tokenBg} shadow-inner bg-opacity-50 ${viewMode === 'tiles' ? 'h-20 w-20' : 'h-16 w-16'}`}
                 >
-                    <span className={`text-2xl font-extrabold ${styles.tokenText} drop-shadow-sm`}>
+                    <span className={`${viewMode === 'tiles' ? 'text-3xl' : 'text-2xl'} font-black ${styles.tokenText} tracking-tight`}>
                         {tokenNumber}
                     </span>
                 </div>
 
                 {/* Patient Info */}
-                <div className="flex-1 min-w-0">
-                    <p className="text-lg font-bold text-slate-900 truncate">{patient.patient_name}</p>
+                <div className={`flex-1 min-w-0 w-full ${viewMode === 'tiles' ? 'flex flex-col items-center' : ''}`}>
+                    <p className={`font-bold text-slate-900 truncate w-full ${viewMode === 'tiles' ? 'text-xl mb-1' : 'text-lg'}`}>{patient.patient_name}</p>
                     {patient.patient_uhid && (
-                        <p className="text-sm text-slate-500 truncate">UHID: {patient.patient_uhid}</p>
+                        <p className={`text-sm font-medium text-slate-500 truncate w-full ${viewMode === 'tiles' ? 'bg-slate-100/50 px-2 py-0.5 rounded-md' : ''}`}>
+                            {patient.patient_uhid}
+                        </p>
                     )}
                 </div>
 
                 {/* Status Badge */}
                 {(!isNext || isEmergency) && (
-                    <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${styles.statusBadgeBg}`}>
+                    <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${styles.statusBadgeBg} ${viewMode === 'tiles' ? 'w-full justify-center mt-auto' : ''}`}>
                         <StatusIcon className={`h-4 w-4 ${styles.statusBadgeText}`} />
-                        <span className={`text-sm font-semibold ${styles.statusBadgeText}`}>
+                        <span className={`text-xs font-bold uppercase tracking-wider ${styles.statusBadgeText}`}>
                             {getStatusLabel()}
                         </span>
                     </div>

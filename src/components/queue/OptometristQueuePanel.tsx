@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Eye, Clock, UserCheck, Activity, AlertCircle } from "lucide-react";
+import { Eye, Clock, UserCheck, Activity, AlertCircle, Users } from "lucide-react";
 import { QueuePatientCard } from "./QueuePatientCard";
 import type { TVQueuePatient, TVDisplayQueueStats } from "@/hooks/useTVDisplayQueue";
 import { SSEConnectionStatus } from "@/hooks/useSSE";
@@ -11,6 +11,7 @@ interface OptometristQueuePanelProps {
     stats: TVDisplayQueueStats;
     connectionStatus: SSEConnectionStatus;
     showStats?: boolean;
+    viewMode?: 'list' | 'tiles';
 }
 
 export function OptometristQueuePanel({
@@ -18,6 +19,7 @@ export function OptometristQueuePanel({
     stats,
     connectionStatus,
     showStats = true,
+    viewMode = 'list',
 }: OptometristQueuePanelProps) {
     // Sort patients: emergency first, then by token number
     const sortedPatients = useMemo(() => {
@@ -102,7 +104,7 @@ export function OptometristQueuePanel({
             )}
 
             {/* Queue List */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
                 {isLoading ? (
                     <div className="flex h-full items-center justify-center">
                         <div className="text-center">
@@ -111,20 +113,26 @@ export function OptometristQueuePanel({
                         </div>
                     </div>
                 ) : sortedPatients.length === 0 ? (
-                    <div className="flex h-full items-center justify-center">
-                        <div className="text-center">
-                            <Eye className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                            <p className="text-lg font-medium text-slate-500">No patients in queue</p>
-                            <p className="text-sm text-slate-400">Patients will appear here when checked in</p>
+                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
+                        <div className="rounded-full bg-slate-50 p-4 mb-3">
+                            <Users className="h-8 w-8 text-slate-300" />
                         </div>
+                        <p className="font-medium">Queue is empty</p>
+                        <p className="text-sm">No patients waiting</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className={viewMode === 'list'
+                        ? "space-y-3"
+                        : "grid grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-3"
+                    }>
                         {sortedPatients.map((patient) => (
                             <QueuePatientCard
                                 key={patient.visit_id}
                                 patient={patient}
+                                isNext={false} // Optometrist queue logic doesn't strictly have "Next" in the same way, or it's implicitly the top one
+                                isEmergency={patient.visit_type === "emergency"}
                                 queueType="optometrist"
+                                viewMode={viewMode}
                             />
                         ))}
                     </div>
