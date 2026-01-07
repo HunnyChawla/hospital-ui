@@ -34,6 +34,7 @@ interface TVQueueSettings {
     viewMode: 'list' | 'tiles';
     enableSound: boolean;
     enableVoice: boolean;
+    enableHindiVoice: boolean;
 }
 
 interface TVQueueDisplayProps {
@@ -94,6 +95,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
         viewMode: 'list',
         enableSound: true,
         enableVoice: false,
+        enableHindiVoice: false,
     });
 
     // Load settings from localStorage
@@ -139,6 +141,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
         autoConnect: !!selectedDoctorId,
         enableSound: settings.enableSound,
         enableVoice: settings.enableVoice,
+        enableHindiVoice: settings.enableHindiVoice,
     });
 
     const selectedDoctor = doctors.find((d) => d.id === selectedDoctorId);
@@ -332,7 +335,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                             <Mic2 className="h-4 w-4 text-slate-600" />
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-slate-700">Voice Announcement</p>
+                                            <p className="font-semibold text-slate-700">Voice (English)</p>
                                             <p className="text-xs text-slate-500">Announce patient names</p>
                                         </div>
                                     </div>
@@ -342,6 +345,29 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                             className="sr-only peer"
                                             checked={settings.enableVoice}
                                             onChange={(e) => setSettings(s => ({ ...s, enableVoice: e.target.checked }))}
+                                            disabled={!ttsSupported}
+                                        />
+                                        <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 ${!ttsSupported ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                                    </label>
+                                </div>
+
+                                {/* Hindi Voice Toggle */}
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                                            <Mic2 className="h-4 w-4 text-orange-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-slate-700">Voice (Hindi)</p>
+                                            <p className="text-xs text-slate-500">हिंदी में घोषणा करें</p>
+                                        </div>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={settings.enableHindiVoice}
+                                            onChange={(e) => setSettings(s => ({ ...s, enableHindiVoice: e.target.checked }))}
                                             disabled={!ttsSupported}
                                         />
                                         <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 ${!ttsSupported ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
@@ -364,14 +390,24 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                         <Volume2 className="h-3.5 w-3.5" />
                                         TEST SOUND
                                     </button>
-                                    <button
-                                        onClick={() => announceText("Testing voice announcement")}
-                                        disabled={!ttsSupported}
-                                        className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <Mic2 className="h-3.5 w-3.5" />
-                                        TEST VOICE
-                                    </button>
+                                    <div className="grid grid-cols-2 gap-3 pb-2">
+                                        <button
+                                            onClick={() => announceText("Testing English voice announcement", "en-IN")}
+                                            disabled={!ttsSupported}
+                                            className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Mic2 className="h-3.5 w-3.5" />
+                                            TEST ENGLISH
+                                        </button>
+                                        <button
+                                            onClick={() => announceText("हिंदी वॉयस घोषणा का परीक्षण", "hi-IN")}
+                                            disabled={!ttsSupported}
+                                            className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Mic2 className="h-3.5 w-3.5 text-orange-600" />
+                                            TEST HINDI
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

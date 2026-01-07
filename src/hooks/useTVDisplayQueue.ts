@@ -91,6 +91,7 @@ interface UseTVDisplayQueueOptions {
     autoConnect?: boolean;
     enableSound?: boolean;
     enableVoice?: boolean;
+    enableHindiVoice?: boolean;
 }
 
 export function useTVDisplayQueue({
@@ -98,6 +99,7 @@ export function useTVDisplayQueue({
     autoConnect = true,
     enableSound = true,
     enableVoice = false,
+    enableHindiVoice = false,
 }: UseTVDisplayQueueOptions) {
     const [optometristPatients, setOptometristPatients] = useState<TVQueuePatient[]>([]);
     const [doctorPatients, setDoctorPatients] = useState<TVQueuePatient[]>([]);
@@ -273,14 +275,33 @@ export function useTVDisplayQueue({
             }
         };
 
-        const announce = (patientName: string, token: string | number, area: string) => {
-            if (!enableVoice) return;
-            const text = `Token number ${token}, ${patientName}, please proceed to ${area}`;
-            announceText(text);
+        const areaTranslations: Record<string, { en: string; hi: string }> = {
+            "eye examination": { en: "eye examination", hi: "आंख की जांच" },
+            "consultation": { en: "consultation", hi: "परामर्श" }
+        };
+
+        const announce = (patientName: string, token: string | number, areaKey: string) => {
+            if (!enableVoice && !enableHindiVoice) return;
+
+            const area = areaTranslations[areaKey] || { en: areaKey, hi: areaKey };
+
+            if (enableVoice) {
+                const enText = `Token number ${token}, ${patientName}, please proceed to ${area.en}`;
+                announceText(enText, "en-IN");
+            }
+
+            if (enableHindiVoice) {
+                const hiText = `टोकन नंबर ${token}, ${patientName}, कृपया ${area.hi} के लिए जाएं`;
+                // If English played, wait before playing Hindi
+                const delay = enableVoice ? 6000 : 0;
+                setTimeout(() => {
+                    announceText(hiText, "hi-IN");
+                }, delay);
+            }
         };
 
         let shouldPlay = false;
-        let announcementData: { name: string; token: string | number; area: string } | null = null;
+        let announcementData: { name: string; token: string | number; areaKey: string } | null = null;
 
         // Check Optometrist Queue Changes
         const currentOpt = optometristPatients;
@@ -294,7 +315,7 @@ export function useTVDisplayQueue({
                     announcementData = {
                         name: curr.patient_name,
                         token: curr.token_number,
-                        area: "eye examination"
+                        areaKey: "eye examination"
                     };
                 }
             }
@@ -313,7 +334,7 @@ export function useTVDisplayQueue({
                     announcementData = {
                         name: curr.patient_name,
                         token: curr.token_number,
-                        area: "consultation"
+                        areaKey: "consultation"
                     };
                 }
             }
@@ -325,12 +346,12 @@ export function useTVDisplayQueue({
             if (announcementData) {
                 // Small delay after chime for better clarity
                 setTimeout(() => {
-                    announce(announcementData!.name, announcementData!.token, announcementData!.area);
+                    announce(announcementData!.name, announcementData!.token, announcementData!.areaKey);
                 }, 800);
             }
         }
 
-    }, [optometristPatients, doctorPatients, enableSound, enableVoice]);
+    }, [optometristPatients, doctorPatients, enableSound, enableVoice, enableHindiVoice]);
 
     return {
         optometristPatients,

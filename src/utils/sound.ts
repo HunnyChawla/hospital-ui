@@ -37,7 +37,7 @@ export const isTTSSupported = () => {
  * Announce text using the browser's speech synthesis.
  * More robust implementation for TV/Limited browsers.
  */
-export const announceText = (text: string) => {
+export const announceText = (text: string, lang: string = "en-IN") => {
     if (!isTTSSupported()) {
         console.warn("Speech synthesis not supported in this browser.");
         return;
@@ -50,12 +50,15 @@ export const announceText = (text: string) => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 0.9;
         utterance.pitch = 1.0;
-        utterance.lang = "en-IN";
+        utterance.lang = lang;
 
         // Find a good voice
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
-            const preferredVoice = voices.find(v => v.lang.includes("en-IN")) ||
+            // Priority: Requested lang exact match -> Requested lang partial match -> en-IN -> en-US -> first available
+            const preferredVoice = voices.find(v => v.lang === lang) ||
+                voices.find(v => v.lang.includes(lang)) ||
+                voices.find(v => v.lang.includes("en-IN")) ||
                 voices.find(v => v.lang.includes("en-US")) ||
                 voices[0];
             utterance.voice = preferredVoice;
