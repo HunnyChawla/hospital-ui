@@ -135,7 +135,7 @@ export function QueuePatientCard({
             case "optometrist_assigned":
                 return "Your Turn";
             case "optometrist_investigation_in_progress":
-                return "Investigation in progress";
+                return "Consulting with optometrist";
             case "awaiting_doctor":
                 return "Waiting";
             case "consultation_in_progress":
@@ -152,6 +152,7 @@ export function QueuePatientCard({
             case "optometrist_assigned":
                 return UserCheck;
             case "optometrist_investigation_in_progress":
+                return Eye;
             case "consultation_in_progress":
                 return queueType === "optometrist" ? Eye : Stethoscope;
             default:
@@ -217,7 +218,7 @@ export function QueuePatientCard({
 
                     {isGreyed && (
                         <div className={`text-[10px] leading-tight font-semibold text-slate-500 italic mt-2 ${viewMode === 'tiles' ? 'text-center px-2' : 'text-right'}`}>
-                            May move ahead after optometrist
+                            May move ahead after optometrist's Examination
                         </div>
                     )}
 

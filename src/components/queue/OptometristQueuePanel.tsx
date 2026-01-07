@@ -40,7 +40,7 @@ export function OptometristQueuePanel({
                             <Eye className="h-5 w-5 text-teal-600" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-800">Optometrist Queue</h2>
+                            <h2 className="text-xl font-bold text-slate-800">Optometrist’s Queue</h2>
                             <p className="text-sm text-slate-500">Eye Examination</p>
                         </div>
                     </div>
