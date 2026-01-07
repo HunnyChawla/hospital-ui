@@ -34,65 +34,65 @@ export function OptometristQueuePanel({
     const isLoading = connectionStatus === "connecting" || connectionStatus === "reconnecting";
 
     return (
-        <div className="flex h-full flex-col rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50/50 via-white to-sky-50/30 shadow-lg overflow-hidden">
+        <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-slate-50/50 shadow-xl overflow-hidden">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-sky-200 bg-gradient-to-r from-sky-500 to-teal-500 p-4">
+            <div className="flex-shrink-0 border-b border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-                            <Eye className="h-5 w-5 text-white" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 border border-teal-100">
+                            <Eye className="h-5 w-5 text-teal-600" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Optometrist Queue</h2>
-                            <p className="text-sm text-white/80">Eye Examination</p>
+                            <h2 className="text-xl font-bold text-slate-800">Optometrist Queue</h2>
+                            <p className="text-sm text-slate-500">Eye Examination</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Stats Bar */}
-            <div className="flex-shrink-0 grid grid-cols-4 gap-3 border-b border-sky-100 bg-white/50 p-3">
+            <div className="flex-shrink-0 grid grid-cols-4 gap-3 border-b border-slate-200 bg-white px-4 py-3">
                 {/* Total */}
-                <div className="flex items-center gap-2 rounded-lg bg-white p-2 shadow-sm">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-                        <Activity className="h-4 w-4 text-slate-600" />
+                <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-slate-100">
+                        <Activity className="h-4 w-4 text-slate-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-slate-500">Total</p>
-                        <p className="text-lg font-bold text-slate-900">{stats.total}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</p>
+                        <p className="text-lg font-bold text-slate-700 leading-none">{stats.total}</p>
                     </div>
                 </div>
 
                 {/* Waiting */}
-                <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-2 shadow-sm">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
-                        <Clock className="h-4 w-4 text-white" />
+                <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-amber-100">
+                        <Clock className="h-4 w-4 text-amber-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-amber-600">Waiting</p>
-                        <p className="text-lg font-bold text-amber-700">{stats.waiting}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600/70">Waiting</p>
+                        <p className="text-lg font-bold text-amber-700 leading-none">{stats.waiting}</p>
                     </div>
                 </div>
 
                 {/* In Progress */}
-                <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-2 shadow-sm">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500">
-                        <UserCheck className="h-4 w-4 text-white" />
+                <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-blue-100">
+                        <UserCheck className="h-4 w-4 text-blue-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-blue-600">In Progress</p>
-                        <p className="text-lg font-bold text-blue-700">{stats.inProgress}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600/70">Active</p>
+                        <p className="text-lg font-bold text-blue-700 leading-none">{stats.inProgress}</p>
                     </div>
                 </div>
 
                 {/* Emergency */}
-                <div className="flex items-center gap-2 rounded-lg bg-rose-50 p-2 shadow-sm">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500">
-                        <AlertCircle className="h-4 w-4 text-white" />
+                <div className="flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/30 p-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm border border-rose-100">
+                        <AlertCircle className="h-4 w-4 text-rose-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-rose-600">Emergency</p>
-                        <p className="text-lg font-bold text-rose-700">{stats.emergency}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600/70">Ugent</p>
+                        <p className="text-lg font-bold text-rose-700 leading-none">{stats.emergency}</p>
                     </div>
                 </div>
             </div>
@@ -102,7 +102,7 @@ export function OptometristQueuePanel({
                 {isLoading ? (
                     <div className="flex h-full items-center justify-center">
                         <div className="text-center">
-                            <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-sky-200 border-t-sky-500" />
+                            <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-teal-500" />
                             <p className="text-sm text-slate-500">Loading queue...</p>
                         </div>
                     </div>

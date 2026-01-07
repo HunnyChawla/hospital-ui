@@ -28,13 +28,13 @@ export function QueuePatientCard({
         // Emergency always gets red styling
         if (isEmergency) {
             return {
-                cardBg: "bg-gradient-to-br from-rose-50 via-red-50 to-rose-100",
-                cardBorder: "border-rose-400 ring-4 ring-rose-200/50",
-                cardShadow: "shadow-xl shadow-rose-500/30",
-                tokenBg: "bg-gradient-to-br from-rose-500 to-red-600",
-                tokenText: "text-white",
-                statusBadgeBg: "bg-rose-500",
-                statusBadgeText: "text-white",
+                cardBg: "bg-white",
+                cardBorder: "border-l-4 border-l-rose-500 border-y border-r border-slate-200",
+                cardShadow: "shadow-md hover:shadow-lg shadow-rose-100",
+                tokenBg: "bg-rose-50 text-rose-700",
+                tokenText: "text-rose-700",
+                statusBadgeBg: "bg-rose-100 text-rose-700",
+                statusBadgeText: "text-rose-700",
                 animation: "animate-pulse",
             };
         }
@@ -42,13 +42,13 @@ export function QueuePatientCard({
         // Greyed out (optometrist patients in doctor queue)
         if (isGreyed) {
             return {
-                cardBg: "bg-gradient-to-br from-slate-100 via-slate-50 to-white",
-                cardBorder: "border-slate-200",
-                cardShadow: "shadow-md",
-                tokenBg: "bg-gradient-to-br from-slate-300 to-slate-400",
-                tokenText: "text-white",
-                statusBadgeBg: "bg-slate-400",
-                statusBadgeText: "text-white",
+                cardBg: "bg-slate-50/50",
+                cardBorder: "border border-slate-200",
+                cardShadow: "shadow-sm",
+                tokenBg: "bg-slate-100 text-slate-500",
+                tokenText: "text-slate-500",
+                statusBadgeBg: "bg-slate-100 text-slate-500",
+                statusBadgeText: "text-slate-500",
                 animation: "",
             };
         }
@@ -56,13 +56,13 @@ export function QueuePatientCard({
         // Next patient
         if (isNext) {
             return {
-                cardBg: "bg-gradient-to-br from-sky-50 via-teal-50 to-sky-100",
-                cardBorder: "border-sky-400 ring-4 ring-sky-200/50",
-                cardShadow: "shadow-xl shadow-sky-500/25",
-                tokenBg: "bg-gradient-to-br from-sky-500 to-teal-500",
-                tokenText: "text-white",
-                statusBadgeBg: "bg-sky-500",
-                statusBadgeText: "text-white",
+                cardBg: "bg-white",
+                cardBorder: "border-l-4 border-l-sky-500 border-y border-r border-slate-200",
+                cardShadow: "shadow-md hover:shadow-lg shadow-sky-100",
+                tokenBg: "bg-sky-50 text-sky-700",
+                tokenText: "text-sky-700",
+                statusBadgeBg: "bg-sky-100 text-sky-700",
+                statusBadgeText: "text-sky-700",
                 animation: "animate-pulse",
             };
         }
@@ -71,26 +71,26 @@ export function QueuePatientCard({
         switch (patient.status) {
             case "optometrist_assigned":
                 return {
-                    cardBg: "bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100",
-                    cardBorder: "border-emerald-400 ring-2 ring-emerald-200/50",
-                    cardShadow: "shadow-lg shadow-emerald-500/20",
-                    tokenBg: "bg-gradient-to-br from-emerald-500 to-green-600",
-                    tokenText: "text-white",
-                    statusBadgeBg: "bg-emerald-500",
-                    statusBadgeText: "text-white",
+                    cardBg: "bg-white",
+                    cardBorder: "border-l-4 border-l-emerald-500 border-y border-r border-slate-200",
+                    cardShadow: "shadow-md hover:shadow-lg shadow-emerald-100",
+                    tokenBg: "bg-emerald-50 text-emerald-700",
+                    tokenText: "text-emerald-700",
+                    statusBadgeBg: "bg-emerald-100 text-emerald-700",
+                    statusBadgeText: "text-emerald-700",
                     animation: "animate-pulse",
                 };
 
             case "optometrist_investigation_in_progress":
             case "consultation_in_progress":
                 return {
-                    cardBg: "bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100",
-                    cardBorder: "border-blue-400 ring-2 ring-blue-200/50",
-                    cardShadow: "shadow-lg shadow-blue-500/20",
-                    tokenBg: "bg-gradient-to-br from-blue-500 to-indigo-600",
-                    tokenText: "text-white",
-                    statusBadgeBg: "bg-blue-500",
-                    statusBadgeText: "text-white",
+                    cardBg: "bg-white",
+                    cardBorder: "border-l-4 border-l-blue-500 border-y border-r border-slate-200",
+                    cardShadow: "shadow-md hover:shadow-lg shadow-blue-100",
+                    tokenBg: "bg-blue-50 text-blue-700",
+                    tokenText: "text-blue-700",
+                    statusBadgeBg: "bg-blue-100 text-blue-700",
+                    statusBadgeText: "text-blue-700",
                     animation: "",
                 };
 
@@ -98,13 +98,13 @@ export function QueuePatientCard({
             case "awaiting_doctor":
             default:
                 return {
-                    cardBg: "bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100",
-                    cardBorder: "border-amber-300",
-                    cardShadow: "shadow-md shadow-amber-500/10",
-                    tokenBg: "bg-gradient-to-br from-amber-500 to-orange-500",
-                    tokenText: "text-white",
-                    statusBadgeBg: "bg-amber-500",
-                    statusBadgeText: "text-white",
+                    cardBg: "bg-white",
+                    cardBorder: "border-l-4 border-l-amber-400 border-y border-r border-slate-200",
+                    cardShadow: "shadow-sm hover:shadow-md",
+                    tokenBg: "bg-amber-50 text-amber-700",
+                    tokenText: "text-amber-700",
+                    statusBadgeBg: "bg-amber-100 text-amber-700",
+                    statusBadgeText: "text-amber-700",
                     animation: "",
                 };
         }
