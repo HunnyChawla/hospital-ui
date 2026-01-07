@@ -82,6 +82,7 @@ function getConnectionBadge(status: SSEConnectionStatus) {
 export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQueueDisplayProps) {
     const doctors = useAppSelector((s) => s.doctors.list);
     const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+    const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
 
     // Settings state
     const [showSettings, setShowSettings] = useState(false);
@@ -100,17 +101,21 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
         const savedSettings = localStorage.getItem('tv-queue-settings');
         if (savedSettings) {
             try {
-                setSettings(JSON.parse(savedSettings));
+                const parsed = JSON.parse(savedSettings);
+                setSettings(prev => ({ ...prev, ...parsed }));
             } catch (e) {
                 console.error("Failed to parse settings", e);
             }
         }
+        setHasLoadedSettings(true);
     }, []);
 
     // Save settings to localStorage
     useEffect(() => {
-        localStorage.setItem('tv-queue-settings', JSON.stringify(settings));
-    }, [settings]);
+        if (hasLoadedSettings) {
+            localStorage.setItem('tv-queue-settings', JSON.stringify(settings));
+        }
+    }, [settings, hasLoadedSettings]);
 
     // Auto-select first doctor
     useEffect(() => {
