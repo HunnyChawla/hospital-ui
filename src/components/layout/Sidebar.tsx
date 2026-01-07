@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Radio,
   Eye,
+  MonitorPlay,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -37,6 +38,7 @@ const navItems = [
   { label: "Appointments/OPD", legacyHref: "#opd", newRoute: "/opd", icon: Activity, featureFlag: "NEW_OPD" },
   { label: "Queue", legacyHref: "#queue", newRoute: "/queue", icon: LayoutList, featureFlag: "NEW_QUEUE" },
   { label: "Live Queue", legacyHref: "#queue-live", newRoute: "/queue/live", icon: Radio, featureFlag: "NEW_QUEUE" },
+  { label: "TV Display", legacyHref: "#tv-display", newRoute: "/queue/tv-display", icon: MonitorPlay, featureFlag: "NEW_QUEUE" },
   { label: "IPD", legacyHref: "#admissions", newRoute: "/admissions", icon: BedDouble, featureFlag: "NEW_ADMISSIONS" },
   { label: "Lab Bookings", legacyHref: "#lab-bookings", newRoute: "/lab-bookings", icon: FlaskConical, featureFlag: "NEW_LAB_BOOKINGS" },
   { label: "Lab Reports", legacyHref: "#lab-technician", newRoute: "/lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"], featureFlag: "NEW_LAB_TECHNICIAN" },
