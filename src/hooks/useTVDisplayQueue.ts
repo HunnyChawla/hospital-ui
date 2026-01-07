@@ -92,6 +92,8 @@ interface UseTVDisplayQueueOptions {
     enableSound?: boolean;
     enableVoice?: boolean;
     enableHindiVoice?: boolean;
+    englishVoiceGender?: 'male' | 'female';
+    hindiVoiceGender?: 'male' | 'female';
 }
 
 export function useTVDisplayQueue({
@@ -100,6 +102,8 @@ export function useTVDisplayQueue({
     enableSound = true,
     enableVoice = false,
     enableHindiVoice = false,
+    englishVoiceGender = 'female',
+    hindiVoiceGender = 'female',
 }: UseTVDisplayQueueOptions) {
     const [optometristPatients, setOptometristPatients] = useState<TVQueuePatient[]>([]);
     const [doctorPatients, setDoctorPatients] = useState<TVQueuePatient[]>([]);
@@ -287,7 +291,7 @@ export function useTVDisplayQueue({
 
             if (enableVoice) {
                 const enText = `Token number ${token}, ${patientName}, please proceed to ${area.en}`;
-                announceText(enText, "en-IN");
+                announceText(enText, "en-IN", englishVoiceGender);
             }
 
             if (enableHindiVoice) {
@@ -295,7 +299,7 @@ export function useTVDisplayQueue({
                 // If English played, wait before playing Hindi
                 const delay = enableVoice ? 6000 : 0;
                 setTimeout(() => {
-                    announceText(hiText, "hi-IN");
+                    announceText(hiText, "hi-IN", hindiVoiceGender);
                 }, delay);
             }
         };
@@ -351,7 +355,7 @@ export function useTVDisplayQueue({
             }
         }
 
-    }, [optometristPatients, doctorPatients, enableSound, enableVoice, enableHindiVoice]);
+    }, [optometristPatients, doctorPatients, enableSound, enableVoice, enableHindiVoice, englishVoiceGender, hindiVoiceGender]);
 
     return {
         optometristPatients,
