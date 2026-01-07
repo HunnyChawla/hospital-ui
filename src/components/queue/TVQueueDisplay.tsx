@@ -16,7 +16,9 @@ import {
     Activity,
     Eye,
     Grid,
-    List
+    List,
+    Volume2,
+    Mic2
 } from "lucide-react";
 import { useTVDisplayQueue } from "@/hooks/useTVDisplayQueue";
 import { OptometristQueuePanel } from "./OptometristQueuePanel";
@@ -29,6 +31,8 @@ interface TVQueueSettings {
     showOptometristQueue: boolean;
     showDoctorQueue: boolean;
     viewMode: 'list' | 'tiles';
+    enableSound: boolean;
+    enableVoice: boolean;
 }
 
 interface TVQueueDisplayProps {
@@ -86,6 +90,8 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
         showOptometristQueue: true,
         showDoctorQueue: true,
         viewMode: 'list',
+        enableSound: true,
+        enableVoice: false,
     });
 
     // Load settings from localStorage
@@ -125,6 +131,8 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
     } = useTVDisplayQueue({
         doctorId: selectedDoctorId || null,
         autoConnect: !!selectedDoctorId,
+        enableSound: settings.enableSound,
+        enableVoice: settings.enableVoice,
     });
 
     const selectedDoctor = doctors.find((d) => d.id === selectedDoctorId);
@@ -283,6 +291,50 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                             className="sr-only peer"
                                             checked={settings.showDoctorQueue}
                                             onChange={(e) => setSettings(s => ({ ...s, showDoctorQueue: e.target.checked }))}
+                                        />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                    </label>
+                                </div>
+
+                                {/* Sound Toggle */}
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                                            <Volume2 className="h-4 w-4 text-slate-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-slate-700">Notification Sound</p>
+                                            <p className="text-xs text-slate-500">Play chime on assignment</p>
+                                        </div>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={settings.enableSound}
+                                            onChange={(e) => setSettings(s => ({ ...s, enableSound: e.target.checked }))}
+                                        />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                    </label>
+                                </div>
+
+                                {/* Voice Toggle */}
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                                            <Mic2 className="h-4 w-4 text-slate-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-slate-700">Voice Announcement</p>
+                                            <p className="text-xs text-slate-500">Announce patient names</p>
+                                        </div>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={settings.enableVoice}
+                                            onChange={(e) => setSettings(s => ({ ...s, enableVoice: e.target.checked }))}
                                         />
                                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
                                     </label>

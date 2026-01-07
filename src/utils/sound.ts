@@ -8,9 +8,6 @@ export const playNotificationSound = () => {
     // Simple "ding" sound (short beep)
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
-    // Create an oscillator for a pleasant beep if we don't use a base64 string, 
-    // OR use a base64 data URI. Using oscillator is lighter and doesn't require a large string.
-
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -26,4 +23,30 @@ export const playNotificationSound = () => {
 
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.5);
+};
+
+/**
+ * Announce text using the browser's speech synthesis.
+ */
+export const announceText = (text: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9; // Slightly slower for better clarity
+    utterance.pitch = 1.0;
+    utterance.lang = "en-IN"; // Prefer Indian English if available
+
+    // Find a good voice if possible
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        const preferredVoice = voices.find(v => v.lang.includes("en-IN")) || voices.find(v => v.lang.includes("en-US"));
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
+    }
+
+    window.speechSynthesis.speak(utterance);
 };

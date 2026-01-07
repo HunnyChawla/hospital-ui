@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useSSE, SSEConnectionStatus } from "@/hooks/useSSE";
+import { playNotificationSound, announceText } from "@/utils/sound";
 
 export type TVQueuePatient = {
     patient_id: string;
@@ -88,11 +89,15 @@ export interface TVDisplayQueueStats {
 interface UseTVDisplayQueueOptions {
     doctorId: string | null;
     autoConnect?: boolean;
+    enableSound?: boolean;
+    enableVoice?: boolean;
 }
 
 export function useTVDisplayQueue({
     doctorId,
     autoConnect = true,
+    enableSound = true,
+    enableVoice = false,
 }: UseTVDisplayQueueOptions) {
     const [optometristPatients, setOptometristPatients] = useState<TVQueuePatient[]>([]);
     const [doctorPatients, setDoctorPatients] = useState<TVQueuePatient[]>([]);
@@ -258,34 +263,45 @@ export function useTVDisplayQueue({
 
     useEffect(() => {
         const playSound = () => {
+            if (!enableSound) return;
             try {
+                // Try playing the custom file first, fallback to synthesized beep
                 const audio = new Audio("/sound/mixkit-bell-notification-933.wav");
-                audio.play().catch(e => console.error("Error playing sound:", e));
+                audio.play().catch(() => playNotificationSound());
             } catch (e) {
-                console.error("Error creating audio:", e);
+                playNotificationSound();
             }
         };
 
+        const announce = (patientName: string, token: string | number, area: string) => {
+            if (!enableVoice) return;
+            const text = `Token number ${token}, ${patientName}, please proceed to ${area}`;
+            announceText(text);
+        };
+
         let shouldPlay = false;
+        let announcementData: { name: string; token: string | number; area: string } | null = null;
 
         // Check Optometrist Queue Changes
-        // We look for patients who just moved to "optometrist_assigned"
         const currentOpt = optometristPatients;
         const prevOpt = prevOptRef.current;
 
         currentOpt.forEach(curr => {
             if (curr.status === "optometrist_assigned") {
                 const prev = prevOpt.find(p => p.visit_id === curr.visit_id);
-                // If not in prev (newly added as assigned) OR in prev but with different status
                 if (!prev || prev.status !== "optometrist_assigned") {
                     shouldPlay = true;
+                    announcementData = {
+                        name: curr.patient_name,
+                        token: curr.token_number,
+                        area: "eye examination"
+                    };
                 }
             }
         });
         prevOptRef.current = currentOpt;
 
         // Check Doctor Queue Changes
-        // We look for patients who just moved to "consultation_in_progress"
         const currentDoc = doctorPatients;
         const prevDoc = prevDocRef.current;
 
@@ -294,6 +310,11 @@ export function useTVDisplayQueue({
                 const prev = prevDoc.find(p => p.visit_id === curr.visit_id);
                 if (!prev || prev.status !== "consultation_in_progress") {
                     shouldPlay = true;
+                    announcementData = {
+                        name: curr.patient_name,
+                        token: curr.token_number,
+                        area: "consultation"
+                    };
                 }
             }
         });
@@ -301,9 +322,15 @@ export function useTVDisplayQueue({
 
         if (shouldPlay) {
             playSound();
+            if (announcementData) {
+                // Small delay after chime for better clarity
+                setTimeout(() => {
+                    announce(announcementData!.name, announcementData!.token, announcementData!.area);
+                }, 800);
+            }
         }
 
-    }, [optometristPatients, doctorPatients]);
+    }, [optometristPatients, doctorPatients, enableSound, enableVoice]);
 
     return {
         optometristPatients,
