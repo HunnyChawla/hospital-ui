@@ -12,6 +12,7 @@ interface OptometristQueuePanelProps {
     connectionStatus: SSEConnectionStatus;
     showStats?: boolean;
     viewMode?: 'list' | 'tiles';
+    isFullWidth?: boolean;
 }
 
 export function OptometristQueuePanel({
@@ -20,6 +21,7 @@ export function OptometristQueuePanel({
     connectionStatus,
     showStats = true,
     viewMode = 'list',
+    isFullWidth = false,
 }: OptometristQueuePanelProps) {
     // Sort patients: emergency first, then by token number
     const sortedPatients = useMemo(() => {
@@ -123,7 +125,10 @@ export function OptometristQueuePanel({
                 ) : (
                     <div className={viewMode === 'list'
                         ? "space-y-3"
-                        : "grid grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-3"
+                        : `grid gap-3 ${isFullWidth
+                            ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                            : "grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3"
+                        }`
                     }>
                         {sortedPatients.map((patient) => (
                             <QueuePatientCard

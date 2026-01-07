@@ -215,14 +215,14 @@ export function QueuePatientCard({
                         </span>
                     </div>
                 )}
-            </div>
 
-            {/* Greyed out tooltip hint */}
-            {isGreyed && (
-                <div className="mt-2 text-xs text-slate-500 italic">
-                    May move ahead after optometrist
-                </div>
-            )}
+                {/* Greyed out hint - Moved inside flex container */}
+                {isGreyed && (
+                    <div className={`text-[10px] leading-tight font-semibold text-slate-500 italic ${viewMode === 'tiles' ? 'mt-1 text-center px-2' : 'mt-1.5'}`}>
+                        May move ahead after optometrist
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

@@ -449,6 +449,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             connectionStatus={optometristStatus}
                             showStats={settings.showStats}
                             viewMode={settings.viewMode}
+                            isFullWidth={!settings.showDoctorQueue}
                         />
                     )}
 
@@ -459,6 +460,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             connectionStatus={doctorStatus}
                             showStats={settings.showStats}
                             viewMode={settings.viewMode}
+                            isFullWidth={!settings.showOptometristQueue}
                         />
                     )}
                 </div>
