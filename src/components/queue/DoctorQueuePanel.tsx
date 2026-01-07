@@ -47,16 +47,13 @@ export function DoctorQueuePanel({
     }, [patients]);
 
     // Find the first awaiting_doctor patient (next in queue)
+    // Find the first awaiting_doctor patient (next in queue)
+    // We simply take the first patient from the sorted list who is "awaiting_doctor"
+    // Since sortedPatients already puts emergency first and respects token order
     const nextPatientId = useMemo(() => {
-        const awaitingPatients = patients
-            .filter((p) => p.status === "awaiting_doctor" && p.visit_type !== "emergency")
-            .sort((a, b) => {
-                const tokenA = typeof a.token_number === "string" ? parseInt(a.token_number) : a.token_number;
-                const tokenB = typeof b.token_number === "string" ? parseInt(b.token_number) : b.token_number;
-                return tokenA - tokenB;
-            });
-        return awaitingPatients[0]?.visit_id;
-    }, [patients]);
+        const nextPatient = sortedPatients.find(p => p.status === "awaiting_doctor");
+        return nextPatient?.visit_id;
+    }, [sortedPatients]);
 
     // Count greyed out patients
     const greyedCount = useMemo(() => {

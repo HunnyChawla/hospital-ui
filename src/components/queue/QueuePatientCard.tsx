@@ -26,7 +26,20 @@ export function QueuePatientCard({
     // Get status-based styling
     const getStatusStyles = () => {
         // Emergency always gets red styling
+        // Emergency always gets red styling, UNLESS it is greyed out (still with optometrist)
         if (isEmergency) {
+            if (isGreyed) {
+                return {
+                    cardBg: "bg-rose-50/30",
+                    cardBorder: "border border-rose-200 opacity-75",
+                    cardShadow: "shadow-sm",
+                    tokenBg: "bg-rose-100 text-rose-400",
+                    tokenText: "text-rose-400",
+                    statusBadgeBg: "bg-rose-50 text-rose-400",
+                    statusBadgeText: "text-rose-400",
+                    animation: "",
+                };
+            }
             return {
                 cardBg: "bg-white",
                 cardBorder: "border-l-4 border-l-rose-500 border-y border-r border-slate-200",
@@ -119,7 +132,7 @@ export function QueuePatientCard({
             case "optometrist_assigned":
                 return "Your Turn";
             case "optometrist_investigation_in_progress":
-                return "In Progress";
+                return "Investigation in progress";
             case "awaiting_doctor":
                 return "Waiting";
             case "consultation_in_progress":
