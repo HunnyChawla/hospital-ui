@@ -147,11 +147,7 @@ export function useTVDisplayQueue({
                     updatedArray[existingIndex] = updated;
                     return updatedArray;
                 } else {
-                    return [...prev, newPatients[0]].sort((a, b) => {
-                        const tokenA = typeof a.token_number === "string" ? parseInt(a.token_number) : a.token_number;
-                        const tokenB = typeof b.token_number === "string" ? parseInt(b.token_number) : b.token_number;
-                        return tokenA - tokenB;
-                    });
+                    return [...prev, newPatients[0]];
                 }
             } else if (newPatients.length > 0) {
                 if (arePatientsEqual(prev, newPatients)) {
@@ -184,11 +180,7 @@ export function useTVDisplayQueue({
                     updatedArray[existingIndex] = updated;
                     return updatedArray;
                 } else {
-                    return [...prev, newPatients[0]].sort((a, b) => {
-                        const tokenA = typeof a.token_number === "string" ? parseInt(a.token_number) : a.token_number;
-                        const tokenB = typeof b.token_number === "string" ? parseInt(b.token_number) : b.token_number;
-                        return tokenA - tokenB;
-                    });
+                    return [...prev, newPatients[0]];
                 }
             } else if (newPatients.length > 0) {
                 if (arePatientsEqual(prev, newPatients)) {

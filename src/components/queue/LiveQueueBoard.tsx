@@ -155,7 +155,7 @@ export function LiveQueueBoard({ onFullScreen }: LiveQueueBoardProps) {
   const handleMessage = useCallback((data: any) => {
     // Handle different event types
     const newEntries = mapSSEDataToQueueEntries(data);
-    
+
     setEntries((prev) => {
       // If it's a single item update, merge with existing entries
       if (newEntries.length === 1 && newEntries[0].visitId) {
@@ -187,8 +187,7 @@ export function LiveQueueBoard({ onFullScreen }: LiveQueueBoardProps) {
           if (existsByToken) {
             return prev;
           }
-          const newArray = [...prev, newEntries[0]].sort((a, b) => a.token - b.token);
-          return newArray;
+          return [...prev, newEntries[0]];
         }
       } else if (newEntries.length > 0) {
         // Full queue update - check if data actually changed
@@ -386,19 +385,17 @@ export function LiveQueueBoard({ onFullScreen }: LiveQueueBoardProps) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1.5 text-xs font-semibold transition ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1.5 text-xs font-semibold transition ${activeTab === tab.id
                       ? "border-sky-500 text-sky-700"
                       : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <span>{tab.label}</span>
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                      activeTab === tab.id
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === tab.id
                         ? "bg-sky-100 text-sky-700"
                         : "bg-slate-100 text-slate-600"
-                    }`}
+                      }`}
                   >
                     {tab.count}
                   </span>
@@ -473,19 +470,19 @@ export function LiveQueueBoard({ onFullScreen }: LiveQueueBoardProps) {
               {status === "disconnected" || status === "error"
                 ? "Not connected"
                 : activeTab === "all"
-                ? "No patients in queue"
-                : activeTab === "pending"
-                ? "No pending patients"
-                : "No completed visits"}
+                  ? "No patients in queue"
+                  : activeTab === "pending"
+                    ? "No pending patients"
+                    : "No completed visits"}
             </p>
             <p className="mt-1.5 text-sm text-slate-500">
               {status === "disconnected" || status === "error"
                 ? "Select a doctor to start receiving live updates"
                 : activeTab === "all"
-                ? "Patients will appear here when they check in"
-                : activeTab === "pending"
-                ? "No patients are currently waiting or in consultation"
-                : "No visits have been completed yet"}
+                  ? "Patients will appear here when they check in"
+                  : activeTab === "pending"
+                    ? "No patients are currently waiting or in consultation"
+                    : "No visits have been completed yet"}
             </p>
           </div>
         </div>
@@ -503,23 +500,21 @@ export function LiveQueueBoard({ onFullScreen }: LiveQueueBoardProps) {
             return (
               <div
                 key={cardKey}
-                className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
-                  isEmergency
+                className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${isEmergency
                     ? "border-rose-400 bg-gradient-to-br from-rose-50 via-red-50/50 to-white shadow-xl shadow-rose-500/30 ring-4 ring-rose-100/50 scale-[1.02]"
                     : isNextToken
-                    ? "border-sky-400 bg-gradient-to-br from-sky-50 via-teal-50/50 to-white shadow-xl shadow-sky-500/20 ring-4 ring-sky-100/50 scale-[1.02]"
-                    : `${statusStyles.border} ${statusStyles.bg} shadow-md hover:shadow-xl hover:scale-[1.01] ${statusStyles.glow}`
-                }`}
+                      ? "border-sky-400 bg-gradient-to-br from-sky-50 via-teal-50/50 to-white shadow-xl shadow-sky-500/20 ring-4 ring-sky-100/50 scale-[1.02]"
+                      : `${statusStyles.border} ${statusStyles.bg} shadow-md hover:shadow-xl hover:scale-[1.01] ${statusStyles.glow}`
+                  }`}
               >
                 {/* Animated background glow */}
                 <div
-                  className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-                    isEmergency
+                  className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isEmergency
                       ? "bg-gradient-to-br from-rose-400/10 via-red-400/10 to-transparent"
                       : isNextToken
-                      ? "bg-gradient-to-br from-sky-400/5 via-teal-400/5 to-transparent"
-                      : statusStyles.bg
-                  }`}
+                        ? "bg-gradient-to-br from-sky-400/5 via-teal-400/5 to-transparent"
+                        : statusStyles.bg
+                    }`}
                 />
 
                 {/* Next Token Badge - On top-right */}
@@ -537,11 +532,10 @@ export function LiveQueueBoard({ onFullScreen }: LiveQueueBoardProps) {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`relative flex h-12 w-12 items-center justify-center rounded-xl ${
-                          isEmergency
+                        className={`relative flex h-12 w-12 items-center justify-center rounded-xl ${isEmergency
                             ? "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/30"
                             : statusStyles.badge
-                        } font-extrabold text-base transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}
+                          } font-extrabold text-base transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}
                       >
                         <span className="drop-shadow-sm">{entry.token}</span>
                         {isEmergency && (

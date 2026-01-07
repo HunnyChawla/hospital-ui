@@ -25,16 +25,7 @@ export function OptometristQueuePanel({
 }: OptometristQueuePanelProps) {
     // Sort patients: emergency first, then by token number
     const sortedPatients = useMemo(() => {
-        return [...patients].sort((a, b) => {
-            // Emergency patients first
-            if (a.visit_type === "emergency" && b.visit_type !== "emergency") return -1;
-            if (b.visit_type === "emergency" && a.visit_type !== "emergency") return 1;
-
-            // Then by token number
-            const tokenA = typeof a.token_number === "string" ? parseInt(a.token_number) : a.token_number;
-            const tokenB = typeof b.token_number === "string" ? parseInt(b.token_number) : b.token_number;
-            return tokenA - tokenB;
-        });
+        return [...patients];
     }, [patients]);
 
     const isLoading = connectionStatus === "connecting" || connectionStatus === "reconnecting";

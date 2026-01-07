@@ -202,8 +202,8 @@ export function useOptometristLiveQueue({
   }, []);
 
   const sseUrl = useMemo(
-    () => (doctorId && autoConnect 
-      ? `/opd/eye-hospital/optometrist-queue/${doctorId}/stream?status=${statusQuery}` 
+    () => (doctorId && autoConnect
+      ? `/opd/eye-hospital/optometrist-queue/${doctorId}/stream?status=${statusQuery}`
       : null),
     [doctorId, autoConnect, statusQuery]
   );
@@ -239,12 +239,7 @@ export function useOptometristLiveQueue({
           if (existsByVisitId) {
             return prev;
           }
-          const newArray = [...prev, newPatients[0]].sort((a, b) => {
-            const tokenA = typeof a.token_number === 'string' ? parseInt(a.token_number) : a.token_number;
-            const tokenB = typeof b.token_number === 'string' ? parseInt(b.token_number) : b.token_number;
-            return tokenA - tokenB;
-          });
-          return newArray;
+          return [...prev, newPatients[0]];
         }
       } else if (newPatients.length > 0) {
         if (areQueuePatientsEqual(prev, newPatients)) {

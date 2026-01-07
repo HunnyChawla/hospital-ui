@@ -25,31 +25,7 @@ export function DoctorQueuePanel({
 }: DoctorQueuePanelProps) {
     // Sort patients: emergency first, then by status priority, then by token number
     const sortedPatients = useMemo(() => {
-        return [...patients].sort((a, b) => {
-            // Emergency patients first
-            if (a.visit_type === "emergency" && b.visit_type !== "emergency") return -1;
-            if (b.visit_type === "emergency" && a.visit_type !== "emergency") return 1;
-
-            // Then by status priority (consultation_in_progress > awaiting_doctor > others)
-            const statusPriority = (status: string) => {
-                switch (status) {
-                    case "consultation_in_progress":
-                        return 0;
-                    case "awaiting_doctor":
-                        return 1;
-                    default:
-                        return 2; // optometrist statuses go last
-                }
-            };
-
-            const priorityDiff = statusPriority(a.status) - statusPriority(b.status);
-            if (priorityDiff !== 0) return priorityDiff;
-
-            // Then by token number within same priority
-            const tokenA = typeof a.token_number === "string" ? parseInt(a.token_number) : a.token_number;
-            const tokenB = typeof b.token_number === "string" ? parseInt(b.token_number) : b.token_number;
-            return tokenA - tokenB;
-        });
+        return [...patients];
     }, [patients]);
 
     // Find the first awaiting_doctor patient (next in queue)
