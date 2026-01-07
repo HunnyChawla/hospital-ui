@@ -206,22 +206,23 @@ export function QueuePatientCard({
                     )}
                 </div>
 
-                {/* Status Badge */}
-                {(!isNext || isEmergency) && (
-                    <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${styles.statusBadgeBg} ${viewMode === 'tiles' ? 'w-full justify-center mt-auto' : ''}`}>
-                        <StatusIcon className={`h-4 w-4 ${styles.statusBadgeText}`} />
-                        <span className={`text-xs font-bold uppercase tracking-wider ${styles.statusBadgeText}`}>
-                            {getStatusLabel()}
-                        </span>
-                    </div>
-                )}
+                {/* Status and Hint Container */}
+                <div className={`flex flex-col ${viewMode === 'tiles' ? 'w-full items-center mt-auto' : 'items-end justify-center min-w-[120px] translate-y-1'}`}>
+                    {(!isNext || isEmergency) && (
+                        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${styles.statusBadgeBg} ${viewMode === 'tiles' ? 'w-full justify-center' : ''}`}>
+                            <StatusIcon className={`h-4 w-4 ${styles.statusBadgeText}`} />
+                            <span className={`text-xs font-bold uppercase tracking-wider ${styles.statusBadgeText}`}>
+                                {getStatusLabel()}
+                            </span>
+                        </div>
+                    )}
 
-                {/* Greyed out hint - Moved inside flex container */}
-                {isGreyed && (
-                    <div className={`text-[10px] leading-tight font-semibold text-slate-500 italic ${viewMode === 'tiles' ? 'mt-1 text-center px-2' : 'mt-1.5'}`}>
-                        May move ahead after optometrist
-                    </div>
-                )}
+                    {isGreyed && (
+                        <div className={`text-[10px] leading-tight font-semibold text-slate-500 italic mt-2 ${viewMode === 'tiles' ? 'text-center px-2' : 'text-right'}`}>
+                            May move ahead after optometrist
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

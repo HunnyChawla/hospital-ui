@@ -164,8 +164,8 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
     }, [isFullScreen, onFullScreenToggle]);
 
     const containerClass = isFullScreen
-        ? "fixed inset-0 z-[9999] bg-slate-50"
-        : "min-h-[calc(100vh-100px)] bg-slate-50/50";
+        ? "fixed inset-0 z-[9999] bg-slate-50 overflow-hidden"
+        : "h-[calc(100vh-80px)] bg-slate-50/50 overflow-hidden";
 
     return (
         <div className={containerClass}>
