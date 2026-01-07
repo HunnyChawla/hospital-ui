@@ -19,6 +19,8 @@ export type TVQueuePatient = {
     optometrist_assigned_at?: string | null;
     optometrist_investigation_started_at?: string | null;
     optometrist_investigation_completed_at?: string | null;
+    optometrist_cabin?: string | null;
+    doctor_cabin?: string | null;
 };
 
 function mapSSEDataToPatients(data: any): TVQueuePatient[] {
@@ -39,6 +41,8 @@ function mapSSEDataToPatients(data: any): TVQueuePatient[] {
         optometrist_assigned_at: item.optometrist_assigned_at || null,
         optometrist_investigation_started_at: item.optometrist_investigation_started_at || null,
         optometrist_investigation_completed_at: item.optometrist_investigation_completed_at || null,
+        optometrist_cabin: item.optometrist_cabin || null,
+        doctor_cabin: item.doctor_cabin || null,
     });
 
     if (Array.isArray(data)) {
@@ -112,7 +116,7 @@ export function useTVDisplayQueue({
     const optometristSseUrl = useMemo(
         () =>
             doctorId && autoConnect
-                ? `/opd/eye-hospital/optometrist-queue/${doctorId}/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress`
+                ? `/opd/eye-hospital/optometrist-queue/${doctorId}/stream?status=awaiting_optometrist,optometrist_assigned`
                 : null,
         [doctorId, autoConnect]
     );
@@ -219,7 +223,7 @@ export function useTVDisplayQueue({
             total: optometristPatients.length,
             waiting: optometristPatients.filter((p) => p.status === "awaiting_optometrist").length,
             inProgress: optometristPatients.filter(
-                (p) => p.status === "optometrist_assigned" || p.status === "optometrist_investigation_in_progress"
+                (p) => p.status === "optometrist_assigned"
             ).length,
             emergency: optometristPatients.filter((p) => p.visit_type === "emergency").length,
         };
@@ -276,18 +280,25 @@ export function useTVDisplayQueue({
             "consultation": { en: "consultation", hi: "परामर्श" }
         };
 
-        const announce = (patientName: string, token: string | number, areaKey: string) => {
+        const announce = (patientName: string, token: string | number, areaKey: string, cabin: string | null) => {
             if (!enableVoice && !enableHindiVoice) return;
 
             const area = areaTranslations[areaKey] || { en: areaKey, hi: areaKey };
 
             if (enableVoice) {
-                const enText = `Token number ${token}, ${patientName}, please proceed to ${area.en}`;
+                let destination = cabin ? cabin : area.en;
+                const enText = `Token number ${token}, ${patientName}, please proceed to ${destination}`;
                 announceText(enText, "en-IN", englishVoiceGender);
             }
 
             if (enableHindiVoice) {
-                const hiText = `टोकन नंबर ${token}, ${patientName}, कृपया ${area.hi} के लिए जाएं`;
+                let hiText;
+                if (cabin) {
+                    hiText = `टोकन नंबर ${token}, ${patientName}, कृपया ${cabin} में जाएं`;
+                } else {
+                    hiText = `टोकन नंबर ${token}, ${patientName}, कृपया ${area.hi} के लिए जाएं`;
+                }
+
                 // If English played, wait before playing Hindi
                 const delay = enableVoice ? 6000 : 0;
                 setTimeout(() => {
@@ -297,7 +308,7 @@ export function useTVDisplayQueue({
         };
 
         let shouldPlay = false;
-        let announcementData: { name: string; token: string | number; areaKey: string } | null = null;
+        let announcementData: { name: string; token: string | number; areaKey: string; cabin: string | null } | null = null;
 
         // Check Optometrist Queue Changes
         const currentOpt = optometristPatients;
@@ -311,7 +322,8 @@ export function useTVDisplayQueue({
                     announcementData = {
                         name: curr.patient_name,
                         token: curr.token_number,
-                        areaKey: "eye examination"
+                        areaKey: "eye examination",
+                        cabin: curr.optometrist_cabin || null
                     };
                 }
             }
@@ -330,7 +342,8 @@ export function useTVDisplayQueue({
                     announcementData = {
                         name: curr.patient_name,
                         token: curr.token_number,
-                        areaKey: "consultation"
+                        areaKey: "consultation",
+                        cabin: curr.doctor_cabin || null
                     };
                 }
             }
@@ -342,7 +355,7 @@ export function useTVDisplayQueue({
             if (announcementData) {
                 // Small delay after chime for better clarity
                 setTimeout(() => {
-                    announce(announcementData!.name, announcementData!.token, announcementData!.areaKey);
+                    announce(announcementData!.name, announcementData!.token, announcementData!.areaKey, announcementData!.cabin);
                 }, 800);
             }
         }

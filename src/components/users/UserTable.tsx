@@ -96,6 +96,7 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
             <th className="px-4 py-3">User</th>
             <th className="px-4 py-3">Email</th>
             <th className="px-4 py-3">Role</th>
+            <th className="px-4 py-3">Cabin</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Created</th>
             <th className="px-4 py-3">Last Login</th>
@@ -105,7 +106,7 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
         <tbody className="divide-y divide-slate-100 bg-white">
           {users.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+              <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                 No staff found
               </td>
             </tr>
@@ -126,6 +127,9 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
                   <span className={`pill px-2 py-0.5 text-xs font-normal ${getRoleColor(user.role)}`}>
                     {user.role}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-slate-700">
+                  {user.cabin || "-"}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(user.status)}`}>
@@ -203,11 +207,10 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      currentPage === pageNum
+                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
                         ? "bg-sky-500 text-white"
                         : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>

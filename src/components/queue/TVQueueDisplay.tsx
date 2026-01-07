@@ -123,10 +123,24 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
         }
     }, [settings, hasLoadedSettings]);
 
-    // Auto-select first doctor
+    // Save selection to localStorage whenever it changes
+    useEffect(() => {
+        if (selectedDoctorId) {
+            localStorage.setItem('tv-queue-selected-doctor', selectedDoctorId);
+        }
+    }, [selectedDoctorId]);
+
+    // Initialize doctor selection (from localStorage or default to first)
     useEffect(() => {
         if (doctors.length > 0 && !selectedDoctorId) {
-            setSelectedDoctorId(doctors[0].id);
+            const savedId = localStorage.getItem('tv-queue-selected-doctor');
+            const isValidSavedId = savedId && doctors.some(d => d.id === savedId);
+
+            if (isValidSavedId) {
+                setSelectedDoctorId(savedId as string);
+            } else {
+                setSelectedDoctorId(doctors[0].id);
+            }
         }
     }, [doctors, selectedDoctorId]);
 
@@ -599,8 +613,8 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                     </div>
                 )}
 
-                {/* Settings Button - Hidden in full screen mode or if top bar is hidden (handled by floating controls) */}
-                {!isFullScreen && settings.showTopBar && (
+                {/* Settings Button - Show if top bar is visible (if hidden, it's in the floating controls above) */}
+                {settings.showTopBar && (
                     <button
                         onClick={() => setShowSettings(true)}
                         className="absolute top-8 right-8 z-40 p-3 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-105"

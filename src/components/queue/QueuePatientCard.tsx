@@ -28,6 +28,20 @@ export function QueuePatientCard({
 
     // Get status-based styling
     const getStatusStyles = () => {
+        // Next patient - Always Green and Highlighted (High Priority)
+        if (isNext) {
+            return {
+                cardBg: "bg-white",
+                cardBorder: "border-l-4 border-l-emerald-500 border-y border-r border-slate-200",
+                cardShadow: "shadow-md hover:shadow-lg shadow-emerald-100",
+                tokenBg: "bg-emerald-50 text-emerald-700",
+                tokenText: "text-emerald-700",
+                statusBadgeBg: "bg-emerald-100 text-emerald-700",
+                statusBadgeText: "text-emerald-700",
+                animation: "animate-pulse",
+            };
+        }
+
         // Emergency always gets red styling
         // Emergency always gets red styling, UNLESS it is greyed out (still with optometrist)
         if (isEmergency) {
@@ -51,7 +65,7 @@ export function QueuePatientCard({
                 tokenText: "text-rose-700",
                 statusBadgeBg: "bg-rose-100 text-rose-700",
                 statusBadgeText: "text-rose-700",
-                animation: "animate-pulse",
+                animation: "", // Removed animation for Emergency
             };
         }
 
@@ -66,20 +80,6 @@ export function QueuePatientCard({
                 statusBadgeBg: "bg-slate-100 text-slate-500",
                 statusBadgeText: "text-slate-500",
                 animation: "",
-            };
-        }
-
-        // Next patient
-        if (isNext) {
-            return {
-                cardBg: "bg-white",
-                cardBorder: "border-l-4 border-l-sky-500 border-y border-r border-slate-200",
-                cardShadow: "shadow-md hover:shadow-lg shadow-sky-100",
-                tokenBg: "bg-sky-50 text-sky-700",
-                tokenText: "text-sky-700",
-                statusBadgeBg: "bg-sky-100 text-sky-700",
-                statusBadgeText: "text-sky-700",
-                animation: "animate-pulse",
             };
         }
 
@@ -166,20 +166,12 @@ export function QueuePatientCard({
         <div
             className={`relative overflow-hidden rounded-2xl border-2 p-4 transition-all duration-300 ${styles.cardBg} ${styles.cardBorder} ${styles.cardShadow} ${styles.animation}`}
         >
-            {/* Emergency Badge */}
-            {isEmergency && (
-                <div className="absolute right-2 top-2 z-10">
-                    <div className="flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-2.5 py-1 shadow-lg shadow-rose-500/40">
-                        <AlertCircle className="h-3 w-3 text-white" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-white">Emergency</span>
-                    </div>
-                </div>
-            )}
+
 
             {/* Next Badge */}
-            {isNext && !isEmergency && (
+            {isNext && (
                 <div className="absolute right-2 top-2 z-10">
-                    <div className="flex items-center gap-1 rounded-full bg-gradient-to-r from-sky-500 to-teal-500 px-2.5 py-1 shadow-lg shadow-sky-500/30">
+                    <div className="flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-2.5 py-1 shadow-lg shadow-emerald-500/30">
                         <Sparkles className="h-3 w-3 text-white" />
                         <span className="text-xs font-bold uppercase tracking-wider text-white">Next</span>
                     </div>
@@ -204,11 +196,17 @@ export function QueuePatientCard({
                             {patient.patient_uhid}
                         </p>
                     )}
+                    {isEmergency && (
+                        <div className={`flex items-center gap-1 mt-1 ${viewMode === 'tiles' ? 'justify-center' : ''}`}>
+                            <AlertCircle className="h-3 w-3 text-rose-600" />
+                            <span className="text-[10px] font-bold uppercase text-rose-600">Emergency</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Status and Hint Container */}
                 <div className={`flex flex-col ${viewMode === 'tiles' ? 'w-full items-center mt-auto' : 'items-end justify-center min-w-[120px] translate-y-1'}`}>
-                    {(!isNext || isEmergency) && (
+                    {!isNext && (
                         <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${styles.statusBadgeBg} ${viewMode === 'tiles' ? 'w-full justify-center' : ''}`}>
                             <StatusIcon className={`h-4 w-4 ${styles.statusBadgeText}`} />
                             <span className={`text-xs font-bold uppercase tracking-wider ${styles.statusBadgeText}`}>
@@ -220,6 +218,16 @@ export function QueuePatientCard({
                     {isGreyed && (
                         <div className={`text-[10px] leading-tight font-semibold text-slate-500 italic mt-2 ${viewMode === 'tiles' ? 'text-center px-2' : 'text-right'}`}>
                             May move ahead after optometrist
+                        </div>
+                    )}
+
+                    {/* Cabin Info */}
+                    {/* Cabin Info */}
+                    {((queueType === "optometrist" && patient.optometrist_cabin) || (queueType === "doctor" && patient.doctor_cabin)) && (
+                        <div className={`mt-1.5 flex items-center ${viewMode === 'tiles' ? 'justify-center' : 'justify-end'}`}>
+                            <span className="text-xs font-bold text-slate-700">
+                                {queueType === "optometrist" ? patient.optometrist_cabin : patient.doctor_cabin}
+                            </span>
                         </div>
                     )}
                 </div>
