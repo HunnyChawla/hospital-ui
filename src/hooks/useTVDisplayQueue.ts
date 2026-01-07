@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useSSE, SSEConnectionStatus } from "@/hooks/useSSE";
 
 export type TVQueuePatient = {
@@ -251,6 +251,59 @@ export function useTVDisplayQueue({
         optometristReconnect();
         doctorReconnect();
     }, [optometristReconnect, doctorReconnect]);
+
+    // Sound notification logic
+    const prevOptRef = useRef<TVQueuePatient[]>([]);
+    const prevDocRef = useRef<TVQueuePatient[]>([]);
+
+    useEffect(() => {
+        const playSound = () => {
+            try {
+                const audio = new Audio("/sound/mixkit-bell-notification-933.wav");
+                audio.play().catch(e => console.error("Error playing sound:", e));
+            } catch (e) {
+                console.error("Error creating audio:", e);
+            }
+        };
+
+        let shouldPlay = false;
+
+        // Check Optometrist Queue Changes
+        // We look for patients who just moved to "optometrist_assigned"
+        const currentOpt = optometristPatients;
+        const prevOpt = prevOptRef.current;
+
+        currentOpt.forEach(curr => {
+            if (curr.status === "optometrist_assigned") {
+                const prev = prevOpt.find(p => p.visit_id === curr.visit_id);
+                // If not in prev (newly added as assigned) OR in prev but with different status
+                if (!prev || prev.status !== "optometrist_assigned") {
+                    shouldPlay = true;
+                }
+            }
+        });
+        prevOptRef.current = currentOpt;
+
+        // Check Doctor Queue Changes
+        // We look for patients who just moved to "consultation_in_progress"
+        const currentDoc = doctorPatients;
+        const prevDoc = prevDocRef.current;
+
+        currentDoc.forEach(curr => {
+            if (curr.status === "consultation_in_progress") {
+                const prev = prevDoc.find(p => p.visit_id === curr.visit_id);
+                if (!prev || prev.status !== "consultation_in_progress") {
+                    shouldPlay = true;
+                }
+            }
+        });
+        prevDocRef.current = currentDoc;
+
+        if (shouldPlay) {
+            playSound();
+        }
+
+    }, [optometristPatients, doctorPatients]);
 
     return {
         optometristPatients,

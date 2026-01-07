@@ -10,6 +10,8 @@ import { optometristMappingsApi, type OptometristDoctorMapping } from "@/service
 import { getTodayDateLocal } from "@/utils/format";
 import { getTenantIdForApi } from "@/utils/auth";
 import { handleError } from "@/utils/errorHandler";
+import { playNotificationSound } from "@/utils/sound";
+import { useRef } from "react";
 
 type ActiveTab =
   | "complaints"
@@ -108,6 +110,40 @@ export const useOptometristPanel = () => {
       );
     }
   }, [selectedDoctor?.doctor_id, dispatch]);
+
+  // Track previous schedule slots to detect status changes
+  const prevSlotsRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!todaySchedule?.slots) return;
+
+    const currentSlots = todaySchedule.slots;
+    const prevSlots = prevSlotsRef.current;
+
+    // Check for status changes
+    let shouldPlaySound = false;
+
+    currentSlots.forEach(slot => {
+      const prevStatus = prevSlots[slot.visit_id]; // or slot.id if visit_id is not unique enough, but visit_id should work
+      const currentStatus = slot.status;
+
+      // Update ref for next render
+      prevSlotsRef.current[slot.visit_id] = currentStatus;
+
+      // Logic: if status changed TO "optometrist_assigned" (the "your turn" equivalent)
+      if (prevStatus && prevStatus !== currentStatus) {
+        // User specified "optometrist_assigned" as the status for "your turn"
+        const targetStatuses = ["optometrist_assigned"];
+        if (targetStatuses.includes(currentStatus) || targetStatuses.includes(currentStatus.toLowerCase())) {
+          shouldPlaySound = true;
+        }
+      }
+    });
+
+    if (shouldPlaySound) {
+      playNotificationSound();
+    }
+  }, [todaySchedule]);
 
   // Memoized handlers to prevent unnecessary re-renders
   const handleSelectPatient = useCallback((patientId: string | null) => {
