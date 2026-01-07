@@ -176,7 +176,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                 {/* Settings Modal */}
                 {showSettings && (
                     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                             <div className="flex items-center justify-between p-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-white">
                                 <div className="flex items-center gap-2">
                                     <Settings className="h-5 w-5 text-sky-700" />
@@ -191,7 +191,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                             </div>
 
                             <div className="p-4 space-y-4">
-                                {/* View Mode Toggle */}
+                                {/* View Mode Toggle - Full Width */}
                                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-white rounded-lg shadow-sm">
@@ -218,160 +218,163 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                     </div>
                                 </div>
 
-                                {/* Top Header Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Layout className="h-4 w-4 text-slate-600" />
+                                {/* Settings in Grid */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    {/* Top Header Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Layout className="h-4 w-4 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Top Header</p>
+                                                <p className="text-[10px] text-slate-500">Show title & controls</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Top Header</p>
-                                            <p className="text-xs text-slate-500">Show title and controls</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.showTopBar}
+                                                onChange={(e) => setSettings(s => ({ ...s, showTopBar: e.target.checked }))}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.showTopBar}
-                                            onChange={(e) => setSettings(s => ({ ...s, showTopBar: e.target.checked }))}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
-                                    </label>
-                                </div>
 
-                                {/* Stats Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Activity className="h-4 w-4 text-slate-600" />
+                                    {/* Stats Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Activity className="h-4 w-4 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Statistics</p>
+                                                <p className="text-[10px] text-slate-500">Show queue counts</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Statistics</p>
-                                            <p className="text-xs text-slate-500">Show queue counts</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.showStats}
+                                                onChange={(e) => setSettings(s => ({ ...s, showStats: e.target.checked }))}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.showStats}
-                                            onChange={(e) => setSettings(s => ({ ...s, showStats: e.target.checked }))}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
-                                    </label>
-                                </div>
 
-                                {/* Optometrist Queue Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Eye className="h-4 w-4 text-slate-600" />
+                                    {/* Optometrist Queue Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Eye className="h-4 w-4 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Optometrist Queue</p>
+                                                <p className="text-[10px] text-slate-500">Eye exam queue</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Optometrist Queue</p>
-                                            <p className="text-xs text-slate-500">Show eye exam queue</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.showOptometristQueue}
+                                                onChange={(e) => setSettings(s => ({ ...s, showOptometristQueue: e.target.checked }))}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.showOptometristQueue}
-                                            onChange={(e) => setSettings(s => ({ ...s, showOptometristQueue: e.target.checked }))}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
-                                    </label>
-                                </div>
 
-                                {/* Doctor Queue Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Stethoscope className="h-4 w-4 text-slate-600" />
+                                    {/* Doctor Queue Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Stethoscope className="h-4 w-4 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Doctor Queue</p>
+                                                <p className="text-[10px] text-slate-500">Consultation queue</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Doctor Queue</p>
-                                            <p className="text-xs text-slate-500">Show consultation queue</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.showDoctorQueue}
+                                                onChange={(e) => setSettings(s => ({ ...s, showDoctorQueue: e.target.checked }))}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.showDoctorQueue}
-                                            onChange={(e) => setSettings(s => ({ ...s, showDoctorQueue: e.target.checked }))}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
-                                    </label>
-                                </div>
 
-                                {/* Sound Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Volume2 className="h-4 w-4 text-slate-600" />
+                                    {/* Sound Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Volume2 className="h-4 w-4 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Notification Sound</p>
+                                                <p className="text-[10px] text-slate-500">Chime on assignment</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Notification Sound</p>
-                                            <p className="text-xs text-slate-500">Play chime on assignment</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.enableSound}
+                                                onChange={(e) => setSettings(s => ({ ...s, enableSound: e.target.checked }))}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.enableSound}
-                                            onChange={(e) => setSettings(s => ({ ...s, enableSound: e.target.checked }))}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
-                                    </label>
-                                </div>
 
-                                {/* Voice Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Mic2 className="h-4 w-4 text-slate-600" />
+                                    {/* Voice Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Mic2 className="h-4 w-4 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Voice (English)</p>
+                                                <p className="text-[10px] text-slate-500">Announce patient names</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Voice (English)</p>
-                                            <p className="text-xs text-slate-500">Announce patient names</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.enableVoice}
+                                                onChange={(e) => setSettings(s => ({ ...s, enableVoice: e.target.checked }))}
+                                                disabled={!ttsSupported}
+                                            />
+                                            <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 ${!ttsSupported ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.enableVoice}
-                                            onChange={(e) => setSettings(s => ({ ...s, enableVoice: e.target.checked }))}
-                                            disabled={!ttsSupported}
-                                        />
-                                        <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 ${!ttsSupported ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
-                                    </label>
-                                </div>
 
-                                {/* Hindi Voice Toggle */}
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Mic2 className="h-4 w-4 text-orange-600" />
+                                    {/* Hindi Voice Toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Mic2 className="h-4 w-4 text-orange-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-700 text-sm">Voice (Hindi)</p>
+                                                <p className="text-[10px] text-slate-500">हिंदी में घोषणा करें</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-700">Voice (Hindi)</p>
-                                            <p className="text-xs text-slate-500">हिंदी में घोषणा करें</p>
-                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-90">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={settings.enableHindiVoice}
+                                                onChange={(e) => setSettings(s => ({ ...s, enableHindiVoice: e.target.checked }))}
+                                                disabled={!ttsSupported}
+                                            />
+                                            <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 ${!ttsSupported ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                                        </label>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={settings.enableHindiVoice}
-                                            onChange={(e) => setSettings(s => ({ ...s, enableHindiVoice: e.target.checked }))}
-                                            disabled={!ttsSupported}
-                                        />
-                                        <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 ${!ttsSupported ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
-                                    </label>
                                 </div>
 
                                 {!ttsSupported && (
