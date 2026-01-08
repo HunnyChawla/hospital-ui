@@ -1,4 +1,4 @@
-import { Clock, CheckCircle, LucideIcon } from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle, LucideIcon } from "lucide-react";
 
 export interface OptometristQueuePatient {
   patient_id: string;
@@ -29,7 +29,9 @@ export interface FilterConfig {
   color: string;
 }
 
-export const OPTOMETRIST_QUEUE_FILTERS: Record<"pending" | "completed", FilterConfig> = {
+export type OptometristQueueFilter = "pending" | "completed" | "no_show";
+
+export const OPTOMETRIST_QUEUE_FILTERS: Record<OptometristQueueFilter, FilterConfig> = {
   pending: {
     label: "Pending",
     statuses: [
@@ -54,11 +56,17 @@ export const OPTOMETRIST_QUEUE_FILTERS: Record<"pending" | "completed", FilterCo
     icon: CheckCircle,
     color: "emerald",
   },
+  no_show: {
+    label: "No Show",
+    statuses: ["no_show"],
+    icon: AlertTriangle,
+    color: "rose",
+  },
 };
 
 export function filterOptometristQueuePatients(
   patients: OptometristQueuePatient[],
-  filter: "pending" | "completed"
+  filter: OptometristQueueFilter
 ): OptometristQueuePatient[] {
   const filterConfig = OPTOMETRIST_QUEUE_FILTERS[filter];
   if (!filterConfig) return patients;
@@ -68,19 +76,19 @@ export function filterOptometristQueuePatients(
   );
 }
 
-export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): Record<"pending" | "completed", number> {
-  const counts = {
+export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): Record<OptometristQueueFilter, number> {
+  const counts: Record<OptometristQueueFilter, number> = {
     pending: 0,
     completed: 0,
+    no_show: 0,
   };
 
-  const pendingStatuses = OPTOMETRIST_QUEUE_FILTERS.pending.statuses;
-  const completedStatuses = OPTOMETRIST_QUEUE_FILTERS.completed.statuses;
-
   patients.forEach((patient) => {
-    if (completedStatuses.includes(patient.status)) {
+    if (OPTOMETRIST_QUEUE_FILTERS.no_show.statuses.includes(patient.status)) {
+      counts.no_show++;
+    } else if (OPTOMETRIST_QUEUE_FILTERS.completed.statuses.includes(patient.status)) {
       counts.completed++;
-    } else if (pendingStatuses.includes(patient.status)) {
+    } else if (OPTOMETRIST_QUEUE_FILTERS.pending.statuses.includes(patient.status)) {
       counts.pending++;
     }
   });
@@ -97,7 +105,7 @@ export function getStatusColor(status: string): string {
       return "bg-blue-100 text-blue-700 border-blue-300";
     case "optometrist_investigation_in_progress":
       return "bg-indigo-100 text-indigo-700 border-indigo-300";
-    
+
     // Completed statuses
     case "optometrist_investigation_completed":
       return "bg-emerald-100 text-emerald-700 border-emerald-300";
@@ -113,7 +121,7 @@ export function getStatusColor(status: string): string {
       return "bg-teal-100 text-teal-700 border-teal-300";
     case "consultation_completed":
       return "bg-emerald-100 text-emerald-700 border-emerald-300";
-    
+
     // Legacy statuses (for backward compatibility)
     case "scheduled":
       return "bg-slate-100 text-slate-700 border-slate-300";
@@ -125,7 +133,11 @@ export function getStatusColor(status: string): string {
       return "bg-blue-100 text-blue-700 border-blue-300";
     case "completed":
       return "bg-emerald-100 text-emerald-700 border-emerald-300";
-    
+
+    // No show status
+    case "no_show":
+      return "bg-rose-100 text-rose-700 border-rose-300";
+
     default:
       return "bg-slate-100 text-slate-700 border-slate-300";
   }
@@ -153,6 +165,8 @@ export function getStatusLabel(status: string): string {
       return "Dilation Completed";
     case "consultation_completed":
       return "Consultation Completed";
+    case "no_show":
+      return "No Show";
     default:
       return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   }

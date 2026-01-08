@@ -1,17 +1,28 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
-import type { OptometryPrescription, OptometryPrescriptionItem } from "@/types";
+import type { OptometryPrescription, OptometryPrescriptionItem, MedicineItem, AdviceItem } from "@/types";
 
 // Request types
 export interface CreateOptometryPrescriptionRequest {
   patient_id: string;
   optometrist_id: string;
   visit_id: string;
+  doctor_id?: string;
   diagnosis: string | null;
   notes: string | null;
-  items: OptometryPrescriptionItem[];
-  pupillary_distance: number | null;
-  frame_fitting_notes: string | null;
+  items?: OptometryPrescriptionItem[];
+  pupillary_distance?: number | null;
+  frame_fitting_notes?: string | null;
+  // Doctor prescription fields
+  followup_date?: string | null;
+  plan_of_action?: string | null;
+  remarks?: string | null;
+  lens_type?: string | null;
+  vision_type?: string | null;
+  lens_material?: string | null;
+  coatings?: string[] | null;
+  medicine_items?: MedicineItem[];
+  advice_items?: AdviceItem[];
 }
 
 export interface UpdateOptometryPrescriptionRequest {
@@ -20,6 +31,15 @@ export interface UpdateOptometryPrescriptionRequest {
   items?: OptometryPrescriptionItem[];
   pupillary_distance?: number | null;
   frame_fitting_notes?: string | null;
+  followup_date?: string | null;
+  plan_of_action?: string | null;
+  remarks?: string | null;
+  lens_type?: string | null;
+  vision_type?: string | null;
+  lens_material?: string | null;
+  coatings?: string[] | null;
+  medicine_items?: MedicineItem[];
+  advice_items?: AdviceItem[];
 }
 
 // Search/List params and response

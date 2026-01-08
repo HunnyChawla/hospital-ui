@@ -39,9 +39,16 @@ export const useOptometristPanel = () => {
   const [mappingsError, setMappingsError] = useState<string | null>(null);
 
   // Get selected doctor from mappings - defaults to first active or first doctor
-  const selectedDoctor = selectedDoctorId
-    ? doctorMappings.find(m => m.doctor_id === selectedDoctorId) || doctorMappings[0] || null
-    : doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
+  // For doctors, we create a synthetic mapping if mappings are empty
+  const selectedDoctor = userRole === "doctor" && userId
+    ? {
+      doctor_id: selectedDoctorId || "", // Removed fallback to userId
+      doctor_name: "Me",
+      is_active: true
+    } as OptometristDoctorMapping
+    : selectedDoctorId
+      ? doctorMappings.find(m => m.doctor_id === selectedDoctorId) || doctorMappings[0] || null
+      : doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
 
   // Auto-select first doctor when mappings load
   useEffect(() => {
@@ -68,10 +75,18 @@ export const useOptometristPanel = () => {
     error,
   } = useAppSelector((state) => state.optometristPanel);
 
-  // Verify user is optometrist and fetch doctor mappings
+  const { list: doctorsList } = useAppSelector((state) => state.doctors);
+
+  // Verify user is optometrist and fetch mappings
   useEffect(() => {
-    if (!userId || userRole !== "optometrist") {
-      setMappingsError("User is not an optometrist");
+    if (!userId || !["optometrist", "doctor"].includes(userRole || "")) {
+      setMappingsError("User is not authorized");
+      return;
+    }
+
+    if (userRole === "doctor") {
+      setDoctorMappings([]);
+      setMappingsLoading(false);
       return;
     }
 
@@ -96,6 +111,16 @@ export const useOptometristPanel = () => {
 
     fetchMappings();
   }, [userId, userRole, tenantId]);
+
+  // For doctors: resolve doctor_id from user_id using loaded doctors list
+  useEffect(() => {
+    if (userRole === "doctor" && userId && doctorsList.length > 0) {
+      const myDoctor = doctorsList.find(d => d.user_id === userId);
+      if (myDoctor) {
+        setSelectedDoctorId(myDoctor.id);
+      }
+    }
+  }, [userRole, userId, doctorsList]);
 
   // Fetch today's schedule when doctor is identified
   useEffect(() => {

@@ -37,6 +37,22 @@ export interface PickOptometristRequest {
 
 export const optometristVisitsApi = {
   /**
+   * Get optometrist visit details
+   * GET /opd/eye-hospital/visits/{visit_id}
+   */
+  async getById(
+    visitId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.get<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}`,
+      params ? { params: { tenant_id: params } } : undefined
+    );
+    return response.data;
+  },
+
+  /**
    * Pick a patient from the optometrist queue
    * POST /opd/eye-hospital/visits/{visit_id}/pick-optometrist
    */
@@ -102,6 +118,62 @@ export const optometristVisitsApi = {
     const params = getTenantIdForApi(tenantId);
     const response = await apiClient.post<OptometristVisitResponse>(
       `/opd/eye-hospital/visits/${visitId}/complete-investigation`,
+      {},
+      params ? { params: { tenant_id: params } } : undefined
+    );
+    return response.data;
+  },
+
+  /**
+   * Mark patient as NO SHOW
+   * PATCH /opd/visits/{visit_id}/status?new_status=no_show
+   */
+  async markNoShow(
+    visitId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params: Record<string, string> = { new_status: "no_show" };
+    if (effectiveTenantId) {
+      params.tenant_id = effectiveTenantId;
+    }
+    const response = await apiClient.patch<OptometristVisitResponse>(
+      `/opd/visits/${visitId}/status`,
+      {},
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Start consultation for a patient (Doctor)
+   * POST /opd/eye-hospital/visits/{visit_id}/start-consultation
+   */
+  async startConsultation(
+    visitId: string,
+    doctorId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/start-consultation`,
+      { doctor_id: doctorId },
+      params ? { params: { tenant_id: params } } : undefined
+    );
+    return response.data;
+  },
+
+  /**
+   * Complete consultation for a patient (Doctor)
+   * POST /opd/eye-hospital/visits/{visit_id}/complete-consultation
+   */
+  async completeConsultation(
+    visitId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/complete-consultation`,
       {},
       params ? { params: { tenant_id: params } } : undefined
     );

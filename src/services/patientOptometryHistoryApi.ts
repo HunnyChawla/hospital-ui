@@ -27,4 +27,16 @@ export const patientOptometryHistoryApi = {
     const response = await apiClient.get<PatientOptometryTimeline>(url);
     return response.data;
   },
+
+  async getTimeline(
+    patientId: string,
+    options?: { limit?: number; event_type?: string; tenant_id?: string }
+  ): Promise<PatientOptometryTimeline> {
+    return this.get({
+      patient_id: patientId,
+      event_type: options?.event_type,
+      page_size: options?.limit || 10,
+      tenant_id: options?.tenant_id,
+    });
+  },
 };

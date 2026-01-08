@@ -7,7 +7,7 @@ import { OptometristActivePatientCard } from "@/components/optometrist/dashboard
 import type { OptometristStats } from "@/types";
 import type { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
 
-type ActiveTab = 
+type ActiveTab =
   | "complaints"
   | "medical_history"
   | "ophthalmic_history"
@@ -49,6 +49,9 @@ interface OptometristPanelVerticalLayoutProps {
 
   // Tab content
   children: React.ReactNode;
+
+  // Doctor mode
+  isDoctor?: boolean;
 }
 
 const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVerticalLayoutProps> = ({
@@ -73,6 +76,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   onAction,
   updatingVisitId,
   children,
+  isDoctor,
 }) => {
   return (
     <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
@@ -131,9 +135,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
 
         {/* Queue Sidebar - Right side with responsive width */}
         <div
-          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${
-            queueVisible ? "w-72 sm:w-80 lg:w-96" : "w-0 overflow-hidden"
-          }`}
+          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${queueVisible ? "w-72 sm:w-80 lg:w-96" : "w-0 overflow-hidden"
+            }`}
         >
           {queueVisible && (
             <OptometristCollapsibleQueueSection
@@ -147,6 +150,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
               loading={queueLoading}
               isVisible={queueVisible}
               onToggle={onToggleQueue}
+              isDoctor={isDoctor}
             />
           )}
         </div>

@@ -7,10 +7,13 @@ import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
 import { useOptometristPanelPreferences } from "@/hooks/useOptometristPanelPreferences";
 import { useOptometristLiveQueue } from "@/hooks/useOptometristLiveQueue";
+import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
 import { OptometristPanelVerticalLayout } from "./dashboard/OptometristPanelVerticalLayout";
 import { ExaminationTabs } from "./patient-examination/ExaminationTabs";
+import { CreatePrescriptionButton } from "./prescriptions/CreatePrescriptionButton";
 import { patientsApi } from "@/services/patientsApi";
 import { optometristVisitsApi } from "@/services/optometristVisitsApi";
+import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { usersApi } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getTenantIdForApi } from "@/utils/auth";
@@ -24,6 +27,7 @@ export function OptometristPanel() {
   // Use our custom hooks
   const {
     userId,
+    userRole,
     selectedDoctor,
     doctorMappings,
     mappingsLoading,
@@ -66,11 +70,48 @@ export function OptometristPanel() {
     }
   }, [userId]);
 
-  // Use live queue with SSE - pass doctor_id from mapping
-  const { queuePatients, connectionStatus } = useOptometristLiveQueue({
-    doctorId: selectedDoctor?.doctor_id || null,
-    autoConnect: true,
+  // Determine if user is a doctor
+  const isDoctor = userRole === "doctor";
+
+  // State to store optometrist ID for the current visit (when viewed by doctor)
+  const [optometristIdForVisit, setOptometristIdForVisit] = useState<string>("");
+
+  // Fetch visit details to get optometrist_id when a visit is selected by a doctor
+  useEffect(() => {
+    if (currentVisitId && isDoctor) {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      optometristVisitsApi.getById(currentVisitId, tenantId || undefined)
+        .then((visit) => {
+          if (visit.optometrist_id) {
+            setOptometristIdForVisit(visit.optometrist_id);
+          } else {
+            console.warn("Optometrist ID not found in visit details, setting to empty");
+            setOptometristIdForVisit("");
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch visit details for optometrist ID", err);
+          setOptometristIdForVisit("");
+        });
+    } else {
+      setOptometristIdForVisit("");
+    }
+  }, [currentVisitId, isDoctor]);
+
+  // Use live queue with SSE - calling both but only one connects based on role
+  const { queuePatients: optometristQueue, connectionStatus: optStatus } = useOptometristLiveQueue({
+    doctorId: !isDoctor ? selectedDoctor?.doctor_id || null : null,
+    autoConnect: !isDoctor,
   });
+
+  const { queuePatients: doctorQueue, connectionStatus: docStatus } = useDoctorLiveQueue({
+    doctorId: isDoctor ? selectedDoctor?.doctor_id || null : null,
+    autoConnect: isDoctor,
+  });
+
+  // Select appropriate queue data
+  const queuePatients = isDoctor ? doctorQueue : optometristQueue;
+  const connectionStatus = isDoctor ? docStatus : optStatus;
 
   // Use optometry data hook
   const {
@@ -144,9 +185,19 @@ export function OptometristPanel() {
           stats.todayPending++;
           break;
         case "in_consultation":
+        case "start_consultation": // Doctor status
           stats.todayInProgress++;
           break;
         case "completed":
+        case "consultation_completed": // Doctor status
+          stats.todayCompleted++;
+          break;
+        case "no_show": // Doctor/Optom status
+          // No show doesn't fit pending/progress/completed perfectly, maybe pending if we want them actionable
+          // or we can ignore affecting stats or count as completed (processed)
+          // For now let's count as completed or separate? 
+          // Existing logic puts them in a separate bucket visually, but for stats bar:
+          // Let's count as completed for "processed" count
           stats.todayCompleted++;
           break;
         default:
@@ -214,6 +265,26 @@ export function OptometristPanel() {
         case "complete_investigation":
           await optometristVisitsApi.completeInvestigation(visitId, apiTenantId);
           toast.success("Investigation completed");
+          break;
+
+        // Doctor Actions
+        case "mark_no_show":
+          await optometristVisitsApi.markNoShow(visitId, apiTenantId);
+          toast.success("Patient marked as No Show");
+          break;
+
+        case "start_consultation":
+          // For doctor, we need doctorId. isDoctor check implies userId is doctorId
+          if (!isDoctor) throw new Error("Only doctors can start consultation");
+          const docId = selectedDoctor?.doctor_id;
+          if (!docId) throw new Error("Doctor ID not resolved");
+          await optometristVisitsApi.startConsultation(visitId, docId, apiTenantId);
+          toast.success("Consultation started");
+          break;
+
+        case "complete_consultation":
+          await optometristVisitsApi.completeConsultation(visitId, apiTenantId);
+          toast.success("Consultation completed");
           break;
 
         default:
@@ -335,6 +406,25 @@ export function OptometristPanel() {
                 </div>
               )}
             </div>
+
+            {/* Create Prescription Button for Doctors */}
+            {isDoctor && selectedPatientId && (
+              <div className="hidden sm:block animate-in fade-in zoom-in duration-300">
+                <CreatePrescriptionButton
+                  patientId={selectedPatientId}
+                  patientName={selectedPatientName}
+                  patientUhid={selectedPatientUhid}
+                  visitId={currentVisitId || ""}
+                  optometristId={optometristIdForVisit || ""} // Pass resolved optometrist ID
+                  doctorId={selectedDoctor?.doctor_id || ""}
+                  doctorName={optometristUser?.full_name}
+                  onPrescriptionCreated={() => {
+                    // Update any necessary state
+                  }}
+                />
+              </div>
+            )}
+
             {/* Live Queue Connection Status */}
             <div className="flex items-center gap-2">
               {connectionStatus === "connected" && (
@@ -412,6 +502,7 @@ export function OptometristPanel() {
             onTabChange={setActiveTab}
             onAction={handleOptometristAction}
             updatingVisitId={updatingVisitId}
+            isDoctor={isDoctor}
           >
             {/* Tab content will be rendered inside layout */}
             {selectedPatientId && (

@@ -28,13 +28,13 @@ interface OpdListProps {
 }
 
 // Print Buttons Group Component for OPD Visits
-function PrintButtonsGroup({ 
-  visit, 
-  onPrintOpd, 
-  onPrintInvoice, 
-  onPrintPayment 
-}: { 
-  visit: Visit; 
+function PrintButtonsGroup({
+  visit,
+  onPrintOpd,
+  onPrintInvoice,
+  onPrintPayment
+}: {
+  visit: Visit;
   onPrintOpd: () => void;
   onPrintInvoice: () => void;
   onPrintPayment: () => void;
@@ -53,30 +53,30 @@ function PrintButtonsGroup({
 
     const calculatePosition = () => {
       if (!buttonRef.current) return;
-      
+
       const rect = buttonRef.current.getBoundingClientRect();
       const dropdownHeight = 150; // Approximate height of dropdown menu
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      
+
       // Calculate position - open upward if not enough space below
       const top = spaceBelow < dropdownHeight && spaceAbove > dropdownHeight
         ? rect.top - dropdownHeight - 4 // 4px margin
         : rect.bottom + 4; // 4px margin
-      
+
       // Position from right edge of viewport
       const right = window.innerWidth - rect.right;
-      
+
       setDropdownPosition({ top, right });
     };
 
     // Calculate position after a small delay to ensure DOM is updated
     const timeoutId = setTimeout(calculatePosition, 0);
-    
+
     // Recalculate on scroll/resize
     window.addEventListener("scroll", calculatePosition, true);
     window.addEventListener("resize", calculatePosition);
-    
+
     return () => {
       clearTimeout(timeoutId);
       window.removeEventListener("scroll", calculatePosition, true);
@@ -130,7 +130,7 @@ function PrintButtonsGroup({
       </button>
 
       {showPrintDropdown && dropdownPosition && (
-        <div 
+        <div
           className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white shadow-lg"
           style={{
             top: `${dropdownPosition.top}px`,
@@ -238,7 +238,7 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [cancelling, setCancelling] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
-  
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printVisitData ? `OPD_Slip_${printVisitData.visit.visit_number}` : "OPD_Slip",
@@ -273,22 +273,22 @@ export function OpdList({ doctorId }: OpdListProps) {
   // Validate date range (max 3 months)
   const validateDateRange = useCallback((start: string, end: string): string => {
     if (!start || !end) return "";
-    
+
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
-    
+
     if (endDateObj < startDateObj) {
       return "End date must be after or equal to start date";
     }
-    
+
     // Calculate difference in months
-    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
-                      (endDateObj.getMonth() - startDateObj.getMonth());
-    
+    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 +
+      (endDateObj.getMonth() - startDateObj.getMonth());
+
     if (monthsDiff > 3) {
       return "Date range cannot exceed 3 months";
     }
-    
+
     return "";
   }, []);
 
@@ -336,6 +336,8 @@ export function OpdList({ doctorId }: OpdListProps) {
         return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
       case "cancelled":
         return <XCircle className="h-3 w-3 text-rose-500" />;
+      case "no_show":
+        return <User className="h-3 w-3 text-slate-500" />;
       case "checked_in":
         return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
       case "in_consultation":
@@ -351,6 +353,8 @@ export function OpdList({ doctorId }: OpdListProps) {
         return "bg-emerald-50 text-emerald-700";
       case "cancelled":
         return "bg-rose-50 text-rose-700";
+      case "no_show":
+        return "bg-slate-50 text-slate-700";
       case "checked_in":
         return "bg-sky-50 text-sky-700";
       case "in_consultation":
@@ -369,16 +373,16 @@ export function OpdList({ doctorId }: OpdListProps) {
         if (!visitData) {
           visitData = await opdVisitsApi.getById(visitId);
         }
-        
+
         console.log("Checking cancellation for visit:", visitData.id, "payment_id:", visitData.payment_id, "invoice_id:", visitData.invoice_id);
-        
+
         // Check if visit has payment_id or invoice_id (payment might be linked via invoice)
         const hasPayment = visitData.payment_id || visitData.invoice_id;
-        
+
         if (hasPayment) {
           // Fetch payment details to get amount
           let paymentAmount: number | undefined;
-          
+
           // Try to get payment via payment_id first
           if (visitData.payment_id) {
             try {
@@ -390,7 +394,7 @@ export function OpdList({ doctorId }: OpdListProps) {
             } catch (error) {
               console.error("Failed to fetch payment details:", error);
             }
-          } 
+          }
           // If no payment_id but has invoice_id, try to get payment from invoice
           if (!paymentAmount && visitData.invoice_id) {
             try {
@@ -408,7 +412,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               console.error("Failed to fetch payments from invoice:", error);
             }
           }
-          
+
           // Show acknowledgment modal even if we couldn't fetch amount
           console.log("Showing cancellation modal for visit:", visitData.visit_number, "with payment amount:", paymentAmount);
           setPendingCancellation({
@@ -428,7 +432,7 @@ export function OpdList({ doctorId }: OpdListProps) {
         return;
       }
     }
-    
+
     // Proceed with status update (non-cancellation or cancellation without payment)
     await performStatusUpdate(visitId, newStatus);
   };
@@ -507,15 +511,15 @@ export function OpdList({ doctorId }: OpdListProps) {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      
+
       // Fetch invoice details
       const invoice = await invoicesApi.getById(invoiceId, apiTenantId);
-      
+
       // Fetch patient details
       const patient = await patientsApi.getById(invoice.patient_id);
       const patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
       const patientMobile = patient.mobile;
-      
+
       // Set print data
       setPrintInvoiceData({
         invoice,
@@ -582,12 +586,12 @@ export function OpdList({ doctorId }: OpdListProps) {
       toast.error("Please select a doctor");
       return;
     }
-    
+
     if (!startDate || !endDate) {
       toast.error("Please select date range");
       return;
     }
-    
+
     if (dateRangeError) {
       toast.error(dateRangeError);
       return;
@@ -605,7 +609,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
       // Get all visits from response
       const allVisits = response.items || [];
-      
+
       if (allVisits.length === 0) {
         toast.error("No visits found to export");
         setExporting(false);
@@ -650,10 +654,10 @@ export function OpdList({ doctorId }: OpdListProps) {
           // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
           const pxToMm = 0.264583;
           const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
-          
+
           let logoWidthMm = img.width * pxToMm;
           let logoHeightMm = img.height * pxToMm;
-          
+
           // Scale down if too large
           if (logoHeightMm > maxHeightMm) {
             const scale = maxHeightMm / logoHeightMm;
@@ -663,7 +667,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
           // Center the logo horizontally
           const logoX = centerX - (logoWidthMm / 2);
-          
+
           // Detect image format from data URL
           let imageFormat: string = 'PNG';
           if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
@@ -671,7 +675,7 @@ export function OpdList({ doctorId }: OpdListProps) {
           } else if (logoDataUrl.startsWith('data:image/png')) {
             imageFormat = 'PNG';
           }
-          
+
           // Add logo to PDF
           doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
           yPos += logoHeightMm + 5; // Add space after logo
@@ -692,17 +696,17 @@ export function OpdList({ doctorId }: OpdListProps) {
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(55, 65, 81);
-        
+
         if (address) {
           doc.text(address, centerX, yPos, { align: "center" });
           yPos += 5;
         }
-        
+
         const contactParts: string[] = [];
         if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
         if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
         if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
-        
+
         if (contactParts.length > 0) {
           doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
           yPos += 6;
@@ -722,7 +726,7 @@ export function OpdList({ doctorId }: OpdListProps) {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
-      
+
       doc.setLineWidth(0.5);
       doc.setDrawColor(30, 41, 59);
       doc.line(14, yPos, pageWidth - 14, yPos);
@@ -734,7 +738,7 @@ export function OpdList({ doctorId }: OpdListProps) {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.text(doctorName, 14, yPos + 4);
-      
+
       const dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
       doc.setFont("helvetica", "normal");
       doc.setTextColor(71, 85, 105);
@@ -742,9 +746,9 @@ export function OpdList({ doctorId }: OpdListProps) {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.text(dateRangeText, pageWidth - 14, yPos + 4, { align: "right" });
-      
+
       yPos += 8;
-      
+
       doc.setFont("helvetica", "normal");
       doc.setTextColor(71, 85, 105);
       doc.text(`Export Date: ${new Date().toLocaleString()}`, 14, yPos);
@@ -756,14 +760,14 @@ export function OpdList({ doctorId }: OpdListProps) {
         // Format status
         const statusStr = visit.status || "";
         const formattedStatus = statusStr.charAt(0).toUpperCase() + statusStr.slice(1).replace(/_/g, " ");
-        
+
         // Format visit type
         const visitTypeStr = visit.visit_type || "";
         const formattedVisitType = visitTypeStr.charAt(0).toUpperCase() + visitTypeStr.slice(1).replace(/_/g, " ");
-        
+
         // Get visit date from created_at
         const visitDate = visit.created_at ? formatDate(visit.created_at.split("T")[0]) : "-";
-        
+
         return [
           visitDate,
           visit.visit_number || "-",
@@ -808,20 +812,20 @@ export function OpdList({ doctorId }: OpdListProps) {
 
       // Save PDF
       doc.save(filename);
-      
+
       toast.success(`Exported ${allVisits.length} visits successfully`);
     } catch (error: any) {
       console.error("Failed to export visits:", error);
-      
+
       // Extract error message
       const errorMessage = getErrorMessage(error);
-      
+
       // Check if it's a date range validation error from API
-      if (errorMessage.includes("Date range cannot exceed 3 months") || 
-          errorMessage.includes("90 days") ||
-          error?.response?.data?.detail?.some?.((err: any) => 
-            err.type === "business_logic_error" && err.msg?.includes("Date range")
-          )) {
+      if (errorMessage.includes("Date range cannot exceed 3 months") ||
+        errorMessage.includes("90 days") ||
+        error?.response?.data?.detail?.some?.((err: any) =>
+          err.type === "business_logic_error" && err.msg?.includes("Date range")
+        )) {
         setDateRangeError("Date range cannot exceed 3 months");
         toast.error("Date range cannot exceed 3 months");
       } else {
@@ -886,7 +890,7 @@ export function OpdList({ doctorId }: OpdListProps) {
             />
           </label>
         </div>
-        
+
         <button
           onClick={handleExportPDF}
           disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
@@ -947,13 +951,13 @@ export function OpdList({ doctorId }: OpdListProps) {
                       )}
                       <span className={`flex items-center gap-1 ${visit.visit_type === "emergency" ? "pill px-2 py-0.5 bg-rose-50 text-rose-700 font-medium" : ""}`}>
                         <User className="h-3 w-3" />
-                        {visit.visit_type === "walk_in" 
-                          ? "Walk-in" 
-                          : visit.visit_type === "appointment" 
-                          ? "From Appointment" 
-                          : visit.visit_type === "emergency"
-                          ? "Emergency"
-                          : String(visit.visit_type).replace("_", " ")}
+                        {visit.visit_type === "walk_in"
+                          ? "Walk-in"
+                          : visit.visit_type === "appointment"
+                            ? "From Appointment"
+                            : visit.visit_type === "emergency"
+                              ? "Emergency"
+                              : String(visit.visit_type).replace("_", " ")}
                       </span>
                       {visit.checked_in_at && (
                         <span>
@@ -1028,6 +1032,25 @@ export function OpdList({ doctorId }: OpdListProps) {
                       >
                         <X className="h-4 w-4 shrink-0" />
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "no_show")}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-slate-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="No Show"
+                      >
+                        <User className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">No Show</span>
                       </button>
                       <PrintButtonsGroup
                         visit={visit}
@@ -1135,11 +1158,10 @@ export function OpdList({ doctorId }: OpdListProps) {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      currentPage === pageNum
+                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
                         ? "bg-sky-500 text-white"
                         : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>

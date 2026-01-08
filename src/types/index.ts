@@ -404,13 +404,40 @@ export type DrugAllergyRecord = {
 
 // Optometry Prescriptions
 export type OptometryPrescriptionItem = {
+  id?: string;
   eye: "OD" | "OS";
   sphere: number;
   cylinder: number | null;
   axis: number | null;
   add_power: number | null;
+  visual_acuity: string | null;
   prism: string | null;
   lens_type: string | null;
+  created_at?: string;
+};
+
+// Medicine Item for Doctor Prescriptions
+export type MedicineItem = {
+  id?: string;
+  prescription_id?: string;
+  medicine_id?: string;
+  medicine_name: string;
+  generic_name?: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+  created_at?: string;
+};
+
+// Advice Item for Doctor Prescriptions
+export type AdviceItem = {
+  id?: string;
+  prescription_id?: string;
+  advice_type: string;
+  description: string;
+  notes?: string;
+  created_at?: string;
 };
 
 export type OptometryPrescription = {
@@ -421,6 +448,8 @@ export type OptometryPrescription = {
   optometrist_id: string;
   optometrist_name: string;
   visit_id: string;
+  doctor_id?: string;
+  doctor_name?: string;
   prescription_number: string;
   status: "draft" | "finalized";
   diagnosis: string | null;
@@ -428,9 +457,21 @@ export type OptometryPrescription = {
   items: OptometryPrescriptionItem[];
   pupillary_distance: number | null;
   frame_fitting_notes: string | null;
+  // New doctor prescription fields
+  followup_date?: string | null;
+  plan_of_action?: string | null;
+  remarks?: string | null;
+  lens_type?: string | null;
+  vision_type?: string | null;
+  lens_material?: string | null;
+  coatings?: string[] | null;
+  medicine_items?: MedicineItem[];
+  advice_items?: AdviceItem[];
   finalized_at: string | null;
   created_at: string;
   updated_at: string;
+  created_by?: string;
+  updated_by?: string;
 };
 
 // Patient Optometry History
