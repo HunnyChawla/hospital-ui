@@ -158,55 +158,77 @@ export function OptometristPanel() {
     };
 
     queuePatients.forEach((patient) => {
-      switch (patient.status) {
-        // Pending statuses
-        case "awaiting_optometrist":
-        case "optometrist_assigned":
-          stats.todayPending++;
-          break;
-        // In progress statuses
-        case "optometrist_investigation_in_progress":
-          stats.todayInProgress++;
-          break;
-        // Completed statuses
-        case "optometrist_investigation_completed":
-        case "awaiting_doctor":
-        case "doctor_assigned":
-        case "consultation_in_progress":
-        case "dilation_in_progress":
-        case "dilation_completed":
-        case "consultation_completed":
-          stats.todayCompleted++;
-          break;
-        // Legacy statuses (for backward compatibility)
-        case "scheduled":
-        case "waiting":
-        case "checked_in":
-          stats.todayPending++;
-          break;
-        case "in_consultation":
-        case "start_consultation": // Doctor status
-          stats.todayInProgress++;
-          break;
-        case "completed":
-        case "consultation_completed": // Doctor status
-          stats.todayCompleted++;
-          break;
-        case "no_show": // Doctor/Optom status
-          // No show doesn't fit pending/progress/completed perfectly, maybe pending if we want them actionable
-          // or we can ignore affecting stats or count as completed (processed)
-          // For now let's count as completed or separate? 
-          // Existing logic puts them in a separate bucket visually, but for stats bar:
-          // Let's count as completed for "processed" count
-          stats.todayCompleted++;
-          break;
-        default:
-          stats.todayPending++;
+      if (isDoctor) {
+        // Doctor Status Logic
+        switch (patient.status) {
+          case "awaiting_doctor":
+          case "doctor_assigned":
+          case "optometrist_investigation_completed": // Ready for doctor
+            stats.todayPending++;
+            break;
+
+          case "consultation_in_progress":
+          case "dilation_in_progress":
+          case "dilation_completed": // Still in progress till final consultation done
+            stats.todayInProgress++;
+            break;
+
+          case "consultation_completed":
+          case "completed":
+          case "no_show":
+            stats.todayCompleted++;
+            break;
+
+          default:
+            stats.todayPending++;
+        }
+      } else {
+        // Optometrist Status Logic
+        switch (patient.status) {
+          // Pending statuses
+          case "awaiting_optometrist":
+          case "optometrist_assigned":
+            stats.todayPending++;
+            break;
+          // In progress statuses
+          case "optometrist_investigation_in_progress":
+            stats.todayInProgress++;
+            break;
+          // Completed statuses
+          case "optometrist_investigation_completed":
+          case "awaiting_doctor":
+          case "doctor_assigned":
+          case "consultation_in_progress":
+          case "dilation_in_progress":
+          case "dilation_completed":
+          case "consultation_completed":
+            stats.todayCompleted++;
+            break;
+          // Legacy statuses (for backward compatibility)
+          case "scheduled":
+          case "waiting":
+          case "checked_in":
+            stats.todayPending++;
+            break;
+          case "in_consultation":
+          case "start_consultation": // Doctor status
+            stats.todayInProgress++;
+            break;
+          case "completed":
+          case "consultation_completed": // Doctor status
+            stats.todayCompleted++;
+            break;
+          case "no_show":
+            stats.todayCompleted++;
+            break;
+          default:
+            stats.todayPending++;
+        }
       }
     });
 
     return stats;
-  }, [queuePatients]);
+  }, [queuePatients, isDoctor]);
 
   const fetchPatientDetails = useCallback(async (patientId: string) => {
     try {

@@ -168,8 +168,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                 key={filter.key}
                 onClick={() => onFilterChange(filter.key)}
                 className={`flex-1 px-3 py-2.5 text-xs font-semibold transition-all border-b-2 ${activeFilter === filter.key
-                    ? "text-sky-700 border-sky-600 bg-gradient-to-b from-sky-50 to-white shadow-sm"
-                    : "text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/50"
+                  ? "text-sky-700 border-sky-600 bg-gradient-to-b from-sky-50 to-white shadow-sm"
+                  : "text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/50"
                   }`}
               >
                 {filter.label}
@@ -203,12 +203,12 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                     key={patient.patient_id}
                     onClick={() => onSelectPatient(patient.patient_id)}
                     className={`p-4 cursor-pointer transition-all duration-200 border-b last:border-b-0 animate-in fade-in slide-in-from-right-2 ${isEmergency
-                        ? isSelected
-                          ? "bg-gradient-to-r from-red-50 via-rose-50 to-red-50/30 border-l-4 border-red-600 shadow-md border-b-red-200"
-                          : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"
-                        : isSelected
-                          ? "bg-gradient-to-r from-sky-50 to-blue-50/30 border-l-4 border-sky-600 shadow-sm border-b-slate-100"
-                          : "hover:bg-slate-50/80 hover:shadow-sm border-b-slate-100"
+                      ? isSelected
+                        ? "bg-gradient-to-r from-red-50 via-rose-50 to-red-50/30 border-l-4 border-red-600 shadow-md border-b-red-200"
+                        : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"
+                      : isSelected
+                        ? "bg-gradient-to-r from-sky-50 to-blue-50/30 border-l-4 border-sky-600 shadow-sm border-b-slate-100"
+                        : "hover:bg-slate-50/80 hover:shadow-sm border-b-slate-100"
                       }`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
@@ -232,8 +232,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                         )}
                         <div className="flex items-center gap-2 mt-2">
                           <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${isEmergency
-                              ? "bg-red-100 text-red-800 border border-red-300"
-                              : "bg-slate-100 text-slate-700"
+                            ? "bg-red-100 text-red-800 border border-red-300"
+                            : "bg-slate-100 text-slate-700"
                             }`}>
                             Token: {patient.token_number}
                           </span>
@@ -397,7 +397,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 ) : (
                                   <>
                                     <CheckCircle className="h-3.5 w-3.5" />
-                                    Complete Consult
+                                    Complete Consultation
                                   </>
                                 )}
                               </button>
