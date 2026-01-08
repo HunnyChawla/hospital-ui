@@ -332,33 +332,110 @@ export function useTVDisplayQueue({
 
         // Check Doctor Queue Changes
         const currentDoc = doctorPatients;
-        const prevDoc = prevDocRef.current;
+        const prevDoc = prevDocRef.current; // Previous render's list
 
-        currentDoc.forEach(curr => {
-            if (curr.status === "consultation_in_progress") {
-                const prev = prevDoc.find(p => p.visit_id === curr.visit_id);
-                if (!prev || prev.status !== "consultation_in_progress") {
-                    shouldPlay = true;
-                    announcementData = {
-                        name: curr.patient_name,
-                        token: curr.token_number,
-                        areaKey: "consultation",
-                        cabin: curr.doctor_cabin || null
-                    };
-                }
-            }
-        });
-        prevDocRef.current = currentDoc;
+        const p1 = currentDoc[0];
+        const p2 = currentDoc[1];
 
-        if (shouldPlay) {
-            playSound();
-            if (announcementData) {
-                // Small delay after chime for better clarity
-                setTimeout(() => {
-                    announce(announcementData!.name, announcementData!.token, announcementData!.areaKey, announcementData!.cabin);
-                }, 800);
+        // Compare P1
+        const prevP1 = prevDoc[0];
+        const p1Changed = !prevP1 || !p1 || prevP1.visit_id !== p1.visit_id || prevP1.status !== p1.status;
+
+        // Compare P2
+        const prevP2 = prevDoc[1];
+        const p2Changed = !prevP2 || !p2 || prevP2.visit_id !== p2.visit_id || prevP2.status !== p2.status;
+
+        let p1Announcement = null;
+        let p2Announcement = null;
+
+        // Logic 1: P1 (Proceed)
+        if (p1 && p1.status === "awaiting_doctor") {
+            if (p1Changed) {
+                p1Announcement = {
+                    name: p1.patient_name,
+                    token: p1.token_number,
+                    areaKey: "consultation",
+                    cabin: p1.doctor_cabin || null
+                };
             }
         }
+
+        // Logic 2: P2 (Next)
+        // Strictly check if P2 is waiting. 
+        // We trigger if P2 changed OR if P1 changed (as that affects P2's "next" status context)
+        if (p2 && p2.status === "awaiting_doctor") {
+            if (p2Changed || p1Changed) {
+                p2Announcement = {
+                    name: p2.patient_name,
+                    token: p2.token_number
+                };
+            }
+        }
+
+        prevDocRef.current = currentDoc;
+
+        // Execution
+        if (shouldPlay || p1Announcement || p2Announcement) {
+            console.log("🔊 Announcement Triggered:", {
+                opt: !!announcementData,
+                p1: !!p1Announcement,
+                p2: !!p2Announcement
+            });
+
+            playSound();
+
+            // Optometrist Announcement (Immediate)
+            if (announcementData) {
+                setTimeout(() => {
+                    console.log("🔊 Playing Optometrist Announcement");
+                    announce(announcementData!.name, announcementData!.token, announcementData!.areaKey, announcementData!.cabin);
+                }, 1000);
+            }
+
+            // P1 Announcement
+            if (p1Announcement) {
+                const currentP1 = p1Announcement;
+                // If Optometrist played (English+Hindi ~12s), wait 14s. Else immediate.
+                const delay = announcementData ? 14000 : 1000;
+
+                setTimeout(() => {
+                    console.log("🔊 Playing P1 (Proceed) Announcement");
+                    announce(currentP1.name, currentP1.token, currentP1.areaKey, currentP1.cabin);
+                }, delay);
+            }
+
+            // P2 Announcement
+            if (p2Announcement) {
+                const currentP2 = p2Announcement;
+                let delay = 1000;
+
+                if (announcementData && p1Announcement) {
+                    // Opt (12s) + P1 (12s) -> Wait ~24s
+                    delay = 24000;
+                } else if (announcementData || p1Announcement) {
+                    // Either Opt or P1 -> Wait ~12s
+                    delay = 14000;
+                }
+
+                setTimeout(() => {
+                    console.log("🔊 Playing P2 (Next) Announcement", {
+                        name: currentP2.name,
+                        enableVoice,
+                        enableHindiVoice,
+                        text: `Next patient, Token number ${currentP2.token}, ${currentP2.name}, please be ready`
+                    });
+                    const text = `Next patient, Token number ${currentP2.token}, ${currentP2.name}, please be ready`;
+                    const hiText = `अगला मरीज, टोकन नंबर ${currentP2.token}, ${currentP2.name}, कृपया तैयार रहें`;
+
+                    if (enableVoice) announceText(text, "en-IN", englishVoiceGender);
+                    if (enableHindiVoice) {
+                        setTimeout(() => announceText(hiText, "hi-IN", hindiVoiceGender), enableVoice ? 6000 : 0);
+                    }
+                }, delay);
+            }
+        }
+
+
 
     }, [optometristPatients, doctorPatients, enableSound, enableVoice, enableHindiVoice, englishVoiceGender, hindiVoiceGender]);
 
