@@ -158,8 +158,10 @@ export function useTVDisplayQueue({
                     return prev;
                 }
                 return newPatients;
+            } else {
+                // Empty array received - clear the list
+                return [];
             }
-            return prev;
         });
     }, []);
 
@@ -191,8 +193,10 @@ export function useTVDisplayQueue({
                     return prev;
                 }
                 return newPatients;
+            } else {
+                // Empty array received - clear the list
+                return [];
             }
-            return prev;
         });
     }, []);
 
