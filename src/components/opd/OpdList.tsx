@@ -838,8 +838,8 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 flex-1">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 flex-1">
           <label className="space-y-1">
             <span className="text-slate-600 flex items-center gap-1">
               <Stethoscope className="h-4 w-4" />
@@ -875,7 +875,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             />
           </label>
-          <label className="space-y-1">
+          <label className="space-y-1 sm:col-span-2 lg:col-span-1">
             <span className="text-slate-600 flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               End Date
@@ -894,7 +894,7 @@ export function OpdList({ doctorId }: OpdListProps) {
         <button
           onClick={handleExportPDF}
           disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 lg:w-auto"
           title="Export all visits to PDF"
         >
           {exporting ? (
@@ -936,16 +936,16 @@ export function OpdList({ doctorId }: OpdListProps) {
               key={visit.id}
               className="relative rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
                     #{visit.token_number}
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900 truncate">
                       {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
                     </p>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       {visit.patient_mobile && (
                         <span>{visit.patient_mobile}</span>
                       )}
@@ -967,155 +967,155 @@ export function OpdList({ doctorId }: OpdListProps) {
                     </div>
                   </div>
                 </div>
-                <div className="absolute left-1/2 -translate-x-1/2">
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
                   <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(visit.status)}`}>
                     {getStatusIcon(visit.status)}
                     <span className="capitalize">{visit.status.replace("_", " ")}</span>
                   </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {visit.status === "checked_in" && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "in_consultation")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Start Consultation"
-                      >
-                        <Play className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Start Consultation</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "completed")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Complete"
-                      >
-                        <CheckCircle className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Cancel"
-                      >
-                        <X className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "no_show")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-slate-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="No Show"
-                      >
-                        <User className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">No Show</span>
-                      </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {visit.status === "checked_in" && (
+                      <>
+                        <button
+                          onClick={() => handleUpdateStatus(visit.id, "in_consultation")}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Start Consultation"
+                        >
+                          <Play className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Start Consultation</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(visit.id, "completed")}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Complete"
+                        >
+                          <CheckCircle className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Cancel"
+                        >
+                          <X className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(visit.id, "no_show")}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-slate-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="No Show"
+                        >
+                          <User className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">No Show</span>
+                        </button>
+                        <PrintButtonsGroup
+                          visit={visit}
+                          onPrintOpd={() => handlePrintOpd(visit.id)}
+                          onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                          onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                        />
+                      </>
+                    )}
+                    {visit.status === "in_consultation" && (
+                      <>
+                        <button
+                          onClick={() => handleUpdateStatus(visit.id, "completed")}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Complete"
+                        >
+                          <CheckCircle className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Cancel"
+                        >
+                          <X className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
+                        </button>
+                        <PrintButtonsGroup
+                          visit={visit}
+                          onPrintOpd={() => handlePrintOpd(visit.id)}
+                          onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                          onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                        />
+                      </>
+                    )}
+                    {visit.status === "completed" && (
                       <PrintButtonsGroup
                         visit={visit}
                         onPrintOpd={() => handlePrintOpd(visit.id)}
                         onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
                         onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
                       />
-                    </>
-                  )}
-                  {visit.status === "in_consultation" && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "completed")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Complete"
-                      >
-                        <CheckCircle className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Cancel"
-                      >
-                        <X className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                      </button>
-                      <PrintButtonsGroup
-                        visit={visit}
-                        onPrintOpd={() => handlePrintOpd(visit.id)}
-                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                      />
-                    </>
-                  )}
-                  {visit.status === "completed" && (
-                    <PrintButtonsGroup
-                      visit={visit}
-                      onPrintOpd={() => handlePrintOpd(visit.id)}
-                      onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                      onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                    />
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1125,7 +1125,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-between">
           <div className="text-sm text-slate-600">
             Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
             <span className="font-semibold text-slate-900">
@@ -1140,9 +1140,9 @@ export function OpdList({ doctorId }: OpdListProps) {
               className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </button>
-            <div className="flex items-center gap-1">
+            <div className="hidden items-center gap-1 sm:flex">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum;
                 if (totalPages <= 5) {
@@ -1159,8 +1159,8 @@ export function OpdList({ doctorId }: OpdListProps) {
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
                     className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
-                        ? "bg-sky-500 text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      ? "bg-sky-500 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
                   >
                     {pageNum}
@@ -1168,12 +1168,13 @@ export function OpdList({ doctorId }: OpdListProps) {
                 );
               })}
             </div>
+            <span className="text-sm text-slate-500 sm:hidden">{currentPage} / {totalPages}</span>
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

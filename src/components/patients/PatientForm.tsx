@@ -100,11 +100,11 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="grid grid-cols-2 gap-3 text-sm"
+      className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2"
     >
       {/* UHID Display (read-only, shown only when editing) */}
       {defaultValues && apiData?.uhid && (
-        <div className="col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-3">
+        <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3 sm:col-span-2">
           <label className="space-y-1">
             <span className="text-xs font-semibold text-sky-700">Patient ID (UHID)</span>
             <input
@@ -117,7 +117,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       )}
 
       {/* Required Fields */}
-      <div className="col-span-2 grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
         <label className="space-y-1">
           <span className="text-slate-600">
             First Name <span className="text-rose-500">*</span>
@@ -151,7 +151,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
               maxLength: { value: 20, message: "Mobile must be at most 20 digits" },
               pattern: {
                 // Allow optional +91 or leading 0, then 10 digits starting with 6-9 (India common rule)
-                value: /^(\+91[\-\s]?|0)?[6-9]\d{9}$/, 
+                value: /^(\+91[\-\s]?|0)?[6-9]\d{9}$/,
                 message: "Enter a valid mobile number (10 digits, starting with 6-9)"
               }
             })}
@@ -207,9 +207,9 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       </div>
 
       {/* Optional Fields */}
-      <div className="col-span-2 mt-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+      <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 sm:col-span-2">
         <p className="mb-3 text-xs font-semibold text-slate-600">Optional Information</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="space-y-1">
             <span className="text-slate-600">ABHA/Health ID</span>
             <input
@@ -253,7 +253,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         </div>
       </div>
 
-      <div className="col-span-2 mt-2 flex justify-end gap-3">
+      <div className="mt-2 flex justify-end gap-3 sm:col-span-2">
         <button
           type="button"
           onClick={() => reset()}
@@ -270,8 +270,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           {createPatient.isPending || updatePatient.isPending
             ? "Saving..."
             : defaultValues
-            ? "Save changes"
-            : "Add patient"}
+              ? "Save changes"
+              : "Add patient"}
         </button>
       </div>
     </form>

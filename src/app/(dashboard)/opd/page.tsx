@@ -51,25 +51,23 @@ export default function OpdPage() {
     <div className="grid gap-3">
       <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
         {/* Tabs */}
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex items-center gap-4">
+        <div className="border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => handleTabChange("appointments")}
-              className={`px-4 py-2 text-sm font-semibold transition-all ${
-                activeTab === "appointments"
+              className={`px-4 py-2 text-sm font-semibold transition-all ${activeTab === "appointments"
                   ? "border-b-2 border-sky-500 text-sky-600"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
               Appointments
             </button>
             <button
               onClick={() => handleTabChange("opd")}
-              className={`px-4 py-2 text-sm font-semibold transition-all ${
-                activeTab === "opd"
+              className={`px-4 py-2 text-sm font-semibold transition-all ${activeTab === "opd"
                   ? "border-b-2 border-sky-500 text-sky-600"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
               OPD Visits
             </button>
@@ -77,17 +75,17 @@ export default function OpdPage() {
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {activeTab === "appointments" && (
             <div>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Appointments List</p>
                   <p className="text-xs text-slate-500">View and manage patient appointments</p>
                 </div>
                 <button
                   onClick={() => setShowAppointmentModal(true)}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow sm:w-auto"
                 >
                   <CalendarPlus className="h-4 w-4" />
                   Book Appointment
@@ -99,14 +97,14 @@ export default function OpdPage() {
 
           {activeTab === "opd" && (
             <div>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">OPD Visits List</p>
                   <p className="text-xs text-slate-500">View and manage OPD visits by doctor and date</p>
                 </div>
                 <button
                   onClick={() => setShowOpdModal(true)}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow sm:w-auto"
                 >
                   <Stethoscope className="h-4 w-4" />
                   Create OPD
