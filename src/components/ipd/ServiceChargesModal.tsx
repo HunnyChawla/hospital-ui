@@ -68,7 +68,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
   // Fetch services with pagination and search
   const fetchServices = useCallback(async (page: number, append: boolean, searchTerm: string) => {
     if (isFetchingServiceRef.current) return;
-    
+
     isFetchingServiceRef.current = true;
     if (append) {
       setServiceLoadingMore(true);
@@ -167,7 +167,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
 
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
       const isNearBottom = distanceFromBottom <= 50;
-      
+
       if (isNearBottom) {
         const nextPage = serviceCurrentPageRef.current + 1;
         if (nextPage <= serviceTotalPages && !isFetchingServiceRef.current) {
@@ -289,13 +289,13 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
     <Modal isOpen={isOpen} onClose={onClose} title="Service Charges" size="xl">
       <div className="space-y-3 -mx-6 -mb-6 px-6 pb-6">
         {/* Header with Add Button */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <p className="text-sm text-slate-600">
             Manage service charges for this admission
           </p>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+            className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md w-full sm:w-auto"
           >
             {showAddForm ? (
               <>
@@ -316,7 +316,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
           <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Add New Service Charge</h3>
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="relative" ref={serviceSearchRef}>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
                     Service *
@@ -416,7 +416,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -429,14 +429,14 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                     setServiceCurrentPage(1);
                     serviceCurrentPageRef.current = 1;
                   }}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                 >
                   {submitting ? "Adding..." : "Add Charge"}
                 </button>
@@ -453,70 +453,126 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
             <p className="text-sm text-slate-500">No service charges found</p>
           </div>
         ) : (
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Service Name</th>
-                    <th className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Category</th>
-                    <th className="px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
-                    <th className="px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
-                    <th className="px-3 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Status</th>
-                    <th className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Performed At</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {charges.map((charge) => (
-                    <tr key={charge.charge_id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-xs text-slate-900 font-medium">{charge.service_name}</td>
-                      <td className="px-3 py-3 text-xs text-slate-600">{charge.service_category}</td>
-                      <td className="px-2 py-3 text-center text-xs text-slate-700">{charge.quantity}</td>
-                      <td className="px-2 py-3 text-right text-xs text-slate-700">{currency(parseFloat(charge.unit_price))}</td>
-                      <td className="px-3 py-3 text-right text-xs font-bold text-slate-900">{currency(parseFloat(charge.total_amount))}</td>
-                      <td className="px-3 py-3 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(charge.status)}`}>
-                          {charge.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-slate-600">{formatDateTime(charge.performed_at)}</td>
-                      <td className="px-3 py-3 text-center">
-                        {charge.status === "ACTIVE" && (
-                          <button
-                            onClick={() => handleCancelCharge(charge)}
-                            disabled={cancellingChargeId === charge.charge_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed border border-rose-200"
-                            title="Cancel Charge"
-                          >
-                            {cancellingChargeId === charge.charge_id ? (
-                              <>
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                <span>Cancelling...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Trash2 className="h-3 w-3" />
-                                <span>Cancel</span>
-                              </>
-                            )}
-                          </button>
+          <>
+            {/* Mobile Card View */}
+            <div className="block sm:hidden space-y-3 max-h-80 overflow-y-auto">
+              {charges.map((charge) => (
+                <div key={charge.charge_id} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 text-sm truncate">{charge.service_name}</p>
+                      <p className="text-xs text-slate-500">{charge.service_category}</p>
+                    </div>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${getStatusColor(charge.status)}`}>
+                      {charge.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                    <div>
+                      <p className="text-slate-500">Qty</p>
+                      <p className="font-semibold text-slate-900">{charge.quantity}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Unit Price</p>
+                      <p className="font-semibold text-slate-900">{currency(parseFloat(charge.unit_price))}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Total</p>
+                      <p className="font-bold text-slate-900">{currency(parseFloat(charge.total_amount))}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <p className="text-slate-500">{formatDateTime(charge.performed_at)}</p>
+                    {charge.status === "ACTIVE" && (
+                      <button
+                        onClick={() => handleCancelCharge(charge)}
+                        disabled={cancellingChargeId === charge.charge_id}
+                        className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed border border-rose-200"
+                      >
+                        {cancellingChargeId === charge.charge_id ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Cancelling...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-3 w-3" />
+                            <span>Cancel</span>
+                          </>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden sm:block rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Service Name</th>
+                      <th className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Category</th>
+                      <th className="px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
+                      <th className="px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
+                      <th className="px-3 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
+                      <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Status</th>
+                      <th className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Performed At</th>
+                      <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {charges.map((charge) => (
+                      <tr key={charge.charge_id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-xs text-slate-900 font-medium">{charge.service_name}</td>
+                        <td className="px-3 py-3 text-xs text-slate-600">{charge.service_category}</td>
+                        <td className="px-2 py-3 text-center text-xs text-slate-700">{charge.quantity}</td>
+                        <td className="px-2 py-3 text-right text-xs text-slate-700">{currency(parseFloat(charge.unit_price))}</td>
+                        <td className="px-3 py-3 text-right text-xs font-bold text-slate-900">{currency(parseFloat(charge.total_amount))}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(charge.status)}`}>
+                            {charge.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-slate-600">{formatDateTime(charge.performed_at)}</td>
+                        <td className="px-3 py-3 text-center">
+                          {charge.status === "ACTIVE" && (
+                            <button
+                              onClick={() => handleCancelCharge(charge)}
+                              disabled={cancellingChargeId === charge.charge_id}
+                              className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed border border-rose-200"
+                              title="Cancel Charge"
+                            >
+                              {cancellingChargeId === charge.charge_id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <span>Cancelling...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="h-3 w-3" />
+                                  <span>Cancel</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 w-full sm:w-auto"
           >
             Close
           </button>

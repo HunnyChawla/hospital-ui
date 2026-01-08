@@ -6,7 +6,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { useAdmissions, admissionKeys, useDischargeAdmission } from "@/hooks/queries/useAdmissions";
 import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2 } from "lucide-react";
+import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2, LayoutGrid, List } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -63,6 +63,15 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
   const [dateRangeError, setDateRangeError] = useState<string>("");
   const [exporting, setExporting] = useState(false);
 
+  // Desktop view toggle state (list or grid) - persisted in localStorage
+  const [desktopView, setDesktopView] = useState<"list" | "grid">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ipd_admissions_view");
+      return (saved === "list" || saved === "grid") ? saved : "grid";
+    }
+    return "grid";
+  });
+
   // React Query hook to fetch admissions - automatic deduplication!
   const { data: admissionsResponse, isLoading: loading, error } = useAdmissions({
     page: currentPage,
@@ -82,22 +91,22 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
   // Validate date range (max 3 months)
   const validateDateRange = useCallback((start: string, end: string): string => {
     if (!start || !end) return "";
-    
+
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
-    
+
     if (endDateObj < startDateObj) {
       return "End date must be after or equal to start date";
     }
-    
+
     // Calculate difference in months
-    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
-                      (endDateObj.getMonth() - startDateObj.getMonth());
-    
+    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 +
+      (endDateObj.getMonth() - startDateObj.getMonth());
+
     if (monthsDiff > 3) {
       return "Date range cannot exceed 3 months";
     }
-    
+
     return "";
   }, []);
 
@@ -294,7 +303,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
       toast.error("Please select date range");
       return;
     }
-    
+
     // Validate filters - only check date range error if dates are provided
     if (dateRangeError) {
       toast.error(dateRangeError);
@@ -317,7 +326,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 
       // Get all admissions from response
       const allAdmissions = response.items || [];
-      
+
       if (allAdmissions.length === 0) {
         toast.error("No admissions found to export");
         setExporting(false);
@@ -358,10 +367,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
           // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
           const pxToMm = 0.264583;
           const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
-          
+
           let logoWidthMm = img.width * pxToMm;
           let logoHeightMm = img.height * pxToMm;
-          
+
           // Scale down if too large
           if (logoHeightMm > maxHeightMm) {
             const scale = maxHeightMm / logoHeightMm;
@@ -371,7 +380,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 
           // Center the logo horizontally
           const logoX = centerX - (logoWidthMm / 2);
-          
+
           // Detect image format from data URL
           let imageFormat: string = 'PNG';
           if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
@@ -379,7 +388,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
           } else if (logoDataUrl.startsWith('data:image/png')) {
             imageFormat = 'PNG';
           }
-          
+
           // Add logo to PDF
           doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
           yPos += logoHeightMm + 5; // Add space after logo
@@ -401,18 +410,18 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(55, 65, 81); // slate-700
-        
+
         if (address) {
           doc.text(address, centerX, yPos, { align: "center" });
           yPos += 5;
         }
-        
+
         // Contact info
         const contactParts: string[] = [];
         if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
         if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
         if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
-        
+
         if (contactParts.length > 0) {
           doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
           yPos += 6;
@@ -433,7 +442,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
-      
+
       // Add border line similar to PrintHeader
       doc.setLineWidth(0.5);
       doc.setDrawColor(30, 41, 59); // slate-800
@@ -446,11 +455,11 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
       doc.text("Date Range", 14, yPos);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      const dateRangeText = startDate && endDate 
+      const dateRangeText = startDate && endDate
         ? `${formatDate(startDate)} to ${formatDate(endDate)}`
         : "All Dates";
       doc.text(dateRangeText, 14, yPos + 4);
-      
+
       // Ward filter on the right (if selected)
       if (selectedWardId) {
         const selectedWard = wards.find((w) => w.id === selectedWardId);
@@ -462,9 +471,9 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
         doc.setTextColor(0, 0, 0);
         doc.text(wardName, pageWidth - 14, yPos + 4, { align: "right" });
       }
-      
+
       yPos += 8;
-      
+
       // Status filter and total
       if (statusFilter !== "all") {
         doc.setFont("helvetica", "normal");
@@ -474,7 +483,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
         doc.setTextColor(0, 0, 0);
         doc.text(formatStatus(statusFilter), 14, yPos + 4);
       }
-      
+
       doc.setFont("helvetica", "normal");
       doc.setTextColor(71, 85, 105);
       doc.text(`Export Date: ${new Date().toLocaleString()}`, 14, yPos + (statusFilter !== "all" ? 8 : 0));
@@ -533,11 +542,11 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 
       // Save PDF
       doc.save(filename);
-      
+
       toast.success(`Exported ${allAdmissions.length} admissions successfully`);
     } catch (error: any) {
       console.error("Failed to export admissions:", error);
-      
+
       // Handle API-returned date range validation errors
       const errorMessage = getErrorMessage(error);
       if (
@@ -571,12 +580,14 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4 flex-1">
+      {/* Filters - stack on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
           <label className="space-y-1">
             <span className="text-slate-600 text-sm flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              Start Date
+              <span className="hidden xs:inline">Start Date</span>
+              <span className="xs:hidden">Start</span>
             </span>
             <input
               type="date"
@@ -584,14 +595,15 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
               onChange={(e) => setStartDate(e.target.value)}
               max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
               min={endDate ? getMinStartDate() : undefined}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
             />
           </label>
 
           <label className="space-y-1">
             <span className="text-slate-600 text-sm flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              End Date
+              <span className="hidden xs:inline">End Date</span>
+              <span className="xs:hidden">End</span>
             </span>
             <input
               type="date"
@@ -599,16 +611,16 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
               max={startDate ? getMaxEndDate() : getTodayDateLocal()}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
             />
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600 text-sm">Filter by Ward</span>
+            <span className="text-slate-600 text-sm">Ward</span>
             <select
               value={selectedWardId}
               onChange={(e) => setSelectedWardId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
             >
               <option value="">All Wards</option>
               {wards.map((ward) => (
@@ -620,11 +632,11 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600 text-sm">Filter by Status</span>
+            <span className="text-slate-600 text-sm">Status</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
             >
               <option value="all">All Status</option>
               <option value="admitted">Admitted</option>
@@ -635,25 +647,57 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
             </select>
           </label>
         </div>
-        
-        <button
-          onClick={handleExportPDF}
-          disabled={!!dateRangeError || exporting}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
-          title="Export all admissions to PDF"
-        >
-          {exporting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Exporting...</span>
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4" />
-              <span>Export PDF</span>
-            </>
-          )}
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* View Toggle - Desktop only */}
+          <div className="hidden md:flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+            <button
+              onClick={() => {
+                setDesktopView("list");
+                localStorage.setItem("ipd_admissions_view", "list");
+              }}
+              className={`flex items-center justify-center rounded-lg p-2 transition ${desktopView === "list"
+                ? "bg-sky-500 text-white"
+                : "text-slate-500 hover:bg-slate-50"
+                }`}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                setDesktopView("grid");
+                localStorage.setItem("ipd_admissions_view", "grid");
+              }}
+              className={`flex items-center justify-center rounded-lg p-2 transition ${desktopView === "grid"
+                ? "bg-sky-500 text-white"
+                : "text-slate-500 hover:bg-slate-50"
+                }`}
+              title="Grid View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+
+          <button
+            onClick={handleExportPDF}
+            disabled={!!dateRangeError || exporting}
+            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 w-full sm:w-auto"
+            title="Export all admissions to PDF"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>Export PDF</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {dateRangeError && (
@@ -662,71 +706,96 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
-        <table className="min-w-full divide-y divide-slate-100 text-sm">
-          <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Patient</th>
-              <th className="px-4 py-3">Ward / Bed</th>
-              <th className="px-4 py-3">Doctor</th>
-              <th className="px-4 py-3">Admission Date</th>
-              <th className="px-4 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-right min-w-[200px]">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
-            {admissions.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                  No admissions found
-                </td>
-              </tr>
-            ) : (
-              admissions.map((admission) => (
-                <tr 
-                  key={admission.id} 
-                  className="hover:bg-sky-50/50 transition cursor-pointer"
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3">
+        {admissions.length === 0 ? (
+          <div className="rounded-xl border border-slate-100 bg-white p-6 text-center text-slate-500 shadow-sm">
+            No admissions found
+          </div>
+        ) : (
+          admissions.map((admission) => {
+            // Get border color based on status
+            const getBorderColor = (status: string) => {
+              switch (status) {
+                case "admitted":
+                  return "border-l-emerald-500";
+                case "discharge_initiated":
+                  return "border-l-purple-500";
+                case "discharged":
+                  return "border-l-slate-400";
+                case "transferred":
+                  return "border-l-amber-500";
+                case "deceased":
+                  return "border-l-rose-500";
+                case "cancelled":
+                  return "border-l-slate-400";
+                default:
+                  return "border-l-slate-400";
+              }
+            };
+
+            return (
+              <div
+                key={admission.id}
+                className={`rounded-xl border border-slate-100 border-l-4 ${getBorderColor(admission.status)} bg-white shadow-sm overflow-hidden`}
+              >
+                {/* Header Section */}
+                <div
+                  className="p-4 cursor-pointer active:bg-sky-50/50 transition"
                   onClick={() => handleRowClick(admission.id)}
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900">
+                  {/* Patient Name & Status */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-900 text-base truncate">
                         {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
-                      </span>
+                      </h3>
                       {admission.admission_number && (
-                        <span className="text-xs text-slate-500">{admission.admission_number}</span>
+                        <p className="text-xs text-slate-500 mt-0.5">{admission.admission_number}</p>
                       )}
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <BedDouble className="h-4 w-4 text-sky-600" />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-900">{getWardName(admission)}</span>
-                        <span className="text-xs text-slate-500">{getBedNumber(admission)}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="h-4 w-4 text-slate-400" />
-                      <span className="text-slate-700">{getDoctorName(admission)}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {formatDate(admission.admission_date)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(admission.status)}`}>
+                    <span className={`pill px-2.5 py-1 text-xs font-medium shrink-0 rounded-full ${getStatusColor(admission.status)}`}>
                       {formatStatus(admission.status)}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 min-w-[200px]">
-                    <div className="flex justify-end gap-2">
-                      {admission.status === "admitted" && (
+                  </div>
+
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {/* Ward & Bed */}
+                    <div className="bg-slate-50 rounded-lg p-2.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <BedDouble className="h-4 w-4 text-sky-600" />
+                        <span className="text-xs text-slate-500 uppercase tracking-wide">Ward/Bed</span>
+                      </div>
+                      <p className="font-medium text-slate-900 truncate">{getWardName(admission)}</p>
+                      <p className="text-xs text-slate-600">{getBedNumber(admission)}</p>
+                    </div>
+
+                    {/* Doctor */}
+                    <div className="bg-slate-50 rounded-lg p-2.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Stethoscope className="h-4 w-4 text-slate-400" />
+                        <span className="text-xs text-slate-500 uppercase tracking-wide">Doctor</span>
+                      </div>
+                      <p className="font-medium text-slate-900 truncate">{getDoctorName(admission)}</p>
+                    </div>
+                  </div>
+
+                  {/* Admission Date */}
+                  <div className="flex items-center gap-2 mt-3 text-sm text-slate-500">
+                    <Calendar className="h-4 w-4" />
+                    <span>Admitted: {formatDate(admission.admission_date)}</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons Section */}
+                <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3">
+                  <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {admission.status === "admitted" && (
+                      <>
                         <button
                           onClick={(e) => handleServiceChargesClick(e, admission.id)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-white transition-all duration-300 hover:bg-sky-600"
                           style={{ width: "2rem" }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.width = "auto";
@@ -741,13 +810,11 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                           title="Service Charges"
                         >
                           <CreditCard className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Service Charges</span>
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Charges</span>
                         </button>
-                      )}
-                      {admission.status === "admitted" && (
                         <button
                           onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-white transition-all duration-300 hover:bg-purple-600"
                           style={{ width: "2rem" }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.width = "auto";
@@ -762,13 +829,11 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                           title="Initiate Discharge"
                         >
                           <FileText className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Initiate Discharge</span>
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Discharge</span>
                         </button>
-                      )}
-                      {admission.status === "admitted" && (
                         <button
                           onClick={(e) => handleTransferClick(e, admission)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-white transition-all duration-300 hover:bg-amber-600"
                           style={{ width: "2rem" }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.width = "auto";
@@ -783,13 +848,218 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                           title="Transfer Bed"
                         >
                           <ArrowRightLeft className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Transfer Bed</span>
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Transfer</span>
                         </button>
+                      </>
+                    )}
+                    {admission.status === "discharge_initiated" && (
+                      <button
+                        onClick={(e) => handleDischargeClick(e, admission.id, admission.status)}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-white transition-all duration-300 hover:bg-rose-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Complete Discharge"
+                      >
+                        <div className="relative flex items-center justify-center shrink-0">
+                          <BedDouble className="h-4 w-4" />
+                          <MinusCircle className="h-2.5 w-2.5 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
+                        </div>
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Discharge</span>
+                      </button>
+                    )}
+                    {admission.status === "discharged" && (
+                      <PrintButtonsGroup admission={admission} />
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowClick(admission.id);
+                      }}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-200 p-2 text-slate-700 transition-all duration-300 hover:bg-slate-300"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="View Details"
+                    >
+                      <Eye className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">View</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Grid View */}
+      {desktopView === "grid" && (
+        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {admissions.length === 0 ? (
+            <div className="md:col-span-2 lg:col-span-3 rounded-xl border border-slate-100 bg-white p-6 text-center text-slate-500 shadow-sm">
+              No admissions found
+            </div>
+          ) : (
+            admissions.map((admission) => {
+              // Get border color based on status
+              const getBorderColor = (status: string) => {
+                switch (status) {
+                  case "admitted":
+                    return "border-l-emerald-500";
+                  case "discharge_initiated":
+                    return "border-l-purple-500";
+                  case "discharged":
+                    return "border-l-slate-400";
+                  case "transferred":
+                    return "border-l-amber-500";
+                  case "deceased":
+                    return "border-l-rose-500";
+                  case "cancelled":
+                    return "border-l-slate-400";
+                  default:
+                    return "border-l-slate-400";
+                }
+              };
+
+              return (
+                <div
+                  key={admission.id}
+                  className={`rounded-xl border border-slate-100 border-l-4 ${getBorderColor(admission.status)} bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow`}
+                >
+                  {/* Header Section */}
+                  <div
+                    className="p-4 cursor-pointer hover:bg-sky-50/30 transition"
+                    onClick={() => handleRowClick(admission.id)}
+                  >
+                    {/* Patient Name & Status */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 text-base truncate">
+                          {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
+                        </h3>
+                        {admission.admission_number && (
+                          <p className="text-xs text-slate-500 mt-0.5">{admission.admission_number}</p>
+                        )}
+                      </div>
+                      <span className={`pill px-2.5 py-1 text-xs font-medium shrink-0 rounded-full ${getStatusColor(admission.status)}`}>
+                        {formatStatus(admission.status)}
+                      </span>
+                    </div>
+
+                    {/* Info Grid */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {/* Ward & Bed */}
+                      <div className="bg-slate-50 rounded-lg p-2.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <BedDouble className="h-4 w-4 text-sky-600" />
+                          <span className="text-xs text-slate-500 uppercase tracking-wide">Ward/Bed</span>
+                        </div>
+                        <p className="font-medium text-slate-900 truncate">{getWardName(admission)}</p>
+                        <p className="text-xs text-slate-600">{getBedNumber(admission)}</p>
+                      </div>
+
+                      {/* Doctor */}
+                      <div className="bg-slate-50 rounded-lg p-2.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Stethoscope className="h-4 w-4 text-slate-400" />
+                          <span className="text-xs text-slate-500 uppercase tracking-wide">Doctor</span>
+                        </div>
+                        <p className="font-medium text-slate-900 truncate">{getDoctorName(admission)}</p>
+                      </div>
+                    </div>
+
+                    {/* Admission Date */}
+                    <div className="flex items-center gap-2 mt-3 text-sm text-slate-500">
+                      <Calendar className="h-4 w-4" />
+                      <span>Admitted: {formatDate(admission.admission_date)}</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Section */}
+                  <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {admission.status === "admitted" && (
+                        <>
+                          <button
+                            onClick={(e) => handleServiceChargesClick(e, admission.id)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-white transition-all duration-300 hover:bg-sky-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Service Charges"
+                          >
+                            <CreditCard className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Charges</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-white transition-all duration-300 hover:bg-purple-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Initiate Discharge"
+                          >
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Discharge</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleTransferClick(e, admission)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-white transition-all duration-300 hover:bg-amber-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Transfer Bed"
+                          >
+                            <ArrowRightLeft className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Transfer</span>
+                          </button>
+                        </>
                       )}
                       {admission.status === "discharge_initiated" && (
                         <button
                           onClick={(e) => handleDischargeClick(e, admission.id, admission.status)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-white transition-all duration-300 hover:bg-rose-600"
                           style={{ width: "2rem" }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.width = "auto";
@@ -801,52 +1071,237 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                             e.currentTarget.style.paddingLeft = "0.5rem";
                             e.currentTarget.style.paddingRight = "0.5rem";
                           }}
-                          title="Discharge"
+                          title="Complete Discharge"
                         >
                           <div className="relative flex items-center justify-center shrink-0">
                             <BedDouble className="h-4 w-4" />
-                            <MinusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
+                            <MinusCircle className="h-2.5 w-2.5 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
                           </div>
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Discharge</span>
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Discharge</span>
                         </button>
                       )}
                       {admission.status === "discharged" && (
                         <PrintButtonsGroup admission={admission} />
                       )}
-                      {onEditClick && (
-                        <button
-                          onClick={(e) => handleViewClick(e, admission)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="View"
-                        >
-                          <Eye className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">View</span>
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRowClick(admission.id);
+                        }}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-200 p-2 text-slate-700 transition-all duration-300 hover:bg-slate-300"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">View</span>
+                      </button>
                     </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Desktop List/Table View */}
+      {desktopView === "list" && (
+        <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Patient</th>
+                <th className="px-4 py-3">Ward / Bed</th>
+                <th className="px-4 py-3">Doctor</th>
+                <th className="px-4 py-3">Admission Date</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-right min-w-[200px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {admissions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    No admissions found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                admissions.map((admission) => (
+                  <tr
+                    key={admission.id}
+                    className="hover:bg-sky-50/50 transition cursor-pointer"
+                    onClick={() => handleRowClick(admission.id)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-900">
+                          {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
+                        </span>
+                        {admission.admission_number && (
+                          <span className="text-xs text-slate-500">{admission.admission_number}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <BedDouble className="h-4 w-4 text-sky-600" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-slate-900">{getWardName(admission)}</span>
+                          <span className="text-xs text-slate-500">{getBedNumber(admission)}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Stethoscope className="h-4 w-4 text-slate-400" />
+                        <span className="text-slate-700">{getDoctorName(admission)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {formatDate(admission.admission_date)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(admission.status)}`}>
+                        {formatStatus(admission.status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 min-w-[200px]">
+                      <div className="flex justify-end gap-2">
+                        {admission.status === "admitted" && (
+                          <button
+                            onClick={(e) => handleServiceChargesClick(e, admission.id)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Service Charges"
+                          >
+                            <CreditCard className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Service Charges</span>
+                          </button>
+                        )}
+                        {admission.status === "admitted" && (
+                          <button
+                            onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Initiate Discharge"
+                          >
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Initiate Discharge</span>
+                          </button>
+                        )}
+                        {admission.status === "admitted" && (
+                          <button
+                            onClick={(e) => handleTransferClick(e, admission)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Transfer Bed"
+                          >
+                            <ArrowRightLeft className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Transfer Bed</span>
+                          </button>
+                        )}
+                        {admission.status === "discharge_initiated" && (
+                          <button
+                            onClick={(e) => handleDischargeClick(e, admission.id, admission.status)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="Discharge"
+                          >
+                            <div className="relative flex items-center justify-center shrink-0">
+                              <BedDouble className="h-4 w-4" />
+                              <MinusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
+                            </div>
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Discharge</span>
+                          </button>
+                        )}
+                        {admission.status === "discharged" && (
+                          <PrintButtonsGroup admission={admission} />
+                        )}
+                        {onEditClick && (
+                          <button
+                            onClick={(e) => handleViewClick(e, admission)}
+                            className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                            style={{ width: "2rem" }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.width = "auto";
+                              e.currentTarget.style.paddingLeft = "0.75rem";
+                              e.currentTarget.style.paddingRight = "0.75rem";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.width = "2rem";
+                              e.currentTarget.style.paddingLeft = "0.5rem";
+                              e.currentTarget.style.paddingRight = "0.5rem";
+                            }}
+                            title="View"
+                          >
+                            <Eye className="h-4 w-4 shrink-0" />
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">View</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="text-sm text-slate-600">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+          <div className="text-sm text-slate-600 text-center sm:text-left">
             Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
             <span className="font-semibold text-slate-900">
               {Math.min(currentPage * pageSize, total)}
@@ -857,10 +1312,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 sm:px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -878,11 +1333,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      currentPage === pageNum
-                        ? "bg-sky-500 text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
+                    className={`min-w-[2rem] sm:min-w-[2.5rem] rounded-lg px-2 sm:px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
+                      ? "bg-sky-500 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
                   >
                     {pageNum}
                   </button>
@@ -892,9 +1346,9 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 sm:px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -1018,30 +1472,30 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
 
     const calculatePosition = () => {
       if (!buttonRef.current) return;
-      
+
       const rect = buttonRef.current.getBoundingClientRect();
       const dropdownHeight = 120; // Approximate height of dropdown menu
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      
+
       // Calculate position - open upward if not enough space below
       const top = spaceBelow < dropdownHeight && spaceAbove > dropdownHeight
         ? rect.top - dropdownHeight - 4 // 4px margin
         : rect.bottom + 4; // 4px margin
-      
+
       // Position from right edge of viewport
       const right = window.innerWidth - rect.right;
-      
+
       setDropdownPosition({ top, right });
     };
 
     // Calculate position after a small delay to ensure DOM is updated
     const timeoutId = setTimeout(calculatePosition, 0);
-    
+
     // Recalculate on scroll/resize
     window.addEventListener("scroll", calculatePosition, true);
     window.addEventListener("resize", calculatePosition);
-    
+
     return () => {
       clearTimeout(timeoutId);
       window.removeEventListener("scroll", calculatePosition, true);
@@ -1068,14 +1522,14 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
       toast.error("Invoice ID not available for this admission");
       return;
     }
-    
+
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const invoice = await invoicesApi.getById(admission.invoice_id, getTenantIdForApi(tenantId || undefined));
-      
+
       const patientName = invoice.patient_name || admission.patient_name || "Unknown";
       const patientMobile = invoice.patient_mobile;
-      
+
       setPrintInvoiceData({
         invoice,
         patientName,
@@ -1095,7 +1549,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
       toast.error("Invoice ID not available for this admission");
       return;
     }
-    
+
     try {
       setPrintPaymentInvoiceId(admission.invoice_id);
       setShouldPrintPayment(true);
@@ -1108,7 +1562,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
   };
 
   const hasInvoice = !!admission.invoice_id;
-  
+
   // Always show print button for discharged admissions
   // Show options in dropdown based on available IDs
 
@@ -1142,7 +1596,7 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
         </button>
 
         {showPrintDropdown && dropdownPosition && (
-          <div 
+          <div
             className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white shadow-lg"
             style={{
               top: `${dropdownPosition.top}px`,

@@ -44,8 +44,8 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200">
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 gap-3 pb-3 sm:pb-0">
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0 -mb-px">
           {[
             { id: "wards", label: "Wards", icon: Building2 },
             { id: "beds", label: "Beds", icon: LayoutList },
@@ -54,11 +54,10 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
-                activeTab === tab.id
+              className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 sm:py-4 text-sm font-semibold transition whitespace-nowrap ${activeTab === tab.id
                   ? "border-sky-500 text-sky-700"
                   : "border-transparent text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
@@ -112,7 +111,8 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
       </div>
 
       {/* Tab Content */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      {/* Mobile-responsive content wrapper */}
+      <div className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-6 shadow-sm">
         {activeTab === "wards" && (
           <div>
             <WardTable

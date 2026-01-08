@@ -517,13 +517,13 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
         </div>
       ) : (
         <>
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {appointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="relative rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+                className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
                       #{appointment.token_number}
@@ -542,39 +542,40 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 sm:justify-end">
-                    <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(appointment.status)}`}>
-                      {getStatusIcon(appointment.status)}
-                      <span className="capitalize">{appointment.status.replace("_", " ")}</span>
-                    </span>
-                    {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
-                      <button
-                        onClick={() => openCreateModal(appointment)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Create OPD"
-                      >
-                        <Plus className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
-                      </button>
-                    )}
-                  </div>
+                  {appointment.notes && (
+                    <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
+                      {appointment.notes}
+                    </div>
+                  )}
                 </div>
-                {appointment.notes && (
-                  <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
-                    {appointment.notes}
-                  </div>
-                )}
+
+                <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3">
+                  <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(appointment.status)}`}>
+                    {getStatusIcon(appointment.status)}
+                    <span className="capitalize">{appointment.status.replace("_", " ")}</span>
+                  </span>
+                  {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
+                    <button
+                      onClick={() => openCreateModal(appointment)}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="Create OPD"
+                    >
+                      <Plus className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

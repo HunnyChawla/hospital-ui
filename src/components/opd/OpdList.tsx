@@ -930,13 +930,13 @@ export function OpdList({ doctorId }: OpdListProps) {
           <p className="text-slate-500">No OPD visits found for selected doctor and date range</p>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visits.map((visit) => (
             <div
               key={visit.id}
-              className="relative rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+              className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full"
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
                     #{visit.token_number}
@@ -967,155 +967,156 @@ export function OpdList({ doctorId }: OpdListProps) {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(visit.status)}`}>
-                    {getStatusIcon(visit.status)}
-                    <span className="capitalize">{visit.status.replace("_", " ")}</span>
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {visit.status === "checked_in" && (
-                      <>
-                        <button
-                          onClick={() => handleUpdateStatus(visit.id, "in_consultation")}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Start Consultation"
-                        >
-                          <Play className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Start Consultation</span>
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(visit.id, "completed")}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Complete"
-                        >
-                          <CheckCircle className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Cancel"
-                        >
-                          <X className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(visit.id, "no_show")}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-slate-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="No Show"
-                        >
-                          <User className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">No Show</span>
-                        </button>
-                        <PrintButtonsGroup
-                          visit={visit}
-                          onPrintOpd={() => handlePrintOpd(visit.id)}
-                          onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                          onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                        />
-                      </>
-                    )}
-                    {visit.status === "in_consultation" && (
-                      <>
-                        <button
-                          onClick={() => handleUpdateStatus(visit.id, "completed")}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Complete"
-                        >
-                          <CheckCircle className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
-                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                          style={{ width: "2rem" }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.width = "auto";
-                            e.currentTarget.style.paddingLeft = "0.75rem";
-                            e.currentTarget.style.paddingRight = "0.75rem";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.width = "2rem";
-                            e.currentTarget.style.paddingLeft = "0.5rem";
-                            e.currentTarget.style.paddingRight = "0.5rem";
-                          }}
-                          title="Cancel"
-                        >
-                          <X className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                        </button>
-                        <PrintButtonsGroup
-                          visit={visit}
-                          onPrintOpd={() => handlePrintOpd(visit.id)}
-                          onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                          onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                        />
-                      </>
-                    )}
-                    {visit.status === "completed" && (
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3">
+                <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(visit.status)}`}>
+                  {getStatusIcon(visit.status)}
+                  <span className="capitalize">{visit.status.replace("_", " ")}</span>
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {visit.status === "checked_in" && (
+                    <>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "in_consultation")}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Start Consultation"
+                      >
+                        <Play className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Start Consultation</span>
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "completed")}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Complete"
+                      >
+                        <CheckCircle className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "no_show")}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-slate-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="No Show"
+                      >
+                        <User className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">No Show</span>
+                      </button>
                       <PrintButtonsGroup
                         visit={visit}
                         onPrintOpd={() => handlePrintOpd(visit.id)}
                         onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
                         onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
                       />
-                    )}
-                  </div>
+                    </>
+                  )}
+                  {visit.status === "in_consultation" && (
+                    <>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "completed")}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Complete"
+                      >
+                        <CheckCircle className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
+                      </button>
+                      <PrintButtonsGroup
+                        visit={visit}
+                        onPrintOpd={() => handlePrintOpd(visit.id)}
+                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                      />
+                    </>
+                  )}
+                  {visit.status === "completed" && (
+                    <PrintButtonsGroup
+                      visit={visit}
+                      onPrintOpd={() => handlePrintOpd(visit.id)}
+                      onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                      onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1124,119 +1125,127 @@ export function OpdList({ doctorId }: OpdListProps) {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-between">
-          <div className="text-sm text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-            <span className="font-semibold text-slate-900">
-              {Math.min(currentPage * pageSize, total)}
-            </span>{" "}
-            of <span className="font-semibold text-slate-900">{total}</span> visits
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Previous</span>
-            </button>
-            <div className="hidden items-center gap-1 sm:flex">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
-                      ? "bg-sky-500 text-white"
-                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
+      {
+        totalPages > 1 && (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-between">
+            <div className="text-sm text-slate-600">
+              Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+              <span className="font-semibold text-slate-900">
+                {Math.min(currentPage * pageSize, total)}
+              </span>{" "}
+              of <span className="font-semibold text-slate-900">{total}</span> visits
             </div>
-            <span className="text-sm text-slate-500 sm:hidden">{currentPage} / {totalPages}</span>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-            >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Previous</span>
+              </button>
+              <div className="hidden items-center gap-1 sm:flex">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
+                        ? "bg-sky-500 text-white"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="text-sm text-slate-500 sm:hidden">{currentPage} / {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Hidden printable slip */}
-      {printVisitData && (
-        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-          <div ref={printRef} className="print-content">
-            <OpdSlipPrint
-              patient={{
-                id: printVisitData.patient.id,
-                name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
-                mobile: printVisitData.patient.mobile,
-                healthId: printVisitData.patient.abha_id || "",
-                age: printVisitData.patient.date_of_birth
-                  ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
-                  : 0,
-                gender: printVisitData.patient.gender as "Male" | "Female" | "Other",
-                outstanding: 0,
-                doctor: (() => {
+      {
+        printVisitData && (
+          <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+            <div ref={printRef} className="print-content">
+              <OpdSlipPrint
+                patient={{
+                  id: printVisitData.patient.id,
+                  name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
+                  mobile: printVisitData.patient.mobile,
+                  healthId: printVisitData.patient.abha_id || "",
+                  age: printVisitData.patient.date_of_birth
+                    ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
+                    : 0,
+                  gender: printVisitData.patient.gender as "Male" | "Female" | "Other",
+                  outstanding: 0,
+                  doctor: (() => {
+                    const doc = printVisitData.visit.doctor_id ? doctors.find((d) => d.id === printVisitData.visit.doctor_id) : null;
+                    return doc ? (doc.name || `Dr. ${doc.specialization}`) : "";
+                  })(),
+                  lastVisit: printVisitData.visit.created_at || "",
+                  status: "Active" as const,
+                }}
+                doctor={(() => {
                   const doc = printVisitData.visit.doctor_id ? doctors.find((d) => d.id === printVisitData.visit.doctor_id) : null;
                   return doc ? (doc.name || `Dr. ${doc.specialization}`) : "";
-                })(),
-                lastVisit: printVisitData.visit.created_at || "",
-                status: "Active" as const,
-              }}
-              doctor={(() => {
-                const doc = printVisitData.visit.doctor_id ? doctors.find((d) => d.id === printVisitData.visit.doctor_id) : null;
-                return doc ? (doc.name || `Dr. ${doc.specialization}`) : "";
-              })()}
-              symptoms={printVisitData.visit.chief_complaint || ""}
-              opdNumber={printVisitData.visit.visit_number}
-              tokenNumber={printVisitData.visit.token_number || 0}
-              prescription={printVisitData.prescription}
-            />
+                })()}
+                symptoms={printVisitData.visit.chief_complaint || ""}
+                opdNumber={printVisitData.visit.visit_number}
+                tokenNumber={printVisitData.visit.token_number || 0}
+                prescription={printVisitData.prescription}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Hidden printable invoice */}
-      {printInvoiceData && (
-        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-          <div ref={printInvoiceRef} className="print-content">
-            <InvoicePrint
-              invoice={printInvoiceData.invoice}
-              patientName={printInvoiceData.patientName}
-              patientMobile={printInvoiceData.patientMobile}
-            />
+      {
+        printInvoiceData && (
+          <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+            <div ref={printInvoiceRef} className="print-content">
+              <InvoicePrint
+                invoice={printInvoiceData.invoice}
+                patientName={printInvoiceData.patientName}
+                patientMobile={printInvoiceData.patientMobile}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Hidden printable payment receipt */}
-      {printPaymentInvoiceId && (
-        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-          <div ref={printPaymentRef} className="print-content">
-            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
+      {
+        printPaymentInvoiceId && (
+          <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+            <div ref={printPaymentRef} className="print-content">
+              <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Cancellation Refund Acknowledgment Modal */}
       <CancellationRefundAcknowledgmentModal
@@ -1251,7 +1260,7 @@ export function OpdList({ doctorId }: OpdListProps) {
         amount={pendingCancellation?.paymentAmount}
         loading={cancelling}
       />
-    </div>
+    </div >
   );
 }
 

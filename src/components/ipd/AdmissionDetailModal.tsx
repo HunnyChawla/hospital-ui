@@ -8,11 +8,11 @@ import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
 import { currency } from "@/utils/format";
 import { formatDate } from "@/utils/format";
-import { 
-  User, 
-  Stethoscope, 
-  BedDouble, 
-  FileText, 
+import {
+  User,
+  Stethoscope,
+  BedDouble,
+  FileText,
   CreditCard,
   Phone,
   Building2,
@@ -204,7 +204,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId || undefined);
       const invoice = await invoicesApi.getById(invoiceId, apiTenantId);
-      
+
       if (admission) {
         setPrintInvoiceData({
           invoice,
@@ -251,14 +251,14 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
   const handlePrintDischargeSummaryClick = async () => {
     if (!admission) return;
-    
+
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      
+
       // Fetch patient details
       const patient = await patientsApi.getById(admission.patient_id, apiTenantId);
-      
+
       setPrintDischargeSummaryData({
         admission,
         patient,
@@ -272,14 +272,14 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
   const handlePrintConsentFormClick = async () => {
     if (!admission) return;
-    
+
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      
+
       // Fetch patient details
       const patient = await patientsApi.getById(admission.patient_id, apiTenantId);
-      
+
       setPrintConsentFormData({
         admission,
         patient,
@@ -466,7 +466,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       <div className="space-y-4 -mx-6 -mb-6 px-6 pb-6">
         {/* Patient & Admission Information */}
         <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-sky-50 via-sky-50/80 to-teal-50/50 p-3 shadow-sm">
-          <div className="mb-2 flex items-center justify-between border-b border-slate-200/50 pb-2">
+          <div className="mb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/50 pb-2">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-teal-500 text-white shadow-md">
                 <User className="h-4 w-4" />
@@ -476,18 +476,17 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
                 <p className="mt-0.5 text-sm font-bold text-slate-900">{admission.patient_name || "N/A"}</p>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right ml-10 sm:ml-0">
               <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Doctor</p>
               <p className="mt-0.5 text-sm font-bold text-slate-900">{admission.doctor_name || "N/A"}</p>
             </div>
           </div>
-          <div className={`grid grid-cols-2 gap-2.5 ${
-            (admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 0
-              ? 'md:grid-cols-4'
-              : (admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 1
+          <div className={`grid grid-cols-2 gap-2.5 ${(admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 0
+            ? 'md:grid-cols-4'
+            : (admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 1
               ? 'md:grid-cols-5'
               : 'md:grid-cols-6'
-          }`}>
+            }`}>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admission #</p>
               <p className="text-xs font-bold text-slate-900 truncate">{admission.admission_number}</p>
@@ -560,44 +559,84 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               </div>
             ) : invoice ? (
               <>
-                {/* Line Items Table - Compact */}
+                {/* Line Items - Compact */}
                 {invoice.line_items && invoice.line_items.length > 0 && (
-                  <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto max-h-48 overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Description</th>
-                            <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
-                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
-                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Discount</th>
-                            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {invoice.line_items.map((item, index) => {
-                            const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
-                            const unitPrice = typeof item.unit_price === "string" ? parseFloat(item.unit_price) : item.unit_price;
-                            const discount = item.discount !== undefined
-                              ? (typeof item.discount === "string" ? parseFloat(item.discount) : item.discount)
-                              : 0;
-                            const total = item.total_price !== undefined
-                              ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
-                              : (item.total || quantity * unitPrice);
-                            return (
-                              <tr key={item.id || index} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-3 py-2 text-xs text-slate-900 font-medium">{item.description}</td>
-                                <td className="px-2 py-2 text-center text-xs text-slate-700">{quantity}</td>
-                                <td className="px-2 py-2 text-right text-xs text-slate-700">{currency(unitPrice)}</td>
-                                <td className="px-2 py-2 text-right text-xs text-slate-700">{discount > 0 ? currency(discount) : "-"}</td>
-                                <td className="px-3 py-2 text-right text-xs font-bold text-slate-900">{currency(total)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="block sm:hidden space-y-2 max-h-48 overflow-y-auto">
+                      {invoice.line_items.map((item, index) => {
+                        const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+                        const unitPrice = typeof item.unit_price === "string" ? parseFloat(item.unit_price) : item.unit_price;
+                        const discount = item.discount !== undefined
+                          ? (typeof item.discount === "string" ? parseFloat(item.discount) : item.discount)
+                          : 0;
+                        const total = item.total_price !== undefined
+                          ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                          : (item.total || quantity * unitPrice);
+                        return (
+                          <div key={item.id || index} className="rounded-lg border border-slate-200 bg-white p-2.5">
+                            <p className="font-semibold text-slate-900 text-xs mb-1.5">{item.description}</p>
+                            <div className="grid grid-cols-4 gap-1.5 text-[10px]">
+                              <div>
+                                <p className="text-slate-500">Qty</p>
+                                <p className="font-semibold text-slate-900">{quantity}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">Rate</p>
+                                <p className="font-semibold text-slate-900">{currency(unitPrice)}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">Disc</p>
+                                <p className="font-semibold text-slate-900">{discount > 0 ? currency(discount) : "-"}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-slate-500">Total</p>
+                                <p className="font-bold text-slate-900">{currency(total)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden sm:block rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Description</th>
+                              <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
+                              <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
+                              <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Discount</th>
+                              <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {invoice.line_items.map((item, index) => {
+                              const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+                              const unitPrice = typeof item.unit_price === "string" ? parseFloat(item.unit_price) : item.unit_price;
+                              const discount = item.discount !== undefined
+                                ? (typeof item.discount === "string" ? parseFloat(item.discount) : item.discount)
+                                : 0;
+                              const total = item.total_price !== undefined
+                                ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                                : (item.total || quantity * unitPrice);
+                              return (
+                                <tr key={item.id || index} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="px-3 py-2 text-xs text-slate-900 font-medium">{item.description}</td>
+                                  <td className="px-2 py-2 text-center text-xs text-slate-700">{quantity}</td>
+                                  <td className="px-2 py-2 text-right text-xs text-slate-700">{currency(unitPrice)}</td>
+                                  <td className="px-2 py-2 text-right text-xs text-slate-700">{discount > 0 ? currency(discount) : "-"}</td>
+                                  <td className="px-3 py-2 text-right text-xs font-bold text-slate-900">{currency(total)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Financial Summary - Compact */}
@@ -655,40 +694,76 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               </div>
             ) : amountDue ? (
               <>
-                {/* Line Items Table - Compact */}
+                {/* Charges - Compact */}
                 {amountDue.charges && amountDue.charges.length > 0 && (
-                  <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto max-h-48 overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Description</th>
-                            <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
-                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
-                            <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Discount</th>
-                            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {amountDue.charges.map((charge, index) => {
-                            const quantity = typeof charge.quantity === "string" ? parseFloat(charge.quantity) : charge.quantity;
-                            const unitPrice = typeof charge.unit_price === "string" ? parseFloat(charge.unit_price) : charge.unit_price;
-                            const discount = typeof charge.discount === "string" ? parseFloat(charge.discount) : parseFloat(charge.discount || "0");
-                            const total = typeof charge.total_amount === "string" ? parseFloat(charge.total_amount) : charge.total_amount;
-                            return (
-                              <tr key={charge.charge_id || index} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-3 py-2 text-xs text-slate-900 font-medium">{charge.service_name}</td>
-                                <td className="px-2 py-2 text-center text-xs text-slate-700">{quantity}</td>
-                                <td className="px-2 py-2 text-right text-xs text-slate-700">{currency(unitPrice)}</td>
-                                <td className="px-2 py-2 text-right text-xs text-slate-700">{discount > 0 ? currency(discount) : "-"}</td>
-                                <td className="px-3 py-2 text-right text-xs font-bold text-slate-900">{currency(total)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="block sm:hidden space-y-2 max-h-48 overflow-y-auto">
+                      {amountDue.charges.map((charge, index) => {
+                        const quantity = typeof charge.quantity === "string" ? parseFloat(charge.quantity) : charge.quantity;
+                        const unitPrice = typeof charge.unit_price === "string" ? parseFloat(charge.unit_price) : charge.unit_price;
+                        const discount = typeof charge.discount === "string" ? parseFloat(charge.discount) : parseFloat(charge.discount || "0");
+                        const total = typeof charge.total_amount === "string" ? parseFloat(charge.total_amount) : charge.total_amount;
+                        return (
+                          <div key={charge.charge_id || index} className="rounded-lg border border-slate-200 bg-white p-2.5">
+                            <p className="font-semibold text-slate-900 text-xs mb-1.5">{charge.service_name}</p>
+                            <div className="grid grid-cols-4 gap-1.5 text-[10px]">
+                              <div>
+                                <p className="text-slate-500">Qty</p>
+                                <p className="font-semibold text-slate-900">{quantity}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">Rate</p>
+                                <p className="font-semibold text-slate-900">{currency(unitPrice)}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500">Disc</p>
+                                <p className="font-semibold text-slate-900">{discount > 0 ? currency(discount) : "-"}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-slate-500">Total</p>
+                                <p className="font-bold text-slate-900">{currency(total)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden sm:block rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">Description</th>
+                              <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 w-16">Qty</th>
+                              <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Unit Price</th>
+                              <th className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-20">Discount</th>
+                              <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide text-slate-700 w-24">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {amountDue.charges.map((charge, index) => {
+                              const quantity = typeof charge.quantity === "string" ? parseFloat(charge.quantity) : charge.quantity;
+                              const unitPrice = typeof charge.unit_price === "string" ? parseFloat(charge.unit_price) : charge.unit_price;
+                              const discount = typeof charge.discount === "string" ? parseFloat(charge.discount) : parseFloat(charge.discount || "0");
+                              const total = typeof charge.total_amount === "string" ? parseFloat(charge.total_amount) : charge.total_amount;
+                              return (
+                                <tr key={charge.charge_id || index} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="px-3 py-2 text-xs text-slate-900 font-medium">{charge.service_name}</td>
+                                  <td className="px-2 py-2 text-center text-xs text-slate-700">{quantity}</td>
+                                  <td className="px-2 py-2 text-right text-xs text-slate-700">{currency(unitPrice)}</td>
+                                  <td className="px-2 py-2 text-right text-xs text-slate-700">{discount > 0 ? currency(discount) : "-"}</td>
+                                  <td className="px-3 py-2 text-right text-xs font-bold text-slate-900">{currency(total)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Financial Summary - Compact */}
@@ -819,49 +894,49 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-200">
           {/* Consent Form - Available for all statuses */}
           <button
             onClick={handlePrintConsentFormClick}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
           >
             <Printer className="h-4 w-4" />
-            Print Consent Form
+            <span className="hidden xs:inline">Print</span> Consent
           </button>
           {admission.status === "admitted" && (
             <button
               onClick={() => setShowServiceChargesModal(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
             >
               <CreditCard className="h-4 w-4" />
-              Service Charges
+              <span className="hidden xs:inline">Service</span> Charges
             </button>
           )}
           {admission.status === "discharged" && (
             <>
               <button
                 onClick={handlePrintDischargeSummaryClick}
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
               >
                 <Printer className="h-4 w-4" />
-                Print Discharge Summary
+                <span className="hidden xs:inline">Print</span> Summary
               </button>
               {admission.invoice_id && (
                 <button
                   onClick={() => handlePrintInvoice(admission.invoice_id!)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
                 >
                   <Printer className="h-4 w-4" />
-                  Print Invoice
+                  Invoice
                 </button>
               )}
               {admission.invoice_id && (
                 <button
                   onClick={handlePrintPaymentReceipt}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
                 >
                   <Printer className="h-4 w-4" />
-                  Print Payment Receipt
+                  Receipt
                 </button>
               )}
             </>
@@ -869,15 +944,15 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           {admission.status !== "discharged" && admission.invoice_id && (
             <button
               onClick={() => handlePrintInvoice(admission.invoice_id!)}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
             >
               <Printer className="h-4 w-4" />
-              Print Invoice
+              Invoice
             </button>
           )}
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow-sm"
+            className="rounded-xl border border-slate-300 bg-white px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold text-slate-700 transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow-sm"
           >
             Close
           </button>
