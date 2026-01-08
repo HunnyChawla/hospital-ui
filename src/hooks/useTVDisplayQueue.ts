@@ -23,8 +23,22 @@ export type TVQueuePatient = {
     doctor_cabin?: string | null;
 };
 
-function mapSSEDataToPatients(data: any): TVQueuePatient[] {
-    if (!data) return [];
+// Returns null for heartbeat/keep-alive messages that should be ignored
+// Returns TVQueuePatient[] for actual queue data
+function mapSSEDataToPatients(data: any): TVQueuePatient[] | null {
+    // Check for heartbeat/keep-alive messages first
+    // These should be ignored and not affect the current patient list
+    if (!data || data === null || data === undefined) return null;
+
+    // Check for explicit heartbeat messages
+    if (data.type === 'heartbeat' || data.type === 'ping' || data.type === 'keepalive') {
+        return null;
+    }
+
+    // Check for empty objects (common heartbeat format)
+    if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0) {
+        return null;
+    }
 
     const mapItem = (item: any): TVQueuePatient => ({
         patient_id: item.patient_id || "",
@@ -65,7 +79,8 @@ function mapSSEDataToPatients(data: any): TVQueuePatient[] {
         return [mapItem(data)];
     }
 
-    return [];
+    // Data exists but is unrecognized format - treat as heartbeat/ignored
+    return null;
 }
 
 function arePatientsEqual(prev: TVQueuePatient[], next: TVQueuePatient[]): boolean {
@@ -134,6 +149,12 @@ export function useTVDisplayQueue({
     const handleOptometristMessage = useCallback((data: any) => {
         const newPatients = mapSSEDataToPatients(data);
 
+        // Ignore heartbeat/keep-alive messages (null return)
+        // This preserves the current patient list
+        if (newPatients === null) {
+            return;
+        }
+
         setOptometristPatients((prev) => {
             if (newPatients.length === 1 && newPatients[0].visit_id) {
                 const existingIndex = prev.findIndex((p) => p.visit_id === newPatients[0].visit_id);
@@ -159,7 +180,7 @@ export function useTVDisplayQueue({
                 }
                 return newPatients;
             } else {
-                // Empty array received - clear the list
+                // Empty array received from backend - this is actual data indicating empty queue
                 return [];
             }
         });
@@ -168,6 +189,12 @@ export function useTVDisplayQueue({
     // Handle doctor queue messages
     const handleDoctorMessage = useCallback((data: any) => {
         const newPatients = mapSSEDataToPatients(data);
+
+        // Ignore heartbeat/keep-alive messages (null return)
+        // This preserves the current patient list
+        if (newPatients === null) {
+            return;
+        }
 
         setDoctorPatients((prev) => {
             if (newPatients.length === 1 && newPatients[0].visit_id) {
@@ -194,7 +221,7 @@ export function useTVDisplayQueue({
                 }
                 return newPatients;
             } else {
-                // Empty array received - clear the list
+                // Empty array received from backend - this is actual data indicating empty queue
                 return [];
             }
         });
