@@ -4,6 +4,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { History, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { mockOptometryService } from "../mock";
+import { handleError, getErrorMessage } from "@/utils/errorHandler";
 
 type DataType = "refraction" | "ar_data" | "iop" | "complaints" | "medical_history";
 
@@ -86,7 +87,8 @@ export function CopyFromPreviousButton({
         setTimeout(() => setSuccess(false), 2000);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch data");
+      const errorMessage = getErrorMessage(err) || "Failed to fetch data";
+      setError(errorMessage);
       setTimeout(() => setError(null), 3000);
     } finally {
       setIsLoading(false);
@@ -104,8 +106,8 @@ export function CopyFromPreviousButton({
         error
           ? "bg-red-50 text-red-700 border-red-200"
           : success
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-          : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+            : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
         (disabled || isLoading) && "cursor-not-allowed opacity-50",
         className
       )}
@@ -124,10 +126,10 @@ export function CopyFromPreviousButton({
         {isLoading
           ? "Loading..."
           : error
-          ? "No Data"
-          : success
-          ? "Copied!"
-          : "Copy Previous"}
+            ? "No Data"
+            : success
+              ? "Copied!"
+              : "Copy Previous"}
       </span>
     </button>
   );

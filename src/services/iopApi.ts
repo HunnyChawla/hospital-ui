@@ -23,6 +23,7 @@ export interface UpdateIOPRequest {
 export interface CreateIOPCombinedRequest {
   patient_id: string;
   visit_id: string;
+  optometrist_id: string;
   od_pressure: number;
   os_pressure: number;
   measurement_time?: string;

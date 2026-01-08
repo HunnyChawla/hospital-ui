@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import clsx from "clsx";
 import { TemplateSelector } from "../templates";
+import { handleError } from "@/utils/errorHandler";
 import {
   commonDiagnoses,
   diagnosisTemplates,
@@ -137,8 +138,10 @@ export function DiagnosisNotesTab({
 
       toast.success("Diagnosis and notes saved successfully");
     } catch (error) {
-      toast.error("Failed to save diagnosis");
-      console.error("Save diagnosis error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to save diagnosis",
+        logError: true,
+      });
     } finally {
       setIsSubmitting(false);
     }

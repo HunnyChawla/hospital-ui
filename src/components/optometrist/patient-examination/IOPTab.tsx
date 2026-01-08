@@ -10,6 +10,7 @@ import { iopApi } from "@/services/iopApi";
 // Import shared components
 import { NumericStepper, QuickSelectButtons } from "../shared";
 import { CopyFromPreviousButton } from "../templates";
+import { handleError } from "@/utils/errorHandler";
 
 interface IOPTabProps {
   patientId: string;
@@ -118,7 +119,7 @@ export function IOPTab({
       try {
         const res = await iopApi.list({ visit_id: visitId });
         if (mounted) setVisitIOPItems(res.items || []);
-      } catch (e) {}
+      } catch (e) { }
     })();
     return () => {
       mounted = false;
@@ -218,6 +219,7 @@ export function IOPTab({
       const payload = {
         patient_id: patientId,
         visit_id: visitId,
+        optometrist_id: optometristId,
         od_pressure: formData.od_pressure!,
         os_pressure: formData.os_pressure!,
         measurement_time: new Date().toISOString(),
@@ -238,10 +240,12 @@ export function IOPTab({
       try {
         const res = await iopApi.list({ visit_id: visitId });
         setVisitIOPItems(res.items || []);
-      } catch (e) {}
+      } catch (e) { }
     } catch (error) {
-      toast.error("Failed to save IOP measurements");
-      console.error("Save IOP error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to save IOP measurements",
+        logError: true,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -250,10 +254,10 @@ export function IOPTab({
   // Get latest IOP record
   const latestIOP = iopRecords.length > 0
     ? iopRecords.sort(
-        (a, b) =>
-          new Date(b.recorded_at).getTime() -
-          new Date(a.recorded_at).getTime()
-      )[0]
+      (a, b) =>
+        new Date(b.recorded_at).getTime() -
+        new Date(a.recorded_at).getTime()
+    )[0]
     : null;
 
   return (

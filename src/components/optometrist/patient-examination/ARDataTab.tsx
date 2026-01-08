@@ -11,6 +11,7 @@ import type { ARDataRecord } from "@/types";
 // Import shared components
 import { EyeValueInput, NumericStepper, VASelector } from "../shared";
 import { CopyFromPreviousButton } from "../templates";
+import { handleError } from "@/utils/errorHandler";
 
 interface ARDataTabProps {
   patientId: string;
@@ -197,7 +198,7 @@ export function ARDataTab({
     // At least one eye should have data
     const odHasData = formData.od.sphere !== null && formData.od.sphere !== undefined && formData.od.sphere !== "";
     const osHasData = formData.os.sphere !== null && formData.os.sphere !== undefined && formData.os.sphere !== "";
-    
+
     if (!odHasData && !osHasData) {
       toast.error("Please enter AR data for at least one eye");
       return;
@@ -236,8 +237,10 @@ export function ARDataTab({
       handleReset();
       onRefresh();
     } catch (error) {
-      toast.error("Failed to save AR data");
-      console.error("Save AR data error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to save AR data",
+        logError: true,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -267,18 +270,18 @@ export function ARDataTab({
     );
     latestAR = latestOD || latestOS
       ? {
-          od_sphere: latestOD?.sphere ?? null,
-          od_cylinder: latestOD?.cylinder ?? null,
-          od_axis: latestOD?.axis ?? null,
-          od_visual_acuity: latestOD?.visual_acuity ?? null,
-          os_sphere: latestOS?.sphere ?? null,
-          os_cylinder: latestOS?.cylinder ?? null,
-          os_axis: latestOS?.axis ?? null,
-          os_visual_acuity: latestOS?.visual_acuity ?? null,
-          pupillary_distance: latestOD?.pupillary_distance ?? latestOS?.pupillary_distance ?? null,
-          notes: latestOD?.notes ?? latestOS?.notes ?? null,
-          created_at: latestCreatedAt ? new Date(latestCreatedAt).toISOString() : new Date().toISOString(),
-        }
+        od_sphere: latestOD?.sphere ?? null,
+        od_cylinder: latestOD?.cylinder ?? null,
+        od_axis: latestOD?.axis ?? null,
+        od_visual_acuity: latestOD?.visual_acuity ?? null,
+        os_sphere: latestOS?.sphere ?? null,
+        os_cylinder: latestOS?.cylinder ?? null,
+        os_axis: latestOS?.axis ?? null,
+        os_visual_acuity: latestOS?.visual_acuity ?? null,
+        pupillary_distance: latestOD?.pupillary_distance ?? latestOS?.pupillary_distance ?? null,
+        notes: latestOD?.notes ?? latestOS?.notes ?? null,
+        created_at: latestCreatedAt ? new Date(latestCreatedAt).toISOString() : new Date().toISOString(),
+      }
       : null;
   }
 

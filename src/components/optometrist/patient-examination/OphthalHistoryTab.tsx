@@ -14,6 +14,7 @@ import { EyeSelector } from "../shared";
 import { commonEyeSurgeries } from "../mock/mockTemplates";
 import { InlineSurgeryForm } from "./InlineSurgeryForm";
 import { ConfirmedSurgeriesSummary } from "./ConfirmedSurgeriesSummary";
+import { handleError } from "@/utils/errorHandler";
 
 interface OphthalHistoryTabProps {
   patientId: string;
@@ -143,8 +144,10 @@ export function OphthalHistoryTab({
       resetForm();
       onRefresh();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save surgery";
-      toast.error(errorMessage);
+      handleError(error, {
+        defaultMessage: "Failed to save surgery",
+        logError: true,
+      });
       throw error;
     } finally {
       setIsSubmitting(false);
@@ -169,8 +172,10 @@ export function OphthalHistoryTab({
       toast.success("Surgery deleted");
       onRefresh();
     } catch (error) {
-      toast.error("Failed to delete surgery");
-      console.error("Delete surgery error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to delete surgery",
+        logError: true,
+      });
     }
   };
 
@@ -286,8 +291,8 @@ export function OphthalHistoryTab({
                         isActive
                           ? "bg-sky-600 text-white border-sky-600 shadow-md"
                           : isOtherActive
-                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm"
+                            ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm"
                       )}
                     >
                       {surgery}

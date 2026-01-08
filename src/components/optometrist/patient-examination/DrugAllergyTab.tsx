@@ -10,6 +10,7 @@ import type { DrugAllergyRecord } from "@/types";
 import { SeveritySelector } from "../shared";
 import { commonDrugs, commonReactions } from "../mock/mockTemplates";
 import { ConfirmedDrugAllergiesSummary } from "./ConfirmedDrugAllergiesSummary";
+import { handleError } from "@/utils/errorHandler";
 
 interface DrugAllergyTabProps {
   patientId: string;
@@ -105,8 +106,10 @@ export function DrugAllergyTab({
       resetForm();
       onRefresh();
     } catch (error) {
-      toast.error("Failed to add drug allergy");
-      console.error("Add drug allergy error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to add drug allergy",
+        logError: true,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -121,8 +124,10 @@ export function DrugAllergyTab({
       toast.success("Drug allergy deleted");
       onRefresh();
     } catch (error) {
-      toast.error("Failed to delete drug allergy");
-      console.error("Delete drug allergy error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to delete drug allergy",
+        logError: true,
+      });
     }
   };
 

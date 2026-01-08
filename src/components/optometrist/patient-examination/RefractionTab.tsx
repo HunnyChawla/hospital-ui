@@ -13,6 +13,7 @@ import { EyeValueInput, VASelector } from "../shared";
 import { TemplateSelector, CopyFromPreviousButton } from "../templates";
 import { refractionTemplates, type RefractionTemplate } from "../mock";
 import { refractionApi } from "@/services/refractionApi";
+import { handleError } from "@/utils/errorHandler";
 
 interface RefractionTabProps {
   patientId: string;
@@ -485,10 +486,12 @@ export function RefractionTab({
       try {
         const res = await refractionApi.list({ visit_id: visitId });
         setVisitRefractions(res.items || []);
-      } catch (e) {}
+      } catch (e) { }
     } catch (error) {
-      toast.error("Failed to save refraction data");
-      console.error("Save refraction error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to save refraction data",
+        logError: true,
+      });
     } finally {
       setIsSubmitting(false);
     }

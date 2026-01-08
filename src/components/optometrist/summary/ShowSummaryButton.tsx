@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { VisitSummary } from "./VisitSummary";
 import { prescriptionDataApi } from "@/services/prescriptionDataApi";
-import { toast } from "sonner";
+import { handleError } from "@/utils/errorHandler";
 
 interface ShowSummaryButtonProps {
   patientId: string;
@@ -25,7 +25,9 @@ export function ShowSummaryButton({
 
   const handleShowSummary = async () => {
     if (!patientId) {
-      toast.error("No patient selected");
+      handleError(null, {
+        defaultMessage: "No patient selected",
+      });
       return;
     }
 
@@ -35,12 +37,10 @@ export function ShowSummaryButton({
       setSummaryData(data);
       setShowSummary(true);
     } catch (error: any) {
-      console.error("Failed to fetch prescription data:", error);
-      toast.error(
-        error?.response?.data?.detail || 
-        error?.response?.data?.message || 
-        "Failed to load visit summary"
-      );
+      handleError(error, {
+        defaultMessage: "Failed to load visit summary",
+        logError: true,
+      });
     } finally {
       setIsLoading(false);
     }

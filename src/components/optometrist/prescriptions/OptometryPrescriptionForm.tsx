@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { Eye, Save, FileText, Printer, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { OptometryPrescription, RefractionRecord } from "@/types";
+import { handleError } from "@/utils/errorHandler";
 
 interface OptometryPrescriptionFormProps {
   patientId: string;
@@ -157,8 +158,10 @@ export function OptometryPrescriptionForm({
         await onPrint(prescriptionData);
       }
     } catch (error) {
-      toast.error(`Failed to ${action} prescription`);
-      console.error(`${action} prescription error:`, error);
+      handleError(error, {
+        defaultMessage: `Failed to ${action} prescription`,
+        logError: true,
+      });
     }
   };
 

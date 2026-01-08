@@ -10,6 +10,7 @@ import type { ComplaintRecord } from "@/types";
 import { ConfirmedComplaintsSummary } from "./ConfirmedComplaintsSummary";
 import { InlineComplaintForm } from "./InlineComplaintForm";
 import { commonComplaints } from "../mock/mockTemplates";
+import { handleError } from "@/utils/errorHandler";
 
 interface ComplaintsTabProps {
   patientId: string;
@@ -86,8 +87,10 @@ export function ComplaintsTab({
       setEditingComplaint(null);
       onRefresh();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save complaint";
-      toast.error(errorMessage);
+      handleError(error, {
+        defaultMessage: "Failed to save complaint",
+        logError: true,
+      });
       throw error; // Re-throw so InlineComplaintForm can handle it
     } finally {
       setIsSubmitting(false);
@@ -117,8 +120,10 @@ export function ComplaintsTab({
       toast.success("Complaint deleted");
       onRefresh();
     } catch (error) {
-      toast.error("Failed to delete complaint");
-      console.error("Delete complaint error:", error);
+      handleError(error, {
+        defaultMessage: "Failed to delete complaint",
+        logError: true,
+      });
     }
   };
 
@@ -188,8 +193,8 @@ export function ComplaintsTab({
                         isActive
                           ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
                           : isOtherActive
-                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
+                            ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                       )}
                     >
                       {complaint}
