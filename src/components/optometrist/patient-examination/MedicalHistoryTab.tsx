@@ -633,8 +633,8 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                                   className={clsx(
                                     "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
                                     details.medication === "no"
-                                      ? "bg-slate-50 border-slate-300 text-slate-700 font-medium"
-                                      : "bg-white border-slate-300 hover:bg-slate-50"
+                                      ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
+                                      : "bg-white border-slate-300 hover:bg-amber-50"
                                   )}
                                 >
                                   No

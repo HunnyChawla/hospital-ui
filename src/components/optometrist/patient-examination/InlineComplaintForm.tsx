@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import clsx from "clsx";
 import { X, Check, AlertCircle } from "lucide-react";
 import { EyeSelector, SeveritySelector } from "../shared";
@@ -31,11 +31,49 @@ export function InlineComplaintForm({
   defaultValues,
   isSubmitting = false,
 }: InlineComplaintFormProps) {
-  const [eye, setEye] = useState<EyeType>(defaultValues?.eye || "BE");
-  const [severity, setSeverity] = useState<Severity>(defaultValues?.severity || "moderate");
+  const [eye, setEye] = useState<EyeType | null>(defaultValues?.eye || null);
+  const [severity, setSeverity] = useState<Severity | null>(defaultValues?.severity || null);
   const [duration, setDuration] = useState<string>(defaultValues?.duration || "");
   const [notes, setNotes] = useState<string>(defaultValues?.notes || "");
   const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Check if any modal is open - if so, we might not want to interfere, 
+      // but here this IS the 'active' interaction for the complaint tab.
+      // We should avoid triggering if the user is in an unrelated input, 
+      // but 'Esc' usually means Cancel whatever is active.
+
+      if (e.key === "Escape") {
+        onCancel();
+      } else if (e.key === "Enter" && e.ctrlKey) {
+        // We need to call handleSubmit, but it depends on state (eye, severity, etc.)
+        // Since those are state variables, we should normally include them in dependency array
+        // or use a ref/wrapper. 
+        // However, handleSubmit uses current state closure.
+        // We can just call the button click or duplicate logic 
+        // But better is to just let this effect depend on the values needed or the submit function.
+        // Let's rely on the fact that we can call a function that accesses the latest state reference 
+        // if we use the function reference in the dependency.
+
+        // Actually, the cleanest way without stale closures is to just trigger the form submit button click
+        // or invoke a function that validation checks.
+
+        // Let's use a ref for the submit handler or just include dependencies.
+        // Simplified:
+        const submitBtn = document.getElementById("inline-complaint-submit-btn");
+        if (submitBtn) {
+          submitBtn.click();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [onCancel]);
+
+  // NOTE: The submit logic inside useEffect via clicking button avoids closure staleness 
+  // without adding all form fields to dependency array which would re-bind listener on every keystroke.
 
   const handleSubmit = async () => {
     // Validation
@@ -59,20 +97,18 @@ export function InlineComplaintForm({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onCancel();
-    } else if (e.key === "Enter" && e.ctrlKey) {
-      handleSubmit();
-    }
-  };
-
   return (
     <div
       className="mt-2 rounded-lg border border-sky-200 bg-white shadow-md animate-slideDown"
-      onKeyDown={handleKeyDown}
     >
       <div className="p-4">
+        {/* Complaint Text Header */}
+        <div className="mb-4 border-b border-slate-100 pb-3">
+          <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+            {complaintText}
+          </h4>
+        </div>
         {/* Error Message */}
         {error && (
           <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
@@ -84,7 +120,7 @@ export function InlineComplaintForm({
         {/* Form content - stacked rows */}
         <div className="space-y-3">
           {/* Row 1: Eye and Severity selectors */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Eye Selector */}
             <div>
               <EyeSelector
@@ -149,6 +185,7 @@ export function InlineComplaintForm({
             </button>
             <button
               type="button"
+              id="inline-complaint-submit-btn"
               onClick={handleSubmit}
               disabled={isSubmitting}
               className={clsx(

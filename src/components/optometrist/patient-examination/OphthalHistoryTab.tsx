@@ -164,14 +164,26 @@ export function OphthalHistoryTab({
     setActiveSurgery(surgery.surgery_name);
   };
 
-  const handleDeleteSurgery = async (surgeryId: string) => {
-    if (!confirm("Are you sure you want to delete this surgery record?")) return;
+  const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
 
+  const handleDeleteSurgery = (surgeryId: string) => {
+    setDeleteConfirmationId(surgeryId);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirmationId) {
+      await executeDelete(deleteConfirmationId);
+      setDeleteConfirmationId(null);
+    }
+  };
+
+  const executeDelete = async (surgeryId: string) => {
     try {
       await dispatch(deleteOphthalmicSurgery({ id: surgeryId })).unwrap();
       toast.success("Surgery deleted");
       onRefresh();
     } catch (error) {
+      console.error("Delete failed:", error);
       handleError(error, {
         defaultMessage: "Failed to delete surgery",
         logError: true,
@@ -359,10 +371,11 @@ export function OphthalHistoryTab({
               )}
             </div>
           </div>
+
+
         </div>
       </div>
 
-      {/* Right Column: Confirmed Surgeries Summary (1/3 width on large screens) */}
       <div className="lg:col-span-1">
         <ConfirmedSurgeriesSummary
           surgeries={ophthalmicHistory}
@@ -371,6 +384,41 @@ export function OphthalHistoryTab({
           loading={loading}
         />
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmationId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200 mx-4">
+            <div className="mb-4 flex items-center gap-3 text-amber-600">
+              <div className="rounded-full bg-amber-100 p-2">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">Confirm Deletion</h3>
+            </div>
+
+            <p className="mb-6 text-slate-600">
+              Are you sure you want to delete this surgery record? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmationId(null)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm transition"
+              >
+                Delete Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

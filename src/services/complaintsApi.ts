@@ -6,6 +6,7 @@ import type { ComplaintRecord } from "@/types";
 export interface CreateComplaintRequest {
   patient_id: string;
   visit_id: string;
+  optometrist_id: string;
   complaint: string;
   severity: "mild" | "moderate" | "severe" | null;
   duration: string | null;

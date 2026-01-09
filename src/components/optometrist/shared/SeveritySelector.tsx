@@ -19,20 +19,20 @@ interface SeveritySelectorProps {
 const severityConfig = {
   mild: {
     label: "Mild",
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200",
-    activeColor: "bg-emerald-600 text-white border-emerald-600",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-emerald-200 hover:text-emerald-700 shadow-sm",
+    activeColor: "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20",
     icon: Info,
   },
   moderate: {
     label: "Moderate",
-    color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200",
-    activeColor: "bg-amber-500 text-white border-amber-500",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-amber-200 hover:text-amber-700 shadow-sm",
+    activeColor: "bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20",
     icon: AlertTriangle,
   },
   severe: {
     label: "Severe",
-    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
-    activeColor: "bg-red-600 text-white border-red-600",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-red-200 hover:text-red-700 shadow-sm",
+    activeColor: "bg-red-600 text-white border-red-600 shadow-md shadow-red-500/20",
     icon: AlertCircle,
   },
 };
@@ -70,7 +70,7 @@ export function SeveritySelector({
         </label>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {severities.map((severity) => {
           const config = severityConfig[severity];
           const Icon = config.icon;

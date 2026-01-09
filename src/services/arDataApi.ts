@@ -6,6 +6,7 @@ import type { ARDataRecord } from "@/types";
 export interface CreateARDataRequest {
   patient_id: string;
   visit_id: string;
+  optometrist_id: string;
   od_sphere: number | null;
   od_cylinder: number | null;
   od_axis: number | null;

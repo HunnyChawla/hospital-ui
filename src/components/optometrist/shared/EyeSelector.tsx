@@ -20,26 +20,26 @@ const eyeConfig = {
   RE: {
     label: "RE",
     fullLabel: "Right Eye",
-    color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200",
-    activeColor: "bg-blue-600 text-white border-blue-600",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-blue-200 hover:text-blue-600 shadow-sm",
+    activeColor: "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20",
   },
   LE: {
     label: "LE",
     fullLabel: "Left Eye",
-    color: "bg-green-100 text-green-700 border-green-200 hover:bg-green-200",
-    activeColor: "bg-green-600 text-white border-green-600",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-green-200 hover:text-green-600 shadow-sm",
+    activeColor: "bg-green-600 text-white border-green-600 shadow-md shadow-green-500/20",
   },
   BE: {
     label: "BE",
     fullLabel: "Both Eyes",
-    color: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
-    activeColor: "bg-purple-600 text-white border-purple-600",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-purple-200 hover:text-purple-600 shadow-sm",
+    activeColor: "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20",
   },
   GE: {
     label: "GE",
     fullLabel: "General/Either",
-    color: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
-    activeColor: "bg-slate-600 text-white border-slate-600",
+    color: "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 shadow-sm",
+    activeColor: "bg-slate-700 text-white border-slate-700 shadow-md shadow-slate-500/20",
   },
 };
 
@@ -80,7 +80,7 @@ export function EyeSelector({
         </label>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {eyes.map((eye) => {
           const config = eyeConfig[eye];
           const isSelected = value === eye;

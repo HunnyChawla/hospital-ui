@@ -210,6 +210,7 @@ export function ARDataTab({
       const payload: any = {
         patient_id: patientId,
         visit_id: visitId,
+        optometrist_id: optometristId,
         od_sphere: formData.od.sphere === "" || formData.od.sphere === null ? null : Number(formData.od.sphere),
         od_cylinder: formData.od.cylinder === "" || formData.od.cylinder === null ? null : Number(formData.od.cylinder),
         od_axis: formData.od.axis === "" || formData.od.axis === null ? null : Number(formData.od.axis),

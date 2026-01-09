@@ -72,6 +72,7 @@ export function ComplaintsTab({
           data: {
             patient_id: patientId,
             visit_id: visitId,
+            optometrist_id: optometristId,
             complaint: `${data.text} (${data.eye})`,
             severity: data.severity,
             duration: data.duration || null,
@@ -234,7 +235,7 @@ export function ComplaintsTab({
                       handleAddCustomComplaint();
                     }
                   }}
-                  className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+                  className="flex-1 rounded-lg border border-slate-300 bg-white text-slate-900 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
                   placeholder="Type a custom complaint if not listed above..."
                 />
                 <button

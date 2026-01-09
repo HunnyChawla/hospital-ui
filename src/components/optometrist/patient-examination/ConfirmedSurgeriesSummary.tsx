@@ -30,7 +30,7 @@ export function ConfirmedSurgeriesSummary({
         };
       case "LE":
         return {
-          bg: "bg-gradient-to-r from-green-500/10 to-green-600/10", 
+          bg: "bg-gradient-to-r from-green-500/10 to-green-600/10",
           text: "text-green-700",
           border: "border-green-200/50",
           badge: "bg-green-600 text-white border-green-700 shadow-green-100",
@@ -40,7 +40,7 @@ export function ConfirmedSurgeriesSummary({
       case "BE":
         return {
           bg: "bg-gradient-to-r from-purple-500/10 to-purple-600/10",
-          text: "text-purple-700", 
+          text: "text-purple-700",
           border: "border-purple-200/50",
           badge: "bg-purple-600 text-white border-purple-700 shadow-purple-100",
           icon: "text-purple-600",
@@ -50,7 +50,7 @@ export function ConfirmedSurgeriesSummary({
         return {
           bg: "bg-gradient-to-r from-slate-500/10 to-slate-600/10",
           text: "text-slate-700",
-          border: "border-slate-200/50", 
+          border: "border-slate-200/50",
           badge: "bg-slate-600 text-white border-slate-700 shadow-slate-100",
           icon: "text-slate-600",
           hover: "hover:bg-slate-50 hover:border-slate-300"
@@ -67,7 +67,7 @@ export function ConfirmedSurgeriesSummary({
         };
       case "OS":
         return {
-          bg: "bg-gradient-to-r from-green-500/10 to-green-600/10", 
+          bg: "bg-gradient-to-r from-green-500/10 to-green-600/10",
           text: "text-green-700",
           border: "border-green-200/50",
           badge: "bg-green-600 text-white border-green-700 shadow-green-100",
@@ -77,7 +77,7 @@ export function ConfirmedSurgeriesSummary({
       case "OU":
         return {
           bg: "bg-gradient-to-r from-purple-500/10 to-purple-600/10",
-          text: "text-purple-700", 
+          text: "text-purple-700",
           border: "border-purple-200/50",
           badge: "bg-purple-600 text-white border-purple-700 shadow-purple-100",
           icon: "text-purple-600",
@@ -87,7 +87,7 @@ export function ConfirmedSurgeriesSummary({
         return {
           bg: "bg-gradient-to-r from-slate-500/10 to-slate-600/10",
           text: "text-slate-700",
-          border: "border-slate-200/50", 
+          border: "border-slate-200/50",
           badge: "bg-slate-600 text-white border-slate-700 shadow-slate-100",
           icon: "text-slate-600",
           hover: "hover:bg-slate-50 hover:border-slate-300"
@@ -203,8 +203,8 @@ export function ConfirmedSurgeriesSummary({
         {surgeries.map((surgery) => {
           const eyeColors = getEyeColor(surgery.eye);
           return (
-            <div 
-              key={surgery.id} 
+            <div
+              key={surgery.id}
               className={clsx(
                 "group relative rounded-xl border border-slate-200/60 bg-white shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden backdrop-blur-sm animate-in fade-in slide-in-from-right-2",
                 eyeColors.hover
@@ -213,7 +213,7 @@ export function ConfirmedSurgeriesSummary({
             >
               {/* Eye Color Gradient Strip */}
               <div className={clsx("h-1.5 w-full", eyeColors.bg)} />
-              
+
               <div className="p-4">
                 <div className="space-y-3">
                   {/* Modern Header */}
@@ -239,11 +239,15 @@ export function ConfirmedSurgeriesSummary({
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Modern Action buttons */}
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
                       <button
-                        onClick={() => onEdit(surgery)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(surgery);
+                        }}
                         className={clsx(
                           "rounded-lg p-2 transition-all duration-200 shadow-md hover:shadow-lg backdrop-blur-sm",
                           "bg-white border border-slate-200/60 hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:border-sky-400 hover:text-sky-600",
@@ -254,7 +258,11 @@ export function ConfirmedSurgeriesSummary({
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => onDelete(surgery.id)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(surgery.id);
+                        }}
                         className={clsx(
                           "rounded-lg p-2 transition-all duration-200 shadow-md hover:shadow-lg backdrop-blur-sm",
                           "bg-white border border-slate-200/60 hover:bg-gradient-to-r hover:from-red-50 hover:to-rose-50 hover:border-red-400 hover:text-red-600",
