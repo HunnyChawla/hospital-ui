@@ -287,6 +287,11 @@ export function OptometristPanel() {
         case "complete_investigation":
           await optometristVisitsApi.completeInvestigation(visitId, apiTenantId);
           toast.success("Investigation completed");
+          // Clear patient after satisfying the request
+          selectPatient(null);
+          setSelectedPatientName("");
+          setSelectedPatientUhid("");
+          setCurrentVisitId(undefined);
           break;
 
         // Doctor Actions
@@ -307,6 +312,11 @@ export function OptometristPanel() {
         case "complete_consultation":
           await optometristVisitsApi.completeConsultation(visitId, apiTenantId);
           toast.success("Consultation completed");
+          // Clear patient after satisfying the request
+          selectPatient(null);
+          setSelectedPatientName("");
+          setSelectedPatientUhid("");
+          setCurrentVisitId(undefined);
           break;
 
         default:

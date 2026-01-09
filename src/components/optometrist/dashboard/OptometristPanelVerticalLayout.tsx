@@ -135,7 +135,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
 
         {/* Queue Sidebar - Right side with responsive width */}
         <div
-          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${queueVisible ? "w-72 sm:w-80 lg:w-96" : "w-0 overflow-hidden"
+          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${queueVisible ? "w-64 sm:w-72 lg:w-80" : "w-0 overflow-hidden"
             }`}
         >
           {queueVisible && (
@@ -155,7 +155,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

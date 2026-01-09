@@ -262,6 +262,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  onSelectPatient(patient.patient_id);
                                   onAction(patient.visit_id, "pick");
                                 }}
                                 disabled={updatingVisitId === patient.visit_id}
@@ -283,6 +284,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    onSelectPatient(patient.patient_id);
                                     onAction(patient.visit_id, "start_investigation");
                                   }}
                                   disabled={updatingVisitId === patient.visit_id}
@@ -349,6 +351,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    onSelectPatient(patient.patient_id);
                                     onAction(patient.visit_id, "start_consultation");
                                   }}
                                   disabled={updatingVisitId === patient.visit_id}

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp, Activity, Clock, CheckCircle, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, Activity, Clock, CheckCircle2, Users } from "lucide-react";
 import type { OptometristStats } from "@/types";
 
 interface OptometristCollapsibleStatsSectionProps {
@@ -19,88 +19,137 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
   onToggle,
   compact = false,
 }) => {
+  const statItems = [
+    {
+      label: "Total Patients",
+      value: stats?.todayTotal || 0,
+      icon: Users,
+      color: "sky",
+      bgGradient: "from-sky-50 to-sky-50/50",
+      iconBg: "bg-sky-100",
+      iconColor: "text-sky-600",
+      textColor: "text-sky-700",
+    },
+    {
+      label: "Pending",
+      value: stats?.todayPending || 0,
+      icon: Clock,
+      color: "amber",
+      bgGradient: "from-amber-50 to-amber-50/50",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      textColor: "text-amber-700",
+    },
+    {
+      label: "In Progress",
+      value: stats?.todayInProgress || 0,
+      icon: Activity,
+      color: "blue",
+      bgGradient: "from-blue-50 to-blue-50/50",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      textColor: "text-blue-700",
+    },
+    {
+      label: "Completed",
+      value: stats?.todayCompleted || 0,
+      icon: CheckCircle2,
+      color: "emerald",
+      bgGradient: "from-emerald-50 to-emerald-50/50",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      textColor: "text-emerald-700",
+    },
+  ];
+
   return (
-    <div className="rounded-xl border border-slate-200/60 bg-white/80 backdrop-blur-sm shadow-lg shadow-slate-200/50 transition-all duration-300 hover:shadow-xl">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       {/* Toggle Button */}
       <button
         onClick={onToggle}
-        className="group flex w-full items-center justify-between px-5 py-3.5 text-left transition-all hover:bg-gradient-to-r hover:from-slate-50 hover:to-sky-50/30 rounded-t-xl"
-        title={isVisible ? "Collapse stats" : "Expand stats"}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-slate-50"
       >
-        <div className="flex items-center gap-2.5">
-          <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30 transition-transform group-hover:scale-110">
-            <Activity className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-sm font-bold text-slate-800">Today's Statistics</span>
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-slate-600" />
+          <span className="text-sm font-semibold text-slate-700">Statistics</span>
         </div>
-        {isVisible ? (
-          <ChevronUp className="h-4 w-4 text-slate-500 transition-all duration-200 group-hover:text-sky-600 group-hover:-translate-y-0.5" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-slate-500 transition-all duration-200 group-hover:text-sky-600 group-hover:translate-y-0.5" />
-        )}
+        <ChevronDown
+          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isVisible ? "rotate-180" : ""
+            }`}
+        />
       </button>
 
-      {/* Stats Content */}
-      {isVisible && (
-        <div className="border-t border-slate-200/60 p-4 sm:p-5 bg-gradient-to-br from-slate-50/50 to-transparent">
+      {/* Collapsible Content */}
+      <div
+        className={`stats-collapse-transition overflow-hidden ${isVisible ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
+          }`}
+      >
+        <div className="border-t border-slate-200 px-4 pb-4 pt-3">
           {loading ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="text-center p-4 rounded-xl bg-white/50 backdrop-blur-sm">
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 animate-pulse rounded-xl bg-slate-200" />
-                  <div className="h-4 w-14 sm:w-16 mx-auto mb-1.5 animate-pulse rounded bg-slate-200" />
-                  <div className="h-3 w-16 sm:w-20 mx-auto animate-pulse rounded bg-slate-200" />
-                </div>
+                <div
+                  key={i}
+                  className={compact ? "h-20 animate-pulse rounded-lg bg-slate-100" : "h-28 animate-pulse rounded-xl bg-slate-100"}
+                />
               ))}
             </div>
-          ) : stats ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-              {/* Total Patients */}
-              <div className="group text-center p-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-105 hover:border-slate-300 cursor-default">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-3 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 shadow-md transition-transform group-hover:scale-110">
-                  <Users className="w-5 h-5 sm:w-7 sm:h-7 text-slate-700" />
-                </div>
-                <div className="text-xl sm:text-3xl font-bold text-slate-900 mb-0.5">{stats.todayTotal}</div>
-                <div className="text-xs sm:text-sm font-medium text-slate-600">Total Patients</div>
-              </div>
-
-              {/* Pending */}
-              <div className="group text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-200/60 shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-105 hover:border-amber-300 cursor-default">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-3 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 shadow-md transition-transform group-hover:scale-110">
-                  <Clock className="w-5 h-5 sm:w-7 sm:h-7 text-amber-700" />
-                </div>
-                <div className="text-xl sm:text-3xl font-bold text-amber-700 mb-0.5">{stats.todayPending}</div>
-                <div className="text-xs sm:text-sm font-medium text-amber-700">Pending</div>
-              </div>
-
-              {/* In Progress */}
-              <div className="group text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-sky-50/50 border border-blue-200/60 shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-105 hover:border-blue-300 cursor-default">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-3 rounded-xl bg-gradient-to-br from-blue-100 to-sky-100 shadow-md transition-transform group-hover:scale-110">
-                  <Activity className="w-5 h-5 sm:w-7 sm:h-7 text-blue-700" />
-                </div>
-                <div className="text-xl sm:text-3xl font-bold text-blue-700 mb-0.5">{stats.todayInProgress}</div>
-                <div className="text-xs sm:text-sm font-medium text-blue-700">In Progress</div>
-              </div>
-
-              {/* Completed */}
-              <div className="group text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50/50 border border-emerald-200/60 shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-105 hover:border-emerald-300 cursor-default">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-3 rounded-xl bg-gradient-to-br from-emerald-100 to-green-100 shadow-md transition-transform group-hover:scale-110">
-                  <CheckCircle className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-700" />
-                </div>
-                <div className="text-xl sm:text-3xl font-bold text-emerald-700 mb-0.5">{stats.todayCompleted}</div>
-                <div className="text-xs sm:text-sm font-medium text-emerald-700">Completed</div>
-              </div>
-            </div>
           ) : (
-            <div className="text-center text-slate-500 py-8">
-              <div className="rounded-xl bg-slate-100/50 p-6 inline-block">
-                <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm font-medium">No statistics available</p>
-              </div>
+            <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
+              {statItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.label}
+                    className={`group relative overflow-hidden border border-slate-100 bg-gradient-to-br ${item.bgGradient} shadow-sm transition hover:shadow-md ${compact ? "rounded-lg p-3" : "rounded-xl p-5"
+                      }`}
+                  >
+                    {/* Background glow */}
+                    {!compact && (
+                      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/50 opacity-0 blur-2xl transition group-hover:opacity-100" />
+                    )}
+
+                    <div className="relative flex items-start justify-between">
+                      <div>
+                        <p className={compact ? "text-xs font-medium text-slate-600" : "text-sm font-medium text-slate-600"}>
+                          {item.label}
+                        </p>
+                        <p className={compact ? `mt-1 text-2xl font-bold ${item.textColor}` : `mt-2 text-3xl font-bold ${item.textColor}`}>
+                          {item.value}
+                        </p>
+                      </div>
+
+                      <div
+                        className={`flex items-center justify-center rounded-xl ${item.iconBg} shadow-sm ${compact ? "h-9 w-9" : "h-12 w-12"
+                          }`}
+                      >
+                        <Icon className={compact ? `h-4 w-4 ${item.iconColor}` : `h-6 w-6 ${item.iconColor}`} />
+                      </div>
+                    </div>
+
+                    {/* Progress indicator */}
+                    {!compact && stats && stats.todayTotal > 0 && item.label !== "Total Patients" && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/60">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-r ${item.iconBg}`}
+                            style={{
+                              width: `${(item.value / stats.todayTotal) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-slate-500">
+                          {Math.round((item.value / stats.todayTotal) * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
