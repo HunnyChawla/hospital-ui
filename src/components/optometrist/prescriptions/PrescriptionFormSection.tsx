@@ -17,6 +17,7 @@ import {
     ChevronUp,
     Stethoscope,
     Sparkles,
+    Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -42,6 +43,8 @@ import {
 import { SaveAsTemplateModal } from "./SaveAsTemplateModal";
 import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
 import type { MedicineItem, AdviceItem, OptometryPrescription, OptometryPrescriptionItem } from "@/types";
+import { QuickPresetsSettingsModal } from "./settings/QuickPresetsSettingsModal";
+import { quickPresetsApi } from "@/services/quickPresetsApi";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 interface PrescriptionFormSectionProps {
@@ -144,6 +147,12 @@ export function PrescriptionFormSection({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [medicineSearchQuery, setMedicineSearchQuery] = useState("");
     const [medicineSearchResults, setMedicineSearchResults] = useState<any[]>([]);
+
+    // Dynamic presets state
+    const [diagnosesOptions, setDiagnosesOptions] = useState<typeof QUICK_DIAGNOSES | any[]>(QUICK_DIAGNOSES);
+    const [medicinesOptions, setMedicinesOptions] = useState<typeof QUICK_MEDICINES | any[]>(QUICK_MEDICINES);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+
     const [searchingMedicines, setSearchingMedicines] = useState(false);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
     const [shouldPrint, setShouldPrint] = useState(false);
@@ -280,6 +289,44 @@ export function PrescriptionFormSection({
     const selectedCoatings = watch("coatings");
     const currentDiagnosis = watch("diagnosis");
 
+    // Load dynamic presets
+    useEffect(() => {
+        if (doctorId) {
+            const loadPresets = async () => {
+                try {
+                    const [dx, meds] = await Promise.all([
+                        quickPresetsApi.getDiagnoses(doctorId),
+                        quickPresetsApi.getMedicines(doctorId)
+                    ]);
+
+                    if (dx.length > 0) setDiagnosesOptions(dx);
+                    if (meds.length > 0) {
+                        // Map API medicine format to UI format
+                        const mappedMeds = meds.map(m => ({
+                            id: m.id || Math.random().toString(),
+                            label: m.label,
+                            icon: m.icon,
+                            color: m.color,
+                            medicine: {
+                                medicine_name: m.medicine_name,
+                                generic_name: m.generic_name,
+                                dosage: m.dosage,
+                                frequency: m.frequency,
+                                duration: m.duration,
+                                instructions: m.instructions
+                            }
+                        }));
+                        setMedicinesOptions(mappedMeds);
+                    }
+                } catch (error) {
+                    console.error("Failed to load presets", error);
+                    // Silently fail to defaults
+                }
+            };
+            loadPresets();
+        }
+    }, [doctorId]);
+
     // Apply template when received from sidebar
     useEffect(() => {
         if (templateToApply) {
@@ -366,13 +413,13 @@ export function PrescriptionFormSection({
 
     const handleAddMedicine = (medicine?: any) => {
         appendMedicine({
-            medicine_id: medicine?.id || "",
-            medicine_name: medicine?.name || "",
+            medicine_id: medicine?.id || medicine?.medicine_id || "",
+            medicine_name: medicine?.name || medicine?.medicine_name || "",
             generic_name: medicine?.generic_name || "",
-            dosage: "",
-            frequency: "",
-            duration: "",
-            instructions: "",
+            dosage: medicine?.dosage || medicine?.default_dosage || "",
+            frequency: medicine?.frequency || medicine?.default_frequency || "",
+            duration: medicine?.duration || medicine?.default_duration || "",
+            instructions: medicine?.instructions || medicine?.default_instructions || "",
         });
         setMedicineSearchQuery("");
         setMedicineSearchResults([]);
@@ -642,16 +689,30 @@ export function PrescriptionFormSection({
 
                 {/* Quick Diagnosis Section */}
                 <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <Stethoscope className="h-4 w-4 text-sky-500" />
-                        Quick Diagnosis
-                        <span className="text-xs font-normal text-slate-400">(click to add)</span>
-                    </label>
-                    <DiagnosisChips
-                        options={QUICK_DIAGNOSES}
-                        selected={selectedDiagnoses}
-                        onToggle={handleDiagnosisToggle}
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                            <Stethoscope className="h-4 w-4 text-sky-500" />
+                            Clinical Diagnosis
+                            <button
+                                type="button"
+                                onClick={() => setShowSettingsModal(true)}
+                                className="ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                                title="Configure Presets"
+                            >
+                                <Settings className="h-3.5 w-3.5" />
+                            </button>
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                            Quick select common conditions or type manually
+                        </p>
+                    </div>
+                    <div className="mt-1">
+                        <DiagnosisChips
+                            options={diagnosesOptions}
+                            selected={selectedDiagnoses}
+                            onToggle={handleDiagnosisToggle}
+                        />
+                    </div>
                     {selectedDiagnoses.length > 0 && (
                         <div className="pt-1">
                             <SelectedDiagnoses
@@ -670,14 +731,28 @@ export function PrescriptionFormSection({
 
                 {/* Quick Medicines Section */}
                 <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <Droplets className="h-4 w-4 text-purple-500" />
-                        Quick Medicines
-                        <span className="text-xs font-normal text-slate-400">(click to add)</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            Quick Add
+                            <button
+                                type="button"
+                                onClick={() => setShowSettingsModal(true)}
+                                className="ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                                title="Configure Presets"
+                            >
+                                <Settings className="h-3 w-3" />
+                            </button>
+                        </p>
+                    </div>
                     <MedicineQuickChips
-                        options={QUICK_MEDICINES}
-                        onAdd={handleQuickMedicineAdd}
+                        options={medicinesOptions}
+                        onAdd={(id) => {
+                            const template = medicinesOptions.find((m: any) => m.id === id);
+                            if (template) {
+                                handleAddMedicine(template.medicine);
+                            }
+                        }}
                     />
                 </div>
 
@@ -1072,6 +1147,49 @@ export function PrescriptionFormSection({
                     editTemplate={templateToEdit}
                     onSaved={() => {
                         onEditStarted?.(); // Clear edit signal
+                    }}
+                />
+            )}
+
+            {showSettingsModal && (
+                <QuickPresetsSettingsModal
+                    isOpen={showSettingsModal}
+                    onClose={() => setShowSettingsModal(false)}
+                    doctorId={doctorId}
+                    onSaved={() => {
+                        // Reload presets
+                        // We can just rely on the existing useEffect if we trigger a re-fetch, 
+                        // but useEffect depends on doctorId which doesn't change.
+                        // Better to extract the fetch logic or force reload.
+                        // Let's just re-trigger by calling the API again here for simplicity
+                        const reloadPresets = async () => {
+                            try {
+                                const [dx, meds] = await Promise.all([
+                                    quickPresetsApi.getDiagnoses(doctorId),
+                                    quickPresetsApi.getMedicines(doctorId)
+                                ]);
+
+                                if (dx.length > 0) setDiagnosesOptions(dx);
+                                if (meds.length > 0) {
+                                    const mappedMeds = meds.map(m => ({
+                                        id: m.id || Math.random().toString(),
+                                        label: m.label,
+                                        icon: m.icon,
+                                        color: m.color,
+                                        medicine: {
+                                            medicine_name: m.medicine_name,
+                                            generic_name: m.generic_name,
+                                            dosage: m.dosage,
+                                            frequency: m.frequency,
+                                            duration: m.duration,
+                                            instructions: m.instructions
+                                        }
+                                    }));
+                                    setMedicinesOptions(mappedMeds);
+                                }
+                            } catch (e) { console.error(e) }
+                        };
+                        reloadPresets();
                     }}
                 />
             )}
