@@ -71,6 +71,7 @@ function calculateStats(visits: Visit[]): OptometristStats {
     todayCompleted: visits.filter((v) => v.status === "completed").length,
     todayInProgress: visits.filter((v) => v.status === "in_consultation").length,
     todayPending: visits.filter((v) => v.status === "checked_in").length, // "checked_in" is the waiting status
+    todayNoShow: visits.filter((v) => v.status === "no_show").length,
   };
 }
 

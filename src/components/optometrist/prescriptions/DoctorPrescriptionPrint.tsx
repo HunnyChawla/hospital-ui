@@ -1,23 +1,23 @@
+"use client";
+
 import React, { forwardRef } from "react";
 import type { OptometryPrescription } from "@/types";
+import { PrintHeader } from "@/components/common/PrintHeader";
+import { useTenant } from "@/hooks/useTenant";
 
 interface DoctorPrescriptionPrintProps {
     prescription: OptometryPrescription;
-    hospitalDetails?: {
-        name: string;
-        address: string;
-        phone: string;
-        logo?: string;
-    };
+    showHeader?: boolean; // When false, shows blank space for pre-printed letterhead
 }
 
 export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescriptionPrintProps>(
-    ({ prescription, hospitalDetails }, ref) => {
+    ({ prescription, showHeader = true }, ref) => {
+        const { tenant } = useTenant();
 
         // Helper to format date
         const formatDate = (dateStr?: string | null) => {
             if (!dateStr) return "";
-            return new Date(dateStr).toLocaleDateString("en-US", {
+            return new Date(dateStr).toLocaleDateString("en-IN", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
@@ -25,74 +25,72 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
         };
 
         return (
-            <div ref={ref} className="p-8 bg-white text-black print:p-0 font-serif max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-6">
-                    <div className="flex gap-4 items-center">
-                        {hospitalDetails?.logo && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={hospitalDetails.logo}
-                                alt="Hospital Logo"
-                                className="h-16 w-16 object-contain"
-                            />
-                        )}
-                        <div>
-                            <h1 className="text-2xl font-bold uppercase tracking-wider text-slate-900">
-                                {hospitalDetails?.name || "Eye Hospital"}
-                            </h1>
-                            <p className="text-sm text-slate-600 whitespace-pre-line">
-                                {hospitalDetails?.address}
-                            </p>
-                            <p className="text-sm text-slate-600">
-                                Phone: {hospitalDetails?.phone}
-                            </p>
-                        </div>
+            <div ref={ref} className="p-8 bg-white text-black print:p-4 font-sans max-w-4xl mx-auto">
+                {/* Header Section - Configurable */}
+                {showHeader ? (
+                    <PrintHeader tenant={tenant} documentType="Eye Prescription" />
+                ) : (
+                    /* Blank space for pre-printed letterhead - approximately same height as header */
+                    <div className="h-32 mb-6" />
+                )}
+
+                {/* Prescription Number & Date Row */}
+                <div className="flex justify-between items-center border-b border-slate-300 pb-3 mb-4">
+                    <div>
+                        <p className="text-[10px] text-slate-600">Prescription No.</p>
+                        <p className="text-sm font-bold text-slate-900">{prescription.prescription_number}</p>
                     </div>
                     <div className="text-right">
-                        <h2 className="text-lg font-bold text-slate-800">
-                            {prescription.doctor_name || "Dr. Optometrist"}
-                        </h2>
-                        <p className="text-sm text-slate-600">Ophthalmologist</p>
+                        <p className="text-[10px] text-slate-600">Date</p>
+                        <p className="text-sm font-bold text-slate-900">{formatDate(prescription.created_at)}</p>
                     </div>
                 </div>
 
                 {/* Patient Details */}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-6 text-sm border-b border-slate-300 pb-4">
-                    <div className="flex">
-                        <span className="font-bold w-24">Patient Name:</span>
-                        <span>{prescription.patient_name}</span>
-                    </div>
-                    <div className="flex">
-                        <span className="font-bold w-24">Date:</span>
-                        <span>{formatDate(prescription.created_at)}</span>
-                    </div>
-                    <div className="flex">
-                        <span className="font-bold w-24">ID / UHID:</span>
-                        <span>{prescription.patient_id}</span>
-                    </div>
-                    <div className="flex">
-                        <span className="font-bold w-24">Visit ID:</span>
-                        <span>{prescription.visit_id}</span>
+                <div className="mb-4">
+                    <h2 className="text-sm font-bold text-slate-900 border-b border-slate-300 pb-1 mb-2">
+                        Patient Information
+                    </h2>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
+                        <div>
+                            <span className="text-slate-600">Patient Name: </span>
+                            <span className="font-semibold text-slate-900">{prescription.patient_name}</span>
+                        </div>
+                        <div>
+                            <span className="text-slate-600">UHID: </span>
+                            <span className="font-semibold text-slate-900">{prescription.patient_id?.slice(0, 8) || "-"}</span>
+                        </div>
+                        <div>
+                            <span className="text-slate-600">Visit ID: </span>
+                            <span className="font-semibold text-slate-900">{prescription.visit_id?.slice(0, 8) || "-"}</span>
+                        </div>
+                        {prescription.doctor_name && (
+                            <div>
+                                <span className="text-slate-600">Doctor: </span>
+                                <span className="font-semibold text-slate-900">{prescription.doctor_name}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Diagnosis */}
                 {prescription.diagnosis && (
-                    <div className="mb-6">
-                        <h3 className="font-bold text-base uppercase border-b border-slate-200 mb-2">Diagnosis</h3>
-                        <p className="text-sm whitespace-pre-wrap">{prescription.diagnosis}</p>
+                    <div className="mb-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-1">Diagnosis</h3>
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{prescription.diagnosis}</p>
                     </div>
                 )}
 
                 {/* Optical Prescription Table */}
                 {(prescription.items?.length > 0 || prescription.lens_type || prescription.pupillary_distance) && (
-                    <div className="mb-6">
-                        <h3 className="font-bold text-base uppercase border-b border-slate-200 mb-3">Glasses Prescription</h3>
+                    <div className="mb-4">
+                        <h3 className="text-sm font-bold text-slate-900 border-b border-slate-300 pb-1 mb-2">
+                            Glasses Prescription
+                        </h3>
 
-                        <table className="w-full text-sm border-collapse border border-slate-300 mb-3">
+                        <table className="w-full text-xs border-collapse border border-slate-300 mb-3">
                             <thead>
-                                <tr className="bg-slate-50">
+                                <tr className="bg-slate-100">
                                     <th className="border border-slate-300 p-1.5 text-left w-16">Eye</th>
                                     <th className="border border-slate-300 p-1.5 text-center">Sph</th>
                                     <th className="border border-slate-300 p-1.5 text-center">Cyl</th>
@@ -103,7 +101,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             </thead>
                             <tbody>
                                 {/* Right Eye (OD) */}
-                                {prescription.items.filter(i => i.eye === 'OD').map(item => (
+                                {prescription.items?.filter(i => i.eye === 'OD').map(item => (
                                     <tr key={item.id}>
                                         <td className="border border-slate-300 p-1.5 font-bold">RE (OD)</td>
                                         <td className="border border-slate-300 p-1.5 text-center">{item.sphere || "-"}</td>
@@ -114,7 +112,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                     </tr>
                                 ))}
                                 {/* Left Eye (OS) */}
-                                {prescription.items.filter(i => i.eye === 'OS').map(item => (
+                                {prescription.items?.filter(i => i.eye === 'OS').map(item => (
                                     <tr key={item.id}>
                                         <td className="border border-slate-300 p-1.5 font-bold">LE (OS)</td>
                                         <td className="border border-slate-300 p-1.5 text-center">{item.sphere || "-"}</td>
@@ -127,7 +125,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             </tbody>
                         </table>
 
-                        <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-3 rounded">
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-2 rounded">
                             {prescription.lens_type && (
                                 <div><span className="font-semibold">Lens Type:</span> {prescription.lens_type}</div>
                             )}
@@ -146,50 +144,52 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
 
                 {/* Medicines (Rx) */}
                 {prescription.medicine_items && prescription.medicine_items.length > 0 && (
-                    <div className="mb-6">
-                        <h3 className="font-bold text-base uppercase border-b border-slate-200 mb-3 flex items-center gap-2">
-                            <span className="text-xl">Rx</span> Medicines
+                    <div className="mb-4">
+                        <h3 className="text-sm font-bold text-slate-900 border-b border-slate-300 pb-1 mb-2 flex items-center gap-2">
+                            <span className="text-base">Rx</span> Medicines
                         </h3>
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="border-b border-slate-200 text-left text-slate-500 text-xs uppercase">
-                                    <th className="py-2 w-1/2">Medicine Name</th>
-                                    <th className="py-2">Dosage</th>
-                                    <th className="py-2">Frequency</th>
-                                    <th className="py-2">Duration</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {prescription.medicine_items.map((med, idx) => (
-                                    <tr key={med.id || idx} className="border-b border-slate-100 last:border-0">
-                                        <td className="py-2 pr-2">
-                                            <div className="font-bold">{med.medicine_name}</div>
-                                            {med.instructions && <div className="text-xs text-slate-500 italic">{med.instructions}</div>}
-                                        </td>
-                                        <td className="py-2 text-slate-700">{med.dosage}</td>
-                                        <td className="py-2 text-slate-700">{med.frequency}</td>
-                                        <td className="py-2 text-slate-700">{med.duration}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="space-y-2">
+                            {prescription.medicine_items.map((med, idx) => (
+                                <div key={med.id || idx} className="rounded border border-slate-200 bg-slate-50 p-2">
+                                    <p className="font-semibold text-slate-900 text-sm">
+                                        {idx + 1}. {med.medicine_name}
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-2 text-xs mt-1">
+                                        {med.dosage && (
+                                            <div><span className="text-slate-600">Dosage:</span> {med.dosage}</div>
+                                        )}
+                                        {med.frequency && (
+                                            <div><span className="text-slate-600">Frequency:</span> {med.frequency}</div>
+                                        )}
+                                        {med.duration && (
+                                            <div><span className="text-slate-600">Duration:</span> {med.duration}</div>
+                                        )}
+                                    </div>
+                                    {med.instructions && (
+                                        <p className="text-xs text-slate-500 italic mt-1">{med.instructions}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
                 {/* Advice / Plan */}
-                {(prescription.advice_items?.length! > 0 || prescription.plan_of_action) && (
-                    <div className="mb-6">
-                        <h3 className="font-bold text-base uppercase border-b border-slate-200 mb-3">Advice & Plan</h3>
+                {(prescription.advice_items && prescription.advice_items.length > 0 || prescription.plan_of_action) && (
+                    <div className="mb-4">
+                        <h3 className="text-sm font-bold text-slate-900 border-b border-slate-300 pb-1 mb-2">
+                            Advice & Plan
+                        </h3>
 
                         {prescription.plan_of_action && (
-                            <div className="mb-3">
-                                <p className="text-sm font-semibold mb-1">Plan of Action:</p>
-                                <p className="text-sm whitespace-pre-wrap text-slate-700 bg-slate-50 p-2 rounded">{prescription.plan_of_action}</p>
+                            <div className="mb-2">
+                                <p className="text-xs font-semibold text-slate-700">Plan of Action:</p>
+                                <p className="text-xs text-slate-700 whitespace-pre-wrap bg-slate-50 p-2 rounded">{prescription.plan_of_action}</p>
                             </div>
                         )}
 
                         {prescription.advice_items && prescription.advice_items.length > 0 && (
-                            <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+                            <ul className="list-disc list-inside space-y-1 text-xs text-slate-700">
                                 {prescription.advice_items.map((advice, idx) => (
                                     <li key={advice.id || idx}>
                                         <span className="font-medium">{advice.advice_type}:</span> {advice.description}
@@ -199,8 +199,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         )}
 
                         {prescription.remarks && (
-                            <div className="mt-3 text-sm">
-                                <span className="font-bold">Remarks:</span> {prescription.remarks}
+                            <div className="mt-2 text-xs">
+                                <span className="font-semibold">Remarks:</span> {prescription.remarks}
                             </div>
                         )}
                     </div>
@@ -208,22 +208,23 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
 
                 {/* Follow Up */}
                 {prescription.followup_date && (
-                    <div className="mb-10 text-sm p-3 border border-slate-200 rounded inline-block">
-                        <span className="font-bold">Follow Up:</span> {formatDate(prescription.followup_date)}
+                    <div className="mb-6 text-xs p-2 border border-slate-200 rounded inline-block">
+                        <span className="font-semibold">Follow Up:</span> {formatDate(prescription.followup_date)}
                     </div>
                 )}
 
-                {/* Footer */}
-                <div className="mt-12 flex justify-between items-end">
-                    <div className="text-xs text-slate-400">
-                        <p>Generated on {new Date().toLocaleString()}</p>
-                        <p className="mt-1">Not valid for medico-legal purposes.</p>
-                    </div>
-                    <div className="text-center w-48">
-                        {/* Signature area */}
-                        <div className="h-16 border-b border-slate-400 mb-2"></div>
-                        <p className="font-bold text-sm">{prescription.doctor_name}</p>
-                        <p className="text-xs text-slate-500">Signature</p>
+                {/* Doctor Signature Section */}
+                <div className="mt-8 border-t border-slate-300 pt-4">
+                    <div className="flex justify-between items-end">
+                        <div className="text-[10px] text-slate-500">
+                            <p>Generated on {new Date().toLocaleString("en-IN")}</p>
+                            <p className="mt-1">This is a computer-generated prescription.</p>
+                        </div>
+                        <div className="text-center w-48">
+                            <div className="h-12 border-b border-slate-400 mb-1"></div>
+                            <p className="text-sm font-semibold text-slate-900">{prescription.doctor_name}</p>
+                            <p className="text-[10px] text-slate-600">Doctor's Signature</p>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -116,6 +116,7 @@ export function PrescriptionFormSection({
     const [searchingMedicines, setSearchingMedicines] = useState(false);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
     const [shouldPrint, setShouldPrint] = useState(false);
+    const [printWithHeader, setPrintWithHeader] = useState(true);
     const printRef = React.useRef<HTMLDivElement>(null);
 
     // Setup print handler
@@ -340,13 +341,17 @@ export function PrescriptionFormSection({
 
     return (
         <div className="p-6">
-            <div className="hidden print:block" ref={printRef}>
-                {savedPrescription && (
-                    <DoctorPrescriptionPrint
-                        prescription={savedPrescription}
-                    />
-                )}
-            </div>
+            {/* Hidden printable prescription - follows pattern from LabTechnicianPanel */}
+            {savedPrescription && (
+                <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+                    <div ref={printRef} className="print-content">
+                        <DoctorPrescriptionPrint
+                            prescription={savedPrescription}
+                            showHeader={printWithHeader}
+                        />
+                    </div>
+                </div>
+            )}
 
             <form className="space-y-6">
                 {/* Rx Header */}
@@ -652,56 +657,77 @@ export function PrescriptionFormSection({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition"
-                    >
-                        Cancel
-                    </button>
+                <div className="flex flex-col gap-3 pt-4 border-t border-slate-200">
+                    {/* Print Header Toggle */}
+                    <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={printWithHeader}
+                                onChange={(e) => setPrintWithHeader(e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                            />
+                            <span className="text-sm text-slate-600">
+                                Print with hospital header
+                            </span>
+                        </label>
+                        <span className="text-xs text-slate-400">
+                            {printWithHeader ? "Header will be printed" : "Blank space for pre-printed letterhead"}
+                        </span>
+                    </div>
 
-                    {savedPrescription && (
+                    {/* Buttons Row */}
+                    <div className="flex items-center justify-end gap-3">
                         <button
                             type="button"
-                            onClick={() => {
-                                setShouldPrint(true);
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-800 font-medium rounded-lg shadow-sm hover:bg-slate-200 transition border border-slate-200"
+                            onClick={onClose}
+                            className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition"
+                        >
+                            Cancel
+                        </button>
+
+                        {savedPrescription && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShouldPrint(true);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-800 font-medium rounded-lg shadow-sm hover:bg-slate-200 transition border border-slate-200"
+                            >
+                                <Printer className="h-4 w-4" />
+                                Print
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={handleSubmit(onSaveAndPrint)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 disabled:opacity-50 transition"
                         >
                             <Printer className="h-4 w-4" />
-                            Print
+                            Save & Print
                         </button>
-                    )}
 
-                    <button
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={handleSubmit(onSaveAndPrint)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 disabled:opacity-50 transition"
-                    >
-                        <Printer className="h-4 w-4" />
-                        Save & Print
-                    </button>
-
-                    <button
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={handleSubmit(onSave)}
-                        className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-medium rounded-lg shadow-md hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition"
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Saving...
-                            </>
-                        ) : (
-                            <>
-                                <CheckCircle className="h-4 w-4" />
-                                Create Prescription
-                            </>
-                        )}
-                    </button>
+                        <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={handleSubmit(onSave)}
+                            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-medium rounded-lg shadow-md hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle className="h-4 w-4" />
+                                    Create Prescription
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

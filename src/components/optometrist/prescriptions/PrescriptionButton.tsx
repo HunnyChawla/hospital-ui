@@ -118,18 +118,19 @@ export function PrescriptionButton({
         onPrint={handlePrintPrescription}
       />
 
-      {/* Hidden Print Component */}
+      {/* Hidden printable prescription */}
       {currentPrescription && (
-        <div className="hidden">
-          <OptometryPrescriptionPrint
-            ref={printRef}
-            prescription={currentPrescription}
-            patientName={patientName}
-            patientAge={patientAge}
-            patientGender={patientGender}
-            patientUhid={patientUhid}
-            optometristName={optometristName}
-          />
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printRef} className="print-content">
+            <OptometryPrescriptionPrint
+              prescription={currentPrescription}
+              patientName={patientName}
+              patientAge={patientAge}
+              patientGender={patientGender}
+              patientUhid={patientUhid}
+              optometristName={optometristName}
+            />
+          </div>
         </div>
       )}
     </>
