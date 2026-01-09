@@ -119,6 +119,9 @@ const optometristPanelSlice = createSlice({
           todayCompleted: slots.filter(
             (s) => s.status === "completed"
           ).length,
+          todayNoShow: slots.filter(
+            (s) => s.status === "no_show" || s.status === "cancelled"
+          ).length,
         };
         state.error = null;
       })

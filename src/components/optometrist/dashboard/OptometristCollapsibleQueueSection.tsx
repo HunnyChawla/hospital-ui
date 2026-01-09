@@ -180,7 +180,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
           </div>
 
           {/* Patient List */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
             {loading ? (
               <div className="p-6 text-center text-slate-500">
                 <div className="h-8 w-8 mx-auto mb-3 animate-spin rounded-full border-3 border-slate-200 border-t-sky-600" />
@@ -238,8 +238,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             Token: {patient.token_number}
                           </span>
                         </div>
-                        <div className={`text-xs mt-1.5 flex items-center gap-1 ${isEmergency ? "text-red-600" : "text-slate-500"}`}>
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className={`text-xs mt-1.5 flex items-center gap-1 whitespace-nowrap ${isEmergency ? "text-red-600" : "text-slate-500"}`}>
+                          <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           {formatDateTime(patient.checked_in_at || patient.time)}
@@ -302,6 +302,23 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    onAction(patient.visit_id, "mark_no_show");
+                                  }}
+                                  disabled={updatingVisitId === patient.visit_id}
+                                  className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-all hover:from-rose-600 hover:to-red-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                >
+                                  {updatingVisitId === patient.visit_id ? (
+                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                  ) : (
+                                    <>
+                                      <AlertTriangle className="h-3.5 w-3.5" />
+                                      No Show
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     onAction(patient.visit_id, "unpick");
                                   }}
                                   disabled={updatingVisitId === patient.visit_id}
@@ -338,6 +355,27 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 )}
                               </button>
                             )}
+
+                            {patient.status === "no_show" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectPatient(patient.patient_id);
+                                  onAction(patient.visit_id, "pick");
+                                }}
+                                disabled={updatingVisitId === patient.visit_id}
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                              >
+                                {updatingVisitId === patient.visit_id ? (
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                ) : (
+                                  <>
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    Recall Patient
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </>
                         )}
 
@@ -362,7 +400,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                   ) : (
                                     <>
                                       <Play className="h-3.5 w-3.5" />
-                                      Start Consult
+                                      Start Consultation
                                     </>
                                   )}
                                 </button>
@@ -411,6 +449,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  onSelectPatient(patient.patient_id);
                                   onAction(patient.visit_id, "start_consultation");
                                 }}
                                 disabled={updatingVisitId === patient.visit_id}

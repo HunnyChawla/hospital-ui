@@ -197,6 +197,7 @@ export function useOptometristLiveQueue({
       "dilation_in_progress",
       "dilation_completed",
       "consultation_completed",
+      "no_show",
     ];
     return [...pendingStatuses, ...completedStatuses].join(",");
   }, []);

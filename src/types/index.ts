@@ -244,6 +244,7 @@ export type OptometristStats = {
   todayPending: number;
   todayInProgress: number;
   todayCompleted: number;
+  todayNoShow: number;
 };
 
 // Refraction Records

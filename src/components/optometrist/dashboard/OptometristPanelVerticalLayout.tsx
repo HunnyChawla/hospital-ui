@@ -52,6 +52,8 @@ interface OptometristPanelVerticalLayoutProps {
 
   // Doctor mode
   isDoctor?: boolean;
+  optometristId?: string;
+  doctorId?: string;
 }
 
 const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVerticalLayoutProps> = ({
@@ -77,6 +79,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   updatingVisitId,
   children,
   isDoctor,
+  optometristId,
+  doctorId,
 }) => {
   return (
     <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
@@ -102,6 +106,9 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             onTabChange={onTabChange}
             onClose={onClearPatient}
             showPatientCard={!!selectedPatientId}
+            isDoctor={isDoctor}
+            optometristId={optometristId}
+            doctorId={doctorId}
           >
             {children}
           </OptometristActivePatientCard>

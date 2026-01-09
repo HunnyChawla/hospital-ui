@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp, Activity, Clock, CheckCircle2, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, Activity, Clock, CheckCircle2, Users, AlertTriangle } from "lucide-react";
 import type { OptometristStats } from "@/types";
 
 interface OptometristCollapsibleStatsSectionProps {
@@ -62,6 +62,19 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
     },
   ];
 
+  if (stats?.todayNoShow && stats.todayNoShow > 0) {
+    statItems.push({
+      label: "No Show",
+      value: stats.todayNoShow,
+      icon: AlertTriangle,
+      color: "rose",
+      bgGradient: "from-rose-50 to-rose-50/50",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-600",
+      textColor: "text-rose-700",
+    });
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       {/* Toggle Button */}
@@ -95,7 +108,7 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
               ))}
             </div>
           ) : (
-            <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
+            <div className={compact ? "grid grid-cols-1 gap-2" : `grid grid-cols-1 gap-4 sm:grid-cols-2 ${statItems.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
               {statItems.map((item) => {
                 const Icon = item.icon;
                 return (

@@ -155,6 +155,7 @@ export function OptometristPanel() {
       todayPending: 0,
       todayInProgress: 0,
       todayCompleted: 0,
+      todayNoShow: 0,
     };
 
     queuePatients.forEach((patient) => {
@@ -175,8 +176,11 @@ export function OptometristPanel() {
 
           case "consultation_completed":
           case "completed":
-          case "no_show":
             stats.todayCompleted++;
+            break;
+
+          case "no_show":
+            stats.todayNoShow++;
             break;
 
           default:
@@ -219,7 +223,7 @@ export function OptometristPanel() {
             stats.todayCompleted++;
             break;
           case "no_show":
-            stats.todayCompleted++;
+            stats.todayNoShow++;
             break;
           default:
             stats.todayPending++;
@@ -307,6 +311,8 @@ export function OptometristPanel() {
           if (!docId) throw new Error("Doctor ID not resolved");
           await optometristVisitsApi.startConsultation(visitId, docId, apiTenantId);
           toast.success("Consultation started");
+          // Switch to pending view when recalling a patient (e.g. from no_show)
+          setQueueFilter("pending");
           break;
 
         case "complete_consultation":
@@ -414,7 +420,7 @@ export function OptometristPanel() {
               <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
                 {optometristUser?.full_name || "Optometrist"}
               </p>
-              {selectedDoctor && (
+              {selectedDoctor && !isDoctor && (
                 <div className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
                   <span>Assigned to:</span>
                   {doctorMappings.length > 1 ? (
@@ -439,23 +445,7 @@ export function OptometristPanel() {
               )}
             </div>
 
-            {/* Create Prescription Button for Doctors */}
-            {isDoctor && selectedPatientId && (
-              <div className="hidden sm:block animate-in fade-in zoom-in duration-300">
-                <CreatePrescriptionButton
-                  patientId={selectedPatientId}
-                  patientName={selectedPatientName}
-                  patientUhid={selectedPatientUhid}
-                  visitId={currentVisitId || ""}
-                  optometristId={optometristIdForVisit || ""} // Pass resolved optometrist ID
-                  doctorId={selectedDoctor?.doctor_id || ""}
-                  doctorName={optometristUser?.full_name}
-                  onPrescriptionCreated={() => {
-                    // Update any necessary state
-                  }}
-                />
-              </div>
-            )}
+
 
             {/* Live Queue Connection Status */}
             <div className="flex items-center gap-2">
@@ -535,6 +525,8 @@ export function OptometristPanel() {
             onAction={handleOptometristAction}
             updatingVisitId={updatingVisitId}
             isDoctor={isDoctor}
+            optometristId={isDoctor ? optometristIdForVisit : userId || ""}
+            doctorId={isDoctor ? userId || "" : selectedDoctor?.doctor_id || ""}
           >
             {/* Tab content will be rendered inside layout */}
             {selectedPatientId && (

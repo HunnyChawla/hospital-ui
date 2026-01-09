@@ -2,9 +2,10 @@
 
 import React from "react";
 import { Eye, X } from "lucide-react";
+import { CreatePrescriptionButton } from "../prescriptions/CreatePrescriptionButton";
 import { ShowSummaryButton } from "../summary/ShowSummaryButton";
 
-type ActiveTab = 
+type ActiveTab =
   | "complaints"
   | "medical_history"
   | "ophthalmic_history"
@@ -25,6 +26,9 @@ interface OptometristActivePatientCardProps {
   onClose: () => void;
   showPatientCard: boolean;
   children: React.ReactNode;
+  isDoctor?: boolean;
+  optometristId?: string;
+  doctorId?: string;
 }
 
 export const OptometristActivePatientCard: React.FC<OptometristActivePatientCardProps> = ({
@@ -35,6 +39,9 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   onClose,
   showPatientCard,
   children,
+  isDoctor = false,
+  optometristId,
+  doctorId,
 }) => {
   if (!showPatientCard) {
     return (
@@ -71,12 +78,23 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
           </div>
 
           <div className="flex flex-shrink-0 items-center gap-2">
-            <ShowSummaryButton
-              patientId={patientId || ""}
-              patientName={patientName || ""}
-              patientUhid={patientUhid || ""}
-              visitId={visitId}
-            />
+            {isDoctor ? (
+              <CreatePrescriptionButton
+                patientId={patientId || ""}
+                patientName={patientName || ""}
+                patientUhid={patientUhid || ""}
+                visitId={visitId || ""}
+                optometristId={optometristId || ""}
+                doctorId={doctorId || ""}
+              />
+            ) : (
+              <ShowSummaryButton
+                patientId={patientId || ""}
+                patientName={patientName || ""}
+                patientUhid={patientUhid || ""}
+                visitId={visitId}
+              />
+            )}
             <button
               onClick={onClose}
               className="group rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-all hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 hover:scale-105 active:scale-95"
