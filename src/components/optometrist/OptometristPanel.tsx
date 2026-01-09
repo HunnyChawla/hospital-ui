@@ -526,7 +526,7 @@ export function OptometristPanel() {
             updatingVisitId={updatingVisitId}
             isDoctor={isDoctor}
             optometristId={isDoctor ? optometristIdForVisit : userId || ""}
-            doctorId={isDoctor ? userId || "" : selectedDoctor?.doctor_id || ""}
+            doctorId={selectedDoctor?.doctor_id || ""}
           >
             {/* Tab content will be rendered inside layout */}
             {selectedPatientId && (

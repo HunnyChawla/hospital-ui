@@ -8,6 +8,7 @@ import { HistoryTemplateSection } from "./HistoryTemplateSection";
 import { ExaminationSummarySection } from "./ExaminationSummarySection";
 import { prescriptionDataApi, PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { handleError } from "@/utils/errorHandler";
+import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
 
 interface DoctorPrescriptionModalProps {
     isOpen: boolean;
@@ -38,6 +39,10 @@ export function DoctorPrescriptionModal({
     const [summaryData, setSummaryData] = useState<PrescriptionDataResponse | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(true);
 
+    // Template selection state - lifted up from form to allow sidebar to apply
+    const [selectedTemplate, setSelectedTemplate] = useState<PrescriptionTemplate | null>(null);
+    const [templateToEdit, setTemplateToEdit] = useState<PrescriptionTemplate | null>(null);
+
     useEffect(() => {
         setMounted(true);
         document.body.style.overflow = "hidden";
@@ -67,6 +72,28 @@ export function DoctorPrescriptionModal({
         }
     }, [isOpen, patientId, visitId]);
 
+    // Handle template selection from sidebar
+    const handleSelectTemplate = (template: PrescriptionTemplate) => {
+        setSelectedTemplate(template);
+    };
+
+    // Clear template after it's been applied
+    const handleTemplateApplied = () => {
+        setSelectedTemplate(null);
+    };
+
+    // Handle initial edit request
+    const handleEditTemplate = (template: PrescriptionTemplate) => {
+        // First apply the template so the user sees the content
+        setSelectedTemplate(template);
+        // Then signal that we want to edit this template
+        setTemplateToEdit(template);
+    };
+
+    const handleEditStarted = () => {
+        setTemplateToEdit(null); // Clear after handoff
+    };
+
     if (!mounted || !isOpen) return null;
 
     const modalContent = (
@@ -92,11 +119,14 @@ export function DoctorPrescriptionModal({
 
             {/* 3-Panel Content */}
             <div className="flex flex-1 min-h-0 overflow-hidden">
-                {/* Section 1: History & Templates (10% width) */}
-                <div className="w-[10%] min-w-[120px] max-w-[200px] border-r border-slate-200 bg-white overflow-y-auto">
+                {/* Section 1: History & Templates (15% width) */}
+                <div className="w-[15%] min-w-[140px] max-w-[220px] border-r border-slate-200 bg-white overflow-y-auto">
                     <HistoryTemplateSection
                         patientId={patientId}
                         visitId={visitId}
+                        doctorId={doctorId}
+                        onSelectTemplate={handleSelectTemplate}
+                        onEditTemplate={handleEditTemplate}
                     />
                 </div>
 
@@ -110,11 +140,15 @@ export function DoctorPrescriptionModal({
                         onClose={onClose}
                         onPrescriptionCreated={onPrescriptionCreated}
                         examinationData={summaryData}
+                        templateToApply={selectedTemplate}
+                        onTemplateApplied={handleTemplateApplied}
+                        templateToEdit={templateToEdit}
+                        onEditStarted={handleEditStarted}
                     />
                 </div>
 
-                {/* Section 3: Examination Summary (45% width) */}
-                <div className="flex-1 w-[45%] overflow-y-auto bg-slate-50">
+                {/* Section 3: Examination Summary (40% width) */}
+                <div className="flex-1 w-[40%] overflow-y-auto bg-slate-50">
                     {loadingSummary ? (
                         <div className="flex items-center justify-center h-full">
                             <div className="text-center">

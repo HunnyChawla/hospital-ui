@@ -10,7 +10,6 @@ import {
   Glasses,
   Activity,
   History,
-  FileText
 } from "lucide-react";
 import { ComplaintsTab } from "./ComplaintsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
@@ -20,7 +19,6 @@ import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
 import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
-import { DiagnosisNotesTab } from "./DiagnosisNotesTab";
 import type {
   ComplaintRecord,
   OphthalmicSurgeryRecord,
@@ -40,8 +38,7 @@ type ActiveTab =
   | "ar_data"
   | "refraction"
   | "iop"
-  | "previous_history"
-  | "diagnosis";
+  | "previous_history";
 
 interface ExaminationTabsProps {
   patientId: string;
@@ -90,7 +87,6 @@ const tabs = [
   { id: "refraction", label: "Refraction", icon: Glasses },
   { id: "iop", label: "IOP", icon: Activity },
   { id: "previous_history", label: "Previous History", icon: History },
-  { id: "diagnosis", label: "Diagnosis & Notes", icon: FileText },
 ] as const;
 
 export function ExaminationTabs({
@@ -234,10 +230,6 @@ export function ExaminationTabs({
             loading={!!historyLoading}
             currentVisitComplaints={complaints}
           />
-        )}
-
-        {activeTab === "diagnosis" && (
-          <DiagnosisNotesTab patientId={patientId} visitId={visitId} />
         )}
       </div>
     </div>

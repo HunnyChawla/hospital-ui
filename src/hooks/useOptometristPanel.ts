@@ -21,8 +21,7 @@ type ActiveTab =
   | "ar_data"
   | "refraction"
   | "iop"
-  | "previous_history"
-  | "diagnosis";
+  | "previous_history";
 
 export const useOptometristPanel = () => {
   const dispatch = useAppDispatch();

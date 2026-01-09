@@ -13,8 +13,7 @@ type ActiveTab =
   | "ar_data"
   | "refraction"
   | "iop"
-  | "previous_history"
-  | "diagnosis";
+  | "previous_history";
 
 interface OptometristActivePatientCardProps {
   patientId: string | null;
