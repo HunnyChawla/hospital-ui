@@ -21,7 +21,8 @@ import { medicinesApi } from "@/services/medicinesApi";
 import { handleError } from "@/utils/errorHandler";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
-import type { MedicineItem, AdviceItem, OptometryPrescription } from "@/types";
+import type { MedicineItem, AdviceItem, OptometryPrescription, OptometryPrescriptionItem } from "@/types";
+import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -31,6 +32,7 @@ interface PrescriptionFormSectionProps {
     doctorName?: string;
     onClose: () => void;
     onPrescriptionCreated?: () => void;
+    examinationData?: PrescriptionDataResponse | null;
 }
 
 interface FormData {
@@ -109,6 +111,7 @@ export function PrescriptionFormSection({
     doctorName,
     onClose,
     onPrescriptionCreated,
+    examinationData,
 }: PrescriptionFormSectionProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [medicineSearchQuery, setMedicineSearchQuery] = useState("");
@@ -123,10 +126,7 @@ export function PrescriptionFormSection({
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Prescription-${patientId}-${visitId}`,
-        onAfterPrint: () => {
-            onPrescriptionCreated?.();
-            onClose();
-        },
+        // Note: Don't auto-close modal after print - user may want to print again or cancel
     });
 
     // Effect to trigger print after save
@@ -265,6 +265,37 @@ export function PrescriptionFormSection({
         }
     };
 
+    // Helper to build items from examination data
+    const getRefractionItems = (): OptometryPrescriptionItem[] => {
+        const items: OptometryPrescriptionItem[] = [];
+        if (examinationData?.refraction) {
+            const refr = examinationData.refraction;
+            // OD (Right Eye)
+            items.push({
+                eye: "OD",
+                sphere: parseFloat(refr.od_sphere) || 0,
+                cylinder: parseFloat(refr.od_cylinder) || null,
+                axis: refr.od_axis || null,
+                add_power: parseFloat(refr.od_add_power) || null,
+                visual_acuity: refr.od_visual_acuity_corrected || null,
+                prism: null,
+                lens_type: null, // Will be overridden by form data
+            });
+            // OS (Left Eye)
+            items.push({
+                eye: "OS",
+                sphere: parseFloat(refr.os_sphere) || 0,
+                cylinder: parseFloat(refr.os_cylinder) || null,
+                axis: refr.os_axis || null,
+                add_power: parseFloat(refr.os_add_power) || null,
+                visual_acuity: refr.os_visual_acuity_corrected || null,
+                prism: null,
+                lens_type: null, // Will be overridden by form data
+            });
+        }
+        return items;
+    };
+
     const processSubmit = async (data: FormData, print: boolean) => {
         setIsSubmitting(true);
         if (print) setShouldPrint(true);
@@ -272,11 +303,22 @@ export function PrescriptionFormSection({
         try {
             let result;
 
+            // Build items from refraction data
+            const items = getRefractionItems();
+
+            // Add lens_type from form data if available
+            if (data.lens_type && items.length > 0) {
+                items.forEach(item => item.lens_type = data.lens_type);
+            }
+
+            console.log("Submitting prescription with items:", items);
+
             if (savedPrescription?.id) {
                 // Update existing prescription
                 result = await optometryPrescriptionApi.update(savedPrescription.id, {
                     diagnosis: data.diagnosis || null,
                     notes: null,
+                    items: items.length > 0 ? items : undefined,
                     followup_date: data.followup_date || null,
                     plan_of_action: data.plan_of_action || null,
                     remarks: data.remarks || null,
@@ -287,6 +329,7 @@ export function PrescriptionFormSection({
                     medicine_items: data.medicine_items.length > 0 ? data.medicine_items : undefined,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
                 });
+                console.log("Updated prescription result:", result);
                 toast.success("Prescription updated successfully");
             } else {
                 // Create new prescription
@@ -297,6 +340,7 @@ export function PrescriptionFormSection({
                     doctor_id: doctorId,
                     diagnosis: data.diagnosis || null,
                     notes: null,
+                    items: items.length > 0 ? items : undefined,
                     followup_date: data.followup_date || null,
                     plan_of_action: data.plan_of_action || null,
                     remarks: data.remarks || null,
@@ -307,6 +351,7 @@ export function PrescriptionFormSection({
                     medicine_items: data.medicine_items.length > 0 ? data.medicine_items : undefined,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
                 });
+                console.log("Created prescription result:", result);
                 toast.success("Prescription created successfully");
             }
 
@@ -315,8 +360,10 @@ export function PrescriptionFormSection({
             if (!print) {
                 onPrescriptionCreated?.();
                 onClose();
+            } else {
+                setIsSubmitting(false);
             }
-            // If print is true, the effect will trigger handlePrint, which closes onAfterPrint
+            // If print is true, the effect will trigger handlePrint
         } catch (error) {
             setShouldPrint(false);
             handleError(error, {
@@ -341,17 +388,24 @@ export function PrescriptionFormSection({
 
     return (
         <div className="p-6">
-            {/* Hidden printable prescription - follows pattern from LabTechnicianPanel */}
-            {savedPrescription && (
-                <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-                    <div ref={printRef} className="print-content">
+            {/* Hidden printable prescription */}
+            {/* Hidden printable prescription */}
+            <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+                <div ref={printRef} className="print-content">
+                    {savedPrescription && (
                         <DoctorPrescriptionPrint
-                            prescription={savedPrescription}
+                            prescription={{
+                                ...savedPrescription,
+                                // Ensure items are present by falling back to calculated items
+                                items: (savedPrescription.items && savedPrescription.items.length > 0)
+                                    ? savedPrescription.items
+                                    : getRefractionItems()
+                            }}
                             showHeader={printWithHeader}
                         />
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
 
             <form className="space-y-6">
                 {/* Rx Header */}

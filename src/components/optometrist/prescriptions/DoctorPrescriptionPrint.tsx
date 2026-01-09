@@ -100,28 +100,40 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* Right Eye (OD) */}
-                                {prescription.items?.filter(i => i.eye === 'OD').map(item => (
-                                    <tr key={item.id}>
-                                        <td className="border border-slate-300 p-1.5 font-bold">RE (OD)</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.sphere || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.cylinder || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.axis || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.add_power || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.visual_acuity || "-"}</td>
-                                    </tr>
-                                ))}
-                                {/* Left Eye (OS) */}
-                                {prescription.items?.filter(i => i.eye === 'OS').map(item => (
-                                    <tr key={item.id}>
-                                        <td className="border border-slate-300 p-1.5 font-bold">LE (OS)</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.sphere || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.cylinder || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.axis || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.add_power || "-"}</td>
-                                        <td className="border border-slate-300 p-1.5 text-center">{item.visual_acuity || "-"}</td>
-                                    </tr>
-                                ))}
+                                {/* Helper to format value, preserving 0 */}
+                                {(() => {
+                                    const formatVal = (val: string | number | null | undefined) => {
+                                        if (val === 0 || val === "0") return "0";
+                                        return val || "-";
+                                    };
+
+                                    return (
+                                        <>
+                                            {/* Right Eye (OD) */}
+                                            {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
+                                                <tr key={item.id || `od-${idx}`}>
+                                                    <td className="border border-slate-300 p-1.5 font-bold">RE (OD)</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.sphere)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.cylinder)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.axis)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.add_power)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.visual_acuity)}</td>
+                                                </tr>
+                                            ))}
+                                            {/* Left Eye (OS) */}
+                                            {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
+                                                <tr key={item.id || `os-${idx}`}>
+                                                    <td className="border border-slate-300 p-1.5 font-bold">LE (OS)</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.sphere)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.cylinder)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.axis)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.add_power)}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-center">{formatVal(item.visual_acuity)}</td>
+                                                </tr>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
                             </tbody>
                         </table>
 

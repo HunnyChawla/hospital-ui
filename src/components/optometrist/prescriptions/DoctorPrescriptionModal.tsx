@@ -100,7 +100,6 @@ export function DoctorPrescriptionModal({
                     />
                 </div>
 
-                {/* Section 2: Prescription Form (45% width) */}
                 <div className="flex-1 w-[45%] border-r border-slate-200 overflow-y-auto bg-white">
                     <PrescriptionFormSection
                         patientId={patientId}
@@ -110,6 +109,7 @@ export function DoctorPrescriptionModal({
                         doctorName={doctorName}
                         onClose={onClose}
                         onPrescriptionCreated={onPrescriptionCreated}
+                        examinationData={summaryData}
                     />
                 </div>
 
