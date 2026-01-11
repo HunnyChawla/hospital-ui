@@ -19,7 +19,7 @@ export function OpdFormModal({ isOpen, onClose, defaultPatientId }: OpdFormModal
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title="Create OPD Visit (Walk-in)"
+        title="Create OPD Visit"
         size="lg"
       >
         <OpdForm

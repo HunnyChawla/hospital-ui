@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
-import { Printer, Plus, Search, User, Stethoscope, CreditCard, AlertCircle, FileText, DollarSign } from "lucide-react";
+import { Printer, Plus, Search, User, Stethoscope, CreditCard, AlertCircle, FileText, Smartphone, Banknote, IndianRupee } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { Patient } from "@/types";
@@ -43,7 +43,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
   const [opdNumber, setOpdNumber] = useState("");
   const [tokenNumber, setTokenNumber] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"" | "cash" | "upi" | "card" | "cheque" >("");
+  const [paymentMethod, setPaymentMethod] = useState<"" | "cash" | "upi" | "card" | "cheque">("");
   const [paymentReference, setPaymentReference] = useState("");
   const [createdVisitId, setCreatedVisitId] = useState<string | null>(null);
   const [visitData, setVisitData] = useState<Visit | null>(null);
@@ -162,7 +162,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
       setIsCalculatingFee(true);
       try {
         const calculation = await doctorsApi.calculateConsultationFee(doctorId, patientId, isEmergency, undefined, abortController.signal);
-        
+
         // Only update state if request wasn't aborted and this is still the current request
         if (!abortController.signal.aborted && abortControllerRef.current === abortController) {
           setFeeCalculation(calculation);
@@ -175,7 +175,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           return;
         }
         console.error("Failed to calculate consultation fee:", error);
-        
+
         // Only update state if request wasn't aborted and this is still the current request
         if (!abortController.signal.aborted && abortControllerRef.current === abortController) {
           setConsultationFee(null);
@@ -250,7 +250,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   }, [patients]);
 
   // Find selected patient from stored data, Redux list, or dropdown results
-  const selectedPatient = patientId 
+  const selectedPatient = patientId
     ? selectedPatientData && selectedPatientData.id === patientId
       ? selectedPatientData
       : patients.find((p) => p.id === patientId) || dropdownResults.find((p) => p.id === patientId)
@@ -293,7 +293,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedPatient) {
       toast.error("Please select a patient");
       return;
@@ -398,17 +398,18 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {/* Patient Selection Section */}
       {!hidePatientSearch && (
-        <div ref={searchRef} className="space-y-2">
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1 text-xs">
+        <div ref={searchRef} className="space-y-1.5">
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+              <User className="h-4 w-4 text-sky-600" />
               Patient <span className="text-rose-500">*</span>
             </span>
             <div className="relative">
               <div className="relative flex items-center">
-                <Search className="absolute left-3 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3.5 h-4.5 w-4.5 text-slate-400" />
                 <input
                   type="text"
                   value={dropdownSearchTerm}
@@ -433,8 +434,8 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                       setShowDropdown(true);
                     }
                   }}
-                  placeholder="Search patient by name, mobile, or Health ID"
-                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-10 py-1.5 text-sm outline-none focus:border-sky-400"
+                  placeholder="Search by name, mobile number, or Health ID..."
+                  className="w-full rounded-lg border border-slate-200 bg-white pl-11 pr-12 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
                 <button
                   type="button"
@@ -443,65 +444,84 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                       onOpenPatientModal();
                     }
                   }}
-                  className="absolute right-2 flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                  className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700 hover:shadow-sm"
                   title="Add New Patient"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-4 w-4" />
                 </button>
               </div>
               {showDropdown && (dropdownResults.length > 0 || isSearching) && (
-                <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-60 overflow-y-auto">
+                <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-xl max-h-56 overflow-y-auto">
                   {isSearching ? (
-                    <div className="p-3 text-center text-sm text-slate-500">Searching...</div>
+                    <div className="p-4 text-center">
+                      <div className="inline-flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-sky-500 border-t-transparent"></div>
+                        <span className="text-sm text-slate-600">Searching patients...</span>
+                      </div>
+                    </div>
                   ) : dropdownResults.length > 0 ? (
                     dropdownResults.map((patient) => (
                       <button
                         key={patient.id}
                         type="button"
                         onClick={() => handlePatientSelect(patient)}
-                        className="w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-sky-50"
+                        className="w-full border-b border-slate-100 px-3 py-2.5 text-left transition hover:bg-sky-50 last:border-b-0"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                             <User className="h-4 w-4" />
                           </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-slate-900">{patient.name}</p>
-                            <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-slate-900 text-sm truncate">{patient.name}</p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
                               <span>{patient.mobile}</span>
-                              <span>•</span>
+                              <span className="text-slate-300">•</span>
                               <span>{patient.healthId}</span>
-                              <span>•</span>
-                              <span>{patient.age} years, {patient.gender}</span>
+                              <span className="text-slate-300">•</span>
+                              <span>{patient.age}y, {patient.gender}</span>
                             </div>
                           </div>
                         </div>
                       </button>
                     ))
                   ) : (
-                    <div className="p-3 text-center text-sm text-slate-500">No patients found</div>
+                    <div className="p-4 text-center text-sm text-slate-500">No patients found</div>
                   )}
                 </div>
               )}
             </div>
-              {patientId && (
-                <div className="mt-1.5 rounded border border-sky-200 bg-sky-50 px-2 py-1">
-                  <p className="text-xs font-medium text-sky-700">
-                    Selected: {patients.find((p) => p.id === patientId)?.name || "Patient"}
-                  </p>
+            {patientId && selectedPatient && (
+              <div className="mt-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">{selectedPatient.name}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
+                      <span>{selectedPatient.healthId}</span>
+                      <span>•</span>
+                      <span>{selectedPatient.mobile}</span>
+                      <span>•</span>
+                      <span>{selectedPatient.age}y, {selectedPatient.gender}</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </label>
+              </div>
+            )}
+          </label>
         </div>
       )}
 
       {hidePatientSearch && selectedPatient && (
-        <div className="rounded border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-          <div className="flex items-center gap-2">
-            <User className="h-3.5 w-3.5 text-sky-600" />
-            <div>
-              <p className="text-xs font-semibold text-slate-900">{selectedPatient.name}</p>
-              <p className="text-xs text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+              <User className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900">{selectedPatient.name}</p>
+              <p className="text-xs text-slate-600 mt-0.5">
                 {selectedPatient.healthId} • {selectedPatient.mobile}
               </p>
             </div>
@@ -509,20 +529,23 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         </div>
       )}
 
-      {/* Doctor, Emergency & Fee Section - All in one row */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <label className="space-y-1">
-          <span className="text-slate-600 text-xs">Doctor <span className="text-rose-500">*</span></span>
+      {/* Doctor & Visit Type */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <Stethoscope className="h-4 w-4 text-teal-600" />
+            Doctor <span className="text-rose-500">*</span>
+          </span>
           <select
             value={doctorId}
             onChange={(e) => setDoctorId(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-400"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 pr-4 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:cursor-not-allowed"
             disabled={doctorsLoading || doctors.length === 0}
             required
           >
-            <option value="" disabled>Select doctor</option>
+            <option value="" disabled>Select a doctor</option>
             {doctorsLoading ? (
-              <option>Loading...</option>
+              <option>Loading doctors...</option>
             ) : doctors.length === 0 ? (
               <option>No doctors available</option>
             ) : (
@@ -538,144 +561,247 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           </select>
         </label>
 
-        {/* Emergency Checkbox - Compact */}
-        <div className="space-y-1">
-          <span className="text-slate-600 text-xs">Visit Type</span>
-          <div className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 transition hover:border-rose-200 hover:bg-rose-50/30">
-            <label htmlFor="emergency" className="cursor-pointer">
-              <input
-                type="checkbox"
-                id="emergency"
-                checked={isEmergency}
-                onChange={(e) => setIsEmergency(e.target.checked)}
-                className="h-4 w-4 rounded border-2 border-slate-300 text-rose-500 focus:ring-1 focus:ring-rose-500"
-              />
-            </label>
-            <AlertCircle className={`h-4 w-4 ${isEmergency ? 'text-rose-600' : 'text-slate-400'}`} />
-            <span className={`text-xs font-medium ${isEmergency ? 'text-rose-600' : 'text-slate-600'}`}>
-              Emergency
+        {/* Emergency Checkbox */}
+        <div className="space-y-1.5">
+          <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <AlertCircle className="h-4 w-4 text-rose-600" />
+            Visit Type
+          </span>
+          <label
+            htmlFor="emergency"
+            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition ${
+              isEmergency
+                ? "border-rose-300 bg-rose-50"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            <input
+              type="checkbox"
+              id="emergency"
+              checked={isEmergency}
+              onChange={(e) => setIsEmergency(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-rose-500 focus:ring-2 focus:ring-rose-500"
+            />
+            <span className={`text-sm font-medium flex-1 ${isEmergency ? "text-rose-700" : "text-slate-700"}`}>
+              Emergency Visit
             </span>
-          </div>
+          </label>
         </div>
+      </div>
 
-        {/* Consultation Fee - Compact */}
-        <label className="space-y-1">
-          <span className="text-slate-600 text-xs">Consultation Fee</span>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-            {isCalculatingFee ? (
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-sky-500 border-t-transparent"></div>
-                <span className="text-xs text-slate-500">Calculating...</span>
-              </div>
-            ) : consultationFee ? (
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-900">{currency(parseFloat(consultationFee))}</span>
-                {feeCalculation && (
-                  <span className="text-xs text-slate-500">
-                    {feeCalculation.patient_type_used} • {feeCalculation.shift}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <span className="text-xs text-slate-500">—</span>
-            )}
-          </div>
-          {selectedDoctor && (
-            <div className="mt-1 flex items-center gap-1">
+      {/* Consultation Fee */}
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <IndianRupee className="h-4 w-4 text-teal-600" />
+          Consultation Fee
+        </span>
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1">
+              {isCalculatingFee ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-sky-500 border-t-transparent"></div>
+                  <span className="text-sm text-slate-600">Calculating...</span>
+                </div>
+              ) : consultationFee ? (
+                <div>
+                  <span className="text-xl font-bold text-slate-900">{currency(parseFloat(consultationFee))}</span>
+                  {feeCalculation && (
+                    <div className="mt-1 flex items-center gap-2 text-xs text-slate-600">
+                      <span>{feeCalculation.patient_type_used}</span>
+                      <span>•</span>
+                      <span>{feeCalculation.shift}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="text-sm text-slate-500">Auto-calculated</span>
+              )}
+            </div>
+            {selectedDoctor && (
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={feeOverride}
                 onChange={(e) => setFeeOverride(e.target.value)}
-                placeholder="Override (optional)"
-                className="flex-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-sky-400"
+                placeholder="Override"
+                className="w-24 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               />
-              {feeOverride && (
-                <button
-                  type="button"
-                  onClick={() => setFeeOverride("")}
-                  className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                  title="Clear override"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
           {feeOverride && parseFloat(feeOverride) > 0 && (
-            <div className="mt-1 rounded bg-teal-50 border border-teal-200 px-2 py-1">
-              <span className="text-xs font-semibold text-teal-700">
+            <div className="mt-2 flex items-center justify-between rounded border border-teal-200 bg-teal-50 px-2.5 py-1.5">
+              <span className="text-xs font-medium text-teal-800">
                 Override: {currency(parseFloat(feeOverride))}
               </span>
+              <button
+                type="button"
+                onClick={() => setFeeOverride("")}
+                className="text-xs text-teal-700 hover:text-teal-900"
+              >
+                ×
+              </button>
             </div>
           )}
-        </label>
-      </div>
-      {/* Payment & Symptoms - Combined Row */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div className="space-y-2">
-          <label className="space-y-1">
-            <span className="text-slate-600 text-xs">
-              Payment Method <span className="text-rose-500">*</span>
-            </span>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-400"
-              required
-            >
-              <option value="" disabled>Select method</option>
-              <option value="cash">Cash</option>
-              <option value="upi">UPI</option>
-              <option value="card">Card</option>
-              <option value="cheque">Cheque</option>
-            </select>
-          </label>
-          {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
-            <label className="space-y-1">
-              <span className="text-slate-600 text-xs">
-                Payment Reference <span className="text-rose-500">*</span>
-              </span>
-              <input
-                type="text"
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-400"
-                placeholder={paymentMethod === "upi" ? "UPI transaction ID" : paymentMethod === "card" ? "Card transaction ID" : "Cheque number"}
-                required
-              />
-            </label>
-          )}
         </div>
-        <label className="space-y-1">
-          <span className="text-slate-600 text-xs">Chief Complaint / Symptoms</span>
-          <textarea
-            value={symptoms}
-            onChange={(e) => setSymptoms(e.target.value)}
-            rows={2}
-            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-400"
-            placeholder="Enter chief complaint or symptoms (optional)"
+      </div>
+      {/* Payment Method */}
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <CreditCard className="h-4 w-4 text-emerald-600" />
+          Payment Method <span className="text-rose-500">*</span>
+        </span>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {/* Cash */}
+          <label
+            className={`
+              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+              ${paymentMethod === "cash"
+                ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+              }
+            `}
+          >
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="cash"
+              checked={paymentMethod === "cash"}
+              onChange={(e) => setPaymentMethod(e.target.value as any)}
+              className="sr-only"
+              required
+            />
+            <Banknote className={`h-5 w-5 ${paymentMethod === "cash" ? "text-emerald-600" : "text-slate-400"}`} />
+            <span className={`text-xs font-medium ${paymentMethod === "cash" ? "text-emerald-700" : "text-slate-600"}`}>
+              Cash
+            </span>
+          </label>
+
+          {/* UPI */}
+          <label
+            className={`
+              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+              ${paymentMethod === "upi"
+                ? "border-violet-500 bg-violet-50 ring-2 ring-violet-200"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+              }
+            `}
+          >
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="upi"
+              checked={paymentMethod === "upi"}
+              onChange={(e) => setPaymentMethod(e.target.value as any)}
+              className="sr-only"
+              required
+            />
+            <Smartphone className={`h-5 w-5 ${paymentMethod === "upi" ? "text-violet-600" : "text-slate-400"}`} />
+            <span className={`text-xs font-medium ${paymentMethod === "upi" ? "text-violet-700" : "text-slate-600"}`}>
+              UPI
+            </span>
+          </label>
+
+          {/* Card */}
+          <label
+            className={`
+              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+              ${paymentMethod === "card"
+                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+              }
+            `}
+          >
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="card"
+              checked={paymentMethod === "card"}
+              onChange={(e) => setPaymentMethod(e.target.value as any)}
+              className="sr-only"
+              required
+            />
+            <CreditCard className={`h-5 w-5 ${paymentMethod === "card" ? "text-blue-600" : "text-slate-400"}`} />
+            <span className={`text-xs font-medium ${paymentMethod === "card" ? "text-blue-700" : "text-slate-600"}`}>
+              Card
+            </span>
+          </label>
+
+          {/* Cheque */}
+          <label
+            className={`
+              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+              ${paymentMethod === "cheque"
+                ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+              }
+            `}
+          >
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="cheque"
+              checked={paymentMethod === "cheque"}
+              onChange={(e) => setPaymentMethod(e.target.value as any)}
+              className="sr-only"
+              required
+            />
+            <FileText className={`h-5 w-5 ${paymentMethod === "cheque" ? "text-amber-600" : "text-slate-400"}`} />
+            <span className={`text-xs font-medium ${paymentMethod === "cheque" ? "text-amber-700" : "text-slate-600"}`}>
+              Cheque
+            </span>
+          </label>
+        </div>
+        {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+          <input
+            type="text"
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            placeholder={
+              paymentMethod === "upi"
+                ? "Enter UPI transaction ID"
+                : paymentMethod === "card"
+                ? "Enter card transaction ID"
+                : "Enter cheque number"
+            }
+            required
           />
-        </label>
+        )}
+      </div>
+
+      {/* Chief Complaint */}
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <FileText className="h-4 w-4 text-purple-600" />
+          Chief Complaint <span className="text-slate-500 text-xs font-normal">(optional)</span>
+        </span>
+        <textarea
+          value={symptoms}
+          onChange={(e) => setSymptoms(e.target.value)}
+          rows={2}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 resize-none"
+          placeholder="Enter patient symptoms or complaints..."
+        />
       </div>
       {/* Action Buttons */}
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
         {!createdVisitId ? (
           <button
             type="submit"
             disabled={isCreating}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isCreating ? (
               <>
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                Creating...
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                <span>Creating...</span>
               </>
             ) : (
               <>
-                <Plus className="h-3.5 w-3.5" />
-                Create OPD Visit
+                <Plus className="h-4 w-4" />
+                <span>Create Visit</span>
               </>
             )}
           </button>
@@ -684,17 +810,13 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
             <button
               type="button"
               onClick={() => {
-                // Reset form state
+                // Reset only form fields but keep the patient selected
                 setCreatedVisitId(null);
                 setVisitData(null);
                 setOpdNumber("");
                 setTokenNumber(0);
                 setDoctorId("");
-                setPatientId("");
-                setDropdownSearchTerm("");
-                setDropdownResults([]);
-                setShowDropdown(false);
-                setSelectedPatientData(null);
+                // Keep patient selected
                 setSymptoms("");
                 setPaymentMethod("");
                 setPaymentReference("");
@@ -703,20 +825,19 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                 setFeeCalculation(null);
                 setFeeOverride("");
                 setIsEmergency(false);
-                justSelectedRef.current = false;
               }}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-4 w-4" />
               Create Another
             </button>
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow"
+              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-2 text-sm font-semibold text-white shadow transition hover:shadow-lg"
             >
-              <Printer className="h-3.5 w-3.5" />
-              Print OPD Slip
+              <Printer className="h-4 w-4" />
+              Print
             </button>
           </>
         )}
