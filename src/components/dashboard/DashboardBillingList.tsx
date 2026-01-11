@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi } from "@/services/paymentsApi";
 import { patientsApi } from "@/services/patientsApi";
@@ -21,6 +22,7 @@ interface DashboardBillingListProps {
 }
 
 export function DashboardBillingList({ statusFilter, onStatusFilterChange }: DashboardBillingListProps) {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -343,7 +345,7 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
         {invoices.length > 0 && (
           <button
             onClick={() => {
-              window.location.hash = "billing";
+              router.push("/billing");
             }}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
           >

@@ -127,7 +127,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const runSearch = () => {
     if (term.trim()) {
       dispatch(searchPatients(term));
-      window.location.hash = "#patients";
+      router.push("/patients");
       setShowDropdown(false);
     }
   };
