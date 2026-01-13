@@ -19,6 +19,7 @@ import {
   Radio,
   Eye,
   MonitorPlay,
+  Building2,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -49,6 +50,7 @@ const navItems = [
   { label: "My Panel", href: "/doctor-panel", icon: Stethoscope, roles: ["doctor"] },
   { label: "Optometry Panel", href: "/optometrist-panel", icon: Eye, roles: ["optometrist", "admin", "doctor"] },
   { label: "Staff", href: "/users", icon: UserCog },
+  { label: "Tenants", href: "/tenants", icon: Building2, roles: ["platform_owner"] },
 ];
 
 export function Sidebar() {
