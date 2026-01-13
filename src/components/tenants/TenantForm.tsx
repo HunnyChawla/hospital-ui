@@ -170,7 +170,12 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
         toast.success("Tenant created successfully");
       }
 
-      window.dispatchEvent(new CustomEvent("tenant:updated"));
+      // Dispatch event with tenant ID to allow cache invalidation
+      window.dispatchEvent(
+        new CustomEvent("tenant:updated", {
+          detail: { tenantId: defaultValues?.id },
+        })
+      );
       onSuccess?.();
     } catch (error) {
       const errorMessage = getErrorMessage(error);

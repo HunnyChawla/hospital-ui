@@ -62,30 +62,66 @@ export function TenantTable({
 
   // Fetch logos for tenants
   useEffect(() => {
+    // Create a map of current tenant IDs that have logos
+    const tenantIdsWithLogos = new Set(
+      tenants.filter((t) => t.logo).map((t) => t.id)
+    );
+
+    // Revoke old blob URLs for tenants no longer in the list or without logos
+    const urlsToRevoke: string[] = [];
+    const validLogoUrls: Record<string, string> = {};
+
+    Object.entries(logoUrls).forEach(([id, url]) => {
+      if (tenantIdsWithLogos.has(id)) {
+        validLogoUrls[id] = url;
+      } else {
+        urlsToRevoke.push(url);
+      }
+    });
+
+    // Revoke outdated URLs
+    urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
+
+    // Update state if we removed any URLs
+    if (urlsToRevoke.length > 0) {
+      setLogoUrls(validLogoUrls);
+    }
+
+    // Fetch logos for tenants that don't have a cached URL
     const fetchLogos = async () => {
+      const newLogoUrls: Record<string, string> = {};
+
       for (const tenant of tenants) {
-        if (tenant.logo && !logoUrls[tenant.id]) {
+        if (tenant.logo && !validLogoUrls[tenant.id]) {
           try {
             const blob = await tenantsApi.getLogo(tenant.id);
             const url = URL.createObjectURL(blob);
-            setLogoUrls((prev) => ({ ...prev, [tenant.id]: url }));
+            newLogoUrls[tenant.id] = url;
           } catch {
             // Logo fetch failed, ignore
           }
         }
       }
+
+      if (Object.keys(newLogoUrls).length > 0) {
+        setLogoUrls((prev) => ({ ...prev, ...newLogoUrls }));
+      }
     };
+
     if (tenants.length > 0) {
       fetchLogos();
     }
-  }, [tenants, logoUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenants]);
 
-  // Cleanup blob URLs on unmount
+  // Cleanup all blob URLs on unmount only
   useEffect(() => {
+    const currentLogoUrls = logoUrls;
     return () => {
-      Object.values(logoUrls).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(currentLogoUrls).forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [logoUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -97,7 +133,21 @@ export function TenantTable({
 
   // Listen for tenant update events to refresh the list
   useEffect(() => {
-    const handleTenantUpdated = () => {
+    const handleTenantUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tenantId?: string }>;
+      const updatedTenantId = customEvent.detail?.tenantId;
+
+      // If a specific tenant was updated, clear its cached logo URL
+      // so it will be re-fetched with fresh data
+      if (updatedTenantId && logoUrls[updatedTenantId]) {
+        URL.revokeObjectURL(logoUrls[updatedTenantId]);
+        setLogoUrls((prev) => {
+          const newUrls = { ...prev };
+          delete newUrls[updatedTenantId];
+          return newUrls;
+        });
+      }
+
       fetchTenants();
     };
 
@@ -105,13 +155,17 @@ export function TenantTable({
     return () => {
       window.removeEventListener("tenant:updated", handleTenantUpdated);
     };
-  }, [fetchTenants]);
+  }, [fetchTenants, logoUrls]);
 
   const handleStatusChange = async (tenantId: string, newStatus: TenantStatus) => {
     try {
       await tenantsApi.update(tenantId, { status: newStatus });
       toast.success("Status updated successfully");
-      window.dispatchEvent(new CustomEvent("tenant:updated"));
+      window.dispatchEvent(
+        new CustomEvent("tenant:updated", {
+          detail: { tenantId },
+        })
+      );
     } catch (error) {
       toast.error(getErrorMessage(error));
     }

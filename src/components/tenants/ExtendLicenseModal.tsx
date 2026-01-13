@@ -81,7 +81,11 @@ export function ExtendLicenseModal({
         license_valid_till: values.license_valid_till,
       });
       toast.success("License updated successfully");
-      window.dispatchEvent(new CustomEvent("tenant:updated"));
+      window.dispatchEvent(
+        new CustomEvent("tenant:updated", {
+          detail: { tenantId: tenant.id },
+        })
+      );
       onClose();
     } catch (error) {
       toast.error(getErrorMessage(error));
