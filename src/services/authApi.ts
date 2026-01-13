@@ -17,6 +17,7 @@ export interface LoginResponse {
   user_id: string;
   tenant_id: string;
   role: string;
+  must_change_password?: boolean;
 }
 
 export const authApi = {
@@ -24,7 +25,7 @@ export const authApi = {
     // Ensure BASE_URL doesn't have trailing slash
     const baseUrl = BASE_URL.replace(/\/$/, "");
     const loginUrl = `${baseUrl}/auth/login`;
-    
+
     const response = await axios.post<LoginResponse>(
       loginUrl,
       credentials

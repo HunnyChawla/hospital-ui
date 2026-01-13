@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu } from "lucide-react";
+import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu, Key } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -14,6 +14,7 @@ import { usersApi } from "@/services/usersApi";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
+import { ChangePasswordModal } from "@/components/password/ChangePasswordModal";
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;
@@ -34,6 +35,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const { user, userDetails } = useAppSelector((s) => s.auth);
   const { hospitalName, tenant } = useTenant();
   const { toggleMobileSidebar, isMobile } = useSidebar();
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -336,6 +338,16 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
               )}
             </div>
             <button
+              onClick={() => {
+                setShowChangePasswordModal(true);
+                setShowProfileDropdown(false);
+              }}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
+            >
+              <Key className="h-4 w-4" />
+              Change Password
+            </button>
+            <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-rose-50 hover:text-rose-600"
             >
@@ -345,6 +357,12 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
           </div>
         )}
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+      />
     </header>
   );
 }
