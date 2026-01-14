@@ -9,7 +9,7 @@ import clsx from "clsx";
 import type { RefractionRecord } from "@/types";
 
 // Import shared components
-import { EyeValueInput, VASelector } from "../shared";
+import { EyeValueInput, VASelector, NumericStepper } from "../shared";
 import { TemplateSelector, CopyFromPreviousButton } from "../templates";
 import { refractionTemplates, type RefractionTemplate } from "../mock";
 import { refractionApi } from "@/services/refractionApi";
@@ -40,7 +40,9 @@ interface RefractionFormData {
     add_power: number | null;
     va_uncorrected: string | null;
     va_corrected: string | null;
+
   };
+  pupillary_distance: number | null;
   notes: string;
 }
 
@@ -61,6 +63,7 @@ const initialFormData: RefractionFormData = {
     va_uncorrected: null,
     va_corrected: null,
   },
+  pupillary_distance: null,
   notes: "",
 };
 
@@ -69,6 +72,7 @@ const SPHERE_PRESETS = [-6, -3, -1, 0, 1, 2, 3];
 const CYLINDER_PRESETS = [0, -0.25, -0.5, -0.75, -1, -1.5, -2];
 const AXIS_PRESETS = [0, 45, 90, 135, 180];
 const ADD_POWER_PRESETS = [1, 1.5, 2, 2.5, 3];
+const PD_PRESETS = [58, 60, 62, 64, 66, 68];
 
 export function RefractionTab({
   patientId,
@@ -117,6 +121,7 @@ export function RefractionTab({
         visual_acuity_corrected: hasNested ? r.os.visual_acuity_corrected ?? null : r.os_visual_acuity_corrected ?? null,
         add_power: hasNested ? toNumberOrNull(r.os.add_power) : toNumberOrNull(r.os_add_power),
       },
+      pupillary_distance: hasNested ? toNumberOrNull(r.pupillary_distance) : toNumberOrNull(r.pupillary_distance),
     };
   };
 
@@ -260,6 +265,10 @@ export function RefractionTab({
         },
       }));
     }
+    setFormData((prev) => ({
+      ...prev,
+      pupillary_distance: (prevData as any).pupillary_distance || prev.pupillary_distance,
+    }));
     toast.success("Copied previous refraction data");
   };
 
@@ -315,6 +324,7 @@ export function RefractionTab({
           va_uncorrected: visitCombined?.os?.visual_acuity_uncorrected ?? visitOS?.visual_acuity_uncorrected ?? null,
           va_corrected: visitCombined?.os?.visual_acuity_corrected ?? visitOS?.visual_acuity_corrected ?? null,
         },
+        pupillary_distance: visitCombined?.pupillary_distance ?? visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
         notes: visitCombined?.notes ?? visitOD?.notes ?? visitOS?.notes ?? "",
       });
       setEditingODId(visitOD?.id || null);
@@ -411,6 +421,7 @@ export function RefractionTab({
                 visual_acuity_corrected: formData.os.va_corrected!,
                 add_power: formData.os.add_power,
               },
+              pupillary_distance: formData.pupillary_distance,
               notes: formData.notes || null,
               recorded_at: new Date().toISOString(),
             },
@@ -428,6 +439,7 @@ export function RefractionTab({
                 visual_acuity_uncorrected: formData.od.va_uncorrected ?? undefined,
                 visual_acuity_corrected: formData.od.va_corrected ?? undefined,
                 add_power: formData.od.add_power ?? undefined,
+                pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
               },
             })
@@ -444,6 +456,7 @@ export function RefractionTab({
                 visual_acuity_uncorrected: formData.os.va_uncorrected ?? undefined,
                 visual_acuity_corrected: formData.os.va_corrected ?? undefined,
                 add_power: formData.os.add_power ?? undefined,
+                pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
               },
             })
@@ -472,6 +485,7 @@ export function RefractionTab({
                 visual_acuity_corrected: formData.os.va_corrected!,
                 add_power: formData.os.add_power,
               },
+              pupillary_distance: formData.pupillary_distance,
               notes: formData.notes || null,
               recorded_at: new Date().toISOString(),
             },
@@ -525,6 +539,11 @@ export function RefractionTab({
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-slate-900">
             Current Prescription
+            {displayCombined?.pupillary_distance && (
+              <span className="ml-4 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                PD: {displayCombined.pupillary_distance} mm
+              </span>
+            )}
           </h4>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* OD Display */}
@@ -810,6 +829,24 @@ export function RefractionTab({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Pupillary Distance */}
+            <div className="border-t border-slate-200 pt-6">
+              <NumericStepper
+                label="Pupillary Distance (PD)"
+                value={formData.pupillary_distance === null ? null : toNumberOrNull(formData.pupillary_distance)}
+                onChange={(v) =>
+                  setFormData((prev) => ({ ...prev, pupillary_distance: v }))
+                }
+                step={0.5}
+                min={50}
+                max={80}
+                unit="mm"
+                presets={PD_PRESETS}
+                colorScheme="neutral"
+                placeholder="63.0"
+              />
             </div>
 
             {/* Notes */}

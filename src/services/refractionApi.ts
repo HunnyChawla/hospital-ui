@@ -23,6 +23,7 @@ export interface CreateRefractionRequest {
     visual_acuity_corrected: string;
     add_power: number | null;
   };
+  pupillary_distance?: number | null;
   notes: string | null;
   recorded_at?: string;
 }
@@ -34,6 +35,7 @@ export interface UpdateRefractionRequest {
   visual_acuity_uncorrected?: string;
   visual_acuity_corrected?: string;
   add_power?: number | null;
+  pupillary_distance?: number | null;
   notes?: string | null;
 }
 
