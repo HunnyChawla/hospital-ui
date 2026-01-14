@@ -84,17 +84,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       }
     }
 
-    // Sort by: emergency first, then by token number
-    return [...filtered].sort((a, b) => {
-      // Emergency patients always come first
-      if (a.visit_type === "emergency" && b.visit_type !== "emergency") return -1;
-      if (a.visit_type !== "emergency" && b.visit_type === "emergency") return 1;
-
-      // Then sort by token number
-      const tokenA = typeof a.token_number === 'string' ? parseInt(a.token_number) : a.token_number;
-      const tokenB = typeof b.token_number === 'string' ? parseInt(b.token_number) : b.token_number;
-      return tokenA - tokenB;
-    });
+    return filtered;
   }, [queuePatients, activeFilter, isDoctor]);
 
   // Get counts for each filter
@@ -218,12 +208,6 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                           <div className={`font-semibold truncate ${isEmergency ? "text-red-900" : "text-slate-900"}`}>
                             {patient.patient_name}
                           </div>
-                          {isEmergency && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-red-500 text-white shadow-sm animate-pulse">
-                              <AlertTriangle className="h-3 w-3" />
-                              Emergency
-                            </span>
-                          )}
                         </div>
                         {patient.patient_uhid && (
                           <div className={`text-xs mt-1 font-medium ${isEmergency ? "text-red-700" : "text-slate-500"}`}>
@@ -237,6 +221,12 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             }`}>
                             Token: {patient.token_number}
                           </span>
+                          {isEmergency && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-red-500 text-white shadow-sm animate-pulse">
+                              <AlertTriangle className="h-3 w-3" />
+                              Emergency
+                            </span>
+                          )}
                         </div>
                         <div className={`text-xs mt-1.5 flex items-center gap-1 whitespace-nowrap ${isEmergency ? "text-red-600" : "text-slate-500"}`}>
                           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
