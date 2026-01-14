@@ -20,9 +20,9 @@ interface AppointmentFormProps {
   onOpenPatientModal?: () => void;
 }
 
-export function AppointmentForm({ 
-  defaultPatientId, 
-  hidePatientSearch = false, 
+export function AppointmentForm({
+  defaultPatientId,
+  hidePatientSearch = false,
   showDropdownSearch = false,
   onSuccess,
   onOpenPatientModal
@@ -182,7 +182,7 @@ export function AppointmentForm({
     const selectedDate = new Date(appointmentDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate < today) {
       toast.error("Appointment date cannot be in the past");
       return;
@@ -199,17 +199,17 @@ export function AppointmentForm({
 
       const appointment = await appointmentsApi.create(appointmentData);
       toast.success(`Appointment created successfully! Token #${appointment.token_number}`);
-      
+
       // Dispatch custom event to refresh appointments list
       window.dispatchEvent(new CustomEvent("appointment:created"));
-      
+
       // Reset form
       setPatientId("");
       setDoctorId("");
       setNotes("");
       setSearchTerm("");
       setDropdownSearchTerm("");
-      
+
       // Call onSuccess callback if provided
       if (onSuccess) {
         onSuccess();
@@ -264,14 +264,21 @@ export function AppointmentForm({
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                             <User className="h-4 w-4" />
                           </div>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-900">{patient.name}</p>
-                            <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
-                              <span>{patient.mobile}</span>
-                              <span>•</span>
-                              <span>{patient.healthId}</span>
-                              <span>•</span>
-                              <span>{patient.age} years, {patient.gender}</span>
+                            <div className="mt-0.5 flex flex-col gap-0.5">
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <span>{patient.mobile}</span>
+                                <span>•</span>
+                                <span>{patient.healthId}</span>
+                                <span>•</span>
+                                <span>{patient.age} years, {patient.gender}</span>
+                              </div>
+                              {(patient.address || patient.city) && (
+                                <div className="text-xs text-slate-400 truncate">
+                                  {[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

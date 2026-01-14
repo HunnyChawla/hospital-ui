@@ -473,12 +473,19 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-900 text-sm truncate">{patient.name}</p>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
-                              <span>{patient.mobile}</span>
-                              <span className="text-slate-300">•</span>
-                              <span>{patient.healthId}</span>
-                              <span className="text-slate-300">•</span>
-                              <span>{patient.age}y, {patient.gender}</span>
+                            <div className="mt-0.5 flex flex-col gap-0.5">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
+                                <span>{patient.mobile}</span>
+                                <span className="text-slate-300">•</span>
+                                <span>{patient.healthId}</span>
+                                <span className="text-slate-300">•</span>
+                                <span>{patient.age}y, {patient.gender}</span>
+                              </div>
+                              {(patient.address || patient.city) && (
+                                <div className="text-xs text-slate-400 truncate">
+                                  {[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -569,11 +576,10 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           </span>
           <label
             htmlFor="emergency"
-            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition ${
-              isEmergency
+            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition ${isEmergency
                 ? "border-rose-300 bg-rose-50"
                 : "border-slate-200 bg-white hover:bg-slate-50"
-            }`}
+              }`}
           >
             <input
               type="checkbox"
@@ -763,8 +769,8 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
               paymentMethod === "upi"
                 ? "Enter UPI transaction ID"
                 : paymentMethod === "card"
-                ? "Enter card transaction ID"
-                : "Enter cheque number"
+                  ? "Enter card transaction ID"
+                  : "Enter cheque number"
             }
             required
           />

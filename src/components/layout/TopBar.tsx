@@ -266,15 +266,22 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 truncate">{patient.name}</p>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
-                          <span>{patient.mobile}</span>
-                          <span>•</span>
-                          <span className="truncate">{patient.healthId}</span>
-                          {patient.age && (
-                            <>
-                              <span>•</span>
-                              <span>{patient.age} years</span>
-                            </>
+                        <div className="mt-0.5 flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span>{patient.mobile}</span>
+                            <span>•</span>
+                            <span className="truncate">{patient.healthId}</span>
+                            {patient.age && (
+                              <>
+                                <span>•</span>
+                                <span>{patient.age} years</span>
+                              </>
+                            )}
+                          </div>
+                          {(patient.address || patient.city) && (
+                            <div className="text-xs text-slate-400 truncate">
+                              {[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}
+                            </div>
                           )}
                         </div>
                       </div>

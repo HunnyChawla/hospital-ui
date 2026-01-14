@@ -12,6 +12,10 @@ export type Patient = {
   wardType?: "ICU" | "General" | "Private";
   bedNumber?: string;
   admissionDate?: string;
+  address?: string; // Street address
+  city?: string;
+  state?: string;
+  pincode?: string;
 };
 
 export type Admission = {

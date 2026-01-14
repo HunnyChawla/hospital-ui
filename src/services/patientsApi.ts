@@ -90,7 +90,7 @@ const calculateAge = (dateOfBirth: string): number => {
 const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
   const fullName = `${apiPatient.first_name} ${apiPatient.last_name || ""}`.trim();
   const gender = apiPatient.gender.charAt(0).toUpperCase() + apiPatient.gender.slice(1).toLowerCase();
-  
+
   return {
     id: apiPatient.id,
     name: fullName,
@@ -102,6 +102,10 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     lastVisit: apiPatient.updated_at || apiPatient.created_at,
     outstanding: 0, // Will be calculated from billing records
     status: "Active" as const,
+    address: apiPatient.address || undefined,
+    city: apiPatient.city || undefined,
+    state: apiPatient.state || undefined,
+    pincode: apiPatient.pincode || undefined,
   };
 };
 
@@ -120,14 +124,14 @@ export const patientsApi = {
     if (params.page_size) queryParams.append("page_size", params.page_size.toString());
     const apiTenantId = getTenantIdForApi(params.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
-    
+
     const response = await apiClient.get<PatientsSearchResponse>(`/patients/search/global?${queryParams.toString()}`);
     return response.data;
   },
 
   async search(params: PatientSearchParams = {}): Promise<PatientsSearchResponse> {
     const queryParams = new URLSearchParams();
-    
+
     if (params.mobile) queryParams.append("mobile", params.mobile);
     if (params.name) queryParams.append("name", params.name);
     if (params.uhid) queryParams.append("uhid", params.uhid);
@@ -136,10 +140,10 @@ export const patientsApi = {
     if (params.page_size) queryParams.append("page_size", params.page_size.toString());
     const apiTenantId = getTenantIdForApi(params.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
-    
+
     const queryString = queryParams.toString();
     const url = `/patients/search${queryString ? `?${queryString}` : ""}`;
-    
+
     const response = await apiClient.get<PatientsSearchResponse>(url);
     return response.data;
   },
