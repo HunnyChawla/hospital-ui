@@ -362,55 +362,52 @@ export function useTVDisplayQueue({
         prevOptRef.current = currentOpt;
 
         // Check Doctor Queue Changes
+        // New logic: Track consulting patient and "next" patient separately
         const currentDoc = doctorPatients;
-        const prevDoc = prevDocRef.current; // Previous render's list
+        const prevDoc = prevDocRef.current;
 
-        const p1 = currentDoc[0];
-        const p2 = currentDoc[1];
+        // Find consulting patient (status = consultation_in_progress)
+        const currentConsulting = currentDoc.find(p => p.status === "consultation_in_progress");
+        const prevConsulting = prevDoc.find(p => p.status === "consultation_in_progress");
 
-        // Compare P1
-        const prevP1 = prevDoc[0];
-        const p1Changed = !prevP1 || !p1 || prevP1.visit_id !== p1.visit_id || prevP1.status !== p1.status;
+        // Find "Next" patient (first awaiting_doctor in queue)
+        const currentNext = currentDoc.find(p => p.status === "awaiting_doctor");
+        const prevNext = prevDoc.find(p => p.status === "awaiting_doctor");
 
-        // Compare P2
-        const prevP2 = prevDoc[1];
-        const p2Changed = !prevP2 || !p2 || prevP2.visit_id !== p2.visit_id || prevP2.status !== p2.status;
+        // Check if consulting changed (patient entered or exited consulting)
+        const consultingChanged = (prevConsulting?.visit_id || null) !== (currentConsulting?.visit_id || null);
 
-        let p1Announcement = null;
-        let p2Announcement = null;
+        // Check if next patient changed
+        const nextChanged = (prevNext?.visit_id || null) !== (currentNext?.visit_id || null);
 
-        // Logic 1: P1 (Proceed)
-        if (p1 && p1.status === "awaiting_doctor") {
-            if (p1Changed) {
-                p1Announcement = {
-                    name: p1.patient_name,
-                    token: p1.token_number,
-                    areaKey: "consultation",
-                    cabin: p1.doctor_cabin || null
-                };
-            }
-        }
+        let doctorAnnouncement: {
+            name: string;
+            token: string | number;
+            cabin: string | null;
+            messageType: "ready" | "proceed"
+        } | null = null;
 
-        // Logic 2: P2 (Next)
-        // Strictly check if P2 is waiting. 
-        // We trigger if P2 changed OR if P1 changed (as that affects P2's "next" status context)
-        if (p2 && p2.status === "awaiting_doctor") {
-            if (p2Changed || p1Changed) {
-                p2Announcement = {
-                    name: p2.patient_name,
-                    token: p2.token_number
-                };
-            }
+        // Only announce if consulting OR next changed, and there IS a next patient
+        if ((consultingChanged || nextChanged) && currentNext) {
+            const hasConsulting = !!currentConsulting;
+            doctorAnnouncement = {
+                name: currentNext.patient_name,
+                token: currentNext.token_number,
+                cabin: currentNext.doctor_cabin || null,
+                messageType: hasConsulting ? "ready" : "proceed"
+            };
         }
 
         prevDocRef.current = currentDoc;
 
         // Execution
-        if (shouldPlay || p1Announcement || p2Announcement) {
+        if (shouldPlay || doctorAnnouncement) {
             console.log("🔊 Announcement Triggered:", {
                 opt: !!announcementData,
-                p1: !!p1Announcement,
-                p2: !!p2Announcement
+                doc: !!doctorAnnouncement,
+                consultingChanged,
+                nextChanged,
+                hasConsulting: !!currentConsulting
             });
 
             playSound();
@@ -423,42 +420,42 @@ export function useTVDisplayQueue({
                 }, 1000);
             }
 
-            // P1 Announcement
-            if (p1Announcement) {
-                const currentP1 = p1Announcement;
+            // Doctor Queue Announcement (for Next patient)
+            if (doctorAnnouncement) {
+                const current = doctorAnnouncement;
                 // If Optometrist played (English+Hindi ~12s), wait 14s. Else immediate.
                 const delay = announcementData ? 14000 : 1000;
 
                 setTimeout(() => {
-                    console.log("🔊 Playing P1 (Proceed) Announcement");
-                    announce(currentP1.name, currentP1.token, currentP1.areaKey, currentP1.cabin);
-                }, delay);
-            }
-
-            // P2 Announcement
-            if (p2Announcement) {
-                const currentP2 = p2Announcement;
-                let delay = 1000;
-
-                if (announcementData && p1Announcement) {
-                    // Opt (12s) + P1 (12s) -> Wait ~24s
-                    delay = 24000;
-                } else if (announcementData || p1Announcement) {
-                    // Either Opt or P1 -> Wait ~12s
-                    delay = 14000;
-                }
-
-                setTimeout(() => {
-                    console.log("🔊 Playing P2 (Next) Announcement", {
-                        name: currentP2.name,
-                        enableVoice,
-                        enableHindiVoice,
-                        text: `Next patient, Token number ${currentP2.token}, ${currentP2.name}, please be ready`
+                    console.log("🔊 Playing Doctor Queue Announcement", {
+                        name: current.name,
+                        token: current.token,
+                        messageType: current.messageType,
+                        cabin: current.cabin
                     });
-                    const text = `Next patient, Token number ${currentP2.token}, ${currentP2.name}, please be ready`;
-                    const hiText = `अगला मरीज, टोकन नंबर ${currentP2.token}, ${currentP2.name}, कृपया तैयार रहें`;
 
-                    if (enableVoice) announceText(text, "en-IN", englishVoiceGender);
+                    let enText: string;
+                    let hiText: string;
+
+                    if (current.messageType === "ready") {
+                        // Consulting is in progress, next should be ready
+                        enText = current.cabin
+                            ? `Token number ${current.token}, ${current.name}, please be ready for ${current.cabin}`
+                            : `Token number ${current.token}, ${current.name}, please be ready for consultation`;
+                        hiText = current.cabin
+                            ? `टोकन नंबर ${current.token}, ${current.name}, कृपया ${current.cabin} के लिए तैयार रहें`
+                            : `टोकन नंबर ${current.token}, ${current.name}, कृपया परामर्श के लिए तैयार रहें`;
+                    } else {
+                        // No consulting, next should proceed
+                        enText = current.cabin
+                            ? `Token number ${current.token}, ${current.name}, please proceed to ${current.cabin}`
+                            : `Token number ${current.token}, ${current.name}, please proceed for consultation`;
+                        hiText = current.cabin
+                            ? `टोकन नंबर ${current.token}, ${current.name}, कृपया ${current.cabin} में जाएं`
+                            : `टोकन नंबर ${current.token}, ${current.name}, कृपया परामर्श के लिए जाएं`;
+                    }
+
+                    if (enableVoice) announceText(enText, "en-IN", englishVoiceGender);
                     if (enableHindiVoice) {
                         setTimeout(() => announceText(hiText, "hi-IN", hindiVoiceGender), enableVoice ? 6000 : 0);
                     }
