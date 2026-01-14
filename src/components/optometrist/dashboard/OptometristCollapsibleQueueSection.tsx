@@ -215,7 +215,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                           </div>
                         )}
                         <div className="flex items-center gap-2 mt-2">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${isEmergency
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold whitespace-nowrap ${isEmergency
                             ? "bg-red-100 text-red-800 border border-red-300"
                             : "bg-slate-100 text-slate-700"
                             }`}>
