@@ -44,6 +44,7 @@ import { SaveAsTemplateModal } from "./SaveAsTemplateModal";
 import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
 import type { MedicineItem, AdviceItem, OptometryPrescription, OptometryPrescriptionItem } from "@/types";
 import { QuickPresetsSettingsModal } from "./settings/QuickPresetsSettingsModal";
+import { PlannedSurgerySection } from "./PlannedSurgerySection";
 import { quickPresetsApi } from "@/services/quickPresetsApi";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
@@ -937,6 +938,13 @@ export function PrescriptionFormSection({
                         <span className="text-sm font-medium text-slate-700">Start Dilation</span>
                     </label>
                 </div>
+
+                {/* Plan Surgery Section */}
+                <PlannedSurgerySection
+                    patientId={patientId}
+                    surgeonId={doctorId}
+                    visitId={visitId}
+                />
 
                 {/* Plan of Action */}
                 <div>

@@ -492,6 +492,7 @@ export type PatientOptometryEvent = {
   metadata: any;
 };
 
+
 export type PatientOptometryTimeline = {
   patient_id: string;
   start_date: string | null;
@@ -500,3 +501,82 @@ export type PatientOptometryTimeline = {
   total_events: number;
 };
 
+// ============================================
+// SURGERY TYPES
+// ============================================
+
+export type Surgery = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type CreateSurgeryRequest = {
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  is_active?: boolean;
+};
+
+export type UpdateSurgeryRequest = {
+  name?: string | null;
+  description?: string | null;
+  category?: string | null;
+  is_active?: boolean | null;
+};
+
+// ============================================
+// PLANNED SURGERY TYPES
+// ============================================
+
+export type PlannedSurgeryStatus = "scheduled" | "completed" | "cancelled";
+
+export type PlannedSurgery = {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  surgery_id: string;
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
+  planned_date: string;
+  planned_time: string | null;
+  surgeon_id: string;
+  surgeon_name: string | null;
+  hospital_name: string | null;
+  notes: string | null;
+  status: PlannedSurgeryStatus;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type CreatePlannedSurgeryRequest = {
+  patient_id: string;
+  surgery_id: string;
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
+  planned_date: string;
+  planned_time?: string | null;
+  surgeon_id: string;
+  hospital_name?: string | null;
+  notes?: string | null;
+};
+
+export type UpdatePlannedSurgeryRequest = {
+  surgery_id?: string;
+  surgery_name?: string;
+  eye?: "OD" | "OS" | "OU";
+  planned_date?: string;
+  planned_time?: string | null;
+  hospital_name?: string | null;
+  notes?: string | null;
+  status?: PlannedSurgeryStatus;
+};

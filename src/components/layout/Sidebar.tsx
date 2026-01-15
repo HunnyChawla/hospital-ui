@@ -44,6 +44,7 @@ const navItems = [
   { label: "Lab Reports", href: "/lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"] },
   { label: "Lab Test Catalog", href: "/labs", icon: Beaker },
   { label: "Service Master", href: "/services", icon: Package },
+  { label: "Surgeries", href: "/surgeries", icon: Activity, roles: ["admin", "receptionist"] },
   { label: "Billing", href: "/billing", icon: CreditCard },
   { label: "MRD Documents", href: "/mrd", icon: FileText },
   { label: "Doctors", href: "/doctors", icon: Stethoscope },
