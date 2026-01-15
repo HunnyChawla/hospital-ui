@@ -19,19 +19,12 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import {
   Search,
-  Plus,
   X,
   Loader2,
   History,
-  BookmarkPlus,
-  FileText,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Trash2,
   Clock,
-  User,
-  Stethoscope,
+  BookmarkPlus,
+  Trash2,
 } from "lucide-react";
 import { formatDate } from "@/utils/format";
 
@@ -54,6 +47,20 @@ interface FormData {
   notes: string;
 }
 
+// Frequency options for dropdown
+const FREQUENCY_OPTIONS = [
+  { value: "", label: "Select frequency" },
+  { value: "Once daily", label: "OD - Once daily" },
+  { value: "Twice daily", label: "BD - Twice daily" },
+  { value: "Thrice daily", label: "TDS - Three times daily" },
+  { value: "Four times daily", label: "QID - Four times daily" },
+  { value: "As needed", label: "SOS - As needed" },
+  { value: "At bedtime", label: "HS - At bedtime" },
+  { value: "Every 4 hours", label: "Q4H - Every 4 hours" },
+  { value: "Every 6 hours", label: "Q6H - Every 6 hours" },
+  { value: "Every 8 hours", label: "Q8H - Every 8 hours" },
+];
+
 export function PrescriptionForm({
   visitId,
   patientId,
@@ -72,8 +79,8 @@ export function PrescriptionForm({
   const [loading, setLoading] = useState(false);
   const [previousPrescriptions, setPreviousPrescriptions] = useState<PrescriptionResponse[]>([]);
   const [loadingPrevious, setLoadingPrevious] = useState(false);
-  const [expandedPrevRx, setExpandedPrevRx] = useState<string | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<"history" | "templates">("history");
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [historyTab, setHistoryTab] = useState<"history" | "templates">("history");
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
@@ -84,7 +91,6 @@ export function PrescriptionForm({
   const { templates, saveTemplate, deleteTemplate } = usePrescriptionTemplates();
 
   const diagnosis = watch("diagnosis");
-  const notes = watch("notes");
 
   // Load patient and doctor details
   useEffect(() => {
@@ -122,7 +128,7 @@ export function PrescriptionForm({
     fetchPreviousPrescriptions();
   }, [patientId]);
 
-  // Load existing draft prescription for this visit and autopopulate
+  // Load existing draft prescription
   useEffect(() => {
     const fetchDraftPrescription = async () => {
       try {
@@ -136,19 +142,11 @@ export function PrescriptionForm({
 
         if (response.items.length > 0) {
           const draft = response.items[0];
-
-          // Store draft prescription ID for updates
           setDraftPrescriptionId(draft.id);
 
-          // Autopopulate diagnosis and notes
-          if (draft.diagnosis) {
-            setValue("diagnosis", draft.diagnosis);
-          }
-          if (draft.notes) {
-            setValue("notes", draft.notes);
-          }
+          if (draft.diagnosis) setValue("diagnosis", draft.diagnosis);
+          if (draft.notes) setValue("notes", draft.notes);
 
-          // Autopopulate medicines
           if (draft.items && draft.items.length > 0) {
             const draftMedicines: MedicineFormData[] = draft.items.map((item, index) => ({
               tempId: `draft-${index}-${Date.now()}`,
@@ -165,7 +163,6 @@ export function PrescriptionForm({
         }
       } catch (error) {
         console.error("Failed to fetch draft prescription:", error);
-        // Don't show error toast - it's okay if there's no draft
       }
     };
     fetchDraftPrescription();
@@ -192,7 +189,6 @@ export function PrescriptionForm({
           setLoadingMedicines(false);
         }
       }, 300);
-
       return () => clearTimeout(timeoutId);
     } else {
       setAvailableMedicines([]);
@@ -203,14 +199,10 @@ export function PrescriptionForm({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        medicineSearchRef.current &&
-        !medicineSearchRef.current.contains(event.target as Node)
-      ) {
+      if (medicineSearchRef.current && !medicineSearchRef.current.contains(event.target as Node)) {
         setShowMedicineDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -241,14 +233,8 @@ export function PrescriptionForm({
     setMedicines(medicines.filter((m) => m.tempId !== tempId));
   };
 
-  const handleMedicineChange = (
-    tempId: string,
-    field: keyof MedicineFormData,
-    value: string
-  ) => {
-    setMedicines(
-      medicines.map((m) => (m.tempId === tempId ? { ...m, [field]: value } : m))
-    );
+  const handleMedicineChange = (tempId: string, field: keyof MedicineFormData, value: string) => {
+    setMedicines(medicines.map((m) => (m.tempId === tempId ? { ...m, [field]: value } : m)));
   };
 
   const handleLoadPreviousPrescription = (prescription: PrescriptionResponse) => {
@@ -263,13 +249,10 @@ export function PrescriptionForm({
     }));
 
     setMedicines(newMedicines);
-    if (prescription.diagnosis) {
-      setValue("diagnosis", prescription.diagnosis);
-    }
-    if (prescription.notes) {
-      setValue("notes", prescription.notes);
-    }
-    toast.success("Previous prescription loaded");
+    if (prescription.diagnosis) setValue("diagnosis", prescription.diagnosis);
+    if (prescription.notes) setValue("notes", prescription.notes);
+    setShowHistoryPanel(false);
+    toast.success("Prescription loaded");
   };
 
   const handleLoadTemplate = (template: PrescriptionTemplate) => {
@@ -285,9 +268,8 @@ export function PrescriptionForm({
     }));
 
     setMedicines(newMedicines);
-    if (template.diagnosis) {
-      setValue("diagnosis", template.diagnosis);
-    }
+    if (template.diagnosis) setValue("diagnosis", template.diagnosis);
+    setShowHistoryPanel(false);
     toast.success(`Template "${template.name}" loaded`);
   };
 
@@ -296,9 +278,8 @@ export function PrescriptionForm({
       toast.error("Please enter a template name");
       return;
     }
-
     if (medicines.length === 0) {
-      toast.error("Please add at least one medicine to save as template");
+      toast.error("Please add at least one medicine");
       return;
     }
 
@@ -319,7 +300,7 @@ export function PrescriptionForm({
       items: templateItems,
     });
 
-    toast.success("Template saved successfully");
+    toast.success("Template saved");
     setShowSaveTemplateModal(false);
     setTemplateName("");
     setTemplateDescription("");
@@ -342,14 +323,13 @@ export function PrescriptionForm({
         notes: data.notes?.trim() || undefined,
       };
 
-      // Update existing draft or create new one
       if (draftPrescriptionId) {
         await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
-        toast.success("Draft prescription updated");
+        toast.success("Draft updated");
       } else {
         const newPrescription = await prescriptionsApi.create(prescriptionData);
         setDraftPrescriptionId(newPrescription.id);
-        toast.success("Prescription saved as draft");
+        toast.success("Draft saved");
       }
 
       setMedicines([]);
@@ -357,8 +337,7 @@ export function PrescriptionForm({
       setDraftPrescriptionId(null);
       onSuccess?.();
     } catch (error: unknown) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to save prescription");
+      toast.error(getErrorMessage(error) || "Failed to save");
     } finally {
       setLoading(false);
     }
@@ -382,8 +361,6 @@ export function PrescriptionForm({
       };
 
       let prescriptionId: string;
-
-      // Update existing draft or create new one
       if (draftPrescriptionId) {
         await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
         prescriptionId = draftPrescriptionId;
@@ -392,24 +369,20 @@ export function PrescriptionForm({
         prescriptionId = prescription.id;
       }
 
-      // Finalize the prescription
       await prescriptionsApi.finalize(prescriptionId);
-
-      toast.success("Prescription finalized successfully");
+      toast.success("Prescription finalized");
 
       setMedicines([]);
       reset();
       setDraftPrescriptionId(null);
       onSuccess?.();
     } catch (error: unknown) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to finalize prescription");
+      toast.error(getErrorMessage(error) || "Failed to finalize");
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate patient age
   const calculateAge = (dateOfBirth: string): number => {
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
@@ -421,211 +394,52 @@ export function PrescriptionForm({
     return age;
   };
 
+  const patientInfo = patient
+    ? `${patient.first_name} ${patient.last_name || ""}`.trim() +
+      (patient.date_of_birth ? ` (${calculateAge(patient.date_of_birth)}${patient.gender ? patient.gender.charAt(0).toUpperCase() : ""})` : "") +
+      (patient.uhid ? ` • ${patient.uhid}` : "")
+    : "Loading...";
+
+  const doctorInfo = doctor?.user_name || doctor?.name || "Loading...";
+
   return (
-    <div className="flex h-[75vh] gap-4">
-      {/* Sidebar - Previous Prescriptions & Templates */}
-      <div className="w-72 flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-        {/* Sidebar Tabs */}
-        <div className="flex border-b border-slate-200 bg-white">
+    <div className="flex h-[75vh] flex-col">
+      {/* Header Section */}
+      <div className="mb-5 rounded-lg border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 bg-slate-50 px-4 py-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Patient & Doctor</h3>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="text-sm">
+            <span className="font-semibold text-slate-900">{patientInfo}</span>
+            <span className="mx-3 text-slate-300">|</span>
+            <span className="text-slate-600">Dr. {doctorInfo}</span>
+          </div>
           <button
-            onClick={() => setSidebarTab("history")}
-            className={`flex-1 px-3 py-2 text-xs font-medium transition ${
-              sidebarTab === "history"
-                ? "border-b-2 border-sky-500 text-sky-600"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
+            type="button"
+            onClick={() => setShowHistoryPanel(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
           >
-            <History className="mr-1 inline-block h-3.5 w-3.5" />
+            <History className="h-3.5 w-3.5" />
             History
           </button>
-          <button
-            onClick={() => setSidebarTab("templates")}
-            className={`flex-1 px-3 py-2 text-xs font-medium transition ${
-              sidebarTab === "templates"
-                ? "border-b-2 border-sky-500 text-sky-600"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <FileText className="mr-1 inline-block h-3.5 w-3.5" />
-            Templates
-          </button>
-        </div>
-
-        {/* Sidebar Content */}
-        <div className="h-[calc(100%-41px)] overflow-y-auto p-3">
-          {sidebarTab === "history" ? (
-            <div className="space-y-2">
-              {loadingPrevious ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                </div>
-              ) : previousPrescriptions.length === 0 ? (
-                <p className="py-8 text-center text-xs text-slate-500">
-                  No previous prescriptions
-                </p>
-              ) : (
-                previousPrescriptions.map((rx) => (
-                  <div
-                    key={rx.id}
-                    className="rounded-lg border border-slate-200 bg-white transition hover:border-sky-200"
-                  >
-                    <button
-                      onClick={() =>
-                        setExpandedPrevRx(expandedPrevRx === rx.id ? null : rx.id)
-                      }
-                      className="flex w-full items-center justify-between p-2.5 text-left"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-900">
-                          {rx.prescription_number || `Rx #${rx.id.slice(0, 8)}`}
-                        </p>
-                        <p className="flex items-center gap-1 text-[10px] text-slate-500">
-                          <Clock className="h-3 w-3" />
-                          {formatDate(rx.created_at)}
-                        </p>
-                      </div>
-                      {expandedPrevRx === rx.id ? (
-                        <ChevronDown className="h-4 w-4 text-slate-400" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
-                      )}
-                    </button>
-                    {expandedPrevRx === rx.id && (
-                      <div className="border-t border-slate-100 p-2.5">
-                        <div className="mb-2 space-y-1">
-                          {rx.items.slice(0, 3).map((item, idx) => (
-                            <p key={idx} className="truncate text-[10px] text-slate-600">
-                              {item.medicine_name}
-                            </p>
-                          ))}
-                          {rx.items.length > 3 && (
-                            <p className="text-[10px] text-slate-400">
-                              +{rx.items.length - 3} more
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleLoadPreviousPrescription(rx)}
-                          className="flex w-full items-center justify-center gap-1 rounded-md bg-sky-50 px-2 py-1.5 text-[10px] font-medium text-sky-600 transition hover:bg-sky-100"
-                        >
-                          <Copy className="h-3 w-3" />
-                          Load into form
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Save Template Button */}
-              <button
-                onClick={() => setShowSaveTemplateModal(true)}
-                disabled={medicines.length === 0}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-sky-400 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <BookmarkPlus className="h-3.5 w-3.5" />
-                Save current as template
-              </button>
-
-              {templates.length === 0 ? (
-                <p className="py-8 text-center text-xs text-slate-500">
-                  No saved templates
-                </p>
-              ) : (
-                templates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="group rounded-lg border border-slate-200 bg-white p-2.5 transition hover:border-sky-200"
-                  >
-                    <div className="mb-1.5 flex items-start justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-900">
-                          {template.name}
-                        </p>
-                        {template.description && (
-                          <p className="truncate text-[10px] text-slate-500">
-                            {template.description}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => deleteTemplate(template.id)}
-                        className="ml-2 rounded p-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <p className="mb-2 text-[10px] text-slate-500">
-                      {template.items.length} medicine(s)
-                    </p>
-                    <button
-                      onClick={() => handleLoadTemplate(template)}
-                      className="flex w-full items-center justify-center gap-1 rounded-md bg-sky-50 px-2 py-1.5 text-[10px] font-medium text-sky-600 transition hover:bg-sky-100"
-                    >
-                      <Copy className="h-3 w-3" />
-                      Load template
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
         </div>
       </div>
 
       {/* Main Form */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
-          {/* Patient and Doctor Info Card */}
-          <div className="mb-4 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100">
-                  <User className="h-5 w-5 text-sky-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Patient</p>
-                  <p className="font-semibold text-slate-900">
-                    {patient
-                      ? `${patient.first_name} ${patient.last_name || ""}`.trim()
-                      : "Loading..."}
-                  </p>
-                  <div className="flex gap-2 text-xs text-slate-500">
-                    {patient?.date_of_birth && (
-                      <span>{calculateAge(patient.date_of_birth)} yrs</span>
-                    )}
-                    {patient?.gender && (
-                      <span className="capitalize">• {patient.gender}</span>
-                    )}
-                    {patient?.uhid && <span>• {patient.uhid}</span>}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100">
-                  <Stethoscope className="h-5 w-5 text-teal-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Doctor</p>
-                  <p className="font-semibold text-slate-900">
-                    {doctor?.user_name || doctor?.name || "Loading..."}
-                  </p>
-                  {doctor?.specialization && (
-                    <p className="text-xs text-slate-500">{doctor.specialization}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex-1 space-y-5 overflow-y-auto pr-1">
 
-          {/* Scrollable Content Area */}
-          <div className="flex-1 space-y-4 overflow-y-auto pr-2">
-            {/* Medicine Search */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Add Medicine</label>
-              <div className="relative" ref={medicineSearchRef}>
+          {/* SECTION 1: Medicines */}
+          <div className="rounded-lg border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Medicines {medicines.length > 0 && <span className="ml-1 text-sky-600">({medicines.length})</span>}
+              </h3>
+            </div>
+            <div className="p-4">
+              {/* Medicine Search */}
+              <div ref={medicineSearchRef} className="relative mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -635,136 +449,107 @@ export function PrescriptionForm({
                       setMedicineSearchTerm(e.target.value);
                       setShowMedicineDropdown(true);
                     }}
-                    onFocus={() => {
-                      if (availableMedicines.length > 0) {
-                        setShowMedicineDropdown(true);
-                      }
-                    }}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                    placeholder="Search medicines by name..."
+                    onFocus={() => availableMedicines.length > 0 && setShowMedicineDropdown(true)}
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    placeholder="Type to search medicines..."
                   />
                   {loadingMedicines && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                    </div>
+                    <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
                   )}
                 </div>
+
+                {/* Search Dropdown */}
                 {showMedicineDropdown && availableMedicines.length > 0 && (
-                  <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                     {availableMedicines.map((medicine) => (
                       <div
                         key={medicine.id}
                         onClick={() => handleAddMedicine(medicine)}
-                        className="cursor-pointer border-b border-slate-50 px-4 py-3 transition last:border-0 hover:bg-sky-50"
+                        className="cursor-pointer border-b border-slate-100 px-4 py-2.5 text-sm hover:bg-sky-50 last:border-0"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{medicine.name}</p>
-                            {medicine.generic_name && (
-                              <p className="text-xs text-slate-500">{medicine.generic_name}</p>
-                            )}
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                              {medicine.strength && (
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5">
-                                  {medicine.strength}
-                                </span>
-                              )}
-                              {medicine.dosage_form && (
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5">
-                                  {medicine.dosage_form}
-                                </span>
-                              )}
-                              {medicine.manufacturer && (
-                                <span className="text-slate-400">{medicine.manufacturer}</span>
-                              )}
-                            </div>
-                          </div>
-                          <Plus className="h-5 w-5 text-sky-500" />
+                        <div className="font-medium text-slate-900">{medicine.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {[medicine.generic_name, medicine.strength, medicine.dosage_form]
+                            .filter(Boolean)
+                            .join(" • ")}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Medicines List */}
-            {medicines.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-slate-700">
-                    Prescribed Medicines ({medicines.length})
-                  </label>
-                </div>
-                <div className="grid gap-3">
-                  {medicines.map((medicine) => (
+              {/* Medicine List */}
+              {medicines.length > 0 ? (
+                <div className="space-y-3">
+                  {medicines.map((medicine, index) => (
                     <div
                       key={medicine.tempId}
-                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow"
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-4"
                     >
-                      <div className="mb-3 flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-semibold text-slate-900">
-                            {medicine.medicine_name}
-                          </p>
+                      {/* Medicine Name Row */}
+                      <div className="mb-3 flex items-start justify-between border-b border-slate-200 pb-3">
+                        <div>
+                          <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded bg-sky-500 text-xs font-medium text-white">
+                            {index + 1}
+                          </span>
+                          <span className="font-semibold text-slate-900">{medicine.medicine_name}</span>
                           {medicine.generic_name && (
-                            <p className="text-xs text-slate-500">{medicine.generic_name}</p>
+                            <span className="ml-2 text-sm text-slate-500">({medicine.generic_name})</span>
                           )}
                         </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveMedicine(medicine.tempId)}
-                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                          className="rounded p-1 text-slate-400 hover:bg-red-100 hover:text-red-500"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </div>
+
+                      {/* Medicine Fields - Grid */}
                       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">Dosage</label>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Dosage</label>
                           <input
                             type="text"
                             value={medicine.dosage || ""}
-                            onChange={(e) =>
-                              handleMedicineChange(medicine.tempId, "dosage", e.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                            onChange={(e) => handleMedicineChange(medicine.tempId, "dosage", e.target.value)}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
                             placeholder="e.g., 500mg"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">Frequency</label>
-                          <input
-                            type="text"
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Frequency</label>
+                          <select
                             value={medicine.frequency || ""}
-                            onChange={(e) =>
-                              handleMedicineChange(medicine.tempId, "frequency", e.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
-                            placeholder="e.g., Twice daily"
-                          />
+                            onChange={(e) => handleMedicineChange(medicine.tempId, "frequency", e.target.value)}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                          >
+                            {FREQUENCY_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">Duration</label>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Duration</label>
                           <input
                             type="text"
                             value={medicine.duration || ""}
-                            onChange={(e) =>
-                              handleMedicineChange(medicine.tempId, "duration", e.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                            onChange={(e) => handleMedicineChange(medicine.tempId, "duration", e.target.value)}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
                             placeholder="e.g., 5 days"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">Instructions</label>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Instructions</label>
                           <input
                             type="text"
                             value={medicine.instructions || ""}
-                            onChange={(e) =>
-                              handleMedicineChange(medicine.tempId, "instructions", e.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                            onChange={(e) => handleMedicineChange(medicine.tempId, "instructions", e.target.value)}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
                             placeholder="e.g., After meals"
                           />
                         </div>
@@ -772,47 +557,72 @@ export function PrescriptionForm({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Diagnosis and Notes */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">Diagnosis</label>
-                <textarea
-                  {...register("diagnosis")}
-                  rows={3}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                  placeholder="Enter diagnosis..."
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">Notes</label>
-                <textarea
-                  {...register("notes")}
-                  rows={3}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                  placeholder="Additional notes or instructions..."
-                />
-              </div>
+              ) : (
+                <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 py-8 text-center">
+                  <p className="text-sm text-slate-400">No medicines added yet</p>
+                  <p className="mt-1 text-xs text-slate-400">Use the search box above to add medicines</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Actions - Fixed at bottom */}
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-            >
-              Cancel
-            </button>
-            <div className="flex gap-3">
+          {/* SECTION 2: Diagnosis & Notes */}
+          <div className="rounded-lg border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Diagnosis & Notes</h3>
+            </div>
+            <div className="p-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Diagnosis <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <textarea
+                    {...register("diagnosis")}
+                    rows={3}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    placeholder="Enter diagnosis..."
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Notes <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <textarea
+                    {...register("notes")}
+                    rows={3}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    placeholder="Additional notes or instructions..."
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Bar */}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-white">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="text-sm text-slate-500">
+              {medicines.length > 0 ? (
+                <span><span className="font-semibold text-slate-700">{medicines.length}</span> medicine{medicines.length !== 1 ? "s" : ""} added</span>
+              ) : (
+                <span className="text-slate-400">No medicines added</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
               <button
                 type="button"
                 onClick={handleSubmit(onSubmit)}
                 disabled={loading || medicines.length === 0}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? "Saving..." : "Save Draft"}
               </button>
@@ -820,71 +630,195 @@ export function PrescriptionForm({
                 type="button"
                 onClick={handleSubmit(handleFinalize)}
                 disabled={loading || medicines.length === 0}
-                className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-sky-500 px-5 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "Finalizing..." : "Finalize Prescription"}
+                {loading ? "Finalizing..." : "Finalize"}
               </button>
             </div>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
+
+      {/* Slide-out History Panel */}
+      {showHistoryPanel && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/30"
+            onClick={() => setShowHistoryPanel(false)}
+          />
+          {/* Panel */}
+          <div className="fixed right-0 top-0 z-50 h-full w-80 bg-white shadow-xl">
+            <div className="flex h-full flex-col">
+              {/* Panel Header */}
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                <h3 className="font-semibold text-slate-900">History & Templates</h3>
+                <button
+                  onClick={() => setShowHistoryPanel(false)}
+                  className="rounded p-1 text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-slate-200">
+                <button
+                  onClick={() => setHistoryTab("history")}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                    historyTab === "history"
+                      ? "border-b-2 border-sky-500 text-sky-600"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  History
+                </button>
+                <button
+                  onClick={() => setHistoryTab("templates")}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                    historyTab === "templates"
+                      ? "border-b-2 border-sky-500 text-sky-600"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Templates
+                </button>
+              </div>
+
+              {/* Panel Content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {historyTab === "history" ? (
+                  <div className="space-y-2">
+                    {loadingPrevious ? (
+                      <div className="py-8 text-center">
+                        <Loader2 className="mx-auto h-5 w-5 animate-spin text-slate-400" />
+                      </div>
+                    ) : previousPrescriptions.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-slate-500">No previous prescriptions</p>
+                    ) : (
+                      previousPrescriptions.map((rx) => (
+                        <div
+                          key={rx.id}
+                          className="rounded-lg border border-slate-200 bg-white p-3"
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-900">
+                              {rx.prescription_number || `Rx #${rx.id.slice(0, 8)}`}
+                            </span>
+                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                              <Clock className="h-3 w-3" />
+                              {formatDate(rx.created_at)}
+                            </span>
+                          </div>
+                          <p className="mb-2 text-xs text-slate-500">
+                            {rx.items.length} medicine(s)
+                          </p>
+                          <button
+                            onClick={() => handleLoadPreviousPrescription(rx)}
+                            className="w-full rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                          >
+                            Load
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setShowSaveTemplateModal(true)}
+                      disabled={medicines.length === 0}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm text-slate-500 hover:border-slate-400 hover:text-slate-600 disabled:opacity-50"
+                    >
+                      <BookmarkPlus className="h-4 w-4" />
+                      Save as template
+                    </button>
+
+                    {templates.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-slate-500">No saved templates</p>
+                    ) : (
+                      templates.map((template) => (
+                        <div
+                          key={template.id}
+                          className="rounded-lg border border-slate-200 bg-white p-3"
+                        >
+                          <div className="mb-2 flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{template.name}</p>
+                              {template.description && (
+                                <p className="text-xs text-slate-500">{template.description}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => deleteTemplate(template.id)}
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <p className="mb-2 text-xs text-slate-500">
+                            {template.items.length} medicine(s)
+                          </p>
+                          <button
+                            onClick={() => handleLoadTemplate(template)}
+                            className="w-full rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                          >
+                            Load
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Save Template Modal */}
       {showSaveTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-semibold text-slate-900">Save as Template</h3>
-            <div className="space-y-4">
+          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold text-slate-900">Save Template</h3>
+            <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Template Name *
-                </label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Name *</label>
                 <input
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-                  placeholder="e.g., Common Cold Treatment"
+                  placeholder="Template name"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Description (optional)
-                </label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
                 <input
                   type="text"
                   value={templateDescription}
                   onChange={(e) => setTemplateDescription(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-                  placeholder="Brief description of this template"
+                  placeholder="Optional description"
                 />
               </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs font-medium text-slate-600">
-                  This template will include:
-                </p>
-                <ul className="mt-1 text-xs text-slate-500">
-                  <li>• {medicines.length} medicine(s)</li>
-                  {diagnosis && <li>• Diagnosis: {diagnosis.slice(0, 30)}...</li>}
-                </ul>
-              </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => {
                   setShowSaveTemplateModal(false);
                   setTemplateName("");
                   setTemplateDescription("");
                 }}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveTemplate}
-                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-600"
+                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
               >
-                Save Template
+                Save
               </button>
             </div>
           </div>

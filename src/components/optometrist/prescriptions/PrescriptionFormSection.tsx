@@ -18,6 +18,7 @@ import {
     Stethoscope,
     Sparkles,
     Settings,
+    X,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -688,371 +689,467 @@ export function PrescriptionFormSection({
                     )}
                 </div>
 
-                {/* Quick Diagnosis Section */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between mb-2">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                            <Stethoscope className="h-4 w-4 text-sky-500" />
-                            Clinical Diagnosis
+                {/* CARD 1: Diagnosis */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-sky-50/50 to-white px-5 py-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-sky-100/50 border border-sky-100 shadow-sm text-sky-600">
+                                    <Stethoscope className="h-4.5 w-4.5" />
+                                </span>
+                                Clinical Diagnosis
+                            </h3>
                             <button
                                 type="button"
                                 onClick={() => setShowSettingsModal(true)}
-                                className="ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                                className="group/btn flex items-center gap-1.5 rounded-full pl-3 pr-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-white hover:text-sky-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all shadow-sm"
                                 title="Configure Presets"
                             >
+                                <span className="group-hover/btn:translate-x-0.5 transition-transform duration-200">Configure</span>
                                 <Settings className="h-3.5 w-3.5" />
                             </button>
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                            Quick select common conditions or type manually
-                        </p>
+                        </div>
                     </div>
-                    <div className="mt-1">
-                        <DiagnosisChips
-                            options={diagnosesOptions}
-                            selected={selectedDiagnoses}
-                            onToggle={handleDiagnosisToggle}
-                        />
-                    </div>
-                    {selectedDiagnoses.length > 0 && (
-                        <div className="pt-1">
-                            <SelectedDiagnoses
-                                diagnoses={selectedDiagnoses}
-                                onRemove={handleDiagnosisToggle}
+
+                    <div className="p-5 space-y-6">
+                        {/* Quick Select */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quick Select</p>
+                            </div>
+                            <DiagnosisChips
+                                options={diagnosesOptions}
+                                selected={selectedDiagnoses}
+                                onToggle={handleDiagnosisToggle}
                             />
                         </div>
-                    )}
-                    <textarea
-                        {...register("diagnosis")}
-                        rows={1}
-                        placeholder="Additional diagnosis notes..."
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/20 resize-none"
-                    />
-                </div>
 
-                {/* Quick Medicines Section */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                            <Sparkles className="h-3 w-3" />
-                            Quick Add
-                            <button
-                                type="button"
-                                onClick={() => setShowSettingsModal(true)}
-                                className="ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-                                title="Configure Presets"
-                            >
-                                <Settings className="h-3 w-3" />
-                            </button>
-                        </p>
-                    </div>
-                    <MedicineQuickChips
-                        options={medicinesOptions}
-                        onAdd={(id) => {
-                            const template = medicinesOptions.find((m: any) => m.id === id);
-                            if (template) {
-                                handleAddMedicine(template.medicine);
-                            }
-                        }}
-                    />
-                </div>
+                        {/* Selected List */}
+                        {selectedDiagnoses.length > 0 && (
+                            <div className="rounded-xl bg-slate-50/80 p-4 border border-slate-100/60 shadow-inner">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 ml-0.5">Selected Conditions</p>
+                                <SelectedDiagnoses
+                                    diagnoses={selectedDiagnoses}
+                                    onRemove={handleDiagnosisToggle}
+                                />
+                            </div>
+                        )}
 
-                {/* Added Medicines List */}
-                {medicineFields.length > 0 && (
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                <Pill className="h-4 w-4 text-purple-500" />
-                                Added Medicines ({medicineFields.length})
+                        {/* Full Diagnosis / Notes */}
+                        <div>
+                            <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+                                <span>Detailed Diagnosis / Notes</span>
                             </label>
+                            <textarea
+                                {...register("diagnosis")}
+                                rows={2}
+                                placeholder="Type specific diagnosis details here..."
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-3 text-sm font-medium text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/10 resize-none transition-all placeholder:text-slate-400 hover:bg-slate-50"
+                            />
                         </div>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                    </div>
+                </div>
+
+                {/* CARD 2: Medicines */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-purple-50/50 to-white px-5 py-4 flex items-center justify-between">
+                        <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-purple-100/50 border border-purple-100 shadow-sm text-purple-600">
+                                <Pill className="h-4.5 w-4.5" />
+                            </span>
+                            Medicines
+                            {medicineFields.length > 0 && (
+                                <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-700 shadow-sm">
+                                    {medicineFields.length}
+                                </span>
+                            )}
+                        </h3>
+                        <button
+                            type="button"
+                            onClick={() => setShowSettingsModal(true)}
+                            className="group/btn flex items-center gap-1.5 rounded-full pl-3 pr-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-white hover:text-purple-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all shadow-sm"
+                            title="Configure Presets"
+                        >
+                            <span className="group-hover/btn:translate-x-0.5 transition-transform duration-200">Configure</span>
+                            <Settings className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <div className="p-5 space-y-6">
+                        {/* Search & Quick Add */}
+                        <div className="space-y-4">
+                            <div className="relative group/search">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-purple-500 transition-colors">
+                                    {searchingMedicines ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Pill className="h-4 w-4" />
+                                    )}
+                                </div>
+                                <input
+                                    type="text"
+                                    value={medicineSearchQuery}
+                                    onChange={(e) => setMedicineSearchQuery(e.target.value)}
+                                    placeholder="Search medicines (brand or generic)..."
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all shadow-sm"
+                                />
+                                {medicineSearchResults.length > 0 && (
+                                    <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-black ring-opacity-5">
+                                        <ul className="max-h-60 overflow-y-auto py-1">
+                                            {medicineSearchResults.map((medicine) => (
+                                                <li
+                                                    key={medicine.id}
+                                                    onClick={() => handleAddMedicine(medicine)}
+                                                    className="cursor-pointer px-4 py-3 hover:bg-purple-50 transition-colors border-b border-slate-50 last:border-0"
+                                                >
+                                                    <div className="font-semibold text-slate-900 text-sm">{medicine.medicine_name}</div>
+                                                    <div className="text-xs text-slate-500 mt-0.5 font-medium">{medicine.generic_name} • {medicine.default_dosage}</div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Quick Add</p>
+                                <MedicineQuickChips
+                                    options={medicinesOptions}
+                                    onAdd={handleQuickMedicineAdd}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Added Medicines List */}
+                        <div className="space-y-3">
                             {medicineFields.map((field, index) => (
-                                <div key={field.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                    <div className="flex items-start gap-2">
-                                        <div className="flex-1 space-y-2">
-                                            {/* Hidden fields for IDs */}
-                                            <input
-                                                type="hidden"
-                                                {...register(`medicine_items.${index}.medicine_id`)}
-                                            />
-                                            <input
-                                                type="hidden"
-                                                {...register(`medicine_items.${index}.generic_name`)}
-                                            />
-                                            <input
-                                                type="hidden"
-                                                {...register(`medicine_items.${index}.dosage`)}
-                                            />
-                                            <input
-                                                {...register(`medicine_items.${index}.medicine_name`)}
-                                                placeholder="Medicine name"
-                                                className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-sm font-medium focus:border-sky-500 focus:outline-none"
-                                            />
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <select
-                                                    {...register(`medicine_items.${index}.frequency`)}
-                                                    className="rounded border border-slate-200 px-2 py-1 text-xs focus:border-sky-500 focus:outline-none"
-                                                >
-                                                    <option value="">Frequency...</option>
-                                                    {FREQUENCIES.map((f) => (
-                                                        <option key={f} value={f}>{f}</option>
-                                                    ))}
-                                                </select>
-                                                <select
-                                                    {...register(`medicine_items.${index}.duration`)}
-                                                    className="rounded border border-slate-200 px-2 py-1 text-xs focus:border-sky-500 focus:outline-none"
-                                                >
-                                                    <option value="">Duration...</option>
-                                                    {DURATIONS.map((d) => (
-                                                        <option key={d} value={d}>{d}</option>
-                                                    ))}
-                                                </select>
-                                                <input
-                                                    {...register(`medicine_items.${index}.instructions`)}
-                                                    placeholder="Instructions"
-                                                    className="rounded border border-slate-200 px-2 py-1 text-xs focus:border-sky-500 focus:outline-none"
-                                                />
-                                            </div>
-                                        </div>
+                                <div key={field.id} className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow group/item">
+                                    <div className="absolute right-3 top-3 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                         <button
                                             type="button"
                                             onClick={() => removeMedicine(index)}
-                                            className="p-1 text-rose-500 hover:bg-rose-50 rounded transition"
+                                            className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
+
+                                    <div className="mb-3 pr-8">
+                                        <div className="flex items-center gap-2">
+                                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-700">
+                                                {index + 1}
+                                            </span>
+                                            <h4 className="font-bold text-slate-900 text-sm">{field.medicine_name}</h4>
+                                        </div>
+                                        {field.generic_name && (
+                                            <p className="ml-7 text-xs font-medium text-slate-500">{field.generic_name}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                        <div>
+                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Dosage</label>
+                                            <input
+                                                {...register(`medicine_items.${index}.dosage`)}
+                                                placeholder="e.g. 500mg"
+                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Frequency</label>
+                                            <div className="relative">
+                                                <input
+                                                    list={`freq-options-${index}`}
+                                                    {...register(`medicine_items.${index}.frequency`)}
+                                                    placeholder="e.g. 1-0-1"
+                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                />
+                                                <datalist id={`freq-options-${index}`}>
+                                                    {FREQUENCIES.map(f => <option key={f} value={f} />)}
+                                                </datalist>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Duration</label>
+                                            <div className="relative">
+                                                <input
+                                                    list={`dur-options-${index}`}
+                                                    {...register(`medicine_items.${index}.duration`)}
+                                                    placeholder="e.g. 5 days"
+                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                />
+                                                <datalist id={`dur-options-${index}`}>
+                                                    {DURATIONS.map(d => <option key={d} value={d} />)}
+                                                </datalist>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Instruction</label>
+                                            <input
+                                                {...register(`medicine_items.${index}.instructions`)}
+                                                placeholder="e.g. After food"
+                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
+
+                            {medicineFields.length === 0 && (
+                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+                                        <Pill className="h-5 w-5 text-slate-400" />
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-500">No medicines added yet</p>
+                                    <p className="text-xs text-slate-400 mt-1">Search or use quick add to prescribe</p>
+                                </div>
+                            )}
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Medicine Search (Compact) */}
-                <div className="relative">
-                    <input
-                        type="text"
-                        value={medicineSearchQuery}
-                        onChange={(e) => setMedicineSearchQuery(e.target.value)}
-                        placeholder="🔍 Search medicines to add..."
-                        className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none bg-slate-50"
-                    />
-                    {searchingMedicines && (
-                        <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-slate-400" />
-                    )}
-                    {medicineSearchResults.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-32 overflow-y-auto">
-                            {medicineSearchResults.map((med) => (
-                                <button
-                                    key={med.id}
-                                    type="button"
-                                    onClick={() => handleAddMedicine(med)}
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-sky-50 border-b border-slate-100 last:border-0"
-                                >
-                                    <p className="font-medium text-slate-900">{med.name}</p>
-                                    {med.generic_name && (
-                                        <p className="text-xs text-slate-500">{med.generic_name}</p>
-                                    )}
-                                </button>
-                            ))}
+                {/* CARD 3: Treatment Plan */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-emerald-50/50 to-white px-5 py-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-100/50 border border-emerald-100 shadow-sm text-emerald-600">
+                                    <CheckCircle className="h-4.5 w-4.5" />
+                                </span>
+                                Treatment Plan
+                            </h3>
                         </div>
-                    )}
-                </div>
+                    </div>
+                    <div className="p-5 space-y-6">
+                        {/* Advice Section */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Advice & Tests</label>
+                            </div>
+                            <AdviceQuickChips
+                                options={QUICK_ADVICE}
+                                addedIds={addedAdviceIds}
+                                onAdd={handleQuickAdviceAdd}
+                                className="mb-4"
+                            />
 
-                {/* Quick Follow-up Section */}
-                <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <Calendar className="h-4 w-4 text-emerald-500" />
-                        Follow-up
-                    </label>
-                    <FollowupQuickChips
-                        options={QUICK_FOLLOWUPS}
-                        selectedDays={selectedFollowupDays}
-                        onSelect={handleFollowupSelect}
-                        onCustom={() => {
-                            setShowCustomDate(true);
-                            setSelectedFollowupDays(null);
-                        }}
-                    />
-                    {showCustomDate && (
-                        <input
-                            type="date"
-                            {...register("followup_date")}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-                        />
-                    )}
-                </div>
+                            {/* Added Advice List */}
+                            <div className="space-y-2">
+                                {adviceFields.map((field, index) => (
+                                    <div key={field.id} className="flex items-center gap-2 group/advice">
+                                        <div className="flex-1">
+                                            <input
+                                                {...register(`advice_items.${index}.description`)}
+                                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                removeAdvice(index);
+                                                // Also remove from tracked IDs
+                                                const description = adviceFields[index]?.description;
+                                                const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
+                                                if (match) {
+                                                    setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
+                                                }
+                                            }}
+                                            className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
 
-                {/* Quick Advice/Tests Section */}
-                <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <AlertCircle className="h-4 w-4 text-amber-500" />
-                        Advice / Tests
-                        <span className="text-xs font-normal text-slate-400">(click to add)</span>
-                    </label>
-                    <AdviceQuickChips
-                        options={QUICK_ADVICE}
-                        addedIds={addedAdviceIds}
-                        onAdd={handleQuickAdviceAdd}
-                    />
-                    {adviceFields.length > 0 && (
-                        <div className="space-y-1 mt-2">
-                            {adviceFields.map((field, index) => (
-                                <div key={field.id} className="flex items-center gap-2 bg-slate-50 rounded px-2 py-1">
-                                    <input
-                                        {...register(`advice_items.${index}.description`)}
-                                        className="flex-1 bg-transparent text-sm focus:outline-none"
-                                        placeholder="Description"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            removeAdvice(index);
-                                            // Find and remove from addedIds
-                                            const description = adviceFields[index]?.description;
-                                            const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
-                                            if (match) {
-                                                setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
-                                            }
-                                        }}
-                                        className="p-0.5 text-rose-500 hover:bg-rose-100 rounded"
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
+                        <div className="h-px bg-slate-100 w-full" />
+
+                        {/* Dilation Toggle */}
+                        <div className="flex items-center justify-between p-4 rounded-xl border border-orange-100 bg-orange-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+                                    <Droplets className="h-5 w-5" />
                                 </div>
-                            ))}
+                                <div>
+                                    <span className="font-bold text-slate-800 block text-sm">Dilated Examination</span>
+                                    <span className="text-xs font-medium text-orange-600/80">Requires patient consent (approx. 30 mins)</span>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    {...register("dilation_required")}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                            </label>
                         </div>
-                    )}
-                </div>
 
-                {/* Dilation Toggle */}
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50">
-                    <Droplets className="h-5 w-5 text-orange-500" />
-                    <label className="flex items-center gap-2 cursor-pointer flex-1">
-                        <input
-                            type="checkbox"
-                            {...register("dilation_required")}
-                            className="h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                        <div className="h-px bg-slate-100 w-full" />
+
+                        {/* Plan of Action */}
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                                Detailed Plan Of Action
+                            </label>
+                            <textarea
+                                {...register("plan_of_action")}
+                                rows={2}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 resize-none transition-all placeholder:text-slate-400"
+                                placeholder="Describe the treatment plan..."
+                            />
+                        </div>
+
+                        <div className="h-px bg-slate-100 w-full" />
+
+                        <PlannedSurgerySection
+                            patientId={patientId}
+                            surgeonId={doctorId}
+                            visitId={visitId}
                         />
-                        <span className="text-sm font-medium text-slate-700">Start Dilation</span>
-                    </label>
+                    </div>
                 </div>
 
-                {/* Plan Surgery Section */}
-                <PlannedSurgerySection
-                    patientId={patientId}
-                    surgeonId={doctorId}
-                    visitId={visitId}
-                />
-
-                {/* Plan of Action */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Plan of Action
-                    </label>
-                    <textarea
-                        {...register("plan_of_action")}
-                        rows={2}
-                        placeholder="Treatment plan and next steps..."
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none resize-none"
-                    />
-                </div>
-
-                {/* Collapsible Optical Details */}
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                {/* CARD 4: Optical Details */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
                     <button
                         type="button"
                         onClick={() => setShowOpticalDetails(!showOpticalDetails)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition"
+                        className="w-full border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                     >
-                        <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                            <Eye className="h-4 w-4 text-sky-500" />
-                            Optical Details (Lens, Coatings)
-                        </span>
+                        <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-slate-100 border border-slate-200 shadow-sm text-slate-600">
+                                <Eye className="h-4.5 w-4.5" />
+                            </span>
+                            Optical Details
+                        </h3>
                         {showOpticalDetails ? (
-                            <ChevronUp className="h-4 w-4 text-slate-500" />
+                            <ChevronUp className="h-5 w-5 text-slate-400" />
                         ) : (
-                            <ChevronDown className="h-4 w-4 text-slate-500" />
+                            <ChevronDown className="h-5 w-5 text-slate-400" />
                         )}
                     </button>
+
                     {showOpticalDetails && (
-                        <div className="p-4 space-y-3 bg-white border-t border-slate-200">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-600 mb-1">Lens Type</label>
-                                    <select
-                                        {...register("lens_type")}
-                                        className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm focus:border-sky-500 focus:outline-none"
-                                    >
-                                        <option value="">Select...</option>
-                                        {LENS_TYPES.map((lt) => (
-                                            <option key={lt} value={lt}>{lt}</option>
-                                        ))}
-                                    </select>
+                        <div className="p-5 space-y-6 animate-in slide-in-from-top-2 duration-200">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lens Type</label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {LENS_TYPES.map((type) => (
+                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                    <input
+                                                        type="radio"
+                                                        value={type}
+                                                        {...register("lens_type")}
+                                                        className="h-4 w-4 text-sky-600 border-slate-300 focus:ring-sky-500"
+                                                    />
+                                                    <span className="text-sm font-medium text-slate-700">{type}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Vision Distance</label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {VISION_TYPES.map((type) => (
+                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                    <input
+                                                        type="radio"
+                                                        value={type}
+                                                        {...register("vision_type")}
+                                                        className="h-4 w-4 text-sky-600 border-slate-300 focus:ring-sky-500"
+                                                    />
+                                                    <span className="text-sm font-medium text-slate-700">{type}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-600 mb-1">Vision Type</label>
-                                    <select
-                                        {...register("vision_type")}
-                                        className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm focus:border-sky-500 focus:outline-none"
-                                    >
-                                        <option value="">Select...</option>
-                                        {VISION_TYPES.map((vt) => (
-                                            <option key={vt} value={vt}>{vt}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Lens Material</label>
-                                <select
-                                    {...register("lens_material")}
-                                    className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm focus:border-sky-500 focus:outline-none"
-                                >
-                                    <option value="">Select...</option>
-                                    {LENS_MATERIALS.map((lm) => (
-                                        <option key={lm} value={lm}>{lm}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Coatings</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {COATINGS.map((coating) => (
-                                        <button
-                                            key={coating}
-                                            type="button"
-                                            onClick={() => handleToggleCoating(coating)}
-                                            className={clsx(
-                                                "px-2 py-1 rounded-full text-xs font-medium transition",
-                                                selectedCoatings?.includes(coating)
-                                                    ? "bg-sky-500 text-white"
-                                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                            )}
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lens Material</label>
+                                        <select
+                                            {...register("lens_material")}
+                                            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all"
                                         >
-                                            {coating}
-                                        </button>
-                                    ))}
+                                            <option value="">Select Material...</option>
+                                            {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Coatings</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {COATINGS.map((coating) => (
+                                                <button
+                                                    key={coating}
+                                                    type="button"
+                                                    onClick={() => handleToggleCoating(coating)}
+                                                    className={clsx(
+                                                        "rounded-lg px-3 py-2 text-xs font-semibold transition-all border shadow-sm",
+                                                        selectedCoatings?.includes(coating)
+                                                            ? "bg-slate-800 text-white border-slate-900"
+                                                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                                    )}
+                                                >
+                                                    {coating}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Remarks */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Remarks / Notes
-                    </label>
-                    <textarea
-                        {...register("remarks")}
-                        rows={2}
-                        placeholder="Additional notes..."
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none resize-none"
-                    />
-                </div>
+                {/* CARD 5: Follow-up & Remarks */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white px-5 py-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-100/50 border border-indigo-100 shadow-sm text-indigo-600">
+                                    <Calendar className="h-4.5 w-4.5" />
+                                </span>
+                                Next Visit & Remarks
+                            </h3>
+                        </div>
+                    </div>
 
+                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">Follow Up In</label>
+                            <FollowupQuickChips
+                                options={QUICK_FOLLOWUPS}
+                                selectedDays={selectedFollowupDays}
+                                onSelect={handleFollowupSelect}
+                                onCustom={() => setShowCustomDate(true)}
+                                className="mb-4"
+                            />
+                            {showCustomDate && (
+                                <div className="mt-2 animate-in slide-in-from-top-2">
+                                    <input
+                                        type="date"
+                                        {...register("followup_date")}
+                                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">Internal Remarks</label>
+                            <textarea
+                                {...register("remarks")}
+                                rows={3}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none transition-all placeholder:text-slate-400"
+                                placeholder="Private notes..."
+                            />
+                        </div>
+                    </div>
+                </div>
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-3 pt-3 border-t border-slate-200">
                     {/* Print Header Toggle */}

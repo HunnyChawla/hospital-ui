@@ -22,7 +22,7 @@ export function DiagnosisChips({
     className,
 }: DiagnosisChipsProps) {
     return (
-        <div className={clsx("flex flex-wrap gap-1.5", className)}>
+        <div className={clsx("flex flex-wrap gap-2", className)}>
             {options.map((option) => {
                 const isSelected = selected.includes(option.value);
                 return (
@@ -31,13 +31,13 @@ export function DiagnosisChips({
                         type="button"
                         onClick={() => onToggle(option.value)}
                         className={clsx(
-                            "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-all duration-150",
+                            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200 border",
                             isSelected
-                                ? "bg-sky-600 text-white shadow-sm scale-105"
-                                : "bg-slate-100 text-slate-700 hover:bg-sky-100 hover:text-sky-700 hover:scale-102"
+                                ? "bg-sky-500 border-sky-600 text-white shadow-md shadow-sky-500/20"
+                                : "bg-white border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600 hover:bg-sky-50 hover:shadow-sm"
                         )}
                     >
-                        {isSelected && <Check className="h-3 w-3" />}
+                        {isSelected && <Check className="h-3 w-3 animate-in zoom-in duration-200" />}
                         {option.label}
                     </button>
                 );
@@ -243,19 +243,20 @@ export function SelectedDiagnoses({
     if (diagnoses.length === 0) return null;
 
     return (
-        <div className={clsx("flex flex-wrap gap-1.5", className)}>
+        <div className={clsx("flex flex-wrap gap-2", className)}>
             {diagnoses.map((diagnosis) => (
                 <span
                     key={diagnosis}
-                    className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800"
+                    className="group inline-flex items-center gap-1.5 rounded-md bg-white border border-sky-100 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm"
                 >
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-400"></span>
                     {diagnosis}
                     <button
                         type="button"
                         onClick={() => onRemove(diagnosis)}
-                        className="ml-0.5 rounded-full p-0.5 hover:bg-sky-200 transition"
+                        className="ml-1 rounded p-0.5 text-sky-400 opacity-60 hover:bg-sky-50 hover:text-sky-600 hover:opacity-100 transition-all"
                     >
-                        <X className="h-3 w-3" />
+                        <X className="h-3.5 w-3.5" />
                     </button>
                 </span>
             ))}
