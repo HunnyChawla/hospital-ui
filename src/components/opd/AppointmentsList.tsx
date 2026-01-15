@@ -8,7 +8,7 @@ import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
+import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -133,13 +133,41 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      // Completion statuses
       case "completed":
+      case "consultation_completed":
         return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      // Cancelled/no-show
       case "cancelled":
-      case "no_show":
         return <XCircle className="h-3 w-3 text-rose-500" />;
+      case "no_show":
+        return <User className="h-3 w-3 text-slate-500" />;
+      // Check-in statuses
       case "checked_in":
+      case "checked_in_opd":
         return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
+      // Optometrist statuses
+      case "awaiting_optometrist":
+        return <ClockIcon className="h-3 w-3 text-purple-500" />;
+      case "optometrist_assigned":
+        return <User className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_in_progress":
+        return <Play className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_completed":
+        return <CheckCircle className="h-3 w-3 text-purple-500" />;
+      // Doctor statuses
+      case "awaiting_doctor":
+        return <ClockIcon className="h-3 w-3 text-amber-500" />;
+      case "doctor_assigned":
+        return <Stethoscope className="h-3 w-3 text-amber-500" />;
+      case "in_consultation":
+      case "consultation_in_progress":
+        return <Play className="h-3 w-3 text-amber-500" />;
+      // Dilation statuses
+      case "dilation_in_progress":
+        return <ClockIcon className="h-3 w-3 text-indigo-500" />;
+      case "dilation_completed":
+        return <CheckCircle className="h-3 w-3 text-indigo-500" />;
       default:
         return <ClockIcon className="h-3 w-3 text-amber-500" />;
     }
@@ -147,13 +175,38 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      // Completion statuses - green
       case "completed":
+      case "consultation_completed":
         return "bg-emerald-50 text-emerald-700";
+      // Cancelled - red
       case "cancelled":
-      case "no_show":
         return "bg-rose-50 text-rose-700";
+      // No show - gray
+      case "no_show":
+        return "bg-slate-50 text-slate-700";
+      // Check-in statuses - sky blue
       case "checked_in":
+      case "checked_in_opd":
         return "bg-sky-50 text-sky-700";
+      // Optometrist statuses - purple
+      case "awaiting_optometrist":
+      case "optometrist_assigned":
+      case "optometrist_investigation_in_progress":
+      case "optometrist_investigation_completed":
+        return "bg-purple-50 text-purple-700";
+      // Doctor waiting/assigned - amber/orange
+      case "awaiting_doctor":
+      case "doctor_assigned":
+        return "bg-amber-50 text-amber-700";
+      // In consultation - orange
+      case "in_consultation":
+      case "consultation_in_progress":
+        return "bg-orange-50 text-orange-700";
+      // Dilation statuses - indigo
+      case "dilation_in_progress":
+      case "dilation_completed":
+        return "bg-indigo-50 text-indigo-700";
       default:
         return "bg-amber-50 text-amber-700";
     }

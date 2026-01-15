@@ -21,7 +21,7 @@ export const fetchQueue = createAsyncThunk(
     const visits = await queueApi.getDoctorQueue(payload.doctorId, {
       tenantId: payload.tenantId,
     });
-    
+
     // Map visits to QueueEntry format with visitId
     return visits.map((visit) => ({
       token: visit.token_number || 0,
@@ -47,7 +47,7 @@ export const fetchCombinedQueue = createAsyncThunk(
       appointmentsOnly: payload.appointmentsOnly,
       tenantId: payload.tenantId,
     });
-    
+
     // Map to QueueEntry format
     return items.map((item) => ({
       token: item.token_number,
@@ -88,14 +88,27 @@ export const completeAndAdvanceVisit = createAsyncThunk(
 // Helper functions
 function mapVisitStatusToQueueStatus(status: string): QueueEntry["status"] {
   switch (status) {
+    // Waiting statuses
     case "checked_in":
+    case "checked_in_opd":
+    case "awaiting_optometrist":
+    case "optometrist_assigned":
+    case "awaiting_doctor":
+    case "doctor_assigned":
+    case "dilation_in_progress":
+    case "dilation_completed":
       return "Waiting";
+    // In Consultation statuses
     case "in_consultation":
+    case "consultation_in_progress":
+    case "optometrist_investigation_in_progress":
+    case "optometrist_investigation_completed":
       return "In Consultation";
+    // Completed statuses
     case "completed":
-      return "Completed";
+    case "consultation_completed":
     case "cancelled":
-      return "Completed"; // Treat cancelled as completed for queue display
+      return "Completed";
     default:
       return "Waiting";
   }

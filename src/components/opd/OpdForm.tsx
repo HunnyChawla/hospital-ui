@@ -577,8 +577,8 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           <label
             htmlFor="emergency"
             className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition ${isEmergency
-                ? "border-rose-300 bg-rose-50"
-                : "border-slate-200 bg-white hover:bg-slate-50"
+              ? "border-rose-300 bg-rose-50"
+              : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
           >
             <input
@@ -617,6 +617,12 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                       <span>{feeCalculation.patient_type_used}</span>
                       <span>•</span>
                       <span>{feeCalculation.shift}</span>
+                      {feeCalculation.is_revisit && (
+                        <>
+                          <span>•</span>
+                          <span className="font-medium text-emerald-600">Revisit</span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1,7 +1,24 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "../utils/auth";
 
-export type VisitStatus = "checked_in" | "in_consultation" | "completed" | "cancelled" | "no_show";
+export type VisitStatus =
+  | "checked_in"
+  | "in_consultation"
+  | "completed"
+  | "cancelled"
+  | "no_show"
+  // New detailed workflow statuses
+  | "checked_in_opd"
+  | "awaiting_optometrist"
+  | "optometrist_assigned"
+  | "optometrist_investigation_in_progress"
+  | "optometrist_investigation_completed"
+  | "awaiting_doctor"
+  | "doctor_assigned"
+  | "consultation_in_progress"
+  | "dilation_in_progress"
+  | "dilation_completed"
+  | "consultation_completed";
 export type VisitType = "walk_in" | "appointment" | "emergency";
 export type PaymentMethod = "cash" | "upi" | "card" | "cheque";
 

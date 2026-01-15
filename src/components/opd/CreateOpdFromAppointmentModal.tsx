@@ -58,7 +58,7 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
           undefined,
           abortController.signal
         );
-        
+
         // Only update state if request wasn't aborted and this is still the current request
         if (!abortController.signal.aborted && abortControllerRef.current === abortController) {
           setFeeCalculation(calculation);
@@ -71,7 +71,7 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
           return;
         }
         console.error("Failed to calculate consultation fee:", error);
-        
+
         // Only update state if request wasn't aborted and this is still the current request
         if (!abortController.signal.aborted && abortControllerRef.current === abortController) {
           setConsultationFee(null);
@@ -157,6 +157,11 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
                   {feeCalculation && (
                     <span className="text-xs text-slate-500">
                       {feeCalculation.patient_type_used} • {feeCalculation.shift}
+                      {feeCalculation.is_revisit && (
+                        <>
+                          • <span className="font-medium text-emerald-600">Revisit</span>
+                        </>
+                      )}
                     </span>
                   )}
                 </div>

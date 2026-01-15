@@ -66,6 +66,35 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
   const specializationValue = watch("specialization") || "";
   const justSelectedRef = useRef(false);
 
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+
+  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // 2MB limit
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Signature file size must be less than 2MB");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setSignaturePreview(base64String);
+        setValue("signature", base64String, { shouldDirty: true, shouldTouch: true });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveSignature = () => {
+    setSignaturePreview(null);
+    setValue("signature", "", { shouldDirty: true, shouldTouch: true });
+    // Also clear the file input
+    const fileInput = document.getElementById('signature-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
   // Fetch available users (doctors without doctor records) when creating new doctor
   useEffect(() => {
     if (!defaultValues) {
@@ -104,7 +133,13 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
         specialization: fullDoctorData.specialization || "",
         qualification: fullDoctorData.qualification || "",
         registration_number: fullDoctorData.registration_number || "",
+        opd_revisit_validity_days: fullDoctorData.opd_revisit_validity_days || undefined,
+        surgery_revisit_validity_days: fullDoctorData.surgery_revisit_validity_days || undefined,
+        max_free_revisits: fullDoctorData.max_free_revisits || undefined,
       });
+      if (fullDoctorData.signature) {
+        setSignaturePreview(fullDoctorData.signature);
+      }
     } else if (!defaultValues) {
       // Reset form for new doctor
       reset({
@@ -112,9 +147,13 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
         specialization: "",
         qualification: "",
         registration_number: "",
+        opd_revisit_validity_days: undefined,
+        surgery_revisit_validity_days: undefined,
+        max_free_revisits: undefined,
       });
       setSearchTerm("");
       setSelectedUserDetails(null);
+      setSignaturePreview(null);
     }
   }, [fullDoctorData, defaultValues, reset]);
 
@@ -184,10 +223,10 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
 
   const filteredUsers = searchTerm.trim().length > 0
     ? availableUsers.filter(
-        (user) =>
-          user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      (user) =>
+        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     : availableUsers;
 
   const handleSpecializationSelect = (spec: string) => {
@@ -210,6 +249,10 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       specialization: values.specialization || undefined,
       qualification: values.qualification || undefined,
       registration_number: values.registration_number || undefined,
+      signature: values.signature || undefined,
+      opd_revisit_validity_days: values.opd_revisit_validity_days ? Number(values.opd_revisit_validity_days) : undefined,
+      surgery_revisit_validity_days: values.surgery_revisit_validity_days ? Number(values.surgery_revisit_validity_days) : undefined,
+      max_free_revisits: values.max_free_revisits !== undefined && values.max_free_revisits !== null ? Number(values.max_free_revisits) : undefined,
     };
 
     setIsSubmitting(true);
@@ -222,6 +265,10 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
             specialization: doctorData.specialization,
             qualification: doctorData.qualification,
             registration_number: doctorData.registration_number,
+            signature: doctorData.signature,
+            opd_revisit_validity_days: doctorData.opd_revisit_validity_days,
+            surgery_revisit_validity_days: doctorData.surgery_revisit_validity_days,
+            max_free_revisits: doctorData.max_free_revisits,
           },
         })).unwrap();
         toast.success("Doctor updated successfully");
@@ -235,6 +282,7 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
         // Refresh doctors list with enriched user data
         dispatch(fetchDoctors());
         reset();
+        setSignaturePreview(null);
         // Dispatch custom event
         window.dispatchEvent(new CustomEvent("doctor:created"));
         onSuccess?.();
@@ -306,11 +354,10 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
                         <p className="font-semibold text-slate-900">{user.full_name}</p>
                         <p className="text-xs text-slate-500">{user.email}</p>
                       </div>
-                      <span className={`pill px-2 py-0.5 text-xs font-normal ${
-                        user.status === "active" 
-                          ? "bg-emerald-50 text-emerald-700" 
+                      <span className={`pill px-2 py-0.5 text-xs font-normal ${user.status === "active"
+                          ? "bg-emerald-50 text-emerald-700"
                           : "bg-rose-50 text-rose-700"
-                      }`}>
+                        }`}>
                         {user.status}
                       </span>
                     </div>
@@ -365,9 +412,8 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
                     e.stopPropagation();
                     handleSpecializationSelect(spec);
                   }}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-sky-50 transition ${
-                    specializationValue === spec ? "bg-sky-50 font-semibold text-slate-900" : "text-slate-700"
-                  }`}
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-sky-50 transition ${specializationValue === spec ? "bg-sky-50 font-semibold text-slate-900" : "text-slate-700"
+                    }`}
                 >
                   {spec}
                 </button>
@@ -398,6 +444,78 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       </label>
 
       {/* Submit Button */}
+
+      {/* Revisit Policy Section */}
+      <div className="col-span-2 border-t border-slate-100 pt-3 mt-1">
+        <p className="text-sm font-semibold text-slate-900 mb-3">Revisit Policy</p>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1">
+            <span className="text-slate-600">OPD Revisit Validity (Days)</span>
+            <input
+              type="number"
+              {...register("opd_revisit_validity_days")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              placeholder="e.g., 7"
+              min="0"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600">Surgery Revisit Validity (Days)</span>
+            <input
+              type="number"
+              {...register("surgery_revisit_validity_days")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              placeholder="e.g., 30"
+              min="0"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-slate-600">Max Free Revisits</span>
+            <input
+              type="number"
+              {...register("max_free_revisits")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              placeholder="e.g., 2"
+              min="0"
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Signature Upload */}
+      <div className="col-span-2 border-t border-slate-100 pt-3 mt-1">
+        <label className="space-y-2 block">
+          <span className="text-slate-600 font-medium">Doctor's Signature</span>
+          <div className="flex items-start gap-4">
+            {signaturePreview ? (
+              <div className="relative group">
+                <div className="h-24 px-4 border border-slate-200 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+                  <img src={signaturePreview} alt="Doctor Signature" className="max-h-20 max-w-full object-contain" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveSignature}
+                  className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Remove signature"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id="signature-upload"
+                  accept="image/*"
+                  onChange={handleSignatureUpload}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+                />
+                <p className="mt-1 text-xs text-slate-400">Supported formats: PNG, JPG. Max size: 2MB.</p>
+              </div>
+            )}
+          </div>
+        </label>
+      </div>
       <div className="col-span-2 flex justify-end gap-3">
         <button
           type="submit"
@@ -407,8 +525,8 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
           {isSubmitting
             ? "Saving..."
             : defaultValues
-            ? "Update Doctor"
-            : "Create Doctor"}
+              ? "Update Doctor"
+              : "Create Doctor"}
         </button>
       </div>
     </form>
