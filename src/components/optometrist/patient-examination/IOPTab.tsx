@@ -38,9 +38,15 @@ const initialFormData: IOPFormData = {
 // Measurement methods
 const MEASUREMENT_METHODS = [
   { label: "NCT", value: "NCT", description: "Non-Contact Tonometry" },
-  { label: "Goldmann", value: "Goldmann", description: "Goldmann Applanation" },
-  { label: "Tonopen", value: "Tonopen", description: "Tonopen" },
-  { label: "iCare", value: "iCare", description: "iCare Rebound" },
+  { label: "GAT", value: "GAT", description: "Goldmann Applanation Tonometry" },
+  { label: "CCT", value: "CCT", description: "Central Corneal Thickness" },
+  { label: "CIOP", value: "CIOP", description: "Corrected Intraocular Pressure" },
+  { label: "Schiötz", value: "Schiötz", description: "Schiötz Indentation Tonometry" },
+  { label: "Perkins", value: "Perkins", description: "Perkins Applanation Tonometry" },
+  { label: "Tono-Pen", value: "Tono-Pen", description: "Tono-Pen Applanation Tonometry" },
+  { label: "iCare", value: "iCare", description: "Rebound Tonometry (iCare)" },
+  { label: "DCT", value: "DCT", description: "Dynamic Contour Tonometry (Pascal)" },
+  { label: "TPT", value: "TPT", description: "Transpalpebral Tonometry" },
 ];
 
 // Pressure presets
@@ -251,14 +257,50 @@ export function IOPTab({
     }
   };
 
-  // Get latest IOP record
-  const latestIOP = iopRecords.length > 0
-    ? iopRecords.sort(
-      (a, b) =>
-        new Date(b.recorded_at).getTime() -
-        new Date(a.recorded_at).getTime()
-    )[0]
-    : null;
+  // Normalize and merge records to find the true latest per eye
+  const latestRecords = useMemo(() => {
+    const all: any[] = [...iopRecords];
+
+    // Add visit items, splitting combined records if necessary
+    if (visitIOPItems) {
+      visitIOPItems.forEach((item: any) => {
+        // Handle OD part of combined record
+        if (item.od_pressure !== undefined && item.od_pressure !== null) {
+          all.push({
+            ...item,
+            eye: "OD",
+            pressure: item.od_pressure,
+            recorded_at: item.measurement_time || item.recorded_at,
+          });
+        }
+        // Handle OS part of combined record
+        if (item.os_pressure !== undefined && item.os_pressure !== null) {
+          all.push({
+            ...item,
+            eye: "OS",
+            pressure: item.os_pressure,
+            recorded_at: item.measurement_time || item.recorded_at,
+          });
+        }
+        // Handle standard split records in visit items (if any)
+        if (item.eye && item.pressure) {
+          all.push(item);
+        }
+      });
+    }
+
+    const od = all
+      .filter(r => r.eye === 'OD')
+      .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
+
+    const os = all
+      .filter(r => r.eye === 'OS')
+      .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
+
+    return { latestOD: od, latestOS: os };
+  }, [visitIOPItems, iopRecords]);
+
+  const { latestOD, latestOS } = latestRecords;
 
   return (
     <div className="space-y-6">
@@ -285,7 +327,7 @@ export function IOPTab({
 
       {/* Trend Summary Cards */}
       {!isAdding && iopTrends && iopTrends.latest_od != null && iopTrends.latest_os != null && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Latest OD */}
           <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
@@ -296,12 +338,19 @@ export function IOPTab({
               {iopTrends.latest_od}
               <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
             </p>
-            <div className={clsx(
-              "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-              getIOPStatus(iopTrends.latest_od).bgColor,
-              getIOPStatus(iopTrends.latest_od).color
-            )}>
-              {getIOPStatus(iopTrends.latest_od).label}
+            <div className="mt-2 flex items-center gap-2">
+              <div className={clsx(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                getIOPStatus(iopTrends.latest_od).bgColor,
+                getIOPStatus(iopTrends.latest_od).color
+              )}>
+                {getIOPStatus(iopTrends.latest_od).label}
+              </div>
+              {latestOD && (
+                <span className="text-xs font-medium text-slate-500">
+                  via {latestOD.measurement_method || "NCT"}
+                </span>
+              )}
             </div>
           </div>
 
@@ -315,30 +364,20 @@ export function IOPTab({
               {iopTrends.latest_os}
               <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
             </p>
-            <div className={clsx(
-              "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-              getIOPStatus(iopTrends.latest_os).bgColor,
-              getIOPStatus(iopTrends.latest_os).color
-            )}>
-              {getIOPStatus(iopTrends.latest_os).label}
+            <div className="mt-2 flex items-center gap-2">
+              <div className={clsx(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                getIOPStatus(iopTrends.latest_os).bgColor,
+                getIOPStatus(iopTrends.latest_os).color
+              )}>
+                {getIOPStatus(iopTrends.latest_os).label}
+              </div>
+              {latestOS && (
+                <span className="text-xs font-medium text-slate-500">
+                  via {latestOS.measurement_method || "NCT"}
+                </span>
+              )}
             </div>
-          </div>
-
-          {/* 6-Month Average */}
-          <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-600">6-Month Avg</span>
-              <TrendingUp className="h-4 w-4 text-slate-400" />
-            </div>
-            <p className="text-4xl font-bold text-slate-900">
-              {iopTrends.average_od != null && iopTrends.average_os != null
-                ? ((Number(iopTrends.average_od) + Number(iopTrends.average_os)) / 2).toFixed(1)
-                : "—"}
-              <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
-            </p>
-            <p className="mt-2 text-xs text-slate-500">
-              OD: {formatNumber(iopTrends.average_od, 1)} / OS: {formatNumber(iopTrends.average_os, 1)}
-            </p>
           </div>
         </div>
       )}
@@ -539,61 +578,7 @@ export function IOPTab({
       )}
 
       {/* History */}
-      {!isAdding && iopRecords.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 text-base font-semibold text-slate-900">
-            Measurement History
-          </h4>
-          <div className="space-y-3">
-            {iopRecords.slice(0, 5).map((record) => {
-              const hasAlert =
-                record.pressure > 21 ||
-                record.pressure < 10;
 
-              return (
-                <div
-                  key={record.id}
-                  className={clsx(
-                    "flex items-center justify-between rounded-lg border p-4",
-                    hasAlert
-                      ? "border-amber-200 bg-amber-50"
-                      : "border-slate-100 bg-slate-50"
-                  )}
-                >
-                  <div className="flex items-center gap-6">
-                    {/* Time */}
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Clock className="h-4 w-4" />
-                      {getRecordDateString(record)}
-                    </div>
-
-                    {/* Eye and Pressure */}
-                    <div className="flex items-center gap-2">
-                      <div className={clsx(
-                        "h-2 w-2 rounded-full",
-                        record.eye === "OD" ? "bg-blue-500" : "bg-green-500"
-                      )} />
-                      <span className="text-sm font-medium text-slate-900">
-                        {record.eye}: {record.pressure} mmHg
-                      </span>
-                      <span className={clsx("text-xs font-medium", getIOPStatus(record.pressure).color)}>
-                        ({getIOPStatus(record.pressure).label})
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
-                      {record.measurement_method}
-                    </span>
-                    {hasAlert && <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Reference Info */}
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
