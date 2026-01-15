@@ -304,8 +304,12 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
       return;
     }
 
-    // Validate payment reference if required
-    if ((paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
+    const feeAmount = feeOverride && parseFloat(feeOverride) >= 0
+      ? parseFloat(feeOverride)
+      : (consultationFee ? parseFloat(consultationFee) : 0);
+
+    // Validate payment reference only if fee > 0 since we hide payment method when fee is 0
+    if (feeAmount > 0 && (paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
       toast.error(`Please enter payment reference for ${paymentMethod.toUpperCase()}`);
       return;
     }
@@ -319,10 +323,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         visit_type: isEmergency ? "emergency" : "walk_in",
         chief_complaint: symptoms.trim() || null,
         notes: null,
-        payment_method: paymentMethod as any,
+        // If fee is 0, default to cash as payment method is not shown
+        payment_method: (feeAmount === 0 && !paymentMethod) ? "cash" : (paymentMethod as any),
         payment_reference: paymentReference.trim() || null,
         consultation_fee: consultationFee ? parseFloat(consultationFee) : null,
-        consultation_fee_override: feeOverride && parseFloat(feeOverride) > 0 ? parseFloat(feeOverride) : null,
+        consultation_fee_override: feeOverride && parseFloat(feeOverride) >= 0 ? parseFloat(feeOverride) : null,
       };
 
       const visit = await createOpdVisit.mutateAsync(visitRequest);
@@ -658,130 +663,140 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           )}
         </div>
       </div>
-      {/* Payment Method */}
-      <div className="space-y-1.5">
-        <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-          <CreditCard className="h-4 w-4 text-emerald-600" />
-          Payment Method <span className="text-rose-500">*</span>
-        </span>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {/* Cash */}
-          <label
-            className={`
-              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
-              ${paymentMethod === "cash"
-                ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200"
-                : "border-slate-200 bg-white hover:bg-slate-50"
-              }
-            `}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="cash"
-              checked={paymentMethod === "cash"}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="sr-only"
-              required
-            />
-            <Banknote className={`h-5 w-5 ${paymentMethod === "cash" ? "text-emerald-600" : "text-slate-400"}`} />
-            <span className={`text-xs font-medium ${paymentMethod === "cash" ? "text-emerald-700" : "text-slate-600"}`}>
-              Cash
-            </span>
-          </label>
+      {/* Payment Method - Only show if fee > 0 */}
+      {(() => {
+        const feeAmount = feeOverride && parseFloat(feeOverride) >= 0
+          ? parseFloat(feeOverride)
+          : (consultationFee ? parseFloat(consultationFee) : 0);
 
-          {/* UPI */}
-          <label
-            className={`
-              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
-              ${paymentMethod === "upi"
-                ? "border-violet-500 bg-violet-50 ring-2 ring-violet-200"
-                : "border-slate-200 bg-white hover:bg-slate-50"
-              }
-            `}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="upi"
-              checked={paymentMethod === "upi"}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="sr-only"
-              required
-            />
-            <Smartphone className={`h-5 w-5 ${paymentMethod === "upi" ? "text-violet-600" : "text-slate-400"}`} />
-            <span className={`text-xs font-medium ${paymentMethod === "upi" ? "text-violet-700" : "text-slate-600"}`}>
-              UPI
-            </span>
-          </label>
+        if (feeAmount === 0) return null;
 
-          {/* Card */}
-          <label
-            className={`
-              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
-              ${paymentMethod === "card"
-                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                : "border-slate-200 bg-white hover:bg-slate-50"
-              }
-            `}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="card"
-              checked={paymentMethod === "card"}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="sr-only"
-              required
-            />
-            <CreditCard className={`h-5 w-5 ${paymentMethod === "card" ? "text-blue-600" : "text-slate-400"}`} />
-            <span className={`text-xs font-medium ${paymentMethod === "card" ? "text-blue-700" : "text-slate-600"}`}>
-              Card
+        return (
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+              <CreditCard className="h-4 w-4 text-emerald-600" />
+              Payment Method <span className="text-rose-500">*</span>
             </span>
-          </label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {/* Cash */}
+              <label
+                className={`
+                  flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+                  ${paymentMethod === "cash"
+                    ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                  }
+                `}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cash"
+                  checked={paymentMethod === "cash"}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="sr-only"
+                  required={feeAmount > 0}
+                />
+                <Banknote className={`h-5 w-5 ${paymentMethod === "cash" ? "text-emerald-600" : "text-slate-400"}`} />
+                <span className={`text-xs font-medium ${paymentMethod === "cash" ? "text-emerald-700" : "text-slate-600"}`}>
+                  Cash
+                </span>
+              </label>
 
-          {/* Cheque */}
-          <label
-            className={`
-              flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
-              ${paymentMethod === "cheque"
-                ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
-                : "border-slate-200 bg-white hover:bg-slate-50"
-              }
-            `}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="cheque"
-              checked={paymentMethod === "cheque"}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="sr-only"
-              required
-            />
-            <FileText className={`h-5 w-5 ${paymentMethod === "cheque" ? "text-amber-600" : "text-slate-400"}`} />
-            <span className={`text-xs font-medium ${paymentMethod === "cheque" ? "text-amber-700" : "text-slate-600"}`}>
-              Cheque
-            </span>
-          </label>
-        </div>
-        {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
-          <input
-            type="text"
-            value={paymentReference}
-            onChange={(e) => setPaymentReference(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-            placeholder={
-              paymentMethod === "upi"
-                ? "Enter UPI transaction ID"
-                : paymentMethod === "card"
-                  ? "Enter card transaction ID"
-                  : "Enter cheque number"
-            }
-            required
-          />
-        )}
-      </div>
+              {/* UPI */}
+              <label
+                className={`
+                  flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+                  ${paymentMethod === "upi"
+                    ? "border-violet-500 bg-violet-50 ring-2 ring-violet-200"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                  }
+                `}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="upi"
+                  checked={paymentMethod === "upi"}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="sr-only"
+                  required={feeAmount > 0}
+                />
+                <Smartphone className={`h-5 w-5 ${paymentMethod === "upi" ? "text-violet-600" : "text-slate-400"}`} />
+                <span className={`text-xs font-medium ${paymentMethod === "upi" ? "text-violet-700" : "text-slate-600"}`}>
+                  UPI
+                </span>
+              </label>
+
+              {/* Card */}
+              <label
+                className={`
+                  flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+                  ${paymentMethod === "card"
+                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                  }
+                `}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="card"
+                  checked={paymentMethod === "card"}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="sr-only"
+                  required={feeAmount > 0}
+                />
+                <CreditCard className={`h-5 w-5 ${paymentMethod === "card" ? "text-blue-600" : "text-slate-400"}`} />
+                <span className={`text-xs font-medium ${paymentMethod === "card" ? "text-blue-700" : "text-slate-600"}`}>
+                  Card
+                </span>
+              </label>
+
+              {/* Cheque */}
+              <label
+                className={`
+                  flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
+                  ${paymentMethod === "cheque"
+                    ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                  }
+                `}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cheque"
+                  checked={paymentMethod === "cheque"}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="sr-only"
+                  required={feeAmount > 0}
+                />
+                <FileText className={`h-5 w-5 ${paymentMethod === "cheque" ? "text-amber-600" : "text-slate-400"}`} />
+                <span className={`text-xs font-medium ${paymentMethod === "cheque" ? "text-amber-700" : "text-slate-600"}`}>
+                  Cheque
+                </span>
+              </label>
+            </div>
+            {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+              <input
+                type="text"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                placeholder={
+                  paymentMethod === "upi"
+                    ? "Enter UPI transaction ID"
+                    : paymentMethod === "card"
+                      ? "Enter card transaction ID"
+                      : "Enter cheque number"
+                }
+                required
+              />
+            )}
+          </div>
+        );
+      })()}
 
       {/* Chief Complaint */}
       <div className="space-y-1.5">

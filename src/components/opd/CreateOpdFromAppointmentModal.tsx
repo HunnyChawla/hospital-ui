@@ -202,31 +202,43 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
             </div>
           )}
 
-          <div>
-            <label className="block text-sm text-slate-700">Payment Method</label>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            >
-              <option value="cash">Cash</option>
-              <option value="upi">UPI</option>
-              <option value="card">Card</option>
-              <option value="cheque">Cheque</option>
-            </select>
-          </div>
+          {(() => {
+            const feeAmount = feeOverride && parseFloat(feeOverride) >= 0
+              ? parseFloat(feeOverride)
+              : (consultationFee ? parseFloat(consultationFee) : 0);
 
-          {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
-            <div>
-              <label className="block text-sm text-slate-700">Payment Reference</label>
-              <input
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-                placeholder={paymentMethod === "upi" ? "UPI transaction ID" : paymentMethod === "card" ? "Card transaction ID" : "Cheque number"}
-              />
-            </div>
-          )}
+            if (feeAmount === 0) return null;
+
+            return (
+              <>
+                <div>
+                  <label className="block text-sm text-slate-700">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="card">Card</option>
+                    <option value="cheque">Cheque</option>
+                  </select>
+                </div>
+
+                {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+                  <div>
+                    <label className="block text-sm text-slate-700">Payment Reference</label>
+                    <input
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                      placeholder={paymentMethod === "upi" ? "UPI transaction ID" : paymentMethod === "card" ? "Card transaction ID" : "Cheque number"}
+                    />
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <div className="flex justify-end gap-2">
             <button
