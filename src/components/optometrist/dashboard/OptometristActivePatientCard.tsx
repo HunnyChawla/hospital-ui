@@ -28,6 +28,7 @@ interface OptometristActivePatientCardProps {
   isDoctor?: boolean;
   optometristId?: string;
   doctorId?: string;
+  isCompleted?: boolean;
 }
 
 export const OptometristActivePatientCard: React.FC<OptometristActivePatientCardProps> = ({
@@ -41,6 +42,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   isDoctor = false,
   optometristId,
   doctorId,
+  isCompleted = false,
 }) => {
   if (!showPatientCard) {
     return (
@@ -85,6 +87,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
                 visitId={visitId || ""}
                 optometristId={optometristId || ""}
                 doctorId={doctorId || ""}
+                isCompleted={isCompleted}
               />
             ) : (
               <ShowSummaryButton

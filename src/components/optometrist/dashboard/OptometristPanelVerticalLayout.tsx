@@ -81,6 +81,9 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   optometristId,
   doctorId,
 }) => {
+  const selectedPatient = queuePatients.find(p => p.patient_id === selectedPatientId);
+  const isCompleted = selectedPatient?.status === "completed" || selectedPatient?.status === "consultation_completed";
+
   return (
     <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
       {/* Stats Section - Horizontal 4-column layout at top */}
@@ -108,6 +111,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             isDoctor={isDoctor}
             optometristId={optometristId}
             doctorId={doctorId}
+            isCompleted={isCompleted}
           >
             {children}
           </OptometristActivePatientCard>

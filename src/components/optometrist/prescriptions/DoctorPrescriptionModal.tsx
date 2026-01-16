@@ -11,6 +11,7 @@ import {
     PanelRightClose,
     PanelRightOpen,
 } from "lucide-react";
+import { useTenant } from "@/hooks/useTenant";
 import { PrescriptionFormSection } from "./PrescriptionFormSection";
 import { HistoryTemplateSection } from "./HistoryTemplateSection";
 import { ExaminationSummarySection } from "./ExaminationSummarySection";
@@ -29,6 +30,7 @@ interface DoctorPrescriptionModalProps {
     doctorId: string;
     doctorName?: string;
     onPrescriptionCreated?: () => void;
+    isCompleted?: boolean;
 }
 
 export function DoctorPrescriptionModal({
@@ -42,8 +44,10 @@ export function DoctorPrescriptionModal({
     doctorId,
     doctorName,
     onPrescriptionCreated,
+    isCompleted = false,
 }: DoctorPrescriptionModalProps) {
     const [mounted, setMounted] = useState(false);
+    const { tenant, logoDataUrl } = useTenant();
     const [summaryData, setSummaryData] = useState<PrescriptionDataResponse | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(true);
 
@@ -198,8 +202,21 @@ export function DoctorPrescriptionModal({
             <div className="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm z-10">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                        {logoDataUrl && (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                                src={logoDataUrl}
+                                alt="Logo"
+                                className="h-12 w-12 object-contain"
+                            />
+                        )}
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900">Create Prescription</h2>
+                            <div className="flex items-baseline gap-2">
+                                <h2 className="text-xl font-bold text-slate-900">{tenant?.name || "Hospital"}</h2>
+                                <span className="text-sm font-medium text-slate-500">
+                                    | {isCompleted ? "Prescription View" : "Create Prescription"}
+                                </span>
+                            </div>
                             <p className="text-xs text-slate-600">
                                 <span className="font-medium">{patientName}</span>
                                 {patientUhid && <span className="text-slate-400"> • {patientUhid}</span>}
@@ -291,6 +308,7 @@ export function DoctorPrescriptionModal({
                         onTemplateApplied={handleTemplateApplied}
                         templateToEdit={templateToEdit}
                         onEditStarted={handleEditStarted}
+                        readOnly={isCompleted}
                     />
                 </div>
 

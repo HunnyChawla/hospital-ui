@@ -66,6 +66,7 @@ interface PrescriptionFormSectionProps {
     onTemplateApplied?: () => void;
     templateToEdit?: PrescriptionTemplate | null;
     onEditStarted?: () => void;
+    readOnly?: boolean;
 }
 
 interface FormData {
@@ -149,6 +150,7 @@ export function PrescriptionFormSection({
     onTemplateApplied,
     templateToEdit,
     onEditStarted,
+    readOnly = false,
 }: PrescriptionFormSectionProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [medicineSearchQuery, setMedicineSearchQuery] = useState("");
@@ -782,806 +784,849 @@ export function PrescriptionFormSection({
 
     return (
         <div className="p-4">
-            {/* Hidden printable prescription */}
-            <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-                <div ref={printRef} className="print-content">
-                    {savedPrescription && (
-                        <DoctorPrescriptionPrint
-                            prescription={{
-                                ...savedPrescription,
-                                doctor_name: savedPrescription.doctor_name || doctorName,
-                                patient_name: savedPrescription.patient_name || (patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : ""),
-                                optometrist_name: savedPrescription.optometrist_name || (optometristDetails ? optometristDetails.full_name : ""),
-                                items: (savedPrescription.items && savedPrescription.items.length > 0)
-                                    ? savedPrescription.items
-                                    : getRefractionItems()
-                            }}
-                            showHeader={printWithHeader}
-                            doctorSignature={doctorSignature}
-                            visitData={fullPrescriptionData}
-                            plannedSurgeries={plannedSurgeries}
-                        />
-                    )}
-                </div>
-            </div>
-
-            <form className="space-y-5">
-                {/* Modern Rx Header */}
-                <div className="flex items-center gap-4 pb-4 border-b-2 border-slate-100">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30">
-                        <span className="text-xl font-black text-white tracking-tight">Rx</span>
+            {/* Read-Only View */}
+            {readOnly ? (
+                <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-slate-200">
+                    <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <h3 className="font-semibold text-slate-700">Prescription View</h3>
+                        <button
+                            onClick={handlePrintClick}
+                            className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 transition"
+                        >
+                            <Printer className="h-4 w-4" />
+                            Print
+                        </button>
                     </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Create Prescription</h3>
-                        <p className="text-xs text-slate-600 font-medium mt-0.5">
-                            <span className="text-slate-400">Prescriber:</span> {doctorName || "Doctor"}
-                        </p>
-                    </div>
-                    {/* Quick Summary Badge */}
-                    {(summaryData.medicineCount > 0 || summaryData.hasDiagnosis) && (
-                        <div className="flex items-center gap-2">
-                            {summaryData.medicineCount > 0 && (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
-                                    <Pill className="h-3.5 w-3.5" />
-                                    {summaryData.medicineCount}
-                                </span>
-                            )}
-                            {summaryData.hasFollowup && (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    {summaryData.followupLabel}
-                                </span>
-                            )}
+                    {savedPrescription ? (
+                        <div className="bg-white">
+                            <DoctorPrescriptionPrint
+                                prescription={{
+                                    ...savedPrescription,
+                                    doctor_name: savedPrescription.doctor_name || doctorName,
+                                    patient_name: savedPrescription.patient_name || (patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : ""),
+                                    optometrist_name: savedPrescription.optometrist_name || (optometristDetails ? optometristDetails.full_name : ""),
+                                    items: (savedPrescription.items && savedPrescription.items.length > 0)
+                                        ? savedPrescription.items
+                                        : getRefractionItems()
+                                }}
+                                showHeader={true}
+                                doctorSignature={doctorSignature}
+                                visitData={fullPrescriptionData || examinationData} // Use fullData if available, else fallback to exam data
+                                plannedSurgeries={plannedSurgeries}
+                            />
+                        </div>
+                    ) : (
+                        <div className="p-12 text-center text-slate-500">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-sky-500" />
+                            Loading prescription details...
                         </div>
                     )}
                 </div>
-
-                {/* CARD 1: Diagnosis */}
-                <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-sky-300/60 transition-all duration-300">
-                    <div className="border-b-2 border-slate-100 bg-gradient-to-r from-sky-50 via-blue-50/30 to-white px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 border-2 border-white text-white shadow-lg shadow-sky-500/30">
-                                    <Stethoscope className="h-5 w-5" />
-                                </span>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Clinical Diagnosis</h3>
-                                        <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">1</span>
-                                    </div>
-                                    <p className="text-xs text-slate-600 font-medium mt-0.5">Record patient conditions and symptoms</p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowSettingsModal(true)}
-                                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white hover:text-sky-600 border-2 border-transparent hover:border-sky-200 transition-all shadow-sm hover:shadow"
-                                title="Configure Presets"
-                            >
-                                <Settings className="h-4 w-4" />
-                                <span className="hidden sm:inline">Settings</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="p-6 space-y-5">
-                        {/* Quick Select */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
-                                    <Sparkles className="h-3.5 w-3.5 text-white" />
-                                </div>
-                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Select</p>
-                            </div>
-                            {diagnosesOptions.length > 0 ? (
-                                <DiagnosisChips
-                                    options={diagnosesOptions}
-                                    selected={selectedDiagnoses}
-                                    onToggle={handleDiagnosisToggle}
+            ) : (
+                /* Edit Form */
+                <div className="space-y-6">
+                    {/* Hidden printable prescription */}
+                    <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+                        <div ref={printRef} className="print-content">
+                            {savedPrescription && (
+                                <DoctorPrescriptionPrint
+                                    prescription={{
+                                        ...savedPrescription,
+                                        doctor_name: savedPrescription.doctor_name || doctorName,
+                                        patient_name: savedPrescription.patient_name || (patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : ""),
+                                        optometrist_name: savedPrescription.optometrist_name || (optometristDetails ? optometristDetails.full_name : ""),
+                                        items: (savedPrescription.items && savedPrescription.items.length > 0)
+                                            ? savedPrescription.items
+                                            : getRefractionItems()
+                                    }}
+                                    showHeader={printWithHeader}
+                                    doctorSignature={doctorSignature}
+                                    visitData={fullPrescriptionData}
+                                    plannedSurgeries={plannedSurgeries}
                                 />
-                            ) : (
-                                <div className="text-center py-4 px-4 bg-slate-50 rounded-lg border border-slate-200">
-                                    <p className="text-xs text-slate-500">No quick diagnosis presets configured.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <form className="space-y-5">
+                        {/* Modern Rx Header */}
+                        <div className="flex items-center gap-4 pb-4 border-b-2 border-slate-100">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30">
+                                <span className="text-xl font-black text-white tracking-tight">Rx</span>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Create Prescription</h3>
+                                <p className="text-xs text-slate-600 font-medium mt-0.5">
+                                    <span className="text-slate-400">Prescriber:</span> {doctorName || "Doctor"}
+                                </p>
+                            </div>
+                            {/* Quick Summary Badge */}
+                            {(summaryData.medicineCount > 0 || summaryData.hasDiagnosis) && (
+                                <div className="flex items-center gap-2">
+                                    {summaryData.medicineCount > 0 && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
+                                            <Pill className="h-3.5 w-3.5" />
+                                            {summaryData.medicineCount}
+                                        </span>
+                                    )}
+                                    {summaryData.hasFollowup && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
+                                            <Calendar className="h-3.5 w-3.5" />
+                                            {summaryData.followupLabel}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* CARD 1: Diagnosis */}
+                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-sky-300/60 transition-all duration-300">
+                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-sky-50 via-blue-50/30 to-white px-6 py-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 border-2 border-white text-white shadow-lg shadow-sky-500/30">
+                                            <Stethoscope className="h-5 w-5" />
+                                        </span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Clinical Diagnosis</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">1</span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Record patient conditions and symptoms</p>
+                                        </div>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={() => setShowSettingsModal(true)}
-                                        className="text-xs text-sky-600 hover:text-sky-700 font-medium mt-1"
+                                        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white hover:text-sky-600 border-2 border-transparent hover:border-sky-200 transition-all shadow-sm hover:shadow"
+                                        title="Configure Presets"
                                     >
-                                        Configure in Settings
+                                        <Settings className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Settings</span>
                                     </button>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Selected List */}
-                        {selectedDiagnoses.length > 0 && (
-                            <div className="rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-5 border-2 border-slate-200/60 shadow-inner">
-                                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-white text-[10px] font-black">{selectedDiagnoses.length}</span>
-                                    Selected Conditions
-                                </p>
-                                <SelectedDiagnoses
-                                    diagnoses={selectedDiagnoses}
-                                    onRemove={handleDiagnosisToggle}
-                                />
                             </div>
-                        )}
 
-                        {/* Full Diagnosis / Notes */}
-                        <div>
-                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">
-                                Detailed Diagnosis / Notes
-                            </label>
-                            <textarea
-                                {...register("diagnosis")}
-                                rows={3}
-                                placeholder="Type specific diagnosis details here..."
-                                className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/20 resize-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* CARD 2: Medicines */}
-                <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-purple-300/60 transition-all duration-300">
-                    <div className="border-b-2 border-slate-100 bg-gradient-to-r from-purple-50 via-pink-50/30 to-white px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-white text-white shadow-lg shadow-purple-500/30">
-                                    <Pill className="h-5 w-5" />
-                                </span>
+                            <div className="p-6 space-y-5">
+                                {/* Quick Select */}
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Medicines</h3>
-                                        <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">2</span>
-                                        {medicineFields.length > 0 && (
-                                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xs font-black text-white shadow-md">
-                                                {medicineFields.length}
-                                            </span>
-                                        )}
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                                            <Sparkles className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Select</p>
                                     </div>
-                                    <p className="text-xs text-slate-600 font-medium mt-0.5">Prescribe medications and dosage instructions</p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowSettingsModal(true)}
-                                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white hover:text-purple-600 border-2 border-transparent hover:border-purple-200 transition-all shadow-sm hover:shadow"
-                                title="Configure Presets"
-                            >
-                                <Settings className="h-4 w-4" />
-                                <span className="hidden sm:inline">Settings</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div className="p-6 space-y-5">
-                        {/* Search & Quick Add */}
-                        <div className="space-y-4">
-                            <div className="relative group/search">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-purple-500 transition-colors">
-                                    {searchingMedicines ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    {diagnosesOptions.length > 0 ? (
+                                        <DiagnosisChips
+                                            options={diagnosesOptions}
+                                            selected={selectedDiagnoses}
+                                            onToggle={handleDiagnosisToggle}
+                                        />
                                     ) : (
-                                        <Pill className="h-5 w-5" />
-                                    )}
-                                </div>
-                                <input
-                                    type="text"
-                                    value={medicineSearchQuery}
-                                    onChange={(e) => setMedicineSearchQuery(e.target.value)}
-                                    placeholder="Search medicines (brand or generic)..."
-                                    className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3.5 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                />
-                                {medicineSearchResults.length > 0 && (
-                                    <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-purple-200 bg-white shadow-2xl">
-                                        <ul className="max-h-60 overflow-y-auto py-1">
-                                            {medicineSearchResults.map((medicine) => (
-                                                <li
-                                                    key={medicine.id}
-                                                    onClick={() => handleAddMedicine(medicine)}
-                                                    className="cursor-pointer px-4 py-3 hover:bg-purple-50 active:bg-purple-100 transition-colors border-b border-slate-100 last:border-0 group"
-                                                >
-                                                    <div className="font-bold text-slate-900 text-sm group-hover:text-purple-700 transition-colors">{medicine.medicine_name}</div>
-                                                    <div className="text-xs text-slate-500 mt-1">{medicine.generic_name} • {medicine.default_dosage}</div>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
-                                        <Sparkles className="h-3.5 w-3.5 text-white" />
-                                    </div>
-                                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Add</p>
-                                </div>
-                                {medicinesOptions.length > 0 ? (
-                                    <MedicineQuickChips
-                                        options={medicinesOptions}
-                                        addedIds={addedMedicineIds}
-                                        onAdd={handleQuickMedicineAdd}
-                                    />
-                                ) : (
-                                    <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
-                                        <p className="text-xs text-slate-500">No quick medicine presets configured.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowSettingsModal(true)}
-                                            className="text-xs text-purple-600 hover:text-purple-700 font-medium mt-1"
-                                        >
-                                            Configure in Settings
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Added Medicines List */}
-                        <div className="space-y-4">
-                            {medicineFields.map((field, index) => (
-                                <div key={field.id} className="relative rounded-xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg hover:border-purple-300 transition-all group/item">
-                                    <div className="absolute right-3 top-3 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveMedicine(index)}
-                                            className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm hover:shadow"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </div>
-
-                                    <div className="mb-4 pr-12">
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xs font-black text-white shadow-md">
-                                                {index + 1}
-                                            </span>
-                                            <h4 className="font-bold text-slate-900 text-base">{field.medicine_name}</h4>
-                                        </div>
-                                        {field.generic_name && (
-                                            <p className="ml-9 text-xs text-slate-500 mt-1 font-medium">{field.generic_name}</p>
-                                        )}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
-                                            <input
-                                                {...register(`medicine_items.${index}.dosage`)}
-                                                placeholder="e.g. 500mg"
-                                                className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
-                                            <div className="relative">
-                                                <input
-                                                    list={`freq-options-${index}`}
-                                                    {...register(`medicine_items.${index}.frequency`)}
-                                                    placeholder="e.g. 1-0-1"
-                                                    className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                />
-                                                <datalist id={`freq-options-${index}`}>
-                                                    {FREQUENCIES.map(f => <option key={f} value={f} />)}
-                                                </datalist>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
-                                            <div className="relative">
-                                                <input
-                                                    list={`dur-options-${index}`}
-                                                    {...register(`medicine_items.${index}.duration`)}
-                                                    placeholder="e.g. 5 days"
-                                                    className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                />
-                                                <datalist id={`dur-options-${index}`}>
-                                                    {DURATIONS.map(d => <option key={d} value={d} />)}
-                                                </datalist>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
-                                            <input
-                                                {...register(`medicine_items.${index}.instructions`)}
-                                                placeholder="e.g. After food"
-                                                className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {medicineFields.length === 0 && (
-                                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-                                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-                                        <Pill className="h-5 w-5 text-slate-400" />
-                                    </div>
-                                    <p className="text-sm font-medium text-slate-500">No medicines added yet</p>
-                                    <p className="text-xs text-slate-400 mt-1">Search or use quick add to prescribe</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* CARD 3: Treatment Plan */}
-                <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-emerald-300/60 transition-all duration-300">
-                    <div className="border-b-2 border-slate-100 bg-gradient-to-r from-emerald-50 via-green-50/30 to-white px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 border-2 border-white text-white shadow-lg shadow-emerald-500/30">
-                                    <CheckCircle className="h-5 w-5" />
-                                </span>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Treatment Plan</h3>
-                                        <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">3</span>
-                                    </div>
-                                    <p className="text-xs text-slate-600 font-medium mt-0.5">Define care plan, advice, and procedures</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-6 space-y-5">
-                        {/* Advice Section */}
-                        <div>
-                            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Advice & Tests</label>
-                            <AdviceQuickChips
-                                options={QUICK_ADVICE}
-                                addedIds={addedAdviceIds}
-                                onAdd={handleQuickAdviceAdd}
-                                className="mb-3"
-                            />
-
-                            {/* Added Advice List */}
-                            {adviceFields.length > 0 && (
-                                <div className="space-y-2 mt-3">
-                                    {adviceFields.map((field, index) => (
-                                        <div key={field.id} className="flex items-center gap-2 group/advice">
-                                            <div className="flex-1">
-                                                <input
-                                                    {...register(`advice_items.${index}.description`)}
-                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                                                />
-                                            </div>
+                                        <div className="text-center py-4 px-4 bg-slate-50 rounded-lg border border-slate-200">
+                                            <p className="text-xs text-slate-500">No quick diagnosis presets configured.</p>
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    removeAdvice(index);
-                                                    // Also remove from tracked IDs
-                                                    const description = adviceFields[index]?.description;
-                                                    const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
-                                                    if (match) {
-                                                        setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
-                                                    }
-                                                }}
-                                                className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
+                                                onClick={() => setShowSettingsModal(true)}
+                                                className="text-xs text-sky-600 hover:text-sky-700 font-medium mt-1"
                                             >
-                                                <X className="h-4 w-4" />
+                                                Configure in Settings
                                             </button>
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
-                        </div>
 
-                        {/* Dilation Toggle */}
-                        <div className="flex items-center justify-between p-4 rounded-lg border border-orange-100 bg-orange-50/50">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
-                                    <Droplets className="h-5 w-5" />
-                                </div>
+                                {/* Selected List */}
+                                {selectedDiagnoses.length > 0 && (
+                                    <div className="rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-5 border-2 border-slate-200/60 shadow-inner">
+                                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-white text-[10px] font-black">{selectedDiagnoses.length}</span>
+                                            Selected Conditions
+                                        </p>
+                                        <SelectedDiagnoses
+                                            diagnoses={selectedDiagnoses}
+                                            onRemove={handleDiagnosisToggle}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Full Diagnosis / Notes */}
                                 <div>
-                                    <span className="font-bold text-slate-800 block text-sm">Dilated Examination</span>
-                                    <span className="text-xs text-orange-600/80">Requires patient consent (approx. 30 mins)</span>
-                                </div>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    {...register("dilation_required")}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                            </label>
-                        </div>
-
-                        {/* Plan of Action */}
-                        <div>
-                            <label className="text-xs font-medium text-slate-600 mb-2 block">
-                                Detailed Plan of Action
-                            </label>
-                            <textarea
-                                {...register("plan_of_action")}
-                                rows={2}
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 resize-none transition-all placeholder:text-slate-400"
-                                placeholder="Describe the treatment plan..."
-                            />
-                        </div>
-
-                        <PlannedSurgerySection
-                            patientId={patientId}
-                            surgeonId={doctorId}
-                            visitId={visitId}
-                        />
-                    </div>
-                </div>
-
-                {/* CARD 4: Optical Details */}
-                <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-slate-300/60 transition-all duration-300">
-                    <button
-                        type="button"
-                        onClick={() => setShowOpticalDetails(!showOpticalDetails)}
-                        className="w-full border-b-2 border-slate-100 bg-gradient-to-r from-slate-50 via-gray-50/30 to-white px-6 py-4 flex items-center justify-between hover:from-slate-100 transition-all"
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 border-2 border-white text-white shadow-lg shadow-slate-500/30">
-                                <Eye className="h-5 w-5" />
-                            </span>
-                            <div className="text-left">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Optical Details</h3>
-                                    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">4</span>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Optional</span>
-                                </div>
-                                <p className="text-xs text-slate-600 font-medium mt-0.5">Lens specifications and coatings</p>
-                            </div>
-                        </div>
-                        {showOpticalDetails ? (
-                            <ChevronUp className="h-5 w-5 text-slate-600" />
-                        ) : (
-                            <ChevronDown className="h-5 w-5 text-slate-600" />
-                        )}
-                    </button>
-
-                    {showOpticalDetails && (
-                        <div className="p-6 space-y-5 animate-in slide-in-from-top-2 duration-200">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Type</label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {LENS_TYPES.map((type) => (
-                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                                    <input
-                                                        type="radio"
-                                                        value={type}
-                                                        {...register("lens_type")}
-                                                        className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
-                                                    />
-                                                    <span className="text-sm text-slate-700">{type}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Vision Distance</label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {VISION_TYPES.map((type) => (
-                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                                    <input
-                                                        type="radio"
-                                                        value={type}
-                                                        {...register("vision_type")}
-                                                        className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
-                                                    />
-                                                    <span className="text-sm text-slate-700">{type}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Material</label>
-                                        <select
-                                            {...register("lens_material")}
-                                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all"
-                                        >
-                                            <option value="">Select Material...</option>
-                                            {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Coatings</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {COATINGS.map((coating) => (
-                                                <button
-                                                    key={coating}
-                                                    type="button"
-                                                    onClick={() => handleToggleCoating(coating)}
-                                                    className={clsx(
-                                                        "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
-                                                        selectedCoatings?.includes(coating)
-                                                            ? "bg-slate-800 text-white border-slate-900"
-                                                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                                    )}
-                                                >
-                                                    {coating}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* CARD 5: Follow-up & Remarks */}
-                <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-indigo-300/60 transition-all duration-300">
-                    <div className="border-b-2 border-slate-100 bg-gradient-to-r from-indigo-50 via-blue-50/30 to-white px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 border-2 border-white text-white shadow-lg shadow-indigo-500/30">
-                                    <Calendar className="h-5 w-5" />
-                                </span>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Follow-up & Remarks</h3>
-                                        <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">5</span>
-                                    </div>
-                                    <p className="text-xs text-slate-600 font-medium mt-0.5">Schedule next visit and add notes</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Follow Up In</label>
-                            <FollowupQuickChips
-                                options={QUICK_FOLLOWUPS}
-                                selectedDays={selectedFollowupDays}
-                                onSelect={handleFollowupSelect}
-                                onCustom={() => setShowCustomDate(true)}
-                                className="mb-3"
-                            />
-                            {showCustomDate && (
-                                <div className="mt-3 animate-in slide-in-from-top-2">
-                                    <input
-                                        type="date"
-                                        {...register("followup_date")}
-                                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">
+                                        Detailed Diagnosis / Notes
+                                    </label>
+                                    <textarea
+                                        {...register("diagnosis")}
+                                        rows={3}
+                                        placeholder="Type specific diagnosis details here..."
+                                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/20 resize-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300"
                                     />
                                 </div>
-                            )}
+                            </div>
                         </div>
-                        <div>
-                            <label className="text-xs font-medium text-slate-600 mb-2 block">Internal Remarks</label>
-                            <textarea
-                                {...register("remarks")}
-                                rows={3}
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none transition-all placeholder:text-slate-400"
-                                placeholder="Private notes..."
-                            />
+
+                        {/* CARD 2: Medicines */}
+                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-purple-300/60 transition-all duration-300">
+                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-purple-50 via-pink-50/30 to-white px-6 py-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-white text-white shadow-lg shadow-purple-500/30">
+                                            <Pill className="h-5 w-5" />
+                                        </span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Medicines</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">2</span>
+                                                {medicineFields.length > 0 && (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xs font-black text-white shadow-md">
+                                                        {medicineFields.length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Prescribe medications and dosage instructions</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettingsModal(true)}
+                                        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white hover:text-purple-600 border-2 border-transparent hover:border-purple-200 transition-all shadow-sm hover:shadow"
+                                        title="Configure Presets"
+                                    >
+                                        <Settings className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Settings</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="p-6 space-y-5">
+                                {/* Search & Quick Add */}
+                                <div className="space-y-4">
+                                    <div className="relative group/search">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-purple-500 transition-colors">
+                                            {searchingMedicines ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <Pill className="h-5 w-5" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={medicineSearchQuery}
+                                            onChange={(e) => setMedicineSearchQuery(e.target.value)}
+                                            placeholder="Search medicines (brand or generic)..."
+                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3.5 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                        />
+                                        {medicineSearchResults.length > 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-purple-200 bg-white shadow-2xl">
+                                                <ul className="max-h-60 overflow-y-auto py-1">
+                                                    {medicineSearchResults.map((medicine) => (
+                                                        <li
+                                                            key={medicine.id}
+                                                            onClick={() => handleAddMedicine(medicine)}
+                                                            className="cursor-pointer px-4 py-3 hover:bg-purple-50 active:bg-purple-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                        >
+                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-purple-700 transition-colors">{medicine.medicine_name}</div>
+                                                            <div className="text-xs text-slate-500 mt-1">{medicine.generic_name} • {medicine.default_dosage}</div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                                                <Sparkles className="h-3.5 w-3.5 text-white" />
+                                            </div>
+                                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Add</p>
+                                        </div>
+                                        {medicinesOptions.length > 0 ? (
+                                            <MedicineQuickChips
+                                                options={medicinesOptions}
+                                                addedIds={addedMedicineIds}
+                                                onAdd={handleQuickMedicineAdd}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
+                                                <p className="text-xs text-slate-500">No quick medicine presets configured.</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowSettingsModal(true)}
+                                                    className="text-xs text-purple-600 hover:text-purple-700 font-medium mt-1"
+                                                >
+                                                    Configure in Settings
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Added Medicines List */}
+                                <div className="space-y-4">
+                                    {medicineFields.map((field, index) => (
+                                        <div key={field.id} className="relative rounded-xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg hover:border-purple-300 transition-all group/item">
+                                            <div className="absolute right-3 top-3 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveMedicine(index)}
+                                                    className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm hover:shadow"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+
+                                            <div className="mb-4 pr-12">
+                                                <div className="flex items-center gap-2.5">
+                                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xs font-black text-white shadow-md">
+                                                        {index + 1}
+                                                    </span>
+                                                    <h4 className="font-bold text-slate-900 text-base">{field.medicine_name}</h4>
+                                                </div>
+                                                {field.generic_name && (
+                                                    <p className="ml-9 text-xs text-slate-500 mt-1 font-medium">{field.generic_name}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
+                                                    <input
+                                                        {...register(`medicine_items.${index}.dosage`)}
+                                                        placeholder="e.g. 500mg"
+                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`freq-options-${index}`}
+                                                            {...register(`medicine_items.${index}.frequency`)}
+                                                            placeholder="e.g. 1-0-1"
+                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                        />
+                                                        <datalist id={`freq-options-${index}`}>
+                                                            {FREQUENCIES.map(f => <option key={f} value={f} />)}
+                                                        </datalist>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`dur-options-${index}`}
+                                                            {...register(`medicine_items.${index}.duration`)}
+                                                            placeholder="e.g. 5 days"
+                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                        />
+                                                        <datalist id={`dur-options-${index}`}>
+                                                            {DURATIONS.map(d => <option key={d} value={d} />)}
+                                                        </datalist>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
+                                                    <input
+                                                        {...register(`medicine_items.${index}.instructions`)}
+                                                        placeholder="e.g. After food"
+                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {medicineFields.length === 0 && (
+                                        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                                            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+                                                <Pill className="h-5 w-5 text-slate-400" />
+                                            </div>
+                                            <p className="text-sm font-medium text-slate-500">No medicines added yet</p>
+                                            <p className="text-xs text-slate-400 mt-1">Search or use quick add to prescribe</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                {/* Action Buttons */}
-                <div className="flex flex-col gap-5 pt-6 border-t-2 border-slate-100 mt-6 bg-gradient-to-b from-slate-50/50 to-white rounded-2xl p-6 -mx-6 -mb-6">
-                    {/* Print Header Toggle */}
-                    <div className="flex items-center justify-between px-2">
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                            <div className="relative">
-                                <input
-                                    type="checkbox"
-                                    checked={printWithHeader}
-                                    onChange={(e) => setPrintWithHeader(e.target.checked)}
-                                    className="h-5 w-5 rounded-lg border-2 border-slate-300 text-sky-600 focus:ring-4 focus:ring-sky-500/20 focus:ring-offset-0 transition-all cursor-pointer"
+
+                        {/* CARD 3: Treatment Plan */}
+                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-emerald-300/60 transition-all duration-300">
+                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-emerald-50 via-green-50/30 to-white px-6 py-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 border-2 border-white text-white shadow-lg shadow-emerald-500/30">
+                                            <CheckCircle className="h-5 w-5" />
+                                        </span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Treatment Plan</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">3</span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Define care plan, advice, and procedures</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6 space-y-5">
+                                {/* Advice Section */}
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Advice & Tests</label>
+                                    <AdviceQuickChips
+                                        options={QUICK_ADVICE}
+                                        addedIds={addedAdviceIds}
+                                        onAdd={handleQuickAdviceAdd}
+                                        className="mb-3"
+                                    />
+
+                                    {/* Added Advice List */}
+                                    {adviceFields.length > 0 && (
+                                        <div className="space-y-2 mt-3">
+                                            {adviceFields.map((field, index) => (
+                                                <div key={field.id} className="flex items-center gap-2 group/advice">
+                                                    <div className="flex-1">
+                                                        <input
+                                                            {...register(`advice_items.${index}.description`)}
+                                                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            removeAdvice(index);
+                                                            // Also remove from tracked IDs
+                                                            const description = adviceFields[index]?.description;
+                                                            const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
+                                                            if (match) {
+                                                                setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
+                                                            }
+                                                        }}
+                                                        className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Dilation Toggle */}
+                                <div className="flex items-center justify-between p-4 rounded-lg border border-orange-100 bg-orange-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+                                            <Droplets className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-slate-800 block text-sm">Dilated Examination</span>
+                                            <span className="text-xs text-orange-600/80">Requires patient consent (approx. 30 mins)</span>
+                                        </div>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            {...register("dilation_required")}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                                    </label>
+                                </div>
+
+                                {/* Plan of Action */}
+                                <div>
+                                    <label className="text-xs font-medium text-slate-600 mb-2 block">
+                                        Detailed Plan of Action
+                                    </label>
+                                    <textarea
+                                        {...register("plan_of_action")}
+                                        rows={2}
+                                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 resize-none transition-all placeholder:text-slate-400"
+                                        placeholder="Describe the treatment plan..."
+                                    />
+                                </div>
+
+                                <PlannedSurgerySection
+                                    patientId={patientId}
+                                    surgeonId={doctorId}
+                                    visitId={visitId}
                                 />
                             </div>
-                            <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">
-                                Print with hospital header
-                            </span>
-                        </label>
-                    </div>
+                        </div>
 
-                    {/* Buttons Row */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-all border-2 border-transparent hover:border-slate-200 shadow-sm hover:shadow"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setShowSaveTemplateModal(true)}
-                            className="flex items-center gap-2 px-5 py-3 border-2 border-purple-300 bg-white text-purple-700 font-bold rounded-xl hover:bg-purple-50 hover:border-purple-400 transition-all text-sm shadow-md hover:shadow-lg"
-                        >
-                            <Sparkles className="h-4 w-4" />
-                            Save Template
-                        </button>
-
-                        <div className="flex-1" />
-
-                        {savedPrescription && (savedPrescription.status === 'finalized' ? (
+                        {/* CARD 4: Optical Details */}
+                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-slate-300/60 transition-all duration-300">
                             <button
                                 type="button"
-                                onClick={handlePrintClick}
-                                className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-xl hover:from-sky-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl text-sm"
+                                onClick={() => setShowOpticalDetails(!showOpticalDetails)}
+                                className="w-full border-b-2 border-slate-100 bg-gradient-to-r from-slate-50 via-gray-50/30 to-white px-6 py-4 flex items-center justify-between hover:from-slate-100 transition-all"
                             >
-                                <Printer className="h-5 w-5" />
-                                Print Prescription
+                                <div className="flex items-center gap-3">
+                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 border-2 border-white text-white shadow-lg shadow-slate-500/30">
+                                        <Eye className="h-5 w-5" />
+                                    </span>
+                                    <div className="text-left">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Optical Details</h3>
+                                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">4</span>
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Optional</span>
+                                        </div>
+                                        <p className="text-xs text-slate-600 font-medium mt-0.5">Lens specifications and coatings</p>
+                                    </div>
+                                </div>
+                                {showOpticalDetails ? (
+                                    <ChevronUp className="h-5 w-5 text-slate-600" />
+                                ) : (
+                                    <ChevronDown className="h-5 w-5 text-slate-600" />
+                                )}
                             </button>
-                        ) : (
-                            <>
-                                {savedPrescription && (
+
+                            {showOpticalDetails && (
+                                <div className="p-6 space-y-5 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Type</label>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {LENS_TYPES.map((type) => (
+                                                        <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                            <input
+                                                                type="radio"
+                                                                value={type}
+                                                                {...register("lens_type")}
+                                                                className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                                            />
+                                                            <span className="text-sm text-slate-700">{type}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Vision Distance</label>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {VISION_TYPES.map((type) => (
+                                                        <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                            <input
+                                                                type="radio"
+                                                                value={type}
+                                                                {...register("vision_type")}
+                                                                className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                                            />
+                                                            <span className="text-sm text-slate-700">{type}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Material</label>
+                                                <select
+                                                    {...register("lens_material")}
+                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all"
+                                                >
+                                                    <option value="">Select Material...</option>
+                                                    {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Coatings</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {COATINGS.map((coating) => (
+                                                        <button
+                                                            key={coating}
+                                                            type="button"
+                                                            onClick={() => handleToggleCoating(coating)}
+                                                            className={clsx(
+                                                                "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
+                                                                selectedCoatings?.includes(coating)
+                                                                    ? "bg-slate-800 text-white border-slate-900"
+                                                                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                                            )}
+                                                        >
+                                                            {coating}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* CARD 5: Follow-up & Remarks */}
+                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-indigo-300/60 transition-all duration-300">
+                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-indigo-50 via-blue-50/30 to-white px-6 py-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 border-2 border-white text-white shadow-lg shadow-indigo-500/30">
+                                            <Calendar className="h-5 w-5" />
+                                        </span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Follow-up & Remarks</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">5</span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Schedule next visit and add notes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Follow Up In</label>
+                                    <FollowupQuickChips
+                                        options={QUICK_FOLLOWUPS}
+                                        selectedDays={selectedFollowupDays}
+                                        onSelect={handleFollowupSelect}
+                                        onCustom={() => setShowCustomDate(true)}
+                                        className="mb-3"
+                                    />
+                                    {showCustomDate && (
+                                        <div className="mt-3 animate-in slide-in-from-top-2">
+                                            <input
+                                                type="date"
+                                                {...register("followup_date")}
+                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-slate-600 mb-2 block">Internal Remarks</label>
+                                    <textarea
+                                        {...register("remarks")}
+                                        rows={3}
+                                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none transition-all placeholder:text-slate-400"
+                                        placeholder="Private notes..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-5 pt-6 border-t-2 border-slate-100 mt-6 bg-gradient-to-b from-slate-50/50 to-white rounded-2xl p-6 -mx-6 -mb-6">
+                            {/* Print Header Toggle */}
+                            <div className="flex items-center justify-between px-2">
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            checked={printWithHeader}
+                                            onChange={(e) => setPrintWithHeader(e.target.checked)}
+                                            className="h-5 w-5 rounded-lg border-2 border-slate-300 text-sky-600 focus:ring-4 focus:ring-sky-500/20 focus:ring-offset-0 transition-all cursor-pointer"
+                                        />
+                                    </div>
+                                    <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">
+                                        Print with hospital header
+                                    </span>
+                                </label>
+                            </div>
+
+                            {/* Buttons Row */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-all border-2 border-transparent hover:border-slate-200 shadow-sm hover:shadow"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSaveTemplateModal(true)}
+                                    className="flex items-center gap-2 px-5 py-3 border-2 border-purple-300 bg-white text-purple-700 font-bold rounded-xl hover:bg-purple-50 hover:border-purple-400 transition-all text-sm shadow-md hover:shadow-lg"
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    Save Template
+                                </button>
+
+                                <div className="flex-1" />
+
+                                {savedPrescription && (savedPrescription.status === 'finalized' ? (
                                     <button
                                         type="button"
                                         onClick={handlePrintClick}
-                                        className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all text-sm shadow-md hover:shadow-lg"
+                                        className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-xl hover:from-sky-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl text-sm"
                                     >
-                                        <Printer className="h-4 w-4" />
-                                        Print
+                                        <Printer className="h-5 w-5" />
+                                        Print Prescription
                                     </button>
+                                ) : (
+                                    <>
+                                        {savedPrescription && (
+                                            <button
+                                                type="button"
+                                                onClick={handlePrintClick}
+                                                className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all text-sm shadow-md hover:shadow-lg"
+                                            >
+                                                <Printer className="h-4 w-4" />
+                                                Print
+                                            </button>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={handleSubmit(onSaveDraft)}
+                                            className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md hover:shadow-lg"
+                                        >
+                                            <CheckCircle className="h-4 w-4" />
+                                            Save Draft
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={handleSubmit(onFinalizeAndPrint)}
+                                            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl"
+                                        >
+                                            <Printer className="h-4 w-4" />
+                                            Finalize & Print
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={handleSubmit(onFinalize)}
+                                            className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black rounded-xl hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                                    <span>Processing...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle className="h-5 w-5" />
+                                                    <span>Finalize Prescription</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
+                                ))}
+
+                                {!savedPrescription && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={handleSubmit(onSaveDraft)}
+                                            className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md hover:shadow-lg"
+                                        >
+                                            <CheckCircle className="h-4 w-4" />
+                                            Save Draft
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={handleSubmit(onFinalizeAndPrint)}
+                                            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl"
+                                        >
+                                            <Printer className="h-4 w-4" />
+                                            Finalize & Print
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={handleSubmit(onFinalize)}
+                                            className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black rounded-xl hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                                    <span>Processing...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle className="h-5 w-5" />
+                                                    <span>Finalize Prescription</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
                                 )}
+                            </div>
+                        </div>
+                    </form>
 
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleSubmit(onSaveDraft)}
-                                    className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md hover:shadow-lg"
-                                >
-                                    <CheckCircle className="h-4 w-4" />
-                                    Save Draft
-                                </button>
+                    {showSaveTemplateModal && (
+                        <SaveAsTemplateModal
+                            isOpen={showSaveTemplateModal}
+                            onClose={() => {
+                                setShowSaveTemplateModal(false);
+                                onEditStarted?.(); // Clear the edit signal from parent if cancelled
+                            }}
+                            formData={{
+                                diagnosis: currentDiagnosis,
+                                plan_of_action: watch("plan_of_action"),
+                                followup_date: watch("followup_date"),
+                                remarks: watch("remarks"),
+                                lens_type: watch("lens_type"),
+                                vision_type: watch("vision_type"),
+                                lens_material: watch("lens_material"),
+                                coatings: selectedCoatings,
+                                medicine_items: medicineFields,
+                                advice_items: adviceFields,
+                            }}
+                            editTemplate={templateToEdit}
+                            onSaved={() => {
+                                onEditStarted?.(); // Clear edit signal
+                            }}
+                        />
+                    )}
 
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleSubmit(onFinalizeAndPrint)}
-                                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl"
-                                >
-                                    <Printer className="h-4 w-4" />
-                                    Finalize & Print
-                                </button>
+                    {showSettingsModal && (
+                        <QuickPresetsSettingsModal
+                            isOpen={showSettingsModal}
+                            onClose={() => setShowSettingsModal(false)}
+                            doctorId={doctorId}
+                            onSaved={() => {
+                                // Reload presets from API - no mock data fallback
+                                const reloadPresets = async () => {
+                                    try {
+                                        const [dx, meds] = await Promise.all([
+                                            quickPresetsApi.getDiagnoses(doctorId),
+                                            quickPresetsApi.getMedicines(doctorId)
+                                        ]);
 
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleSubmit(onFinalize)}
-                                    className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black rounded-xl hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            <span>Processing...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="h-5 w-5" />
-                                            <span>Finalize Prescription</span>
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        ))}
+                                        // Only set if API returns data
+                                        setDiagnosesOptions(dx || []);
 
-                        {!savedPrescription && (
-                            <>
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleSubmit(onSaveDraft)}
-                                    className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md hover:shadow-lg"
-                                >
-                                    <CheckCircle className="h-4 w-4" />
-                                    Save Draft
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleSubmit(onFinalizeAndPrint)}
-                                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl"
-                                >
-                                    <Printer className="h-4 w-4" />
-                                    Finalize & Print
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleSubmit(onFinalize)}
-                                    className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black rounded-xl hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            <span>Processing...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="h-5 w-5" />
-                                            <span>Finalize Prescription</span>
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </form>
-
-            {showSaveTemplateModal && (
-                <SaveAsTemplateModal
-                    isOpen={showSaveTemplateModal}
-                    onClose={() => {
-                        setShowSaveTemplateModal(false);
-                        onEditStarted?.(); // Clear the edit signal from parent if cancelled
-                    }}
-                    formData={{
-                        diagnosis: currentDiagnosis,
-                        plan_of_action: watch("plan_of_action"),
-                        followup_date: watch("followup_date"),
-                        remarks: watch("remarks"),
-                        lens_type: watch("lens_type"),
-                        vision_type: watch("vision_type"),
-                        lens_material: watch("lens_material"),
-                        coatings: selectedCoatings,
-                        medicine_items: medicineFields,
-                        advice_items: adviceFields,
-                    }}
-                    editTemplate={templateToEdit}
-                    onSaved={() => {
-                        onEditStarted?.(); // Clear edit signal
-                    }}
-                />
-            )}
-
-            {showSettingsModal && (
-                <QuickPresetsSettingsModal
-                    isOpen={showSettingsModal}
-                    onClose={() => setShowSettingsModal(false)}
-                    doctorId={doctorId}
-                    onSaved={() => {
-                        // Reload presets from API - no mock data fallback
-                        const reloadPresets = async () => {
-                            try {
-                                const [dx, meds] = await Promise.all([
-                                    quickPresetsApi.getDiagnoses(doctorId),
-                                    quickPresetsApi.getMedicines(doctorId)
-                                ]);
-
-                                // Only set if API returns data
-                                setDiagnosesOptions(dx || []);
-
-                                if (meds && meds.length > 0) {
-                                    const mappedMeds = meds.map(m => ({
-                                        id: m.id || Math.random().toString(),
-                                        label: m.label,
-                                        icon: m.icon,
-                                        color: m.color,
-                                        medicine: {
-                                            medicine_name: m.medicine_name,
-                                            generic_name: m.generic_name,
-                                            dosage: m.dosage,
-                                            frequency: m.frequency,
-                                            duration: m.duration,
-                                            instructions: m.instructions
+                                        if (meds && meds.length > 0) {
+                                            const mappedMeds = meds.map(m => ({
+                                                id: m.id || Math.random().toString(),
+                                                label: m.label,
+                                                icon: m.icon,
+                                                color: m.color,
+                                                medicine: {
+                                                    medicine_name: m.medicine_name,
+                                                    generic_name: m.generic_name,
+                                                    dosage: m.dosage,
+                                                    frequency: m.frequency,
+                                                    duration: m.duration,
+                                                    instructions: m.instructions
+                                                }
+                                            }));
+                                            setMedicinesOptions(mappedMeds);
+                                        } else {
+                                            setMedicinesOptions([]);
                                         }
-                                    }));
-                                    setMedicinesOptions(mappedMeds);
-                                } else {
-                                    setMedicinesOptions([]);
-                                }
-                            } catch (e) {
-                                console.error(e);
-                                // Set empty arrays on error
-                                setDiagnosesOptions([]);
-                                setMedicinesOptions([]);
-                            }
-                        };
-                        reloadPresets();
-                    }}
-                />
+                                    } catch (e) {
+                                        console.error(e);
+                                        // Set empty arrays on error
+                                        setDiagnosesOptions([]);
+                                        setMedicinesOptions([]);
+                                    }
+                                };
+                                reloadPresets();
+                            }}
+                        />
+                    )}
+                </div>
             )}
         </div>
     );

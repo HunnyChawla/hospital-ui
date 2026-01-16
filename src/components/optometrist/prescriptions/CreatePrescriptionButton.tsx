@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileEdit, Loader2 } from "lucide-react";
+import { FileEdit, Loader2, Eye } from "lucide-react";
 import { DoctorPrescriptionModal } from "./DoctorPrescriptionModal";
 
 interface CreatePrescriptionButtonProps {
@@ -13,6 +13,7 @@ interface CreatePrescriptionButtonProps {
     doctorId: string;
     doctorName?: string;
     onPrescriptionCreated?: () => void;
+    isCompleted?: boolean;
 }
 
 export function CreatePrescriptionButton({
@@ -24,6 +25,7 @@ export function CreatePrescriptionButton({
     doctorId,
     doctorName,
     onPrescriptionCreated,
+    isCompleted = false,
 }: CreatePrescriptionButtonProps) {
     const [showModal, setShowModal] = useState(false);
 
@@ -42,8 +44,8 @@ export function CreatePrescriptionButton({
                 disabled={!patientId}
                 className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-medium text-white shadow-md hover:from-emerald-700 hover:to-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <FileEdit className="h-4 w-4" />
-                Create Prescription
+                {isCompleted ? <Eye className="h-4 w-4" /> : <FileEdit className="h-4 w-4" />}
+                {isCompleted ? "View Prescription" : "Create Prescription"}
             </button>
 
             {showModal && (
@@ -58,6 +60,7 @@ export function CreatePrescriptionButton({
                     doctorId={doctorId}
                     doctorName={doctorName}
                     onPrescriptionCreated={onPrescriptionCreated}
+                    isCompleted={isCompleted}
                 />
             )}
         </>
