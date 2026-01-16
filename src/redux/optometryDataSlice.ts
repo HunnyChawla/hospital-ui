@@ -17,7 +17,7 @@ import type {
   MedicalHistoryRecord,
   MedicalConditionRecord,
   OphthalmicSurgeryRecord,
-  OphthalmicSurgeryRecord,
+
   DrugAllergyRecord,
   VisionRecord,
 } from "@/types";
@@ -51,7 +51,7 @@ type OptometryDataState = {
     medicalHistory: boolean;
     medicalConditions: boolean;
     ophthalmicHistory: boolean;
-    ophthalmicHistory: boolean;
+
     drugAllergies: boolean;
     vision: boolean;
   };
@@ -505,7 +505,7 @@ const optometryDataSlice = createSlice({
       state.complaints = [];
       state.medicalHistory = null;
       state.ophthalmicHistory = [];
-      state.ophthalmicHistory = [];
+
       state.drugAllergies = [];
       state.visionRecords = [];
       state.error = null;

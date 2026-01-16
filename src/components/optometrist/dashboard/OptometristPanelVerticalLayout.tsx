@@ -9,6 +9,7 @@ import type { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferen
 
 type ActiveTab =
   | "complaints"
+  | "vision"
   | "medical_history"
   | "ophthalmic_history"
   | "allergies"

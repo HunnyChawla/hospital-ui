@@ -1,5 +1,7 @@
 import { apiClient } from "./api";
 import { CreateVisionRequest, VisionResponse } from "@/types";
+
+export type { CreateVisionRequest, VisionResponse };
 import { getTenantIdForApi } from "@/utils/auth";
 
 export const visionApi = {

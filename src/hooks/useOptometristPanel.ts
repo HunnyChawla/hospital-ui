@@ -15,6 +15,7 @@ import { useRef } from "react";
 
 type ActiveTab =
   | "complaints"
+  | "vision"
   | "medical_history"
   | "ophthalmic_history"
   | "allergies"

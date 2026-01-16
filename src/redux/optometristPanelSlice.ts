@@ -11,6 +11,7 @@ import { OptometristSchedule, PatientOptometryTimeline, OptometristStats } from 
 
 type ActiveTab =
   | "complaints"
+  | "vision"
   | "medical_history"
   | "ophthalmic_history"
   | "allergies"

@@ -111,8 +111,8 @@ export function PlannedSurgeryFormModal({
             }
             setSearchingPatients(true);
             try {
-                const response = await patientsApi.list({
-                    search: patientSearch,
+                const response = await patientsApi.searchGlobal({
+                    q: patientSearch,
                     page: 1,
                     page_size: 10,
                 });

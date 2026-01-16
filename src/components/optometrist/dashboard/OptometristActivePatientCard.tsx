@@ -7,6 +7,7 @@ import { ShowSummaryButton } from "../summary/ShowSummaryButton";
 
 type ActiveTab =
   | "complaints"
+  | "vision"
   | "medical_history"
   | "ophthalmic_history"
   | "allergies"
