@@ -156,12 +156,12 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       {isVisible && (
         <div className="border-t border-slate-200/60 flex flex-col flex-1 min-h-0">
           {/* Filter Tabs */}
-          <div className="flex border-b border-slate-200/60 flex-shrink-0 bg-slate-50/50">
+          <div className="flex border-b border-slate-200/60 flex-shrink-0 bg-slate-50/50 overflow-x-auto scrollbar-hide">
             {filters.map((filter) => (
               <button
                 key={filter.key}
                 onClick={() => onFilterChange(filter.key)}
-                className={`flex-1 px-3 py-2.5 text-xs font-semibold transition-all border-b-2 ${activeFilter === filter.key
+                className={`flex-shrink-0 px-4 py-2.5 text-xs font-semibold transition-all border-b-2 whitespace-nowrap ${activeFilter === filter.key
                   ? "text-sky-700 border-sky-600 bg-gradient-to-b from-sky-50 to-white shadow-sm"
                   : "text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/50"
                   }`}

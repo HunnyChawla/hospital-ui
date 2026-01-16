@@ -177,6 +177,8 @@ export function PrescriptionFormSection({
     const [plannedSurgeries, setPlannedSurgeries] = useState<PlannedSurgery[]>([]);
     const [patientDetails, setPatientDetails] = useState<any>(null);
     const [optometristDetails, setOptometristDetails] = useState<any>(null);
+    const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+    const [pendingFinalizeAction, setPendingFinalizeAction] = useState<{ data: FormData; print: boolean } | null>(null);
     const printRef = React.useRef<HTMLDivElement>(null);
 
     // Fetch additional details
@@ -673,14 +675,18 @@ export function PrescriptionFormSection({
     };
 
     const processSubmit = async (data: FormData, options: { print?: boolean; finalize?: boolean }) => {
-        setIsSubmitting(true);
+        // For finalize actions, show confirmation modal first
         if (options.finalize) {
-            if (!window.confirm("Are you sure you want to finalize this prescription? Once finalized cannot be updated.")) {
-                setIsSubmitting(false);
-                setShouldPrint(false);
-                return;
-            }
+            setPendingFinalizeAction({ data, print: !!options.print });
+            setShowFinalizeConfirm(true);
+            return;
         }
+
+        await executeSubmit(data, options);
+    };
+
+    const executeSubmit = async (data: FormData, options: { print?: boolean; finalize?: boolean }) => {
+        setIsSubmitting(true);
         if (options.print) setShouldPrint(true);
 
         try {
@@ -761,6 +767,7 @@ export function PrescriptionFormSection({
             }
 
             if (!options.print) {
+                setIsSubmitting(false); // Reset loading state after save
                 if (onPrescriptionCreated) onPrescriptionCreated();
                 if (options.finalize) onClose();
             } else {
@@ -779,6 +786,19 @@ export function PrescriptionFormSection({
     const onFinalize = (data: FormData) => processSubmit(data, { print: false, finalize: true });
     const onFinalizeAndPrint = (data: FormData) => processSubmit(data, { print: true, finalize: true });
 
+    const handleConfirmFinalize = () => {
+        if (pendingFinalizeAction) {
+            setShowFinalizeConfirm(false);
+            executeSubmit(pendingFinalizeAction.data, { print: pendingFinalizeAction.print, finalize: true });
+            setPendingFinalizeAction(null);
+        }
+    };
+
+    const handleCancelFinalize = () => {
+        setShowFinalizeConfirm(false);
+        setPendingFinalizeAction(null);
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -790,6 +810,67 @@ export function PrescriptionFormSection({
 
     return (
         <div className="p-4">
+            {/* Finalize Confirmation Modal */}
+            {showFinalizeConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="relative w-full max-w-md mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5 border-b border-amber-100">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 border border-amber-200">
+                                    <AlertCircle className="h-6 w-6 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900">Finalize Prescription</h3>
+                                    <p className="text-sm text-slate-600">This action cannot be undone</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-6 py-5">
+                            <p className="text-slate-700">
+                                Are you sure you want to finalize this prescription? Once finalized, it <span className="font-semibold text-amber-700">cannot be edited or updated</span>.
+                            </p>
+                            <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                                <div className="flex items-start gap-2">
+                                    <CheckCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                    <div className="text-sm text-amber-800">
+                                        <p className="font-medium">What happens next:</p>
+                                        <ul className="mt-1 list-disc list-inside text-amber-700 space-y-0.5">
+                                            <li>Prescription will be locked for editing</li>
+                                            <li>Patient can collect their prescription</li>
+                                            {pendingFinalizeAction?.print && <li>Print dialog will open automatically</li>}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={handleCancelFinalize}
+                                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmFinalize}
+                                className="flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-emerald-600 hover:to-teal-700 transition-all"
+                            >
+                                <span className="flex items-center justify-center gap-2">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Yes, Finalize
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Read-Only View */}
             {readOnly ? (
                 <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-slate-200">
