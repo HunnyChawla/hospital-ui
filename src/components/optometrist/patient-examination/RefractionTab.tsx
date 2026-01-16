@@ -9,7 +9,7 @@ import clsx from "clsx";
 import type { RefractionRecord } from "@/types";
 
 // Import shared components
-import { EyeValueInput, VASelector, NumericStepper } from "../shared";
+import { EyeValueInput, NumericStepper } from "../shared";
 import { TemplateSelector, CopyFromPreviousButton } from "../templates";
 import { refractionTemplates, type RefractionTemplate } from "../mock";
 import { refractionApi } from "@/services/refractionApi";
@@ -30,17 +30,12 @@ interface RefractionFormData {
     cylinder: number | null;
     axis: number | null;
     add_power: number | null;
-    va_uncorrected: string | null;
-    va_corrected: string | null;
   };
   os: {
     sphere: number | null;
     cylinder: number | null;
     axis: number | null;
     add_power: number | null;
-    va_uncorrected: string | null;
-    va_corrected: string | null;
-
   };
   pupillary_distance: number | null;
   notes: string;
@@ -52,16 +47,12 @@ const initialFormData: RefractionFormData = {
     cylinder: null,
     axis: null,
     add_power: null,
-    va_uncorrected: null,
-    va_corrected: null,
   },
   os: {
     sphere: null,
     cylinder: null,
     axis: null,
     add_power: null,
-    va_uncorrected: null,
-    va_corrected: null,
   },
   pupillary_distance: null,
   notes: "",
@@ -313,16 +304,12 @@ export function RefractionTab({
           cylinder: visitCombined?.od?.cylinder ?? visitOD?.cylinder ?? null,
           axis: visitCombined?.od?.axis ?? visitOD?.axis ?? null,
           add_power: visitCombined?.od?.add_power ?? visitOD?.add_power ?? null,
-          va_uncorrected: visitCombined?.od?.visual_acuity_uncorrected ?? visitOD?.visual_acuity_uncorrected ?? null,
-          va_corrected: visitCombined?.od?.visual_acuity_corrected ?? visitOD?.visual_acuity_corrected ?? null,
         },
         os: {
           sphere: visitCombined?.os?.sphere ?? visitOS?.sphere ?? null,
           cylinder: visitCombined?.os?.cylinder ?? visitOS?.cylinder ?? null,
           axis: visitCombined?.os?.axis ?? visitOS?.axis ?? null,
           add_power: visitCombined?.os?.add_power ?? visitOS?.add_power ?? null,
-          va_uncorrected: visitCombined?.os?.visual_acuity_uncorrected ?? visitOS?.visual_acuity_uncorrected ?? null,
-          va_corrected: visitCombined?.os?.visual_acuity_corrected ?? visitOS?.visual_acuity_corrected ?? null,
         },
         pupillary_distance: visitCombined?.pupillary_distance ?? visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
         notes: visitCombined?.notes ?? visitOD?.notes ?? visitOS?.notes ?? "",
@@ -345,12 +332,6 @@ export function RefractionTab({
     if (formData.od.sphere === null) {
       newErrors.od_sphere = "OD Sphere is required";
     }
-    if (formData.od.va_uncorrected === null) {
-      newErrors.od_va_uncorrected = "OD VA Uncorrected is required";
-    }
-    if (formData.od.va_corrected === null) {
-      newErrors.od_va_corrected = "OD VA Corrected is required";
-    }
     // Axis required if cylinder is specified
     if (
       formData.od.cylinder !== null &&
@@ -363,12 +344,6 @@ export function RefractionTab({
     // Check OS required fields
     if (formData.os.sphere === null) {
       newErrors.os_sphere = "OS Sphere is required";
-    }
-    if (formData.os.va_uncorrected === null) {
-      newErrors.os_va_uncorrected = "OS VA Uncorrected is required";
-    }
-    if (formData.os.va_corrected === null) {
-      newErrors.os_va_corrected = "OS VA Corrected is required";
     }
     // Axis required if cylinder is specified
     if (
@@ -409,16 +384,16 @@ export function RefractionTab({
                 sphere: formData.od.sphere!,
                 cylinder: formData.od.cylinder,
                 axis: formData.od.axis,
-                visual_acuity_uncorrected: formData.od.va_uncorrected!,
-                visual_acuity_corrected: formData.od.va_corrected!,
+                visual_acuity_uncorrected: "",
+                visual_acuity_corrected: "",
                 add_power: formData.od.add_power,
               },
               os: {
                 sphere: formData.os.sphere!,
                 cylinder: formData.os.cylinder,
                 axis: formData.os.axis,
-                visual_acuity_uncorrected: formData.os.va_uncorrected!,
-                visual_acuity_corrected: formData.os.va_corrected!,
+                visual_acuity_uncorrected: "",
+                visual_acuity_corrected: "",
                 add_power: formData.os.add_power,
               },
               pupillary_distance: formData.pupillary_distance,
@@ -436,8 +411,6 @@ export function RefractionTab({
                 sphere: formData.od.sphere ?? undefined,
                 cylinder: formData.od.cylinder ?? undefined,
                 axis: formData.od.axis ?? undefined,
-                visual_acuity_uncorrected: formData.od.va_uncorrected ?? undefined,
-                visual_acuity_corrected: formData.od.va_corrected ?? undefined,
                 add_power: formData.od.add_power ?? undefined,
                 pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
@@ -453,8 +426,6 @@ export function RefractionTab({
                 sphere: formData.os.sphere ?? undefined,
                 cylinder: formData.os.cylinder ?? undefined,
                 axis: formData.os.axis ?? undefined,
-                visual_acuity_uncorrected: formData.os.va_uncorrected ?? undefined,
-                visual_acuity_corrected: formData.os.va_corrected ?? undefined,
                 add_power: formData.os.add_power ?? undefined,
                 pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
@@ -473,16 +444,16 @@ export function RefractionTab({
                 sphere: formData.od.sphere!,
                 cylinder: formData.od.cylinder,
                 axis: formData.od.axis,
-                visual_acuity_uncorrected: formData.od.va_uncorrected!,
-                visual_acuity_corrected: formData.od.va_corrected!,
+                visual_acuity_uncorrected: "",
+                visual_acuity_corrected: "",
                 add_power: formData.od.add_power,
               },
               os: {
                 sphere: formData.os.sphere!,
                 cylinder: formData.os.cylinder,
                 axis: formData.os.axis,
-                visual_acuity_uncorrected: formData.os.va_uncorrected!,
-                visual_acuity_corrected: formData.os.va_corrected!,
+                visual_acuity_uncorrected: "",
+                visual_acuity_corrected: "",
                 add_power: formData.os.add_power,
               },
               pupillary_distance: formData.pupillary_distance,
@@ -588,15 +559,9 @@ export function RefractionTab({
                     </div>
                   </div>
                   <div className="border-t border-blue-200 pt-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600">
-                        VA: {latestOD.visual_acuity_uncorrected} →{" "}
-                        {latestOD.visual_acuity_corrected}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {new Date(latestOD.recorded_at).toLocaleDateString()}
-                      </span>
-                    </div>
+                    <span className="text-xs text-slate-500">
+                      {new Date(latestOD.recorded_at).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -648,15 +613,9 @@ export function RefractionTab({
                     </div>
                   </div>
                   <div className="border-t border-green-200 pt-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600">
-                        VA: {latestOS.visual_acuity_uncorrected} →{" "}
-                        {latestOS.visual_acuity_corrected}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {new Date(latestOS.recorded_at).toLocaleDateString()}
-                      </span>
-                    </div>
+                    <span className="text-xs text-slate-500">
+                      {new Date(latestOS.recorded_at).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -769,67 +728,6 @@ export function RefractionTab({
               unit="D"
               presets={ADD_POWER_PRESETS}
             />
-
-            {/* Visual Acuity Section */}
-            <div className="border-t border-slate-200 pt-6">
-              <h5 className="mb-4 text-sm font-semibold text-slate-900">
-                Visual Acuity
-              </h5>
-
-              <div className="grid grid-cols-2 gap-6">
-                {/* OD Visual Acuity */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                    <span className="text-xs font-semibold text-blue-700">
-                      OD (Right)
-                    </span>
-                  </div>
-                  <VASelector
-                    label="Uncorrected"
-                    value={formData.od.va_uncorrected}
-                    onChange={(v) => updateField("od", "va_uncorrected", v)}
-                    required
-                    colorScheme="blue"
-                    error={errors.od_va_uncorrected}
-                  />
-                  <VASelector
-                    label="Corrected"
-                    value={formData.od.va_corrected}
-                    onChange={(v) => updateField("od", "va_corrected", v)}
-                    required
-                    colorScheme="blue"
-                    error={errors.od_va_corrected}
-                  />
-                </div>
-
-                {/* OS Visual Acuity */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <span className="text-xs font-semibold text-green-700">
-                      OS (Left)
-                    </span>
-                  </div>
-                  <VASelector
-                    label="Uncorrected"
-                    value={formData.os.va_uncorrected}
-                    onChange={(v) => updateField("os", "va_uncorrected", v)}
-                    required
-                    colorScheme="green"
-                    error={errors.os_va_uncorrected}
-                  />
-                  <VASelector
-                    label="Corrected"
-                    value={formData.os.va_corrected}
-                    onChange={(v) => updateField("os", "va_corrected", v)}
-                    required
-                    colorScheme="green"
-                    error={errors.os_va_corrected}
-                  />
-                </div>
-              </div>
-            </div>
 
             {/* Pupillary Distance */}
             <div className="border-t border-slate-200 pt-6">

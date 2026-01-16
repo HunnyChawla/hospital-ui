@@ -9,7 +9,7 @@ import clsx from "clsx";
 import type { ARDataRecord } from "@/types";
 
 // Import shared components
-import { EyeValueInput, NumericStepper, VASelector } from "../shared";
+import { EyeValueInput, NumericStepper } from "../shared";
 import { CopyFromPreviousButton } from "../templates";
 import { handleError } from "@/utils/errorHandler";
 
@@ -27,21 +27,19 @@ interface ARDataFormData {
     sphere: number | string | null;
     cylinder: number | string | null;
     axis: number | string | null;
-    visual_acuity: string | null;
   };
   os: {
     sphere: number | string | null;
     cylinder: number | string | null;
     axis: number | string | null;
-    visual_acuity: string | null;
   };
   pupillary_distance: number | string | null;
   notes: string;
 }
 
 const initialFormData: ARDataFormData = {
-  od: { sphere: null, cylinder: null, axis: null, visual_acuity: null },
-  os: { sphere: null, cylinder: null, axis: null, visual_acuity: null },
+  od: { sphere: null, cylinder: null, axis: null },
+  os: { sphere: null, cylinder: null, axis: null },
   pupillary_distance: null,
   notes: "",
 };
@@ -150,13 +148,11 @@ export function ARDataTab({
           sphere: visitCombinedRecord.od_sphere ?? null,
           cylinder: visitCombinedRecord.od_cylinder ?? null,
           axis: visitCombinedRecord.od_axis ?? null,
-          visual_acuity: visitCombinedRecord.od_visual_acuity ?? null,
         },
         os: {
           sphere: visitCombinedRecord.os_sphere ?? null,
           cylinder: visitCombinedRecord.os_cylinder ?? null,
           axis: visitCombinedRecord.os_axis ?? null,
-          visual_acuity: visitCombinedRecord.os_visual_acuity ?? null,
         },
         pupillary_distance: visitCombinedRecord.pupillary_distance ?? null,
         notes: visitCombinedRecord.notes ?? "",
@@ -168,13 +164,11 @@ export function ARDataTab({
           sphere: visitOD?.sphere ?? null,
           cylinder: visitOD?.cylinder ?? null,
           axis: visitOD?.axis ?? null,
-          visual_acuity: visitOD?.visual_acuity ?? null,
         },
         os: {
           sphere: visitOS?.sphere ?? null,
           cylinder: visitOS?.cylinder ?? null,
           axis: visitOS?.axis ?? null,
-          visual_acuity: visitOS?.visual_acuity ?? null,
         },
         pupillary_distance: visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
         notes: visitOD?.notes ?? visitOS?.notes ?? "",
@@ -214,11 +208,9 @@ export function ARDataTab({
         od_sphere: formData.od.sphere === "" || formData.od.sphere === null ? null : Number(formData.od.sphere),
         od_cylinder: formData.od.cylinder === "" || formData.od.cylinder === null ? null : Number(formData.od.cylinder),
         od_axis: formData.od.axis === "" || formData.od.axis === null ? null : Number(formData.od.axis),
-        od_visual_acuity: formData.od.visual_acuity,
         os_sphere: formData.os.sphere === "" || formData.os.sphere === null ? null : Number(formData.os.sphere),
         os_cylinder: formData.os.cylinder === "" || formData.os.cylinder === null ? null : Number(formData.os.cylinder),
         os_axis: formData.os.axis === "" || formData.os.axis === null ? null : Number(formData.os.axis),
-        os_visual_acuity: formData.os.visual_acuity,
         pupillary_distance: formData.pupillary_distance === "" || formData.pupillary_distance === null ? null : Number(formData.pupillary_distance),
         notes: formData.notes || null,
       };
@@ -274,11 +266,9 @@ export function ARDataTab({
         od_sphere: latestOD?.sphere ?? null,
         od_cylinder: latestOD?.cylinder ?? null,
         od_axis: latestOD?.axis ?? null,
-        od_visual_acuity: latestOD?.visual_acuity ?? null,
         os_sphere: latestOS?.sphere ?? null,
         os_cylinder: latestOS?.cylinder ?? null,
         os_axis: latestOS?.axis ?? null,
-        os_visual_acuity: latestOS?.visual_acuity ?? null,
         pupillary_distance: latestOD?.pupillary_distance ?? latestOS?.pupillary_distance ?? null,
         notes: latestOD?.notes ?? latestOS?.notes ?? null,
         created_at: latestCreatedAt ? new Date(latestCreatedAt).toISOString() : new Date().toISOString(),
@@ -350,11 +340,6 @@ export function ARDataTab({
                   </p>
                 </div>
               </div>
-              {latestAR.od_visual_acuity && (
-                <p className="mt-2 text-center text-sm text-slate-600">
-                  VA: {latestAR.od_visual_acuity}
-                </p>
-              )}
             </div>
 
             {/* OS Display */}
@@ -383,11 +368,6 @@ export function ARDataTab({
                   </p>
                 </div>
               </div>
-              {latestAR.os_visual_acuity && (
-                <p className="mt-2 text-center text-sm text-slate-600">
-                  VA: {latestAR.os_visual_acuity}
-                </p>
-              )}
             </div>
           </div>
 
@@ -473,37 +453,6 @@ export function ARDataTab({
               unit="°"
               presets={AXIS_PRESETS}
             />
-
-            {/* Visual Acuity */}
-            <div className="border-t border-slate-200 pt-6">
-              <h5 className="mb-4 text-sm font-semibold text-slate-900">
-                Visual Acuity (Optional)
-              </h5>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                    <span className="text-xs font-semibold text-blue-700">OD</span>
-                  </div>
-                  <VASelector
-                    value={formData.od.visual_acuity}
-                    onChange={(v) => updateField("od", "visual_acuity", v)}
-                    colorScheme="blue"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <span className="text-xs font-semibold text-green-700">OS</span>
-                  </div>
-                  <VASelector
-                    value={formData.os.visual_acuity}
-                    onChange={(v) => updateField("os", "visual_acuity", v)}
-                    colorScheme="green"
-                  />
-                </div>
-              </div>
-            </div>
 
             {/* Pupillary Distance */}
             <div className="border-t border-slate-200 pt-6">

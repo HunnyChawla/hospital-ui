@@ -6,14 +6,14 @@ import { X, Eye, Calendar, User, Activity, Pill, AlertCircle, FileText, Gauge } 
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 // Dynamic layout component that balances content across columns
-function VisitSummaryLayout({ 
-  data, 
-  formatDate, 
-  formatDateTime 
-}: { 
-  data: PrescriptionDataResponse; 
-  formatDate: (date: string) => string; 
-  formatDateTime: (date: string) => string; 
+function VisitSummaryLayout({
+  data,
+  formatDate,
+  formatDateTime
+}: {
+  data: PrescriptionDataResponse;
+  formatDate: (date: string) => string;
+  formatDateTime: (date: string) => string;
 }) {
   // Define all available sections with their content
   const allSections = [
@@ -145,10 +145,6 @@ function VisitSummaryLayout({
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.ar_data.od_axis}°</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Visual Acuity:</span>
-                  <span className="font-medium">{data.ar_data.od_visual_acuity}</span>
-                </div>
               </div>
             </div>
             <div className="rounded-lg bg-slate-50 p-4">
@@ -165,10 +161,6 @@ function VisitSummaryLayout({
                 <div className="flex justify-between">
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.ar_data.os_axis}°</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Visual Acuity:</span>
-                  <span className="font-medium">{data.ar_data.os_visual_acuity}</span>
                 </div>
               </div>
             </div>
@@ -208,14 +200,6 @@ function VisitSummaryLayout({
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.refraction.od_axis}°</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">VA Uncorrected:</span>
-                  <span className="font-medium">{data.refraction.od_visual_acuity_uncorrected}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">VA Corrected:</span>
-                  <span className="font-medium">{data.refraction.od_visual_acuity_corrected}</span>
-                </div>
                 {data.refraction.od_add_power && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Add Power:</span>
@@ -238,14 +222,6 @@ function VisitSummaryLayout({
                 <div className="flex justify-between">
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.refraction.os_axis}°</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">VA Uncorrected:</span>
-                  <span className="font-medium">{data.refraction.os_visual_acuity_uncorrected}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">VA Corrected:</span>
-                  <span className="font-medium">{data.refraction.os_visual_acuity_corrected}</span>
                 </div>
                 {data.refraction.os_add_power && (
                   <div className="flex justify-between">
@@ -299,6 +275,135 @@ function VisitSummaryLayout({
       )
     },
     {
+      id: 'vision',
+      title: 'Visual Acuity',
+      icon: <Eye className="h-5 w-5 text-cyan-600" />,
+      hasData: !!data.vision,
+      content: data.vision && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg bg-blue-50 p-4">
+              <h4 className="font-semibold text-blue-900 mb-3">Right Eye (OD)</h4>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-blue-700 mb-1">Distance Vision</p>
+                  <div className="space-y-1 text-sm">
+                    {data.vision.od_ucva_distance && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">UCVA:</span>
+                        <span className="font-medium">{data.vision.od_ucva_distance}</span>
+                      </div>
+                    )}
+                    {data.vision.od_ph_va && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">PH:</span>
+                        <span className="font-medium">{data.vision.od_ph_va}</span>
+                      </div>
+                    )}
+                    {data.vision.od_va_with_current_specs && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">With Specs:</span>
+                        <span className="font-medium">{data.vision.od_va_with_current_specs}</span>
+                      </div>
+                    )}
+                    {data.vision.od_bcva_distance && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">BCVA:</span>
+                        <span className="font-medium">{data.vision.od_bcva_distance}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-blue-700 mb-1">Near Vision</p>
+                  <div className="space-y-1 text-sm">
+                    {data.vision.od_near_ucva && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">UCVA:</span>
+                        <span className="font-medium">{data.vision.od_near_ucva}</span>
+                      </div>
+                    )}
+                    {data.vision.od_near_with_current_specs && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">With Specs:</span>
+                        <span className="font-medium">{data.vision.od_near_with_current_specs}</span>
+                      </div>
+                    )}
+                    {data.vision.od_near_bcva && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">BCVA:</span>
+                        <span className="font-medium">{data.vision.od_near_bcva}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg bg-green-50 p-4">
+              <h4 className="font-semibold text-green-900 mb-3">Left Eye (OS)</h4>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-green-700 mb-1">Distance Vision</p>
+                  <div className="space-y-1 text-sm">
+                    {data.vision.os_ucva_distance && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">UCVA:</span>
+                        <span className="font-medium">{data.vision.os_ucva_distance}</span>
+                      </div>
+                    )}
+                    {data.vision.os_ph_va && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">PH:</span>
+                        <span className="font-medium">{data.vision.os_ph_va}</span>
+                      </div>
+                    )}
+                    {data.vision.os_va_with_current_specs && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">With Specs:</span>
+                        <span className="font-medium">{data.vision.os_va_with_current_specs}</span>
+                      </div>
+                    )}
+                    {data.vision.os_bcva_distance && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">BCVA:</span>
+                        <span className="font-medium">{data.vision.os_bcva_distance}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-green-700 mb-1">Near Vision</p>
+                  <div className="space-y-1 text-sm">
+                    {data.vision.os_near_ucva && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">UCVA:</span>
+                        <span className="font-medium">{data.vision.os_near_ucva}</span>
+                      </div>
+                    )}
+                    {data.vision.os_near_with_current_specs && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">With Specs:</span>
+                        <span className="font-medium">{data.vision.os_near_with_current_specs}</span>
+                      </div>
+                    )}
+                    {data.vision.os_near_bcva && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">BCVA:</span>
+                        <span className="font-medium">{data.vision.os_near_bcva}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {data.vision.notes && (
+            <p className="mt-3 text-sm text-slate-600">Notes: {data.vision.notes}</p>
+          )}
+        </>
+      )
+    },
+    {
       id: 'prescription',
       title: 'Prescription',
       icon: <FileText className="h-5 w-5 text-green-600" />,
@@ -315,7 +420,7 @@ function VisitSummaryLayout({
 
   // Filter sections that have data
   const sectionsWithData = allSections.filter(section => section.hasData);
-  
+
   // If no sections have data, show empty state
   if (sectionsWithData.length === 0) {
     return (
@@ -336,11 +441,11 @@ function VisitSummaryLayout({
   const useTwoColumns = totalSections >= 2;
 
   // Split sections into balanced columns
-  const leftColumnSections = useTwoColumns 
+  const leftColumnSections = useTwoColumns
     ? sectionsWithData.slice(0, Math.ceil(totalSections / 2))
     : sectionsWithData;
-  
-  const rightColumnSections = useTwoColumns 
+
+  const rightColumnSections = useTwoColumns
     ? sectionsWithData.slice(Math.ceil(totalSections / 2))
     : [];
 
