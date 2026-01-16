@@ -3,7 +3,9 @@ import { getTenantIdForApi } from "@/utils/auth";
 
 export interface PrescriptionDataResponse {
   patient_id: string;
+  uhid?: string;
   visit_id: string;
+  visit_number?: string;
   complaints: Array<{
     id: string;
     tenant_id: string;
@@ -72,6 +74,32 @@ export interface PrescriptionDataResponse {
     os_pressure: string;
     measurement_time: string;
     measurement_method: string;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    created_by: string;
+    updated_by: string | null;
+  } | null;
+  vision: {
+    id: string;
+    tenant_id: string;
+    patient_id: string;
+    optometrist_id: string;
+    visit_id: string;
+    od_ucva_distance: string;
+    od_ph_va: string;
+    od_va_with_current_specs: string;
+    od_bcva_distance: string;
+    od_near_ucva: string;
+    od_near_with_current_specs: string;
+    od_near_bcva: string;
+    os_ucva_distance: string;
+    os_ph_va: string;
+    os_va_with_current_specs: string;
+    os_bcva_distance: string;
+    os_near_ucva: string;
+    os_near_with_current_specs: string;
+    os_near_bcva: string;
     notes: string | null;
     created_at: string;
     updated_at: string;

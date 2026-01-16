@@ -10,7 +10,9 @@ import {
   Glasses,
   Activity,
   History,
+  EyeOff,
 } from "lucide-react";
+import { VisionTab } from "./VisionTab";
 import { ComplaintsTab } from "./ComplaintsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
@@ -28,10 +30,12 @@ import type {
   IOPRecord,
   IOPTrend,
   PatientOptometryTimeline,
+  VisionRecord,
 } from "@/types";
 
 type ActiveTab =
   | "complaints"
+  | "vision"
   | "medical_history"
   | "ophthalmic_history"
   | "allergies"
@@ -55,6 +59,7 @@ interface ExaminationTabsProps {
   refractionRecords: RefractionRecord[];
   iopRecords: IOPRecord[];
   iopTrends: IOPTrend[] | any; // TODO: Fix type - should be IOPTrendSummary
+  visionRecords: VisionRecord[];
   patientOptometryHistory: PatientOptometryTimeline | null;
   historyLoading?: boolean;
   refreshHistory?: () => void;
@@ -67,6 +72,7 @@ interface ExaminationTabsProps {
     complaints: boolean;
     ophthalmicHistory: boolean;
     drugAllergies: boolean;
+    vision: boolean;
   };
 
   // Refresh functions
@@ -76,10 +82,12 @@ interface ExaminationTabsProps {
   refreshARData: () => void;
   refreshRefraction: () => void;
   refreshIOP: () => void;
+  refreshVision: () => void;
 }
 
 const tabs = [
   { id: "complaints", label: "Complaints", icon: MessageSquare },
+  { id: "vision", label: "Vision", icon: EyeOff },
   { id: "medical_history", label: "Medical History", icon: FileHeart },
   { id: "ophthalmic_history", label: "Eye Surgery History", icon: Eye },
   { id: "allergies", label: "Drug Allergies", icon: AlertTriangle },
@@ -102,6 +110,7 @@ export function ExaminationTabs({
   refractionRecords,
   iopRecords,
   iopTrends,
+  visionRecords,
   patientOptometryHistory,
   historyLoading,
   refreshHistory,
@@ -112,6 +121,7 @@ export function ExaminationTabs({
   refreshARData,
   refreshRefraction,
   refreshIOP,
+  refreshVision,
 }: ExaminationTabsProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -163,6 +173,17 @@ export function ExaminationTabs({
             complaints={complaints}
             loading={loading.complaints}
             onRefresh={refreshComplaints}
+          />
+        )}
+
+        {activeTab === "vision" && (
+          <VisionTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            visionRecords={visionRecords}
+            loading={loading.vision}
+            onRefresh={refreshVision}
           />
         )}
 

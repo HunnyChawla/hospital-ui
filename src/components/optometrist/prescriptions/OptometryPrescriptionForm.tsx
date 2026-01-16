@@ -114,6 +114,11 @@ export function OptometryPrescriptionForm({
   }, [existingPrescription, setValue]);
 
   const onSubmit = async (data: PrescriptionFormData, action: "save" | "finalize" | "print") => {
+    if (action === "finalize") {
+      if (!window.confirm("Are you sure you want to finalize this prescription? Once finalized cannot be updated.")) {
+        return;
+      }
+    }
     try {
       const prescriptionData = {
         patient_id: patientId,

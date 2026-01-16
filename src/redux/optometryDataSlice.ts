@@ -7,6 +7,7 @@ import { medicalHistoryApi, UpsertMedicalHistoryRequest } from "@/services/medic
 import { ophthalmicHistoryApi, CreateOphthalmicSurgeryRequest } from "@/services/ophthalmicHistoryApi";
 import { drugAllergyApi, CreateDrugAllergyRequest } from "@/services/drugAllergyApi";
 import { optometryMedicalConditionsApi, CreateMedicalConditionRequest, UpdateMedicalConditionRequest } from "@/services/optometryMedicalConditionsApi";
+import { visionApi, CreateVisionRequest } from "@/services/visionApi";
 import type {
   RefractionRecord,
   IOPRecord,
@@ -16,7 +17,9 @@ import type {
   MedicalHistoryRecord,
   MedicalConditionRecord,
   OphthalmicSurgeryRecord,
+  OphthalmicSurgeryRecord,
   DrugAllergyRecord,
+  VisionRecord,
 } from "@/types";
 
 type OptometryDataState = {
@@ -37,6 +40,8 @@ type OptometryDataState = {
   ophthalmicHistory: OphthalmicSurgeryRecord[];
   // Drug allergies
   drugAllergies: DrugAllergyRecord[];
+  // Vision Records
+  visionRecords: VisionRecord[];
   // Loading states
   loading: {
     refraction: boolean;
@@ -46,7 +51,9 @@ type OptometryDataState = {
     medicalHistory: boolean;
     medicalConditions: boolean;
     ophthalmicHistory: boolean;
+    ophthalmicHistory: boolean;
     drugAllergies: boolean;
+    vision: boolean;
   };
   error: string | null;
 };
@@ -61,6 +68,7 @@ const initialState: OptometryDataState = {
   medicalConditions: [],
   ophthalmicHistory: [],
   drugAllergies: [],
+  visionRecords: [],
   loading: {
     refraction: false,
     iop: false,
@@ -70,6 +78,7 @@ const initialState: OptometryDataState = {
     medicalConditions: false,
     ophthalmicHistory: false,
     drugAllergies: false,
+    vision: false,
   },
   error: null,
 };
@@ -449,6 +458,38 @@ export const deleteDrugAllergy = createAsyncThunk(
 );
 
 // ============================================
+// VISION THUNKS
+// ============================================
+
+export const fetchVisionData = createAsyncThunk(
+  "optometryData/fetchVisionData",
+  async (params: { patient_id: string; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const response = await visionApi.getByPatient(params.patient_id, {
+        page: 1,
+        page_size: 100,
+        tenant_id: params.tenant_id,
+      });
+      return response.items;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const addVisionRecord = createAsyncThunk(
+  "optometryData/addVisionRecord",
+  async (params: { data: CreateVisionRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await visionApi.create(params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// ============================================
 // SLICE
 // ============================================
 
@@ -464,7 +505,9 @@ const optometryDataSlice = createSlice({
       state.complaints = [];
       state.medicalHistory = null;
       state.ophthalmicHistory = [];
+      state.ophthalmicHistory = [];
       state.drugAllergies = [];
+      state.visionRecords = [];
       state.error = null;
     },
   },
@@ -655,6 +698,21 @@ const optometryDataSlice = createSlice({
       })
       .addCase(deleteDrugAllergy.fulfilled, (state, action) => {
         state.drugAllergies = state.drugAllergies.filter((a) => a.id !== action.payload);
+      })
+      // Vision
+      .addCase(fetchVisionData.pending, (state) => {
+        state.loading.vision = true;
+      })
+      .addCase(fetchVisionData.fulfilled, (state, action) => {
+        state.loading.vision = false;
+        state.visionRecords = action.payload;
+      })
+      .addCase(fetchVisionData.rejected, (state, action) => {
+        state.loading.vision = false;
+        state.error = action.payload as string;
+      })
+      .addCase(addVisionRecord.fulfilled, (state, action) => {
+        state.visionRecords.unshift(action.payload);
       });
   },
 });

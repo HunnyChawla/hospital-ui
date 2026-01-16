@@ -580,3 +580,69 @@ export type UpdatePlannedSurgeryRequest = {
   notes?: string | null;
   status?: PlannedSurgeryStatus;
 };
+
+// ============================================
+// VISION TYPES
+// ============================================
+
+export interface VisionRecord {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  optometrist_id?: string;
+  visit_id: string;
+
+  // Right Eye (OD)
+  od_ucva_distance?: string | null;
+  od_ph_va?: string | null;
+  od_va_with_current_specs?: string | null;
+  od_bcva_distance?: string | null;
+  od_near_ucva?: string | null;
+  od_near_with_current_specs?: string | null;
+  od_near_bcva?: string | null;
+
+  // Left Eye (OS)
+  os_ucva_distance?: string | null;
+  os_ph_va?: string | null;
+  os_va_with_current_specs?: string | null;
+  os_bcva_distance?: string | null;
+  os_near_ucva?: string | null;
+  os_near_with_current_specs?: string | null;
+  os_near_bcva?: string | null;
+
+  notes?: string | null;
+
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface CreateVisionRequest {
+  patient_id: string;
+  optometrist_id: string;
+  visit_id: string;
+
+  // Right Eye (OD)
+  od_ucva_distance?: string | null;
+  od_ph_va?: string | null;
+  od_va_with_current_specs?: string | null;
+  od_bcva_distance?: string | null;
+  od_near_ucva?: string | null;
+  od_near_with_current_specs?: string | null;
+  od_near_bcva?: string | null;
+
+  // Left Eye (OS)
+  os_ucva_distance?: string | null;
+  os_ph_va?: string | null;
+  os_va_with_current_specs?: string | null;
+  os_bcva_distance?: string | null;
+  os_near_ucva?: string | null;
+  os_near_with_current_specs?: string | null;
+  os_near_bcva?: string | null;
+
+  notes?: string | null;
+}
+
+export interface VisionResponse extends VisionRecord { }
+

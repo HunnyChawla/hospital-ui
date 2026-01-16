@@ -23,6 +23,8 @@ import {
 import { toast } from "sonner";
 import clsx from "clsx";
 import { optometryPrescriptionApi } from "@/services/optometryPrescriptionApi";
+import { prescriptionDataApi } from "@/services/prescriptionDataApi";
+import { doctorsApi } from "@/services/doctorsApi";
 import { medicinesApi } from "@/services/medicinesApi";
 import { handleError } from "@/utils/errorHandler";
 import { useReactToPrint } from "react-to-print";
@@ -165,6 +167,8 @@ export function PrescriptionFormSection({
     const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
     const [addedAdviceIds, setAddedAdviceIds] = useState<string[]>([]);
     const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+    const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
+    const [fullPrescriptionData, setFullPrescriptionData] = useState<PrescriptionDataResponse | null>(null);
     const printRef = React.useRef<HTMLDivElement>(null);
 
     // Setup print handler
@@ -182,6 +186,22 @@ export function PrescriptionFormSection({
             }, 500);
         }
     }, [savedPrescription, shouldPrint]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handlePrintClick = async () => {
+        if (!fullPrescriptionData) {
+            setIsSubmitting(true);
+            try {
+                const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
+                setFullPrescriptionData(data);
+            } catch (error) {
+                console.error("Failed to fetch prescription data for print", error);
+                toast.error("Failed to load print data");
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+        setShouldPrint(true);
+    };
 
     const {
         register,
@@ -291,15 +311,20 @@ export function PrescriptionFormSection({
     const selectedCoatings = watch("coatings");
     const currentDiagnosis = watch("diagnosis");
 
-    // Load dynamic presets
+    // Load dynamic presets and doctor signature
     useEffect(() => {
         if (doctorId) {
-            const loadPresets = async () => {
+            const loadData = async () => {
                 try {
-                    const [dx, meds] = await Promise.all([
+                    const [dx, meds, docProfile] = await Promise.all([
                         quickPresetsApi.getDiagnoses(doctorId),
-                        quickPresetsApi.getMedicines(doctorId)
+                        quickPresetsApi.getMedicines(doctorId),
+                        doctorsApi.getById(doctorId)
                     ]);
+
+                    if (docProfile?.signature) {
+                        setDoctorSignature(docProfile.signature);
+                    }
 
                     if (dx.length > 0) setDiagnosesOptions(dx);
                     if (meds.length > 0) {
@@ -321,11 +346,11 @@ export function PrescriptionFormSection({
                         setMedicinesOptions(mappedMeds);
                     }
                 } catch (error) {
-                    console.error("Failed to load presets", error);
+                    console.error("Failed to load doctor data", error);
                     // Silently fail to defaults
                 }
             };
-            loadPresets();
+            loadData();
         }
     }, [doctorId]);
 
@@ -556,9 +581,16 @@ export function PrescriptionFormSection({
         }));
     };
 
-    const processSubmit = async (data: FormData, print: boolean) => {
+    const processSubmit = async (data: FormData, options: { print?: boolean; finalize?: boolean }) => {
         setIsSubmitting(true);
-        if (print) setShouldPrint(true);
+        if (options.finalize) {
+            if (!window.confirm("Are you sure you want to finalize this prescription? Once finalized cannot be updated.")) {
+                setIsSubmitting(false);
+                setShouldPrint(false);
+                return;
+            }
+        }
+        if (options.print) setShouldPrint(true);
 
         try {
             let result;
@@ -584,43 +616,66 @@ export function PrescriptionFormSection({
                     lens_type: data.lens_type || null,
                     vision_type: data.vision_type || null,
                     lens_material: data.lens_material || null,
-                    coatings: data.coatings.length > 0 ? data.coatings : null,
+                    coatings: selectedCoatings.length > 0 ? selectedCoatings : null,
                     medicine_items: sanitizedMedicines,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
                 });
-                toast.success("Prescription updated successfully");
             } else {
                 result = await optometryPrescriptionApi.create({
                     patient_id: patientId,
-                    optometrist_id: optometristId,
                     visit_id: visitId,
+                    optometrist_id: optometristId,
                     doctor_id: doctorId,
                     diagnosis: data.diagnosis || null,
                     notes: null,
-                    items: items.length > 0 ? items : undefined,
-                    followup_date: data.followup_date || null,
-                    plan_of_action: data.plan_of_action || null,
-                    remarks: data.remarks || null,
-                    lens_type: data.lens_type || null,
-                    vision_type: data.vision_type || null,
-                    lens_material: data.lens_material || null,
-                    coatings: data.coatings.length > 0 ? data.coatings : null,
+                    items: items,
+                    followup_date: data.followup_date || undefined,
+                    plan_of_action: data.plan_of_action || undefined,
+                    remarks: data.remarks || undefined,
+                    lens_type: data.lens_type || undefined,
+                    vision_type: data.vision_type || undefined,
+                    lens_material: data.lens_material || undefined,
+                    coatings: selectedCoatings.length > 0 ? selectedCoatings : undefined,
                     medicine_items: sanitizedMedicines,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
                 });
-                toast.success("Prescription created successfully");
             }
 
-            setSavedPrescription(result);
+            // Handle Finalization
+            if (options.finalize && result.id) {
+                result = await optometryPrescriptionApi.finalize(result.id);
+            }
 
-            if (!print) {
-                onPrescriptionCreated?.();
-                onClose();
+            // Fetch full prescription data for printing to ensure we have all fields
+            // specifically requested to use /prescription-data endpoint
+            try {
+                const fullData = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
+                setFullPrescriptionData(fullData);
+                if (fullData.prescription) {
+                    setSavedPrescription(fullData.prescription);
+                } else {
+                    setSavedPrescription(result);
+                }
+            } catch (error) {
+                console.error("Failed to fetch full prescription data for print", error);
+                setSavedPrescription(result);
+            }
+
+            if (options.finalize) {
+                toast.success("Prescription finalized successfully");
             } else {
-                setIsSubmitting(false);
+                if (!options.print) {
+                    toast.success("Prescription saved successfully");
+                }
+            }
+
+            if (!options.print) {
+                if (onPrescriptionCreated) onPrescriptionCreated();
+                if (options.finalize) onClose();
+            } else {
+                setIsSubmitting(false); // Enable buttons for print dialog
             }
         } catch (error) {
-            setShouldPrint(false);
             handleError(error, {
                 defaultMessage: "Failed to save prescription",
                 logError: true,
@@ -629,8 +684,9 @@ export function PrescriptionFormSection({
         }
     };
 
-    const onSave = (data: FormData) => processSubmit(data, false);
-    const onSaveAndPrint = (data: FormData) => processSubmit(data, true);
+    const onSaveDraft = (data: FormData) => processSubmit(data, { print: false, finalize: false });
+    const onFinalize = (data: FormData) => processSubmit(data, { print: false, finalize: true });
+    const onFinalizeAndPrint = (data: FormData) => processSubmit(data, { print: true, finalize: true });
 
     if (isLoading) {
         return (
@@ -650,11 +706,14 @@ export function PrescriptionFormSection({
                         <DoctorPrescriptionPrint
                             prescription={{
                                 ...savedPrescription,
+                                doctor_name: savedPrescription.doctor_name || doctorName,
                                 items: (savedPrescription.items && savedPrescription.items.length > 0)
                                     ? savedPrescription.items
                                     : getRefractionItems()
                             }}
                             showHeader={printWithHeader}
+                            doctorSignature={doctorSignature}
+                            visitData={fullPrescriptionData}
                         />
                     )}
                 </div>
@@ -1168,6 +1227,7 @@ export function PrescriptionFormSection({
                     </div>
 
                     {/* Buttons Row */}
+                    {/* Buttons Row */}
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
@@ -1187,45 +1247,111 @@ export function PrescriptionFormSection({
 
                         <div className="flex-1" />
 
-                        {savedPrescription && (
+                        {savedPrescription && (savedPrescription.status === 'finalized' ? (
                             <button
                                 type="button"
-                                onClick={() => setShouldPrint(true)}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition text-sm"
+                                onClick={handlePrintClick}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 text-white font-medium rounded-lg hover:bg-sky-700 transition text-sm shadow-md"
                             >
                                 <Printer className="h-4 w-4" />
-                                Print
+                                Print Prescription
                             </button>
+                        ) : (
+                            <>
+                                {savedPrescription && (
+                                    <button
+                                        type="button"
+                                        onClick={handlePrintClick}
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition text-sm"
+                                    >
+                                        <Printer className="h-4 w-4" />
+                                        Print
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit(onSaveDraft)}
+                                    className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white text-slate-700 font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition text-sm"
+                                >
+                                    <CheckCircle className="h-4 w-4 text-slate-500" />
+                                    Save as Draft
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit(onFinalizeAndPrint)}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
+                                >
+                                    <Printer className="h-4 w-4" />
+                                    Finalize & Print
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit(onFinalize)}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition text-sm shadow-md"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle className="h-4 w-4" />
+                                            Finalize Prescription
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        ))}
+
+                        {!savedPrescription && (
+                            <>
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit(onSaveDraft)}
+                                    className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white text-slate-700 font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition text-sm"
+                                >
+                                    <CheckCircle className="h-4 w-4 text-slate-500" />
+                                    Save as Draft
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit(onFinalizeAndPrint)}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
+                                >
+                                    <Printer className="h-4 w-4" />
+                                    Finalize & Print
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit(onFinalize)}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition text-sm shadow-md"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle className="h-4 w-4" />
+                                            Finalize Prescription
+                                        </>
+                                    )}
+                                </button>
+                            </>
                         )}
-
-                        <button
-                            type="button"
-                            disabled={isSubmitting}
-                            onClick={handleSubmit(onSaveAndPrint)}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
-                        >
-                            <Printer className="h-4 w-4" />
-                            Save & Print
-                        </button>
-
-                        <button
-                            type="button"
-                            disabled={isSubmitting}
-                            onClick={handleSubmit(onSave)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition text-sm shadow-md"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle className="h-4 w-4" />
-                                    Save
-                                </>
-                            )}
-                        </button>
                     </div>
                 </div>
             </form>
