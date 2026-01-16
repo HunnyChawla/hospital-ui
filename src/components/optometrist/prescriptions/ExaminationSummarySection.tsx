@@ -88,10 +88,6 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                                     <span className="text-slate-600">Axis:</span>
                                     <span className="font-medium">{data.ar_data.od_axis}°</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">VA:</span>
-                                    <span className="font-medium">{data.ar_data.od_visual_acuity}</span>
-                                </div>
                             </div>
                         </div>
                         <div className="rounded bg-green-50 p-3">
@@ -108,10 +104,6 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                                 <div className="flex justify-between">
                                     <span className="text-slate-600">Axis:</span>
                                     <span className="font-medium">{data.ar_data.os_axis}°</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">VA:</span>
-                                    <span className="font-medium">{data.ar_data.os_visual_acuity}</span>
                                 </div>
                             </div>
                         </div>
@@ -147,14 +139,6 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                                     <span className="text-slate-600">Axis:</span>
                                     <span className="font-medium">{data.refraction.od_axis}°</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">UCVA:</span>
-                                    <span className="font-medium">{data.refraction.od_visual_acuity_uncorrected}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">BCVA:</span>
-                                    <span className="font-medium">{data.refraction.od_visual_acuity_corrected}</span>
-                                </div>
                                 {data.refraction.od_add_power && (
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Add:</span>
@@ -177,14 +161,6 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                                 <div className="flex justify-between">
                                     <span className="text-slate-600">Axis:</span>
                                     <span className="font-medium">{data.refraction.os_axis}°</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">UCVA:</span>
-                                    <span className="font-medium">{data.refraction.os_visual_acuity_uncorrected}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">BCVA:</span>
-                                    <span className="font-medium">{data.refraction.os_visual_acuity_corrected}</span>
                                 </div>
                                 {data.refraction.os_add_power && (
                                     <div className="flex justify-between">
@@ -224,6 +200,129 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                         <span>Method: {data.iop.measurement_method}</span>
                         <span>{formatDateTime(data.iop.measurement_time)}</span>
                     </div>
+                </section>
+            )}
+
+            {/* Vision */}
+            {data.vision && (
+                <section className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Eye className="h-4 w-4 text-cyan-600" />
+                        <h4 className="font-semibold text-slate-900">Visual Acuity</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="rounded bg-blue-50 p-3">
+                            <p className="text-xs font-semibold text-blue-700 mb-2">OD (Right Eye)</p>
+                            <div className="space-y-1.5">
+                                <p className="text-xs font-medium text-slate-600 border-b border-blue-200 pb-1">Distance Vision</p>
+                                <div className="space-y-1 text-sm">
+                                    {data.vision.od_ucva_distance && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">UCVA:</span>
+                                            <span className="font-medium">{data.vision.od_ucva_distance}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.od_ph_va && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">PH:</span>
+                                            <span className="font-medium">{data.vision.od_ph_va}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.od_va_with_current_specs && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">With Specs:</span>
+                                            <span className="font-medium">{data.vision.od_va_with_current_specs}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.od_bcva_distance && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">BCVA:</span>
+                                            <span className="font-medium">{data.vision.od_bcva_distance}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs font-medium text-slate-600 border-b border-blue-200 pb-1 mt-2">Near Vision</p>
+                                <div className="space-y-1 text-sm">
+                                    {data.vision.od_near_ucva && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">UCVA:</span>
+                                            <span className="font-medium">{data.vision.od_near_ucva}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.od_near_with_current_specs && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">With Specs:</span>
+                                            <span className="font-medium">{data.vision.od_near_with_current_specs}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.od_near_bcva && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">BCVA:</span>
+                                            <span className="font-medium">{data.vision.od_near_bcva}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="rounded bg-green-50 p-3">
+                            <p className="text-xs font-semibold text-green-700 mb-2">OS (Left Eye)</p>
+                            <div className="space-y-1.5">
+                                <p className="text-xs font-medium text-slate-600 border-b border-green-200 pb-1">Distance Vision</p>
+                                <div className="space-y-1 text-sm">
+                                    {data.vision.os_ucva_distance && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">UCVA:</span>
+                                            <span className="font-medium">{data.vision.os_ucva_distance}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.os_ph_va && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">PH:</span>
+                                            <span className="font-medium">{data.vision.os_ph_va}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.os_va_with_current_specs && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">With Specs:</span>
+                                            <span className="font-medium">{data.vision.os_va_with_current_specs}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.os_bcva_distance && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">BCVA:</span>
+                                            <span className="font-medium">{data.vision.os_bcva_distance}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs font-medium text-slate-600 border-b border-green-200 pb-1 mt-2">Near Vision</p>
+                                <div className="space-y-1 text-sm">
+                                    {data.vision.os_near_ucva && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">UCVA:</span>
+                                            <span className="font-medium">{data.vision.os_near_ucva}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.os_near_with_current_specs && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">With Specs:</span>
+                                            <span className="font-medium">{data.vision.os_near_with_current_specs}</span>
+                                        </div>
+                                    )}
+                                    {data.vision.os_near_bcva && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">BCVA:</span>
+                                            <span className="font-medium">{data.vision.os_near_bcva}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {data.vision.notes && (
+                        <p className="mt-2 text-xs text-slate-500">
+                            Notes: {data.vision.notes}
+                        </p>
+                    )}
                 </section>
             )}
 
@@ -296,7 +395,7 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
             )}
 
             {/* No Data State */}
-            {!data.complaints?.length && !data.ar_data && !data.refraction && !data.iop && !data.medical_conditions?.length && (
+            {!data.complaints?.length && !data.ar_data && !data.refraction && !data.iop && !data.vision && !data.medical_conditions?.length && (
                 <div className="text-center py-8">
                     <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500">No examination data recorded yet</p>

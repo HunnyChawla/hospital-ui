@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Eye, FileText, Activity, Pill } from "lucide-react";
+import { Clock, Eye, EyeOff, FileText, Activity, Pill } from "lucide-react";
 import type { PatientOptometryTimeline, ComplaintRecord } from "@/types";
 
 interface PreviousHistoryTimelineProps {
@@ -34,11 +34,11 @@ export function PreviousHistoryTimeline({
     const flat = Object.entries(ebt).flatMap(([type, arr]: [string, any]) =>
       Array.isArray(arr)
         ? arr.map((e: any) => ({
-            ...e,
-            event_type: e?.event_type || type,
-            visit_id: v?.visit_id ?? e?.visit_id ?? null,
-            visit_date: v?.visit_date ?? e?.date ?? null,
-          }))
+          ...e,
+          event_type: e?.event_type || type,
+          visit_id: v?.visit_id ?? e?.visit_id ?? null,
+          visit_date: v?.visit_date ?? e?.date ?? null,
+        }))
         : []
     );
     flat.sort(
@@ -73,6 +73,8 @@ export function PreviousHistoryTimeline({
         return <Activity className="h-5 w-5 text-purple-600" />;
       case "ar_data":
         return <Eye className="h-5 w-5 text-cyan-600" />;
+      case "vision":
+        return <EyeOff className="h-5 w-5 text-teal-600" />;
       case "eye_surgery":
         return <Activity className="h-5 w-5 text-rose-600" />;
       case "complaint":
@@ -94,6 +96,8 @@ export function PreviousHistoryTimeline({
         return "border-purple-200 bg-purple-50";
       case "ar_data":
         return "border-cyan-200 bg-cyan-50";
+      case "vision":
+        return "border-teal-200 bg-teal-50";
       case "eye_surgery":
         return "border-rose-200 bg-rose-50";
       case "complaint":
@@ -111,6 +115,8 @@ export function PreviousHistoryTimeline({
     switch (eventType) {
       case "complaint":
         return "Complaints";
+      case "vision":
+        return "Vision Assessments";
       case "ar_data":
         return "AR Data";
       case "refraction":
@@ -247,7 +253,7 @@ export function PreviousHistoryTimeline({
               );
             Object.keys(grouped).forEach((k) => byDateDesc(grouped[k]));
 
-            const order = ["complaint", "ar_data", "refraction", "iop", "eye_surgery", "prescription"] as const;
+            const order = ["complaint", "vision", "ar_data", "refraction", "iop", "eye_surgery", "prescription"] as const;
             const extras = Object.keys(grouped).filter((k) => !order.includes(k as any));
             const allTypes: string[] = [...order.filter((k) => grouped[k]?.length), ...extras];
 
@@ -283,14 +289,12 @@ export function PreviousHistoryTimeline({
                               <div>
                                 <p className="font-semibold text-blue-900">OD (Right)</p>
                                 <p className="text-slate-700">SPH: {event.details.od.sphere ?? "—"} / CYL: {event.details.od.cylinder ?? "—"} / AXIS: {event.details.od.axis ?? "—"}</p>
-                                <p className="text-slate-600">VA: {event.details.od.visual_acuity_corrected ?? event.details.od.va ?? "—"}</p>
                               </div>
                             )}
                             {event.details.os && (
                               <div>
                                 <p className="font-semibold text-green-900">OS (Left)</p>
                                 <p className="text-slate-700">SPH: {event.details.os.sphere ?? "—"} / CYL: {event.details.os.cylinder ?? "—"} / AXIS: {event.details.os.axis ?? "—"}</p>
-                                <p className="text-slate-600">VA: {event.details.os.visual_acuity_corrected ?? event.details.os.va ?? "—"}</p>
                               </div>
                             )}
                           </div>
@@ -302,14 +306,12 @@ export function PreviousHistoryTimeline({
                               <div>
                                 <p className="font-semibold text-blue-900">OD (Right)</p>
                                 <p className="text-slate-700">SPH: {event.details.od.sphere ?? "—"} / CYL: {event.details.od.cylinder ?? "—"} / AXIS: {event.details.od.axis ?? "—"}</p>
-                                {event.details.od.visual_acuity && <p className="text-slate-600">VA: {event.details.od.visual_acuity}</p>}
                               </div>
                             )}
                             {event.details.os && (
                               <div>
                                 <p className="font-semibold text-green-900">OS (Left)</p>
                                 <p className="text-slate-700">SPH: {event.details.os.sphere ?? "—"} / CYL: {event.details.os.cylinder ?? "—"} / AXIS: {event.details.os.axis ?? "—"}</p>
-                                {event.details.os.visual_acuity && <p className="text-slate-600">VA: {event.details.os.visual_acuity}</p>}
                               </div>
                             )}
                             {event.details.pupillary_distance != null && (
@@ -350,6 +352,44 @@ export function PreviousHistoryTimeline({
                           </div>
                         )}
 
+                        {type === "vision" && event.details && (
+                          <div className="mt-3 grid grid-cols-2 gap-4 rounded bg-white/50 p-3 text-xs">
+                            {event.details.od && (
+                              <div>
+                                <p className="font-semibold text-blue-900 mb-1">OD (Right)</p>
+                                <div className="space-y-0.5">
+                                  <p className="text-slate-600 font-medium">Distance:</p>
+                                  {event.details.od.ucva_distance && <p className="text-slate-700">UCVA: {event.details.od.ucva_distance}</p>}
+                                  {event.details.od.ph_va && <p className="text-slate-700">PH: {event.details.od.ph_va}</p>}
+                                  {event.details.od.va_with_current_specs && <p className="text-slate-700">With Specs: {event.details.od.va_with_current_specs}</p>}
+                                  {event.details.od.bcva_distance && <p className="text-slate-700">BCVA: {event.details.od.bcva_distance}</p>}
+                                  <p className="text-slate-600 font-medium mt-1">Near:</p>
+                                  {event.details.od.near_ucva && <p className="text-slate-700">UCVA: {event.details.od.near_ucva}</p>}
+                                  {event.details.od.near_with_current_specs && <p className="text-slate-700">With Specs: {event.details.od.near_with_current_specs}</p>}
+                                  {event.details.od.near_bcva && <p className="text-slate-700">BCVA: {event.details.od.near_bcva}</p>}
+                                </div>
+                              </div>
+                            )}
+                            {event.details.os && (
+                              <div>
+                                <p className="font-semibold text-green-900 mb-1">OS (Left)</p>
+                                <div className="space-y-0.5">
+                                  <p className="text-slate-600 font-medium">Distance:</p>
+                                  {event.details.os.ucva_distance && <p className="text-slate-700">UCVA: {event.details.os.ucva_distance}</p>}
+                                  {event.details.os.ph_va && <p className="text-slate-700">PH: {event.details.os.ph_va}</p>}
+                                  {event.details.os.va_with_current_specs && <p className="text-slate-700">With Specs: {event.details.os.va_with_current_specs}</p>}
+                                  {event.details.os.bcva_distance && <p className="text-slate-700">BCVA: {event.details.os.bcva_distance}</p>}
+                                  <p className="text-slate-600 font-medium mt-1">Near:</p>
+                                  {event.details.os.near_ucva && <p className="text-slate-700">UCVA: {event.details.os.near_ucva}</p>}
+                                  {event.details.os.near_with_current_specs && <p className="text-slate-700">With Specs: {event.details.os.near_with_current_specs}</p>}
+                                  {event.details.os.near_bcva && <p className="text-slate-700">BCVA: {event.details.os.near_bcva}</p>}
+                                </div>
+                              </div>
+                            )}
+                            {event.details.notes && <div className="col-span-2 text-xs text-slate-600 mt-2">Notes: {event.details.notes}</div>}
+                          </div>
+                        )}
+
                         {type === "prescription" && event.details && (
                           <div className="mt-3 rounded bg-white/50 p-3 text-xs">
                             <p className="font-semibold text-slate-900">Prescription Details</p>
@@ -380,12 +420,12 @@ export function PreviousHistoryTimeline({
           const hasMore = typeof anyHist?.has_more === "boolean" ? anyHist.has_more : (anyHist?.page ?? 1) < (anyHist?.total_pages ?? 1);
           return hasMore;
         })() && (
-          <div className="mt-6 text-center">
-            <button className="rounded-lg border border-slate-300 px-6 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
-              Load More History
-            </button>
-          </div>
-        )}
+            <div className="mt-6 text-center">
+              <button className="rounded-lg border border-slate-300 px-6 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
+                Load More History
+              </button>
+            </div>
+          )}
       </div>
 
       {/* Info */}
