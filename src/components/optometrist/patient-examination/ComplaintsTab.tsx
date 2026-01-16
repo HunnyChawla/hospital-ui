@@ -11,6 +11,7 @@ import { ConfirmedComplaintsSummary } from "./ConfirmedComplaintsSummary";
 import { InlineComplaintForm } from "./InlineComplaintForm";
 import { commonComplaints } from "../mock/mockTemplates";
 import { handleError } from "@/utils/errorHandler";
+import { ComplaintsHistorySection } from "./ComplaintsHistorySection";
 
 interface ComplaintsTabProps {
   patientId: string;
@@ -272,6 +273,14 @@ export function ComplaintsTab({
           onEdit={handleEditComplaint}
           onDelete={handleDeleteComplaint}
           loading={loading}
+        />
+      </div>
+
+      {/* History Section - Full Width */}
+      <div className="lg:col-span-3">
+        <ComplaintsHistorySection
+          patientId={patientId}
+          currentVisitId={visitId}
         />
       </div>
     </div>

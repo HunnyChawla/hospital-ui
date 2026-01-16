@@ -11,6 +11,7 @@ import { iopApi } from "@/services/iopApi";
 import { NumericStepper, QuickSelectButtons } from "../shared";
 import { CopyFromPreviousButton } from "../templates";
 import { handleError } from "@/utils/errorHandler";
+import { IOPHistorySection } from "./IOPHistorySection";
 
 interface IOPTabProps {
   patientId: string;
@@ -325,57 +326,62 @@ export function IOPTab({
         )}
       </div>
 
-      {/* Trend Summary Cards */}
-      {!isAdding && iopTrends && iopTrends.latest_od != null && iopTrends.latest_os != null && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Latest OD */}
-          <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-blue-700">OD (Right)</span>
-              <div className="h-2 w-2 rounded-full bg-blue-500" />
-            </div>
-            <p className="text-4xl font-bold text-slate-900">
-              {iopTrends.latest_od}
-              <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <div className={clsx(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                getIOPStatus(iopTrends.latest_od).bgColor,
-                getIOPStatus(iopTrends.latest_od).color
-              )}>
-                {getIOPStatus(iopTrends.latest_od).label}
+      {/* This Visit's IOP - Only show if data exists for current visit */}
+      {!isAdding && hasExistingForVisit && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h4 className="mb-4 text-base font-semibold text-slate-900">
+            This Visit's IOP
+          </h4>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* OD */}
+            <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-blue-700">OD (Right)</span>
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
               </div>
-              {latestOD && (
-                <span className="text-xs font-medium text-slate-500">
-                  via {latestOD.measurement_method || "NCT"}
-                </span>
+              <p className="text-4xl font-bold text-slate-900">
+                {visitCombined?.od_pressure ?? visitOD?.pressure ?? "—"}
+                <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
+              </p>
+              {(visitCombined?.od_pressure ?? visitOD?.pressure) != null && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className={clsx(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                    getIOPStatus(visitCombined?.od_pressure ?? visitOD?.pressure).bgColor,
+                    getIOPStatus(visitCombined?.od_pressure ?? visitOD?.pressure).color
+                  )}>
+                    {getIOPStatus(visitCombined?.od_pressure ?? visitOD?.pressure).label}
+                  </div>
+                  <span className="text-xs font-medium text-slate-500">
+                    via {visitCombined?.measurement_method ?? visitOD?.measurement_method ?? "NCT"}
+                  </span>
+                </div>
               )}
             </div>
-          </div>
 
-          {/* Latest OS */}
-          <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-green-700">OS (Left)</span>
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-            </div>
-            <p className="text-4xl font-bold text-slate-900">
-              {iopTrends.latest_os}
-              <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <div className={clsx(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                getIOPStatus(iopTrends.latest_os).bgColor,
-                getIOPStatus(iopTrends.latest_os).color
-              )}>
-                {getIOPStatus(iopTrends.latest_os).label}
+            {/* OS */}
+            <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-white p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-green-700">OS (Left)</span>
+                <div className="h-2 w-2 rounded-full bg-green-500" />
               </div>
-              {latestOS && (
-                <span className="text-xs font-medium text-slate-500">
-                  via {latestOS.measurement_method || "NCT"}
-                </span>
+              <p className="text-4xl font-bold text-slate-900">
+                {visitCombined?.os_pressure ?? visitOS?.pressure ?? "—"}
+                <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
+              </p>
+              {(visitCombined?.os_pressure ?? visitOS?.pressure) != null && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className={clsx(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                    getIOPStatus(visitCombined?.os_pressure ?? visitOS?.pressure).bgColor,
+                    getIOPStatus(visitCombined?.os_pressure ?? visitOS?.pressure).color
+                  )}>
+                    {getIOPStatus(visitCombined?.os_pressure ?? visitOS?.pressure).label}
+                  </div>
+                  <span className="text-xs font-medium text-slate-500">
+                    via {visitCombined?.measurement_method ?? visitOS?.measurement_method ?? "NCT"}
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -577,9 +583,13 @@ export function IOPTab({
         </div>
       )}
 
-      {/* History */}
-
-
+      {/* IOP History - Last 5 Visits */}
+      {!isAdding && (
+        <IOPHistorySection
+          patientId={patientId}
+          currentVisitId={visitId}
+        />
+      )}
       {/* Reference Info */}
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
         <p className="text-sm text-sky-900">

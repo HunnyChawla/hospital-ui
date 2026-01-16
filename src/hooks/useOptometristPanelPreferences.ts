@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export type OptometristQueueFilter = "pending" | "completed" | "no_show";
+export type OptometristQueueFilter = "pending" | "dilation" | "completed" | "no_show";
 
 export interface OptometristPanelPreferences {
   queueVisible: boolean;

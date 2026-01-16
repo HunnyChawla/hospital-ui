@@ -70,6 +70,23 @@ export const complaintsApi = {
     return response.data;
   },
 
+  async getByPatient(patientId: string, params?: { page?: number; page_size?: number; tenant_id?: string }): Promise<ComplaintsSearchResponse> {
+    const queryParams = new URLSearchParams();
+    queryParams.append("patient_id", patientId);
+
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
+
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
+
+    const queryString = queryParams.toString();
+    const url = `/complaints?${queryString}`;
+
+    const response = await apiClient.get<ComplaintsSearchResponse>(url);
+    return response.data;
+  },
+
   async delete(id: string, tenantId?: string): Promise<void> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};

@@ -211,15 +211,21 @@ export function PrescriptionFormSection({
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Prescription-${patientId}-${visitId}`,
+        onBeforePrint: async () => {
+            // Wait a bit more for content to fully render
+            await new Promise(resolve => setTimeout(resolve, 100));
+        },
     });
 
     // Effect to trigger print after save
     useEffect(() => {
         if (savedPrescription && shouldPrint) {
-            setTimeout(() => {
+            // Increased timeout to ensure React has fully rendered the print content
+            const timer = setTimeout(() => {
                 handlePrint();
                 setShouldPrint(false);
-            }, 500);
+            }, 800);
+            return () => clearTimeout(timer);
         }
     }, [savedPrescription, shouldPrint]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -828,23 +834,25 @@ export function PrescriptionFormSection({
                     {/* Hidden printable prescription */}
                     <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
                         <div ref={printRef} className="print-content">
-                            {savedPrescription && (
-                                <DoctorPrescriptionPrint
-                                    prescription={{
-                                        ...savedPrescription,
-                                        doctor_name: savedPrescription.doctor_name || doctorName,
-                                        patient_name: savedPrescription.patient_name || (patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : ""),
-                                        optometrist_name: savedPrescription.optometrist_name || (optometristDetails ? optometristDetails.full_name : ""),
-                                        items: (savedPrescription.items && savedPrescription.items.length > 0)
-                                            ? savedPrescription.items
-                                            : getRefractionItems()
-                                    }}
-                                    showHeader={printWithHeader}
-                                    doctorSignature={doctorSignature}
-                                    visitData={fullPrescriptionData}
-                                    plannedSurgeries={plannedSurgeries}
-                                />
-                            )}
+                            <DoctorPrescriptionPrint
+                                prescription={savedPrescription || {
+                                    id: 0,
+                                    patient_id: patientId,
+                                    visit_id: visitId,
+                                    items: getRefractionItems(),
+                                    diagnosis: "",
+                                    notes: "",
+                                    doctor_name: doctorName || "Doctor",
+                                    patient_name: patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : "",
+                                    optometrist_name: optometristDetails ? optometristDetails.full_name : "",
+                                    created_at: new Date().toISOString(),
+                                    updated_at: new Date().toISOString()
+                                } as any}
+                                showHeader={printWithHeader}
+                                doctorSignature={doctorSignature}
+                                visitData={fullPrescriptionData}
+                                plannedSurgeries={plannedSurgeries}
+                            />
                         </div>
                     </div>
 

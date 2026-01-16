@@ -74,7 +74,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       // Let's import the doctor filter function dynamically or just filter simple status match here
       // To avoid complex imports, let's rely on status mapping
       const DOCTOR_STATUS_MAP: Record<string, string[]> = {
-        pending: ["awaiting_doctor", "doctor_assigned", "consultation_in_progress", "dilation_in_progress"],
+        pending: ["awaiting_doctor", "doctor_assigned", "consultation_in_progress"],
+        dilation: ["dilation_in_progress"],
         completed: ["dilation_completed", "consultation_completed"],
         no_show: ["no_show"]
       };
@@ -93,9 +94,10 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       return getOptometristQueueCounts(queuePatients);
     } else {
       // Simple count for doctor
-      const counts = { pending: 0, completed: 0, no_show: 0 };
+      const counts = { pending: 0, dilation: 0, completed: 0, no_show: 0 };
       queuePatients.forEach(p => {
-        if (["awaiting_doctor", "doctor_assigned", "consultation_in_progress", "dilation_in_progress"].includes(p.status)) counts.pending++;
+        if (["awaiting_doctor", "doctor_assigned", "consultation_in_progress"].includes(p.status)) counts.pending++;
+        else if (p.status === "dilation_in_progress") counts.dilation++;
         else if (["dilation_completed", "consultation_completed"].includes(p.status)) counts.completed++;
         else if (p.status === "no_show") counts.no_show++;
       });
@@ -106,6 +108,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   const filters = isDoctor
     ? [
       { key: "pending", label: "Pending", count: (queueCounts as any).pending },
+      // Only show Dilation tab if there are patients
+      ...((queueCounts as any).dilation > 0 ? [{ key: "dilation", label: "Dilation", count: (queueCounts as any).dilation }] : []),
       { key: "completed", label: "Completed", count: (queueCounts as any).completed },
       // Only show NO SHOW tab if there are patients
       ...((queueCounts as any).no_show > 0 ? [{ key: "no_show", label: "No Show", count: (queueCounts as any).no_show }] : [])

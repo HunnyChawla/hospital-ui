@@ -12,6 +12,7 @@ import type { ARDataRecord } from "@/types";
 import { EyeValueInput, NumericStepper } from "../shared";
 import { CopyFromPreviousButton } from "../templates";
 import { handleError } from "@/utils/errorHandler";
+import { ARDataHistorySection } from "./ARDataHistorySection";
 
 interface ARDataTabProps {
   patientId: string;
@@ -299,16 +300,16 @@ export function ARDataTab({
         )}
       </div>
 
-      {/* Latest AR Display */}
-      {!isAdding && latestAR && (
+      {/* This Visit's AR Data - Only show if data exists for current visit */}
+      {!isAdding && hasExistingForVisit && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h4 className="text-base font-semibold text-slate-900">
-              Latest AR Measurement
+              This Visit's AR Data
             </h4>
-            {latestAR.pupillary_distance && (
+            {(visitCombinedRecord?.pupillary_distance || visitOD?.pupillary_distance || visitOS?.pupillary_distance) && (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                PD: {latestAR.pupillary_distance} mm
+                PD: {visitCombinedRecord?.pupillary_distance ?? visitOD?.pupillary_distance ?? visitOS?.pupillary_distance} mm
               </span>
             )}
           </div>
@@ -324,19 +325,19 @@ export function ARDataTab({
                 <div>
                   <p className="text-xs text-slate-500">SPH</p>
                   <p className="text-lg font-bold text-slate-900">
-                    {formatValue(latestAR.od_sphere, "sphere")}
+                    {formatValue(visitCombinedRecord?.od_sphere ?? visitOD?.sphere, "sphere")}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">CYL</p>
                   <p className="text-lg font-bold text-slate-900">
-                    {formatValue(latestAR.od_cylinder, "cylinder")}
+                    {formatValue(visitCombinedRecord?.od_cylinder ?? visitOD?.cylinder, "cylinder")}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">AXIS</p>
                   <p className="text-lg font-bold text-slate-900">
-                    {formatValue(latestAR.od_axis, "axis")}
+                    {formatValue(visitCombinedRecord?.od_axis ?? visitOD?.axis, "axis")}
                   </p>
                 </div>
               </div>
@@ -352,33 +353,30 @@ export function ARDataTab({
                 <div>
                   <p className="text-xs text-slate-500">SPH</p>
                   <p className="text-lg font-bold text-slate-900">
-                    {formatValue(latestAR.os_sphere, "sphere")}
+                    {formatValue(visitCombinedRecord?.os_sphere ?? visitOS?.sphere, "sphere")}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">CYL</p>
                   <p className="text-lg font-bold text-slate-900">
-                    {formatValue(latestAR.os_cylinder, "cylinder")}
+                    {formatValue(visitCombinedRecord?.os_cylinder ?? visitOS?.cylinder, "cylinder")}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">AXIS</p>
                   <p className="text-lg font-bold text-slate-900">
-                    {formatValue(latestAR.os_axis, "axis")}
+                    {formatValue(visitCombinedRecord?.os_axis ?? visitOS?.axis, "axis")}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {latestAR.notes && (
+          {(visitCombinedRecord?.notes || visitOD?.notes || visitOS?.notes) && (
             <p className="mt-4 text-sm text-slate-600">
-              <strong>Notes:</strong> {latestAR.notes}
+              <strong>Notes:</strong> {visitCombinedRecord?.notes ?? visitOD?.notes ?? visitOS?.notes}
             </p>
           )}
-          <p className="mt-2 text-xs text-slate-500">
-            Recorded: {new Date(latestAR.created_at).toLocaleString()}
-          </p>
         </div>
       )}
 
@@ -544,47 +542,12 @@ export function ARDataTab({
         </div>
       )}
 
-      {/* History - Only show if there are multiple records */}
-      {!isAdding && arDataRecords.length > 1 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <History className="h-4 w-4 text-slate-500" />
-            <h4 className="text-sm font-semibold text-slate-700">
-              Previous AR Records ({arDataRecords.length - 1})
-            </h4>
-          </div>
-          <div className="space-y-3">
-            {(combinedRecords.length > 0 ? combinedRecords : (arDataRecords as any[]))
-              .slice(1, 4)
-              .map((record: any) => (
-                <div
-                  key={record.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
-                >
-                  <div className="flex items-center gap-4">
-                    {combinedRecords.length > 0 ? (
-                      <>
-                        <span className="text-sm text-slate-600">
-                          OD: {formatValue(record.od_sphere, "sphere")} / {formatValue(record.od_cylinder, "cylinder")} / {formatValue(record.od_axis, "axis")}
-                        </span>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-sm text-slate-600">
-                          OS: {formatValue(record.os_sphere, "sphere")} / {formatValue(record.os_cylinder, "cylinder")} / {formatValue(record.os_axis, "axis")}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-sm text-slate-600">
-                        {record.eye}: {formatValue(record.sphere, "sphere")} / {formatValue(record.cylinder, "cylinder")} / {formatValue(record.axis, "axis")}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-500">
-                    {new Date(record.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
+      {/* AR Data History - Last 5 Visits */}
+      {!isAdding && (
+        <ARDataHistorySection
+          patientId={patientId}
+          currentVisitId={visitId}
+        />
       )}
 
       {/* Tips */}

@@ -40,7 +40,7 @@ export function DoctorQueuePanel({
     // Count greyed out patients
     const greyedCount = useMemo(() => {
         return patients.filter(
-            (p) => p.status === "optometrist_assigned" || p.status === "optometrist_investigation_in_progress"
+            (p) => p.status === "optometrist_assigned" || p.status === "optometrist_investigation_in_progress" || p.status === "dilation_in_progress" || p.status === "dilation_completed"
         ).length;
     }, [patients]);
 
@@ -140,7 +140,9 @@ export function DoctorQueuePanel({
                         {sortedPatients.map((patient) => {
                             // Check if this patient is greyed out
                             const isGreyed = patient.status === "optometrist_assigned" ||
-                                patient.status === "optometrist_investigation_in_progress";
+                                patient.status === "optometrist_investigation_in_progress" ||
+                                patient.status === "dilation_in_progress" ||
+                                patient.status === "dilation_completed";
 
                             return (
                                 <QueuePatientCard
@@ -162,7 +164,7 @@ export function DoctorQueuePanel({
             {greyedCount > 0 && (
                 <div className="flex-shrink-0 border-t border-violet-100 bg-slate-50 px-4 py-2">
                     <p className="text-xs text-slate-500 text-center">
-                        <span className="font-medium">{greyedCount}</span> patient{greyedCount > 1 ? "s" : ""} still with optometrist - may move ahead when ready
+                        <span className="font-medium">{greyedCount}</span> patient{greyedCount > 1 ? "s" : ""} in dilation/optometrist exam - may move ahead when ready
                     </p>
                 </div>
             )}

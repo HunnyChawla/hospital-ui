@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Clock, UserCheck, AlertCircle, Stethoscope, Eye, Sparkles } from "lucide-react";
+import { Clock, UserCheck, AlertCircle, Stethoscope, Eye, Sparkles, Droplets, CheckCircle } from "lucide-react";
 import type { TVQueuePatient } from "@/hooks/useTVDisplayQueue";
 
 interface QueuePatientCardProps {
@@ -110,6 +110,30 @@ export function QueuePatientCard({
                     animation: "",
                 };
 
+            case "dilation_in_progress":
+                return {
+                    cardBg: "bg-white",
+                    cardBorder: "border-l-4 border-l-violet-500 border-y border-r border-slate-200",
+                    cardShadow: "shadow-md hover:shadow-lg shadow-violet-100",
+                    tokenBg: "bg-violet-50 text-violet-700",
+                    tokenText: "text-violet-700",
+                    statusBadgeBg: "bg-violet-100 text-violet-700",
+                    statusBadgeText: "text-violet-700",
+                    animation: "",
+                };
+
+            case "dilation_completed":
+                return {
+                    cardBg: "bg-white",
+                    cardBorder: "border-l-4 border-l-teal-500 border-y border-r border-slate-200",
+                    cardShadow: "shadow-md hover:shadow-lg shadow-teal-100",
+                    tokenBg: "bg-teal-50 text-teal-700",
+                    tokenText: "text-teal-700",
+                    statusBadgeBg: "bg-teal-100 text-teal-700",
+                    statusBadgeText: "text-teal-700",
+                    animation: "",
+                };
+
             case "awaiting_optometrist":
             case "awaiting_doctor":
             default:
@@ -140,6 +164,10 @@ export function QueuePatientCard({
                 return "Waiting";
             case "consultation_in_progress":
                 return "Consulting";
+            case "dilation_in_progress":
+                return "Dilating";
+            case "dilation_completed":
+                return "Dilation Done";
             default:
                 return patient.status.replace(/_/g, " ");
         }
@@ -155,6 +183,10 @@ export function QueuePatientCard({
                 return Eye;
             case "consultation_in_progress":
                 return queueType === "optometrist" ? Eye : Stethoscope;
+            case "dilation_in_progress":
+                return Droplets;
+            case "dilation_completed":
+                return CheckCircle;
             default:
                 return Clock;
         }
@@ -218,7 +250,9 @@ export function QueuePatientCard({
 
                     {isGreyed && (
                         <div className={`text-[10px] leading-tight font-semibold text-slate-500 italic mt-2 ${viewMode === 'tiles' ? 'text-center px-2' : 'text-right'}`}>
-                            May move ahead after optometrist's Examination
+                            {patient.status === "dilation_in_progress" || patient.status === "dilation_completed"
+                                ? "May move ahead after dilation completed"
+                                : "May move ahead after optometrist's Examination"}
                         </div>
                     )}
 

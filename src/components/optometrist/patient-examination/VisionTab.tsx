@@ -11,6 +11,7 @@ import clsx from "clsx";
 
 // Import shared components
 import { VASelector } from "../shared";
+import { VisionHistorySection } from "./VisionHistorySection";
 
 interface VisionTabProps {
     patientId: string;
@@ -82,15 +83,6 @@ export function VisionTab({
         [visionRecords, visitId]
     );
 
-    // Get the most recent record for display
-    const latestRecord = useMemo(() => {
-        if (!visionRecords.length) return undefined;
-        return [...visionRecords].sort(
-            (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-        )[0];
-    }, [visionRecords]);
-
-    const displayRecord = currentVisitRecord || latestRecord;
     const hasExistingForVisit = !!currentVisitRecord;
 
     const { register, handleSubmit, reset, setValue, watch } = useForm<VisionFormValues>({
@@ -249,16 +241,11 @@ export function VisionTab({
                 )}
             </div>
 
-            {/* Current Vision Display */}
-            {!isEditing && displayRecord && (
+            {/* This Visit's Vision - Only show if data exists for current visit */}
+            {!isEditing && hasExistingForVisit && currentVisitRecord && (
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h4 className="mb-4 text-base font-semibold text-slate-900">
-                        Current Vision Values
-                        {displayRecord.created_at && (
-                            <span className="ml-4 rounded-full bg-slate-100 px-3 py-1 text-sm font-normal text-slate-600">
-                                {new Date(displayRecord.created_at).toLocaleDateString()}
-                            </span>
-                        )}
+                        This Visit's Vision
                     </h4>
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         {/* OD Display */}
@@ -274,19 +261,19 @@ export function VisionTab({
                                     <div className="grid grid-cols-4 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_ucva_distance)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_ucva_distance)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">PH</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_ph_va)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_ph_va)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">W/Specs</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_va_with_current_specs)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_va_with_current_specs)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">BCVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_bcva_distance)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_bcva_distance)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -296,15 +283,15 @@ export function VisionTab({
                                     <div className="grid grid-cols-3 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCNVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_near_ucva)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_near_ucva)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">W/Specs</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_near_with_current_specs)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_near_with_current_specs)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">BCNVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.od_near_bcva)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_near_bcva)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -324,19 +311,19 @@ export function VisionTab({
                                     <div className="grid grid-cols-4 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_ucva_distance)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_ucva_distance)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">PH</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_ph_va)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_ph_va)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">W/Specs</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_va_with_current_specs)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_va_with_current_specs)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">BCVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_bcva_distance)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_bcva_distance)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -346,25 +333,25 @@ export function VisionTab({
                                     <div className="grid grid-cols-3 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCNVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_near_ucva)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_near_ucva)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">W/Specs</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_near_with_current_specs)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_near_with_current_specs)}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">BCNVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(displayRecord.os_near_bcva)}</p>
+                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_near_bcva)}</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    {displayRecord.notes && (
+                    {currentVisitRecord.notes && (
                         <div className="mt-4 rounded-lg bg-slate-50 p-3">
                             <p className="text-sm text-slate-600">
-                                <span className="font-medium">Notes:</span> {displayRecord.notes}
+                                <span className="font-medium">Notes:</span> {currentVisitRecord.notes}
                             </p>
                         </div>
                     )}
@@ -586,7 +573,7 @@ export function VisionTab({
             )}
 
             {/* Empty State */}
-            {!isEditing && !displayRecord && (
+            {!isEditing && !hasExistingForVisit && (
                 <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12 text-center">
                     <Eye className="mx-auto h-12 w-12 text-slate-400" />
                     <h4 className="mt-4 text-lg font-semibold text-slate-900">
@@ -603,6 +590,14 @@ export function VisionTab({
                         Add Vision
                     </button>
                 </div>
+            )}
+
+            {/* Vision History - Last 5 Visits */}
+            {!isEditing && (
+                <VisionHistorySection
+                    patientId={patientId}
+                    currentVisitId={visitId}
+                />
             )}
 
             {/* Quick Tips */}
