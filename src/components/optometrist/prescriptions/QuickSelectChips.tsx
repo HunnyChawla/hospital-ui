@@ -62,6 +62,7 @@ interface MedicineQuickOption {
 
 interface MedicineQuickChipsProps {
     options: readonly MedicineQuickOption[];
+    addedIds?: string[];
     onAdd: (id: string) => void;
     className?: string;
 }
@@ -80,8 +81,17 @@ const colorMap: Record<MedicineColor, string> = {
     rose: "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300",
 };
 
+const disabledColorMap: Record<MedicineColor, string> = {
+    sky: "bg-slate-100 text-slate-400 border-slate-200",
+    purple: "bg-slate-100 text-slate-400 border-slate-200",
+    emerald: "bg-slate-100 text-slate-400 border-slate-200",
+    amber: "bg-slate-100 text-slate-400 border-slate-200",
+    rose: "bg-slate-100 text-slate-400 border-slate-200",
+};
+
 export function MedicineQuickChips({
     options,
+    addedIds = [],
     onAdd,
     className,
 }: MedicineQuickChipsProps) {
@@ -89,19 +99,28 @@ export function MedicineQuickChips({
         <div className={clsx("flex flex-wrap gap-2", className)}>
             {options.map((option) => {
                 const Icon = iconMap[option.icon];
+                const isAdded = addedIds.includes(option.id);
                 return (
                     <button
                         key={option.id}
                         type="button"
                         onClick={() => onAdd(option.id)}
+                        disabled={isAdded}
                         className={clsx(
-                            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-150 hover:scale-105 active:scale-95",
-                            colorMap[option.color]
+                            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-150",
+                            isAdded
+                                ? "cursor-not-allowed opacity-60"
+                                : "hover:scale-105 active:scale-95",
+                            isAdded ? disabledColorMap[option.color] : colorMap[option.color]
                         )}
                     >
                         <Icon className="h-3.5 w-3.5" />
                         {option.label}
-                        <Plus className="h-3 w-3 opacity-60" />
+                        {isAdded ? (
+                            <Check className="h-3 w-3" />
+                        ) : (
+                            <Plus className="h-3 w-3 opacity-60" />
+                        )}
                     </button>
                 );
             })}
