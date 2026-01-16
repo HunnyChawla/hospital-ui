@@ -48,6 +48,10 @@ import { QuickPresetsSettingsModal } from "./settings/QuickPresetsSettingsModal"
 import { PlannedSurgerySection } from "./PlannedSurgerySection";
 import { quickPresetsApi } from "@/services/quickPresetsApi";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { patientsApi } from "@/services/patientsApi";
+import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
+import type { PlannedSurgery } from "@/types";
+import { usersApi } from "@/services/usersApi";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -168,7 +172,38 @@ export function PrescriptionFormSection({
     const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
     const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
     const [fullPrescriptionData, setFullPrescriptionData] = useState<PrescriptionDataResponse | null>(null);
+    const [plannedSurgeries, setPlannedSurgeries] = useState<PlannedSurgery[]>([]);
+    const [patientDetails, setPatientDetails] = useState<any>(null);
+    const [optometristDetails, setOptometristDetails] = useState<any>(null);
     const printRef = React.useRef<HTMLDivElement>(null);
+
+    // Fetch additional details
+    useEffect(() => {
+        const fetchExtras = async () => {
+            if (patientId) {
+                try {
+                    const [surgs, pat] = await Promise.all([
+                        plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
+                        patientsApi.getById(patientId)
+                    ]);
+                    setPlannedSurgeries(surgs.items || []);
+                    setPatientDetails(pat);
+                } catch (e) {
+                    console.error("Failed to fetch patient extras", e);
+                }
+            }
+            if (optometristId) {
+                try {
+                    const opt = await usersApi.getById(optometristId);
+                    setOptometristDetails(opt);
+                } catch (e) {
+                    console.error("Failed to fetch optometrist details", e);
+                }
+            }
+        };
+        fetchExtras();
+    }, [patientId, optometristId]);
+
 
     // Setup print handler
     const handlePrint = useReactToPrint({
@@ -187,17 +222,21 @@ export function PrescriptionFormSection({
     }, [savedPrescription, shouldPrint]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handlePrintClick = async () => {
-        if (!fullPrescriptionData) {
-            setIsSubmitting(true);
-            try {
+        setIsSubmitting(true);
+        try {
+            // Always fetch latest surgeries
+            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+            setPlannedSurgeries(surgs.items || []);
+
+            if (!fullPrescriptionData) {
                 const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
                 setFullPrescriptionData(data);
-            } catch (error) {
-                console.error("Failed to fetch prescription data for print", error);
-                toast.error("Failed to load print data");
-            } finally {
-                setIsSubmitting(false);
             }
+        } catch (error) {
+            console.error("Failed to fetch prescription data for print", error);
+            toast.error("Failed to load print data");
+        } finally {
+            setIsSubmitting(false);
         }
         setShouldPrint(true);
     };
@@ -751,6 +790,8 @@ export function PrescriptionFormSection({
                             prescription={{
                                 ...savedPrescription,
                                 doctor_name: savedPrescription.doctor_name || doctorName,
+                                patient_name: savedPrescription.patient_name || (patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : ""),
+                                optometrist_name: savedPrescription.optometrist_name || (optometristDetails ? optometristDetails.full_name : ""),
                                 items: (savedPrescription.items && savedPrescription.items.length > 0)
                                     ? savedPrescription.items
                                     : getRefractionItems()
@@ -758,6 +799,7 @@ export function PrescriptionFormSection({
                             showHeader={printWithHeader}
                             doctorSignature={doctorSignature}
                             visitData={fullPrescriptionData}
+                            plannedSurgeries={plannedSurgeries}
                         />
                     )}
                 </div>

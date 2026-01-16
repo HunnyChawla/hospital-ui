@@ -12,10 +12,11 @@ interface DoctorPrescriptionPrintProps {
     showHeader?: boolean; // When false, shows blank space for pre-printed letterhead
     doctorSignature?: string | null;
     visitData?: PrescriptionDataResponse | null;
+    plannedSurgeries?: any[]; // Using any[] to avoid circular dependency issues if strict types are hard, but preferably PlannedSurgery[]
 }
 
 export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescriptionPrintProps>(
-    ({ prescription, showHeader = true, doctorSignature, visitData }, ref) => {
+    ({ prescription, showHeader = true, doctorSignature, visitData, plannedSurgeries }, ref) => {
         const { tenant } = useTenant();
 
         // Helper to format date
@@ -285,6 +286,30 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         )}
                     </div>
                 </div>
+
+                {/* Planned Surgeries */}
+                {(plannedSurgeries && plannedSurgeries.length > 0) && (
+                    <div className="grid grid-cols-[150px_1fr] gap-2 mb-4 items-start">
+                        <div className="font-semibold text-slate-700">Planned Surgery</div>
+                        <div className="text-sm">
+                            <ul className="list-disc list-outside ml-4">
+                                {plannedSurgeries.map((surgery, idx) => (
+                                    <li key={idx} className="mb-1">
+                                        <span className="font-medium">{surgery.surgery_name}</span>
+                                        <span className="text-slate-600 ml-1">
+                                            ({surgery.eye}) - Planned on {formatDate(surgery.planned_date)}
+                                        </span>
+                                        {surgery.notes && (
+                                            <div className="text-xs text-slate-500 mt-0.5 italic">
+                                                Note: {surgery.notes}
+                                            </div>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                )}
 
                 {/* FollowUp */}
                 <div className="grid grid-cols-[150px_1fr] gap-2 mb-8 items-start">

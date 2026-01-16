@@ -20,6 +20,7 @@ import {
   Eye,
   MonitorPlay,
   Building2,
+  CalendarDays,
 } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
@@ -45,6 +46,7 @@ const navItems = [
   { label: "Lab Test Catalog", href: "/labs", icon: Beaker },
   { label: "Service Master", href: "/services", icon: Package },
   { label: "Surgeries", href: "/surgeries", icon: Activity, roles: ["admin", "receptionist"] },
+  { label: "Planned Surgeries", href: "/planned-surgeries", icon: CalendarDays, roles: ["admin", "receptionist", "doctor"] },
   { label: "Billing", href: "/billing", icon: CreditCard },
   { label: "MRD Documents", href: "/mrd", icon: FileText },
   { label: "Doctors", href: "/doctors", icon: Stethoscope },

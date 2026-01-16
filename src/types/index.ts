@@ -542,6 +542,7 @@ export type PlannedSurgery = {
   id: string;
   tenant_id: string;
   patient_id: string;
+  patient_name?: string | null;
   surgery_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";
