@@ -6,12 +6,14 @@ import {
     X,
     Loader2,
     GripVertical,
-    PanelLeftClose,
-    PanelLeftOpen,
-    PanelRightClose,
-    PanelRightOpen,
+    PanelLeft,
+    PanelRight,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
+import { OptometristVisitResponse, optometristVisitsApi } from "@/services/optometristVisitsApi";
+import { DilationTimer } from "./DilationTimer";
 import { PrescriptionFormSection } from "./PrescriptionFormSection";
 import { HistoryTemplateSection } from "./HistoryTemplateSection";
 import { ExaminationSummarySection } from "./ExaminationSummarySection";
@@ -46,6 +48,7 @@ export function DoctorPrescriptionModal({
     onPrescriptionCreated,
     isCompleted = false,
 }: DoctorPrescriptionModalProps) {
+    const [visitData, setVisitData] = useState<OptometristVisitResponse>();
     const [mounted, setMounted] = useState(false);
     const { tenant, logoDataUrl } = useTenant();
     const [summaryData, setSummaryData] = useState<PrescriptionDataResponse | null>(null);
@@ -76,10 +79,40 @@ export function DoctorPrescriptionModal({
     useEffect(() => {
         setMounted(true);
         document.body.style.overflow = "hidden";
+        if (!isCompleted) {
+            loadVisitData();
+        }
         return () => {
             document.body.style.overflow = "unset";
         };
-    }, []);
+    }, [isCompleted, visitId]);
+
+    const loadVisitData = async () => {
+        try {
+            const data = await optometristVisitsApi.getById(visitId);
+            setVisitData(data);
+        } catch (error) {
+            console.error("Failed to load visit data:", error);
+        }
+    };
+
+    const handleStartDilation = async (minutes: number) => {
+        try {
+            await optometristVisitsApi.startDilation(visitId, minutes);
+            await loadVisitData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleCompleteDilation = async () => {
+        try {
+            await optometristVisitsApi.completeDilation(visitId);
+            await loadVisitData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     // Fetch examination summary data
     useEffect(() => {
@@ -223,21 +256,34 @@ export function DoctorPrescriptionModal({
                             </p>
                         </div>
 
-                        {/* Panel Toggles in Header for Quick Access */}
-                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 ml-4">
+                        {!isCompleted && visitData && (
+                            <DilationTimer
+                                visitId={visitId}
+                                visitData={visitData}
+                                onStartDilation={handleStartDilation}
+                                onCompleteDilation={handleCompleteDilation}
+                            />
+                        )}
+                        {/* Panel Toggles in Header for Quick Access - Improved UI */}
+                        <div className="flex items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200 ml-6 gap-0.5">
                             <button
                                 onClick={toggleLeftPanel}
-                                className={`p-1 rounded transition ${isLeftCollapsed ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-200' : 'text-blue-600 bg-white shadow-sm'}`}
-                                title={isLeftCollapsed ? "Show History" : "Hide History"}
+                                className={`flex items-center justify-center p-1.5 rounded-md transition-all duration-200 ${!isLeftCollapsed
+                                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
+                                title={isLeftCollapsed ? "Show History Panel" : "Hide History Panel"}
                             >
-                                <PanelLeftOpen className="h-4 w-4" />
+                                <PanelLeft className="h-4 w-4" />
                             </button>
+                            <div className="w-px h-4 bg-slate-200 mx-1"></div>
                             <button
                                 onClick={toggleRightPanel}
-                                className={`p-1 rounded transition ${isRightCollapsed ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-200' : 'text-blue-600 bg-white shadow-sm'}`}
-                                title={isRightCollapsed ? "Show Exam Summary" : "Hide Exam Summary"}
+                                className={`flex items-center justify-center p-1.5 rounded-md transition-all duration-200 ${!isRightCollapsed
+                                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
+                                title={isRightCollapsed ? "Show Exam Summary Panel" : "Hide Exam Summary Panel"}
                             >
-                                <PanelRightOpen className="h-4 w-4 transform rotate-180" />
+                                <PanelRight className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
@@ -263,12 +309,12 @@ export function DoctorPrescriptionModal({
                         className="relative h-full border-r border-slate-200 bg-white flex flex-col group min-w-[200px]"
                     >
                         <div className="flex items-center justify-between p-2 border-b border-slate-100 bg-slate-50/50">
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">History</span>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider pl-1">History</span>
                             <button
                                 onClick={toggleLeftPanel}
-                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded"
+                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
                             >
-                                <PanelLeftClose className="h-3.5 w-3.5" />
+                                <ChevronLeft className="h-3.5 w-3.5" />
                             </button>
                         </div>
                         <div className="flex-1 overflow-y-auto">
@@ -331,11 +377,11 @@ export function DoctorPrescriptionModal({
                         <div className="flex items-center justify-between p-2 border-b border-slate-200 bg-white">
                             <button
                                 onClick={toggleRightPanel}
-                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
+                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
                             >
-                                <PanelRightClose className="h-3.5 w-3.5" />
+                                <ChevronRight className="h-3.5 w-3.5" />
                             </button>
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Exam Summary</span>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider pr-1">Exam Summary</span>
                         </div>
                         <div className="flex-1 overflow-y-auto">
                             {loadingSummary ? (

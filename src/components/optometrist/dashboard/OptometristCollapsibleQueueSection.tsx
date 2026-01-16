@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, Users, CheckCircle, Play, X, RotateCcw, AlertTriangle } from "lucide-react";
+import { ChevronRight, Users, CheckCircle, Play, X, RotateCcw, AlertTriangle, Clock } from "lucide-react";
 import { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
 import {
   filterOptometristQueuePatients,
@@ -235,10 +235,24 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                           {formatDateTime(patient.checked_in_at || patient.time)}
                         </div>
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
                         <span className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${getStatusColorGeneric(patient.status)}`}>
                           {getStatusLabelGeneric(patient.status)}
                         </span>
+
+                        {patient.status === 'dilation_in_progress' && patient.dilation_started_at && (
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium border animate-in fade-in slide-in-from-top-1 ${new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}>
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
+                                ? "Overdue"
+                                : "Exp"}: {new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

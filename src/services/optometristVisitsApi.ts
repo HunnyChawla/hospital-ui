@@ -179,4 +179,39 @@ export const optometristVisitsApi = {
     );
     return response.data;
   },
+
+  /**
+   * Start dilation for a patient
+   * POST /opd/eye-hospital/visits/{visit_id}/start-dilation
+   */
+  async startDilation(
+    visitId: string,
+    durationMinutes: number,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/start-dilation`,
+      { duration_minutes: durationMinutes },
+      params ? { params: { tenant_id: params } } : undefined
+    );
+    return response.data;
+  },
+
+  /**
+   * Complete dilation for a patient
+   * POST /opd/eye-hospital/visits/{visit_id}/complete-dilation
+   */
+  async completeDilation(
+    visitId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/complete-dilation`,
+      {},
+      params ? { params: { tenant_id: params } } : undefined
+    );
+    return response.data;
+  },
 };
