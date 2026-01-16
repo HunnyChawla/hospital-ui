@@ -750,32 +750,37 @@ export function PrescriptionFormSection({
 
                 {/* CARD 1: Diagnosis */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
-                    <div className="border-b border-slate-100 bg-gradient-to-r from-sky-50/50 to-white px-5 py-4">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-sky-50 to-white px-6 py-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-sky-100/50 border border-sky-100 shadow-sm text-sky-600">
-                                    <Stethoscope className="h-4.5 w-4.5" />
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 border border-sky-200 text-sky-600 shadow-sm">
+                                    <Stethoscope className="h-5 w-5" />
                                 </span>
-                                Clinical Diagnosis
-                            </h3>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-slate-800">Clinical Diagnosis</h3>
+                                        <span className="text-xs font-semibold text-slate-400">1/5</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium">Record patient conditions and symptoms</p>
+                                </div>
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setShowSettingsModal(true)}
-                                className="group/btn flex items-center gap-1.5 rounded-full pl-3 pr-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-white hover:text-sky-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all shadow-sm"
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-white hover:text-sky-600 border border-transparent hover:border-sky-200 transition-all"
                                 title="Configure Presets"
                             >
-                                <span className="group-hover/btn:translate-x-0.5 transition-transform duration-200">Configure</span>
-                                <Settings className="h-3.5 w-3.5" />
+                                <Settings className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="p-5 space-y-6">
+                    <div className="p-6 space-y-5">
                         {/* Quick Select */}
                         <div>
                             <div className="flex items-center gap-2 mb-3">
-                                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quick Select</p>
+                                <Sparkles className="h-4 w-4 text-amber-500" />
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Quick Select</p>
                             </div>
                             <DiagnosisChips
                                 options={diagnosesOptions}
@@ -786,8 +791,8 @@ export function PrescriptionFormSection({
 
                         {/* Selected List */}
                         {selectedDiagnoses.length > 0 && (
-                            <div className="rounded-xl bg-slate-50/80 p-4 border border-slate-100/60 shadow-inner">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 ml-0.5">Selected Conditions</p>
+                            <div className="rounded-lg bg-slate-50/80 p-4 border border-slate-100/60">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Selected Conditions</p>
                                 <SelectedDiagnoses
                                     diagnoses={selectedDiagnoses}
                                     onRemove={handleDiagnosisToggle}
@@ -797,14 +802,14 @@ export function PrescriptionFormSection({
 
                         {/* Full Diagnosis / Notes */}
                         <div>
-                            <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
-                                <span>Detailed Diagnosis / Notes</span>
+                            <label className="text-xs font-medium text-slate-600 mb-2 block">
+                                Detailed Diagnosis / Notes
                             </label>
                             <textarea
                                 {...register("diagnosis")}
                                 rows={2}
                                 placeholder="Type specific diagnosis details here..."
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-3 text-sm font-medium text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/10 resize-none transition-all placeholder:text-slate-400 hover:bg-slate-50"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/10 resize-none transition-all placeholder:text-slate-400"
                             />
                         </div>
                     </div>
@@ -812,31 +817,38 @@ export function PrescriptionFormSection({
 
                 {/* CARD 2: Medicines */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
-                    <div className="border-b border-slate-100 bg-gradient-to-r from-purple-50/50 to-white px-5 py-4 flex items-center justify-between">
-                        <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-purple-100/50 border border-purple-100 shadow-sm text-purple-600">
-                                <Pill className="h-4.5 w-4.5" />
-                            </span>
-                            Medicines
-                            {medicineFields.length > 0 && (
-                                <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-700 shadow-sm">
-                                    {medicineFields.length}
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-purple-50 to-white px-6 py-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 border border-purple-200 text-purple-600 shadow-sm">
+                                    <Pill className="h-5 w-5" />
                                 </span>
-                            )}
-                        </h3>
-                        <button
-                            type="button"
-                            onClick={() => setShowSettingsModal(true)}
-                            className="group/btn flex items-center gap-1.5 rounded-full pl-3 pr-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-white hover:text-purple-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all shadow-sm"
-                            title="Configure Presets"
-                        >
-                            <span className="group-hover/btn:translate-x-0.5 transition-transform duration-200">Configure</span>
-                            <Settings className="h-3.5 w-3.5" />
-                        </button>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-slate-800">Medicines</h3>
+                                        <span className="text-xs font-semibold text-slate-400">2/5</span>
+                                        {medicineFields.length > 0 && (
+                                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-700">
+                                                {medicineFields.length}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium">Prescribe medications and dosage instructions</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowSettingsModal(true)}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-white hover:text-purple-600 border border-transparent hover:border-purple-200 transition-all"
+                                title="Configure Presets"
+                            >
+                                <Settings className="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
-                    <div className="p-5 space-y-6">
+                    <div className="p-6 space-y-5">
                         {/* Search & Quick Add */}
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="relative group/search">
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-purple-500 transition-colors">
                                     {searchingMedicines ? (
@@ -850,10 +862,10 @@ export function PrescriptionFormSection({
                                     value={medicineSearchQuery}
                                     onChange={(e) => setMedicineSearchQuery(e.target.value)}
                                     placeholder="Search medicines (brand or generic)..."
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all shadow-sm"
+                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all"
                                 />
                                 {medicineSearchResults.length > 0 && (
-                                    <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-black ring-opacity-5">
+                                    <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
                                         <ul className="max-h-60 overflow-y-auto py-1">
                                             {medicineSearchResults.map((medicine) => (
                                                 <li
@@ -862,7 +874,7 @@ export function PrescriptionFormSection({
                                                     className="cursor-pointer px-4 py-3 hover:bg-purple-50 transition-colors border-b border-slate-50 last:border-0"
                                                 >
                                                     <div className="font-semibold text-slate-900 text-sm">{medicine.medicine_name}</div>
-                                                    <div className="text-xs text-slate-500 mt-0.5 font-medium">{medicine.generic_name} • {medicine.default_dosage}</div>
+                                                    <div className="text-xs text-slate-500 mt-0.5">{medicine.generic_name} • {medicine.default_dosage}</div>
                                                 </li>
                                             ))}
                                         </ul>
@@ -870,8 +882,8 @@ export function PrescriptionFormSection({
                                 )}
                             </div>
 
-                            <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100">
-                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Quick Add</p>
+                            <div className="bg-slate-50/50 rounded-lg p-4 border border-slate-100">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Quick Add</p>
                                 <MedicineQuickChips
                                     options={medicinesOptions}
                                     onAdd={handleQuickMedicineAdd}
@@ -882,7 +894,7 @@ export function PrescriptionFormSection({
                         {/* Added Medicines List */}
                         <div className="space-y-3">
                             {medicineFields.map((field, index) => (
-                                <div key={field.id} className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow group/item">
+                                <div key={field.id} className="relative rounded-lg border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow group/item">
                                     <div className="absolute right-3 top-3 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                         <button
                                             type="button"
@@ -895,33 +907,33 @@ export function PrescriptionFormSection({
 
                                     <div className="mb-3 pr-8">
                                         <div className="flex items-center gap-2">
-                                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-700">
+                                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-700">
                                                 {index + 1}
                                             </span>
                                             <h4 className="font-bold text-slate-900 text-sm">{field.medicine_name}</h4>
                                         </div>
                                         {field.generic_name && (
-                                            <p className="ml-7 text-xs font-medium text-slate-500">{field.generic_name}</p>
+                                            <p className="ml-7 text-xs text-slate-500">{field.generic_name}</p>
                                         )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                         <div>
-                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Dosage</label>
+                                            <label className="text-xs font-medium text-slate-600 mb-1 block">Dosage</label>
                                             <input
                                                 {...register(`medicine_items.${index}.dosage`)}
                                                 placeholder="e.g. 500mg"
-                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Frequency</label>
+                                            <label className="text-xs font-medium text-slate-600 mb-1 block">Frequency</label>
                                             <div className="relative">
                                                 <input
                                                     list={`freq-options-${index}`}
                                                     {...register(`medicine_items.${index}.frequency`)}
                                                     placeholder="e.g. 1-0-1"
-                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all"
                                                 />
                                                 <datalist id={`freq-options-${index}`}>
                                                     {FREQUENCIES.map(f => <option key={f} value={f} />)}
@@ -929,13 +941,13 @@ export function PrescriptionFormSection({
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Duration</label>
+                                            <label className="text-xs font-medium text-slate-600 mb-1 block">Duration</label>
                                             <div className="relative">
                                                 <input
                                                     list={`dur-options-${index}`}
                                                     {...register(`medicine_items.${index}.duration`)}
                                                     placeholder="e.g. 5 days"
-                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all"
                                                 />
                                                 <datalist id={`dur-options-${index}`}>
                                                     {DURATIONS.map(d => <option key={d} value={d} />)}
@@ -943,11 +955,11 @@ export function PrescriptionFormSection({
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] uppercase tracking-wide font-bold text-slate-400 mb-1 block">Instruction</label>
+                                            <label className="text-xs font-medium text-slate-600 mb-1 block">Instructions</label>
                                             <input
                                                 {...register(`medicine_items.${index}.instructions`)}
                                                 placeholder="e.g. After food"
-                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition-all"
                                             />
                                         </div>
                                     </div>
@@ -955,7 +967,7 @@ export function PrescriptionFormSection({
                             ))}
 
                             {medicineFields.length === 0 && (
-                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
                                     <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
                                         <Pill className="h-5 w-5 text-slate-400" />
                                     </div>
@@ -969,70 +981,74 @@ export function PrescriptionFormSection({
 
                 {/* CARD 3: Treatment Plan */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
-                    <div className="border-b border-slate-100 bg-gradient-to-r from-emerald-50/50 to-white px-5 py-4">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-6 py-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-100/50 border border-emerald-100 shadow-sm text-emerald-600">
-                                    <CheckCircle className="h-4.5 w-4.5" />
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-600 shadow-sm">
+                                    <CheckCircle className="h-5 w-5" />
                                 </span>
-                                Treatment Plan
-                            </h3>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-slate-800">Treatment Plan</h3>
+                                        <span className="text-xs font-semibold text-slate-400">3/5</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium">Define care plan, advice, and procedures</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="p-5 space-y-6">
+                    <div className="p-6 space-y-5">
                         {/* Advice Section */}
                         <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Advice & Tests</label>
-                            </div>
+                            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Advice & Tests</label>
                             <AdviceQuickChips
                                 options={QUICK_ADVICE}
                                 addedIds={addedAdviceIds}
                                 onAdd={handleQuickAdviceAdd}
-                                className="mb-4"
+                                className="mb-3"
                             />
 
                             {/* Added Advice List */}
-                            <div className="space-y-2">
-                                {adviceFields.map((field, index) => (
-                                    <div key={field.id} className="flex items-center gap-2 group/advice">
-                                        <div className="flex-1">
-                                            <input
-                                                {...register(`advice_items.${index}.description`)}
-                                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm"
-                                            />
+                            {adviceFields.length > 0 && (
+                                <div className="space-y-2 mt-3">
+                                    {adviceFields.map((field, index) => (
+                                        <div key={field.id} className="flex items-center gap-2 group/advice">
+                                            <div className="flex-1">
+                                                <input
+                                                    {...register(`advice_items.${index}.description`)}
+                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    removeAdvice(index);
+                                                    // Also remove from tracked IDs
+                                                    const description = adviceFields[index]?.description;
+                                                    const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
+                                                    if (match) {
+                                                        setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
+                                                    }
+                                                }}
+                                                className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                removeAdvice(index);
-                                                // Also remove from tracked IDs
-                                                const description = adviceFields[index]?.description;
-                                                const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
-                                                if (match) {
-                                                    setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
-                                                }
-                                            }}
-                                            className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="h-px bg-slate-100 w-full" />
-
                         {/* Dilation Toggle */}
-                        <div className="flex items-center justify-between p-4 rounded-xl border border-orange-100 bg-orange-50/50">
+                        <div className="flex items-center justify-between p-4 rounded-lg border border-orange-100 bg-orange-50/50">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
                                     <Droplets className="h-5 w-5" />
                                 </div>
                                 <div>
                                     <span className="font-bold text-slate-800 block text-sm">Dilated Examination</span>
-                                    <span className="text-xs font-medium text-orange-600/80">Requires patient consent (approx. 30 mins)</span>
+                                    <span className="text-xs text-orange-600/80">Requires patient consent (approx. 30 mins)</span>
                                 </div>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -1045,22 +1061,18 @@ export function PrescriptionFormSection({
                             </label>
                         </div>
 
-                        <div className="h-px bg-slate-100 w-full" />
-
                         {/* Plan of Action */}
                         <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-                                Detailed Plan Of Action
+                            <label className="text-xs font-medium text-slate-600 mb-2 block">
+                                Detailed Plan of Action
                             </label>
                             <textarea
                                 {...register("plan_of_action")}
                                 rows={2}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 resize-none transition-all placeholder:text-slate-400"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 resize-none transition-all placeholder:text-slate-400"
                                 placeholder="Describe the treatment plan..."
                             />
                         </div>
-
-                        <div className="h-px bg-slate-100 w-full" />
 
                         <PlannedSurgerySection
                             patientId={patientId}
@@ -1075,14 +1087,21 @@ export function PrescriptionFormSection({
                     <button
                         type="button"
                         onClick={() => setShowOpticalDetails(!showOpticalDetails)}
-                        className="w-full border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                        className="w-full border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                     >
-                        <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-slate-100 border border-slate-200 shadow-sm text-slate-600">
-                                <Eye className="h-4.5 w-4.5" />
+                        <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-600 shadow-sm">
+                                <Eye className="h-5 w-5" />
                             </span>
-                            Optical Details
-                        </h3>
+                            <div className="text-left">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-base font-bold text-slate-800">Optical Details</h3>
+                                    <span className="text-xs font-semibold text-slate-400">4/5</span>
+                                    <span className="text-xs text-slate-400">(Optional)</span>
+                                </div>
+                                <p className="text-xs text-slate-500 font-medium">Lens specifications and coatings</p>
+                            </div>
+                        </div>
                         {showOpticalDetails ? (
                             <ChevronUp className="h-5 w-5 text-slate-400" />
                         ) : (
@@ -1091,48 +1110,48 @@ export function PrescriptionFormSection({
                     </button>
 
                     {showOpticalDetails && (
-                        <div className="p-5 space-y-6 animate-in slide-in-from-top-2 duration-200">
+                        <div className="p-6 space-y-5 animate-in slide-in-from-top-2 duration-200">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     <div>
-                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lens Type</label>
+                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Type</label>
                                         <div className="grid grid-cols-1 gap-2">
                                             {LENS_TYPES.map((type) => (
-                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
                                                     <input
                                                         type="radio"
                                                         value={type}
                                                         {...register("lens_type")}
-                                                        className="h-4 w-4 text-sky-600 border-slate-300 focus:ring-sky-500"
+                                                        className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
                                                     />
-                                                    <span className="text-sm font-medium text-slate-700">{type}</span>
+                                                    <span className="text-sm text-slate-700">{type}</span>
                                                 </label>
                                             ))}
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Vision Distance</label>
+                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Vision Distance</label>
                                         <div className="grid grid-cols-1 gap-2">
                                             {VISION_TYPES.map((type) => (
-                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
                                                     <input
                                                         type="radio"
                                                         value={type}
                                                         {...register("vision_type")}
-                                                        className="h-4 w-4 text-sky-600 border-slate-300 focus:ring-sky-500"
+                                                        className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
                                                     />
-                                                    <span className="text-sm font-medium text-slate-700">{type}</span>
+                                                    <span className="text-sm text-slate-700">{type}</span>
                                                 </label>
                                             ))}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     <div>
-                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lens Material</label>
+                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Material</label>
                                         <select
                                             {...register("lens_material")}
-                                            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all"
                                         >
                                             <option value="">Select Material...</option>
                                             {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
@@ -1140,7 +1159,7 @@ export function PrescriptionFormSection({
                                     </div>
 
                                     <div>
-                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Coatings</label>
+                                        <label className="text-xs font-medium text-slate-600 mb-2 block">Coatings</label>
                                         <div className="flex flex-wrap gap-2">
                                             {COATINGS.map((coating) => (
                                                 <button
@@ -1148,7 +1167,7 @@ export function PrescriptionFormSection({
                                                     type="button"
                                                     onClick={() => handleToggleCoating(coating)}
                                                     className={clsx(
-                                                        "rounded-lg px-3 py-2 text-xs font-semibold transition-all border shadow-sm",
+                                                        "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
                                                         selectedCoatings?.includes(coating)
                                                             ? "bg-slate-800 text-white border-slate-900"
                                                             : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -1167,72 +1186,77 @@ export function PrescriptionFormSection({
 
                 {/* CARD 5: Follow-up & Remarks */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden group/card hover:shadow-md transition-shadow duration-300">
-                    <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white px-5 py-4">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white px-6 py-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-100/50 border border-indigo-100 shadow-sm text-indigo-600">
-                                    <Calendar className="h-4.5 w-4.5" />
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 border border-indigo-200 text-indigo-600 shadow-sm">
+                                    <Calendar className="h-5 w-5" />
                                 </span>
-                                Next Visit & Remarks
-                            </h3>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-slate-800">Follow-up & Remarks</h3>
+                                        <span className="text-xs font-semibold text-slate-400">5/5</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium">Schedule next visit and add notes</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">Follow Up In</label>
+                            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Follow Up In</label>
                             <FollowupQuickChips
                                 options={QUICK_FOLLOWUPS}
                                 selectedDays={selectedFollowupDays}
                                 onSelect={handleFollowupSelect}
                                 onCustom={() => setShowCustomDate(true)}
-                                className="mb-4"
+                                className="mb-3"
                             />
                             {showCustomDate && (
-                                <div className="mt-2 animate-in slide-in-from-top-2">
+                                <div className="mt-3 animate-in slide-in-from-top-2">
                                     <input
                                         type="date"
                                         {...register("followup_date")}
-                                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
+                                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
                                     />
                                 </div>
                             )}
                         </div>
                         <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">Internal Remarks</label>
+                            <label className="text-xs font-medium text-slate-600 mb-2 block">Internal Remarks</label>
                             <textarea
                                 {...register("remarks")}
                                 rows={3}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none transition-all placeholder:text-slate-400"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none transition-all placeholder:text-slate-400"
                                 placeholder="Private notes..."
                             />
                         </div>
                     </div>
                 </div>
                 {/* Action Buttons */}
-                <div className="flex flex-col gap-3 pt-3 border-t border-slate-200">
+                <div className="flex flex-col gap-4 pt-4 border-t border-slate-200 mt-2">
                     {/* Print Header Toggle */}
-                    <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="flex items-center justify-between px-1">
+                        <label className="flex items-center gap-2 cursor-pointer group">
                             <input
                                 type="checkbox"
                                 checked={printWithHeader}
                                 onChange={(e) => setPrintWithHeader(e.target.checked)}
-                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 transition-colors"
                             />
-                            <span className="text-xs text-slate-600">
+                            <span className="text-xs font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
                                 Print with hospital header
                             </span>
                         </label>
                     </div>
 
                     {/* Buttons Row */}
-                    {/* Buttons Row */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition"
+                            className="px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                         >
                             Cancel
                         </button>
@@ -1240,8 +1264,9 @@ export function PrescriptionFormSection({
                         <button
                             type="button"
                             onClick={() => setShowSaveTemplateModal(true)}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-purple-300 text-purple-700 font-medium rounded-lg hover:bg-purple-50 transition text-sm"
+                            className="flex items-center gap-2 px-4 py-2.5 border border-purple-200 text-purple-700 font-medium rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all text-sm"
                         >
+                            <Sparkles className="h-4 w-4" />
                             Save as Template
                         </button>
 
@@ -1251,7 +1276,7 @@ export function PrescriptionFormSection({
                             <button
                                 type="button"
                                 onClick={handlePrintClick}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 text-white font-medium rounded-lg hover:bg-sky-700 transition text-sm shadow-md"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors shadow-md text-sm"
                             >
                                 <Printer className="h-4 w-4" />
                                 Print Prescription
@@ -1262,7 +1287,7 @@ export function PrescriptionFormSection({
                                     <button
                                         type="button"
                                         onClick={handlePrintClick}
-                                        className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition text-sm"
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors text-sm"
                                     >
                                         <Printer className="h-4 w-4" />
                                         Print
@@ -1273,17 +1298,17 @@ export function PrescriptionFormSection({
                                     type="button"
                                     disabled={isSubmitting}
                                     onClick={handleSubmit(onSaveDraft)}
-                                    className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white text-slate-700 font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition text-sm"
+                                    className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 bg-white text-slate-700 font-medium rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
                                 >
-                                    <CheckCircle className="h-4 w-4 text-slate-500" />
-                                    Save as Draft
+                                    <CheckCircle className="h-4 w-4" />
+                                    Save Draft
                                 </button>
 
                                 <button
                                     type="button"
                                     disabled={isSubmitting}
                                     onClick={handleSubmit(onFinalizeAndPrint)}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm shadow-sm"
                                 >
                                     <Printer className="h-4 w-4" />
                                     Finalize & Print
@@ -1293,7 +1318,7 @@ export function PrescriptionFormSection({
                                     type="button"
                                     disabled={isSubmitting}
                                     onClick={handleSubmit(onFinalize)}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition text-sm shadow-md"
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md"
                                 >
                                     {isSubmitting ? (
                                         <>
@@ -1316,17 +1341,17 @@ export function PrescriptionFormSection({
                                     type="button"
                                     disabled={isSubmitting}
                                     onClick={handleSubmit(onSaveDraft)}
-                                    className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white text-slate-700 font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition text-sm"
+                                    className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 bg-white text-slate-700 font-medium rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
                                 >
-                                    <CheckCircle className="h-4 w-4 text-slate-500" />
-                                    Save as Draft
+                                    <CheckCircle className="h-4 w-4" />
+                                    Save Draft
                                 </button>
 
                                 <button
                                     type="button"
                                     disabled={isSubmitting}
                                     onClick={handleSubmit(onFinalizeAndPrint)}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm shadow-sm"
                                 >
                                     <Printer className="h-4 w-4" />
                                     Finalize & Print
@@ -1336,7 +1361,7 @@ export function PrescriptionFormSection({
                                     type="button"
                                     disabled={isSubmitting}
                                     onClick={handleSubmit(onFinalize)}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition text-sm shadow-md"
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-lg hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md"
                                 >
                                     {isSubmitting ? (
                                         <>
