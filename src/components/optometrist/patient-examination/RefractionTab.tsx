@@ -14,6 +14,7 @@ import { TemplateSelector, CopyFromPreviousButton } from "../templates";
 import { refractionTemplates, type RefractionTemplate } from "../mock";
 import { refractionApi } from "@/services/refractionApi";
 import { handleError } from "@/utils/errorHandler";
+import { RefractionHistorySection } from "./RefractionHistorySection";
 
 interface RefractionTabProps {
   patientId: string;
@@ -505,14 +506,14 @@ export function RefractionTab({
         )}
       </div>
 
-      {/* Current Prescription Display */}
-      {!isAdding && (latestOD || latestOS) && (
+      {/* Current Visit Refraction Display - Only show when there's data for THIS visit */}
+      {!isAdding && hasExistingForVisit && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-slate-900">
-            Current Prescription
-            {displayCombined?.pupillary_distance && (
+            This Visit's Refraction
+            {visitCombined?.pupillary_distance && (
               <span className="ml-4 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                PD: {displayCombined.pupillary_distance} mm
+                PD: {visitCombined.pupillary_distance} mm
               </span>
             )}
           </h4>
@@ -521,7 +522,7 @@ export function RefractionTab({
             <div
               className={clsx(
                 "rounded-lg border-2 p-4",
-                latestOD
+                (visitCombined?.od || visitOD)
                   ? "border-blue-200 bg-blue-50"
                   : "border-dashed border-slate-200 bg-slate-50"
               )}
@@ -530,37 +531,37 @@ export function RefractionTab({
                 <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
                 <h5 className="font-semibold text-blue-900">OD (Right Eye)</h5>
               </div>
-              {latestOD ? (
+              {(visitCombined?.od || visitOD) ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-4 gap-2 text-center">
                     <div>
                       <p className="text-xs text-slate-500">SPH</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOD.sphere, "sphere")}
+                        {formatValue(visitCombined?.od?.sphere ?? visitOD?.sphere, "sphere")}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">CYL</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOD.cylinder, "cylinder")}
+                        {formatValue(visitCombined?.od?.cylinder ?? visitOD?.cylinder, "cylinder")}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">AXIS</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOD.axis, "axis")}
+                        {formatValue(visitCombined?.od?.axis ?? visitOD?.axis, "axis")}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">ADD</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOD.add_power, "add")}
+                        {formatValue(visitCombined?.od?.add_power ?? visitOD?.add_power, "add")}
                       </p>
                     </div>
                   </div>
                   <div className="border-t border-blue-200 pt-2">
                     <span className="text-xs text-slate-500">
-                      {new Date(latestOD.recorded_at).toLocaleDateString()}
+                      {new Date(visitCombined?.recorded_at ?? visitOD?.recorded_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -575,7 +576,7 @@ export function RefractionTab({
             <div
               className={clsx(
                 "rounded-lg border-2 p-4",
-                latestOS
+                (visitCombined?.os || visitOS)
                   ? "border-green-200 bg-green-50"
                   : "border-dashed border-slate-200 bg-slate-50"
               )}
@@ -584,37 +585,37 @@ export function RefractionTab({
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
                 <h5 className="font-semibold text-green-900">OS (Left Eye)</h5>
               </div>
-              {latestOS ? (
+              {(visitCombined?.os || visitOS) ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-4 gap-2 text-center">
                     <div>
                       <p className="text-xs text-slate-500">SPH</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOS.sphere, "sphere")}
+                        {formatValue(visitCombined?.os?.sphere ?? visitOS?.sphere, "sphere")}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">CYL</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOS.cylinder, "cylinder")}
+                        {formatValue(visitCombined?.os?.cylinder ?? visitOS?.cylinder, "cylinder")}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">AXIS</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOS.axis, "axis")}
+                        {formatValue(visitCombined?.os?.axis ?? visitOS?.axis, "axis")}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">ADD</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {formatValue(latestOS.add_power, "add")}
+                        {formatValue(visitCombined?.os?.add_power ?? visitOS?.add_power, "add")}
                       </p>
                     </div>
                   </div>
                   <div className="border-t border-green-200 pt-2">
                     <span className="text-xs text-slate-500">
-                      {new Date(latestOS.recorded_at).toLocaleDateString()}
+                      {new Date(visitCombined?.recorded_at ?? visitOS?.recorded_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -626,6 +627,14 @@ export function RefractionTab({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Refraction History - Last 5 Visits */}
+      {!isAdding && (
+        <RefractionHistorySection
+          patientId={patientId}
+          currentVisitId={visitId}
+        />
       )}
 
       {/* Add/Edit Refraction Form */}
