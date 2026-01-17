@@ -12,6 +12,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
+import { useFullscreenContainer } from "@/context/FullscreenContainerContext";
 import { OptometristVisitResponse, optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { DilationTimer } from "./DilationTimer";
 import { PrescriptionFormSection } from "./PrescriptionFormSection";
@@ -227,7 +228,11 @@ export function DoctorPrescriptionModal({
     };
     const handleEditStarted = () => setTemplateToEdit(null);
 
+    const { containerRef: fullscreenRef } = useFullscreenContainer();
+
     if (!mounted || !isOpen) return null;
+
+    const portalTarget = fullscreenRef?.current || document.body;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex flex-col bg-slate-50">
@@ -403,6 +408,6 @@ export function DoctorPrescriptionModal({
                 )}
             </div>
         </div>,
-        document.body
+        portalTarget
     );
 }
