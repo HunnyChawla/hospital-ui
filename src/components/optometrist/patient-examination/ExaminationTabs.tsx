@@ -304,6 +304,46 @@ export function ExaminationTabs({
     );
   }
 
+  // Scroll functionality for tabs
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(false);
+
+  const checkScrollButtons = useCallback(() => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setShowLeftScroll(scrollLeft > 0);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScrollButtons();
+    const container = tabsContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScrollButtons);
+      window.addEventListener("resize", checkScrollButtons);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", checkScrollButtons);
+      }
+      window.removeEventListener("resize", checkScrollButtons);
+    };
+  }, [checkScrollButtons]);
+
+  const scrollTabs = (direction: "left" | "right") => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const scrollAmount = 200;
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
   // Tabs view mode (default)
   return (
     <div
@@ -316,7 +356,37 @@ export function ExaminationTabs({
       {/* Tab Navigation */}
       <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-4">
-          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hide">
+          {/* Left Scroll Button */}
+          <button
+            onClick={() => scrollTabs("left")}
+            className={clsx(
+              "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-200",
+              showLeftScroll
+                ? "border-slate-200 bg-white text-slate-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 shadow-sm"
+                : "border-transparent text-slate-300 cursor-default"
+            )}
+            disabled={!showLeftScroll}
+            title="Scroll left"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+
+          <div
+            ref={tabsContainerRef}
+            className="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hide"
+          >
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -348,6 +418,33 @@ export function ExaminationTabs({
               );
             })}
           </div>
+
+          {/* Right Scroll Button */}
+          <button
+            onClick={() => scrollTabs("right")}
+            className={clsx(
+              "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-200",
+              showRightScroll
+                ? "border-slate-200 bg-white text-slate-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 shadow-sm"
+                : "border-transparent text-slate-300 cursor-default"
+            )}
+            disabled={!showRightScroll}
+            title="Scroll right"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
 
           <div className="flex items-center gap-2">
             {/* View Mode Toggle */}
