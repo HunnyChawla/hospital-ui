@@ -1,6 +1,7 @@
 "use client";
 
-import React, { memo, useState } from "react";
+import React, { memo, useState, useRef, useCallback, useEffect } from "react";
+import clsx from "clsx";
 import { OptometristCollapsibleStatsSection } from "./OptometristCollapsibleStatsSection";
 import { OptometristCollapsibleQueueSection, type OptometristActionType } from "./OptometristCollapsibleQueueSection";
 import { OptometristActivePatientCard } from "@/components/optometrist/dashboard/OptometristActivePatientCard";
@@ -57,6 +58,11 @@ interface OptometristPanelVerticalLayoutProps {
   doctorId?: string;
 }
 
+const STORAGE_KEY = "optometry-queue-sidebar-width";
+const DEFAULT_QUEUE_WIDTH = 320; // pixels
+const MIN_QUEUE_WIDTH = 240;
+const MAX_QUEUE_WIDTH = 500;
+
 const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVerticalLayoutProps> = ({
   stats,
   statsLoading,
@@ -85,12 +91,108 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
 }) => {
   const [isStatsExpanded, setIsStatsExpanded] = useState(true);
   const [isQueueExpanded, setIsQueueExpanded] = useState(true);
+  const [queueWidth, setQueueWidth] = useState(DEFAULT_QUEUE_WIDTH);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const selectedPatient = queuePatients.find(p => p.patient_id === selectedPatientId);
   const isCompleted = selectedPatient?.status === "completed" || selectedPatient?.status === "consultation_completed";
 
+  // Load saved width from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= MIN_QUEUE_WIDTH && parsed <= MAX_QUEUE_WIDTH) {
+          setQueueWidth(parsed);
+        }
+      }
+    }
+  }, []);
+
+  // Save width to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && !isDragging) {
+      localStorage.setItem(STORAGE_KEY, queueWidth.toString());
+    }
+  }, [queueWidth, isDragging]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleTouchStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  const handleMove = useCallback(
+    (clientX: number) => {
+      if (!isDragging || !containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const containerRight = containerRect.right;
+      // Calculate new width based on distance from right edge
+      const newWidth = containerRight - clientX;
+
+      // Clamp within min/max bounds
+      const clampedWidth = Math.min(MAX_QUEUE_WIDTH, Math.max(MIN_QUEUE_WIDTH, newWidth));
+      setQueueWidth(clampedWidth);
+    },
+    [isDragging]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      handleMove(e.clientX);
+    },
+    [handleMove]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        handleMove(e.touches[0].clientX);
+      }
+    },
+    [handleMove]
+  );
+
+  const handleEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add/remove global event listeners for drag
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleEnd);
+      document.addEventListener("touchmove", handleTouchMove);
+      document.addEventListener("touchend", handleEnd);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    } else {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleEnd);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleEnd);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDragging, handleMouseMove, handleTouchMove, handleEnd]);
+
   return (
     <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
-      {/* Stats Section - Horizontal 4-column layout at top */}
       {/* Stats Section - Horizontal 4-column layout at top */}
       {statsVisible && (
         <OptometristCollapsibleStatsSection
@@ -103,9 +205,9 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
       )}
 
       {/* Main content area: Patient Area + Queue Sidebar */}
-      <div className="flex gap-3 sm:gap-4 relative flex-1 min-h-0 overflow-hidden">
+      <div ref={containerRef} className="flex gap-0 relative flex-1 min-h-0 overflow-hidden">
         {/* Patient Card - Takes remaining space */}
-        <div className="flex-1 h-full min-h-0 min-w-0 overflow-hidden transition-all duration-300">
+        <div className="flex-1 h-full min-h-0 min-w-0 overflow-hidden transition-none">
           <OptometristActivePatientCard
             patientId={selectedPatientId}
             patientName={selectedPatientName}
@@ -128,7 +230,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
         {queueVisible && !isQueueExpanded && (
           <button
             onClick={() => setIsQueueExpanded(true)}
-            className="group flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-md transition-all hover:bg-sky-50 hover:border-sky-400 hover:text-sky-600 hover:scale-110 active:scale-95 z-20 relative animate-in fade-in slide-in-from-right-2 duration-300"
+            className="group flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-md transition-all hover:bg-sky-50 hover:border-sky-400 hover:text-sky-600 hover:scale-110 active:scale-95 z-20 relative animate-in fade-in slide-in-from-right-2 duration-300 ml-2"
             title="Show patient queue"
           >
             <svg
@@ -150,10 +252,47 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
           </button>
         )}
 
-        {/* Queue Sidebar - Right side with responsive width */}
+        {/* Drag Handle - Visible when queue is expanded */}
+        {queueVisible && isQueueExpanded && (
+          <div
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            className={clsx(
+              "relative flex-shrink-0 w-3 group cursor-col-resize z-10",
+              "flex items-center justify-center",
+              isDragging && "bg-sky-100/50"
+            )}
+          >
+            {/* Visual drag indicator */}
+            <div
+              className={clsx(
+                "absolute inset-y-0 w-1 rounded-full transition-all duration-200",
+                "bg-slate-200 group-hover:bg-sky-400 group-hover:w-1.5",
+                isDragging && "bg-sky-500 w-1.5 shadow-lg shadow-sky-500/30"
+              )}
+            />
+            {/* Grip dots */}
+            <div
+              className={clsx(
+                "absolute flex flex-col gap-1 pointer-events-none",
+                "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                isDragging && "opacity-100"
+              )}
+            >
+              <div className="w-1 h-1 rounded-full bg-sky-500" />
+              <div className="w-1 h-1 rounded-full bg-sky-500" />
+              <div className="w-1 h-1 rounded-full bg-sky-500" />
+            </div>
+          </div>
+        )}
+
+        {/* Queue Sidebar - Right side with resizable width */}
         <div
-          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${queueVisible && isQueueExpanded ? "w-64 sm:w-72 lg:w-80" : "w-0 overflow-hidden"
-            }`}
+          style={{ width: queueVisible && isQueueExpanded ? `${queueWidth}px` : 0 }}
+          className={clsx(
+            "flex-shrink-0 h-full min-h-0 transition-none",
+            !queueVisible || !isQueueExpanded ? "overflow-hidden" : ""
+          )}
         >
           {queueVisible && isQueueExpanded && (
             <OptometristCollapsibleQueueSection
@@ -172,7 +311,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
           )}
         </div>
       </div>
-    </div >
+    </div>
   );
 };
 

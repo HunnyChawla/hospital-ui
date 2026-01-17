@@ -14,6 +14,7 @@ import { EyeSelector } from "../shared";
 import { commonEyeSurgeries } from "../mock/mockTemplates";
 import { InlineSurgeryForm } from "./InlineSurgeryForm";
 import { ConfirmedSurgeriesSummary } from "./ConfirmedSurgeriesSummary";
+import { ResizablePanel } from "../shared";
 import { handleError } from "@/utils/errorHandler";
 
 interface OphthalHistoryTabProps {
@@ -283,141 +284,147 @@ export function OphthalHistoryTab({
     });
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Left Column: Add Surgeries Section (2/3 width on large screens) */}
-      <div className="lg:col-span-2">
-        <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-          {/* Section Header */}
-          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
-                  <Plus className="h-4 w-4 text-white" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-800">
-                  Add Eye Surgeries
-                </h3>
-              </div>
+  const leftContent = (
+    <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full">
+      {/* Section Header */}
+      <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
+              <Plus className="h-4 w-4 text-white" />
             </div>
+            <h3 className="text-sm font-bold text-slate-800">
+              Add Eye Surgeries
+            </h3>
           </div>
-
-          <div className="p-6 space-y-5">
-            {/* Quick Select Surgeries */}
-            <div>
-              <label className="mb-3 block text-sm font-semibold text-slate-700">
-                Common Eye Surgeries
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                {filteredSurgeries.map((surgery) => {
-                  const isActive = activeSurgery === surgery;
-                  const isOtherActive = activeSurgery && activeSurgery !== surgery;
-                  // Check if this surgery is already confirmed (in the ophthalmicHistory list)
-                  const isConfirmed = ophthalmicHistory.some(s =>
-                    s.surgery_name.toLowerCase() === surgery.toLowerCase()
-                  );
-                  const isDisabled = Boolean(isOtherActive);
-
-                  return (
-                    <button
-                      key={surgery}
-                      type="button"
-                      onClick={() => handleSurgeryButtonClick(surgery)}
-                      disabled={isDisabled}
-                      className={clsx(
-                        "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
-                        isActive
-                          ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
-                          : isConfirmed && !isDisabled
-                            ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
-                            : isDisabled
-                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="truncate">{surgery}</span>
-                        {isConfirmed && !isActive && !isDisabled && (
-                          <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Inline Form - appears below the grid */}
-              {activeSurgery && filteredSurgeries.includes(activeSurgery) && (
-                <div className="mt-4">
-                  <InlineSurgeryForm
-                    surgeryText={activeSurgery}
-                    onSave={handleSubmit}
-                    onCancel={handleCancelForm}
-                    isSubmitting={isSubmitting}
-                    defaultValues={getDefaultFormValues()}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Custom Surgery Input */}
-            <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <FileText className="h-4 w-4 text-sky-600" />
-                Custom Surgery
-              </label>
-              <div className="flex gap-2.5">
-                <input
-                  type="text"
-                  value={surgerySearch}
-                  onChange={(e) => setSurgerySearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddCustomSurgery();
-                    }
-                  }}
-                  className="flex-1 rounded-lg border border-slate-300 bg-white text-slate-900 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
-                  placeholder="Type a custom surgery name if not listed above..."
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCustomSurgery}
-                  disabled={!surgerySearch.trim()}
-                  className="rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/30 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  Add
-                </button>
-              </div>
-
-              {/* Custom Surgery Inline Form */}
-              {activeSurgery && !filteredSurgeries.includes(activeSurgery) && (
-                <div className="mt-3">
-                  <InlineSurgeryForm
-                    surgeryText={activeSurgery}
-                    onSave={handleSubmit}
-                    onCancel={handleCancelForm}
-                    isSubmitting={isSubmitting}
-                    defaultValues={getDefaultFormValues()}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-
         </div>
       </div>
 
-      <div className="lg:col-span-1">
-        <ConfirmedSurgeriesSummary
-          surgeries={ophthalmicHistory}
-          onEdit={handleEditSurgery}
-          onDelete={handleDeleteSurgery}
-          onClearAll={handleClearAllSurgeries}
-          loading={loading}
-        />
+      <div className="p-6 space-y-5">
+        {/* Quick Select Surgeries */}
+        <div>
+          <label className="mb-3 block text-sm font-semibold text-slate-700">
+            Common Eye Surgeries
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+            {filteredSurgeries.map((surgery) => {
+              const isActive = activeSurgery === surgery;
+              const isOtherActive = activeSurgery && activeSurgery !== surgery;
+              // Check if this surgery is already confirmed (in the ophthalmicHistory list)
+              const isConfirmed = ophthalmicHistory.some(s =>
+                s.surgery_name.toLowerCase() === surgery.toLowerCase()
+              );
+              const isDisabled = Boolean(isOtherActive);
+
+              return (
+                <button
+                  key={surgery}
+                  type="button"
+                  onClick={() => handleSurgeryButtonClick(surgery)}
+                  disabled={isDisabled}
+                  className={clsx(
+                    "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
+                    isActive
+                      ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
+                      : isConfirmed && !isDisabled
+                        ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
+                        : isDisabled
+                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate">{surgery}</span>
+                    {isConfirmed && !isActive && !isDisabled && (
+                      <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Inline Form - appears below the grid */}
+          {activeSurgery && filteredSurgeries.includes(activeSurgery) && (
+            <div className="mt-4">
+              <InlineSurgeryForm
+                surgeryText={activeSurgery}
+                onSave={handleSubmit}
+                onCancel={handleCancelForm}
+                isSubmitting={isSubmitting}
+                defaultValues={getDefaultFormValues()}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Custom Surgery Input */}
+        <div>
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FileText className="h-4 w-4 text-sky-600" />
+            Custom Surgery
+          </label>
+          <div className="flex gap-2.5">
+            <input
+              type="text"
+              value={surgerySearch}
+              onChange={(e) => setSurgerySearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddCustomSurgery();
+                }
+              }}
+              className="flex-1 rounded-lg border border-slate-300 bg-white text-slate-900 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+              placeholder="Type a custom surgery name if not listed above..."
+            />
+            <button
+              type="button"
+              onClick={handleAddCustomSurgery}
+              disabled={!surgerySearch.trim()}
+              className="rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/30 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              Add
+            </button>
+          </div>
+
+          {/* Custom Surgery Inline Form */}
+          {activeSurgery && !filteredSurgeries.includes(activeSurgery) && (
+            <div className="mt-3">
+              <InlineSurgeryForm
+                surgeryText={activeSurgery}
+                onSave={handleSubmit}
+                onCancel={handleCancelForm}
+                isSubmitting={isSubmitting}
+                defaultValues={getDefaultFormValues()}
+              />
+            </div>
+          )}
+        </div>
       </div>
+    </div>
+  );
+
+  const rightContent = (
+    <ConfirmedSurgeriesSummary
+      surgeries={ophthalmicHistory}
+      onEdit={handleEditSurgery}
+      onDelete={handleDeleteSurgery}
+      onClearAll={handleClearAllSurgeries}
+      loading={loading}
+    />
+  );
+
+  return (
+    <>
+      <ResizablePanel
+        leftContent={leftContent}
+        rightContent={rightContent}
+        defaultLeftWidthPercent={67}
+        minLeftWidthPercent={40}
+        maxLeftWidthPercent={80}
+        storageKey="optometry-ophthal-panel-width"
+      />
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmationId && (
@@ -453,6 +460,6 @@ export function OphthalHistoryTab({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

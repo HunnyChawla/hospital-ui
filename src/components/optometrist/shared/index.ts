@@ -7,3 +7,4 @@ export { SeveritySelector } from "./SeveritySelector";
 export { DurationSelector } from "./DurationSelector";
 export { VASelector } from "./VASelector";
 export { EyeSelector } from "./EyeSelector";
+export { ResizablePanel } from "./ResizablePanel";

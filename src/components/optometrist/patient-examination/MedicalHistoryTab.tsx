@@ -32,6 +32,7 @@ import {
   type MedicalHistoryPattern,
 } from "../mock/mockTemplates";
 import { ConfirmedMedicalHistorySummary } from "./ConfirmedMedicalHistorySummary";
+import { ResizablePanel } from "../shared";
 import { handleError } from "@/utils/errorHandler";
 
 interface MedicalHistoryTabProps {
@@ -515,285 +516,290 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
   const activeCount = getActiveConditionsCount();
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Left Column: Add Medical Conditions Section (2/3 width on large screens) */}
-      <div className="lg:col-span-2">
-        <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-          {/* Section Header */}
-          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
-                  <Plus className="h-4 w-4 text-white" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-800">
-                  Add Medical Conditions
-                </h3>
-              </div>
+  const leftContent = (
+    <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full">
+      {/* Section Header */}
+      <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
+              <Plus className="h-4 w-4 text-white" />
             </div>
-          </div>
-
-          <div className="p-6 space-y-5">
-
-            {/* Medical Conditions */}
-            <div>
-              <label className="mb-3 block text-sm font-semibold text-slate-700">
-                Common Medical Conditions
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                {allConditions.map((condition) => {
-                  const Icon = condition.icon;
-                  const isActive = (formData as any)[condition.id];
-                  const isDisabled = Boolean(activeCondition && activeCondition !== condition.id);
-
-                  return (
-                    <button
-                      key={condition.id}
-                      type="button"
-                      onClick={() => handleConditionButtonClick(condition.id)}
-                      disabled={isDisabled}
-                      className={clsx(
-                        "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
-                        activeCondition === condition.id
-                          ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
-                          : isActive
-                            ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
-                            : isDisabled
-                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon className={clsx("h-3.5 w-3.5 flex-shrink-0", isDisabled && "text-slate-400")} />
-                        <span className="truncate">{condition.label}</span>
-                        {isActive && activeCondition !== condition.id && !isDisabled && (
-                          <Check className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Inline Form - appears below the grid */}
-              {activeCondition && (
-                <div className="mt-4 rounded-lg border border-sky-200/60 bg-gradient-to-br from-white to-sky-50/20 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="p-3">
-                    {Object.entries(conditionConfig).map(([key, config]) => {
-                      if (key !== activeCondition) return null;
-
-                      const Icon = config.icon;
-                      const isActive = (formData as any)[key];
-                      const details = (formData as any)[config.detailsKey] as ConditionDetails;
-
-                      return (
-                        <div key={key} className="space-y-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className={clsx("rounded-lg p-1 shadow-sm border", config.borderColor)}>
-                              <Icon className={clsx("h-3 w-3", config.color)} />
-                            </div>
-                            <h4 className="text-xs font-bold text-slate-900">{config.label}</h4>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2.5">
-                            <div>
-                              <label className="block text-xs font-medium text-slate-600 mb-1">
-                                Duration
-                              </label>
-                              <select
-                                value={details.duration || ""}
-                                onChange={(e) =>
-                                  handleConditionDetailChange(config.detailsKey, "duration", e.target.value)
-                                }
-                                className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                              >
-                                <option value="">Select...</option>
-                                <option value="less_than_1">{"< 1 year"}</option>
-                                <option value="1_to_5">1-5 years</option>
-                                <option value="5_to_10">5-10 years</option>
-                                <option value="more_than_10">{"> 10 years"}</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-medium text-slate-600 mb-1">
-                                Medication
-                              </label>
-                              <div className="flex gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleConditionDetailChange(config.detailsKey, "medication", "yes")
-                                  }
-                                  className={clsx(
-                                    "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
-                                    details.medication === "yes"
-                                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
-                                      : "bg-white border-slate-300 hover:bg-emerald-50"
-                                  )}
-                                >
-                                  Yes
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleConditionDetailChange(config.detailsKey, "medication", "no")
-                                  }
-                                  className={clsx(
-                                    "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
-                                    details.medication === "no"
-                                      ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
-                                      : "bg-white border-slate-300 hover:bg-amber-50"
-                                  )}
-                                >
-                                  No
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="col-span-2">
-                              <label className="block text-xs font-medium text-slate-600 mb-1">
-                                Controlled
-                              </label>
-                              <div className="flex gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleConditionDetailChange(config.detailsKey, "controlled", true)
-                                  }
-                                  className={clsx(
-                                    "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
-                                    details.controlled === true
-                                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
-                                      : "bg-white border-slate-300 hover:bg-emerald-50"
-                                  )}
-                                >
-                                  Yes
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleConditionDetailChange(config.detailsKey, "controlled", false)
-                                  }
-                                  className={clsx(
-                                    "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
-                                    details.controlled === false
-                                      ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
-                                      : "bg-white border-slate-300 hover:bg-amber-50"
-                                  )}
-                                >
-                                  No
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex-1">
-                            <label className="block text-xs font-medium text-slate-600 mb-1">
-                              Notes
-                            </label>
-                            <textarea
-                              value={details.notes || ""}
-                              onChange={(e) =>
-                                handleConditionDetailChange(config.detailsKey, "notes", e.target.value)
-                              }
-                              rows={2}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
-                              placeholder="Add notes..."
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => setActiveCondition(null)}
-                              disabled={isSubmitting}
-                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => saveCondition(key)}
-                              disabled={isSubmitting}
-                              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition disabled:opacity-50"
-                            >
-                              {isSubmitting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Check className="h-3.5 w-3.5" />
-                              )}
-                              {isSubmitting ? "Saving..." : isActive ? "Update" : "Add"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Custom Condition Input */}
-            <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <FileText className="h-4 w-4 text-sky-600" />
-                Other Conditions
-              </label>
-              <textarea
-                value={formData.other_conditions}
-                onChange={(e) => handleTextChange("other_conditions", e.target.value)}
-                rows={2}
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
-                placeholder="Enter any other medical conditions not listed above..."
-              />
-            </div>
-
-            {/* Additional Information */}
-            <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <FileText className="h-4 w-4 text-sky-600" />
-                Additional Information
-              </label>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Current Medications</label>
-                  <textarea
-                    value={formData.current_medications}
-                    onChange={(e) => handleTextChange("current_medications", e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
-                    placeholder="List medications with dosage..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Family History</label>
-                  <textarea
-                    value={formData.family_history}
-                    onChange={(e) => handleTextChange("family_history", e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
-                    placeholder="Family medical history..."
-                  />
-                </div>
-              </div>
-            </div>
+            <h3 className="text-sm font-bold text-slate-800">
+              Add Medical Conditions
+            </h3>
           </div>
         </div>
       </div>
 
-      {/* Right Column - Summary (1/3 width on large screens) */}
-      <div className="lg:col-span-1">
-        <ConfirmedMedicalHistorySummary
-          medicalHistory={null}
-          formData={formData}
-          onClear={handleClear}
-          onEdit={handleEditCondition}
-          onDelete={handleDeleteCondition}
-          loading={isLoading}
-        />
+      <div className="p-6 space-y-5">
+
+        {/* Medical Conditions */}
+        <div>
+          <label className="mb-3 block text-sm font-semibold text-slate-700">
+            Common Medical Conditions
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+            {allConditions.map((condition) => {
+              const Icon = condition.icon;
+              const isActive = (formData as any)[condition.id];
+              const isDisabled = Boolean(activeCondition && activeCondition !== condition.id);
+
+              return (
+                <button
+                  key={condition.id}
+                  type="button"
+                  onClick={() => handleConditionButtonClick(condition.id)}
+                  disabled={isDisabled}
+                  className={clsx(
+                    "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
+                    activeCondition === condition.id
+                      ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
+                      : isActive
+                        ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
+                        : isDisabled
+                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className={clsx("h-3.5 w-3.5 flex-shrink-0", isDisabled && "text-slate-400")} />
+                    <span className="truncate">{condition.label}</span>
+                    {isActive && activeCondition !== condition.id && !isDisabled && (
+                      <Check className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Inline Form - appears below the grid */}
+          {activeCondition && (
+            <div className="mt-4 rounded-lg border border-sky-200/60 bg-gradient-to-br from-white to-sky-50/20 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="p-3">
+                {Object.entries(conditionConfig).map(([key, config]) => {
+                  if (key !== activeCondition) return null;
+
+                  const Icon = config.icon;
+                  const isActive = (formData as any)[key];
+                  const details = (formData as any)[config.detailsKey] as ConditionDetails;
+
+                  return (
+                    <div key={key} className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className={clsx("rounded-lg p-1 shadow-sm border", config.borderColor)}>
+                          <Icon className={clsx("h-3 w-3", config.color)} />
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-900">{config.label}</h4>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Duration
+                          </label>
+                          <select
+                            value={details.duration || ""}
+                            onChange={(e) =>
+                              handleConditionDetailChange(config.detailsKey, "duration", e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                          >
+                            <option value="">Select...</option>
+                            <option value="less_than_1">{"< 1 year"}</option>
+                            <option value="1_to_5">1-5 years</option>
+                            <option value="5_to_10">5-10 years</option>
+                            <option value="more_than_10">{"> 10 years"}</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Medication
+                          </label>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleConditionDetailChange(config.detailsKey, "medication", "yes")
+                              }
+                              className={clsx(
+                                "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
+                                details.medication === "yes"
+                                  ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
+                                  : "bg-white border-slate-300 hover:bg-emerald-50"
+                              )}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleConditionDetailChange(config.detailsKey, "medication", "no")
+                              }
+                              className={clsx(
+                                "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
+                                details.medication === "no"
+                                  ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
+                                  : "bg-white border-slate-300 hover:bg-amber-50"
+                              )}
+                            >
+                              No
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Controlled
+                          </label>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleConditionDetailChange(config.detailsKey, "controlled", true)
+                              }
+                              className={clsx(
+                                "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
+                                details.controlled === true
+                                  ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-medium"
+                                  : "bg-white border-slate-300 hover:bg-emerald-50"
+                              )}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleConditionDetailChange(config.detailsKey, "controlled", false)
+                              }
+                              className={clsx(
+                                "flex-1 rounded-lg border px-2 py-1.5 text-xs transition",
+                                details.controlled === false
+                                  ? "bg-amber-50 border-amber-300 text-amber-700 font-medium"
+                                  : "bg-white border-slate-300 hover:bg-amber-50"
+                              )}
+                            >
+                              No
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Notes
+                        </label>
+                        <textarea
+                          value={details.notes || ""}
+                          onChange={(e) =>
+                            handleConditionDetailChange(config.detailsKey, "notes", e.target.value)
+                          }
+                          rows={2}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                          placeholder="Add notes..."
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setActiveCondition(null)}
+                          disabled={isSubmitting}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveCondition(key)}
+                          disabled={isSubmitting}
+                          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition disabled:opacity-50"
+                        >
+                          {isSubmitting ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                          {isSubmitting ? "Saving..." : isActive ? "Update" : "Add"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Condition Input */}
+        <div>
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FileText className="h-4 w-4 text-sky-600" />
+            Other Conditions
+          </label>
+          <textarea
+            value={formData.other_conditions}
+            onChange={(e) => handleTextChange("other_conditions", e.target.value)}
+            rows={2}
+            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+            placeholder="Enter any other medical conditions not listed above..."
+          />
+        </div>
+
+        {/* Additional Information */}
+        <div>
+          <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FileText className="h-4 w-4 text-sky-600" />
+            Additional Information
+          </label>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Current Medications</label>
+              <textarea
+                value={formData.current_medications}
+                onChange={(e) => handleTextChange("current_medications", e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                placeholder="List medications with dosage..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Family History</label>
+              <textarea
+                value={formData.family_history}
+                onChange={(e) => handleTextChange("family_history", e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                placeholder="Family medical history..."
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+  );
+
+  const rightContent = (
+    <ConfirmedMedicalHistorySummary
+      medicalHistory={null}
+      formData={formData}
+      onClear={handleClear}
+      onEdit={handleEditCondition}
+      onDelete={handleDeleteCondition}
+      loading={isLoading}
+    />
+  );
+
+  return (
+    <ResizablePanel
+      leftContent={leftContent}
+      rightContent={rightContent}
+      defaultLeftWidthPercent={67}
+      minLeftWidthPercent={40}
+      maxLeftWidthPercent={80}
+      storageKey="optometry-medical-panel-width"
+    />
   );
 }
