@@ -142,7 +142,45 @@ export function ExaminationTabs({
   const { viewMode, setViewMode } = useExaminationViewPreference();
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Scroll functionality for tabs - must be before any early returns
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(false);
 
+  const checkScrollButtons = useCallback(() => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setShowLeftScroll(scrollLeft > 0);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScrollButtons();
+    const container = tabsContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScrollButtons);
+      window.addEventListener("resize", checkScrollButtons);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", checkScrollButtons);
+      }
+      window.removeEventListener("resize", checkScrollButtons);
+    };
+  }, [checkScrollButtons]);
+
+  const scrollTabs = (direction: "left" | "right") => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const scrollAmount = 200;
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
 
   // If compact view mode, render the compact view component
   if (viewMode === "compact") {
@@ -303,46 +341,6 @@ export function ExaminationTabs({
       </div>
     );
   }
-
-  // Scroll functionality for tabs
-  const tabsContainerRef = useRef<HTMLDivElement>(null);
-  const [showLeftScroll, setShowLeftScroll] = useState(false);
-  const [showRightScroll, setShowRightScroll] = useState(false);
-
-  const checkScrollButtons = useCallback(() => {
-    const container = tabsContainerRef.current;
-    if (container) {
-      const { scrollLeft, scrollWidth, clientWidth } = container;
-      setShowLeftScroll(scrollLeft > 0);
-      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 5);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkScrollButtons();
-    const container = tabsContainerRef.current;
-    if (container) {
-      container.addEventListener("scroll", checkScrollButtons);
-      window.addEventListener("resize", checkScrollButtons);
-    }
-    return () => {
-      if (container) {
-        container.removeEventListener("scroll", checkScrollButtons);
-      }
-      window.removeEventListener("resize", checkScrollButtons);
-    };
-  }, [checkScrollButtons]);
-
-  const scrollTabs = (direction: "left" | "right") => {
-    const container = tabsContainerRef.current;
-    if (container) {
-      const scrollAmount = 200;
-      container.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      });
-    }
-  };
 
   // Tabs view mode (default)
   return (
