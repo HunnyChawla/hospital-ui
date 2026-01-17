@@ -6,7 +6,7 @@ import {
   addOphthalmicSurgery,
   deleteOphthalmicSurgery,
 } from "@/redux/optometryDataSlice";
-import { Plus, FileText, Scissors, Eye, Calendar, User, Building2, Search, X, AlertCircle, Clock } from "lucide-react";
+import { Plus, FileText, Scissors, Eye, Calendar, User, Building2, Search, X, AlertCircle, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { OphthalmicSurgeryRecord } from "@/types";
@@ -191,6 +191,24 @@ export function OphthalHistoryTab({
     }
   };
 
+  const handleClearAllSurgeries = async () => {
+    if (!confirm("Are you sure you want to delete all surgeries? This action cannot be undone.")) return;
+
+    try {
+      const deletePromises = ophthalmicHistory.map(surgery =>
+        dispatch(deleteOphthalmicSurgery({ id: surgery.id })).unwrap()
+      );
+      await Promise.all(deletePromises);
+      toast.success("All surgeries cleared");
+      onRefresh();
+    } catch (error) {
+      handleError(error, {
+        defaultMessage: "Failed to clear surgeries",
+        logError: true,
+      });
+    }
+  };
+
   const handleAddCustomSurgery = () => {
     const trimmed = surgerySearch.trim();
     if (!trimmed) {
@@ -266,48 +284,63 @@ export function OphthalHistoryTab({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Left Column: Add Surgeries Section (2/3 width on large screens) */}
       <div className="lg:col-span-2">
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
           {/* Section Header */}
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-3">
+          <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4 text-sky-600" />
-                <h3 className="text-sm font-semibold text-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
+                  <Plus className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">
                   Add Eye Surgeries
                 </h3>
               </div>
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
             {/* Quick Select Surgeries */}
             <div>
-              <label className="mb-3 block text-sm font-medium text-slate-700">
+              <label className="mb-3 block text-sm font-semibold text-slate-700">
                 Common Eye Surgeries
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
                 {filteredSurgeries.map((surgery) => {
                   const isActive = activeSurgery === surgery;
                   const isOtherActive = activeSurgery && activeSurgery !== surgery;
+                  // Check if this surgery is already confirmed (in the ophthalmicHistory list)
+                  const isConfirmed = ophthalmicHistory.some(s =>
+                    s.surgery_name.toLowerCase() === surgery.toLowerCase()
+                  );
+                  const isDisabled = Boolean(isOtherActive);
 
                   return (
                     <button
                       key={surgery}
                       type="button"
                       onClick={() => handleSurgeryButtonClick(surgery)}
+                      disabled={isDisabled}
                       className={clsx(
-                        "w-full rounded-lg border px-3 py-2 text-sm font-medium transition text-left",
+                        "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
                         isActive
-                          ? "bg-sky-600 text-white border-sky-600 shadow-md"
-                          : isOtherActive
-                            ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm"
+                          ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
+                          : isConfirmed && !isDisabled
+                            ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
+                            : isDisabled
+                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
+                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                       )}
                     >
-                      {surgery}
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">{surgery}</span>
+                        {isConfirmed && !isActive && !isDisabled && (
+                          <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
+                        )}
+                      </div>
                     </button>
                   );
                 })}
@@ -329,11 +362,11 @@ export function OphthalHistoryTab({
 
             {/* Custom Surgery Input */}
             <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
-                <FileText className="h-4 w-4 text-slate-400" />
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <FileText className="h-4 w-4 text-sky-600" />
                 Custom Surgery
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2.5">
                 <input
                   type="text"
                   value={surgerySearch}
@@ -344,14 +377,14 @@ export function OphthalHistoryTab({
                       handleAddCustomSurgery();
                     }
                   }}
-                  className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="flex-1 rounded-lg border border-slate-300 bg-white text-slate-900 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
                   placeholder="Type a custom surgery name if not listed above..."
                 />
                 <button
                   type="button"
                   onClick={handleAddCustomSurgery}
                   disabled={!surgerySearch.trim()}
-                  className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/30 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   Add
                 </button>
@@ -381,6 +414,7 @@ export function OphthalHistoryTab({
           surgeries={ophthalmicHistory}
           onEdit={handleEditSurgery}
           onDelete={handleDeleteSurgery}
+          onClearAll={handleClearAllSurgeries}
           loading={loading}
         />
       </div>

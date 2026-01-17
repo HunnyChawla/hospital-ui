@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { addComplaint, deleteComplaint } from "@/redux/optometryDataSlice";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Check } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { ComplaintRecord } from "@/types";
@@ -129,6 +129,24 @@ export function ComplaintsTab({
     }
   };
 
+  const handleClearAllComplaints = async () => {
+    if (!confirm("Are you sure you want to delete all complaints? This action cannot be undone.")) return;
+
+    try {
+      const deletePromises = complaints.map(complaint =>
+        dispatch(deleteComplaint({ id: complaint.id })).unwrap()
+      );
+      await Promise.all(deletePromises);
+      toast.success("All complaints cleared");
+      onRefresh();
+    } catch (error) {
+      handleError(error, {
+        defaultMessage: "Failed to clear complaints",
+        logError: true,
+      });
+    }
+  };
+
   const handleAddCustomComplaint = () => {
     const trimmed = customComplaintText.trim();
     if (!trimmed) {
@@ -184,22 +202,35 @@ export function ComplaintsTab({
                 {commonComplaints.map((complaint) => {
                   const isActive = activeComplaint === complaint;
                   const isOtherActive = activeComplaint && activeComplaint !== complaint;
+                  // Check if this complaint is already confirmed (in the complaints list)
+                  const isConfirmed = complaints.some(c =>
+                    c.complaint?.replace(/\s*\((RE|LE|BE|GE)\)\s*$/, "").trim().toLowerCase() === complaint.toLowerCase()
+                  );
+                  const isDisabled = Boolean(isOtherActive);
 
                   return (
                     <button
                       key={complaint}
                       type="button"
                       onClick={() => handleComplaintButtonClick(complaint)}
+                      disabled={isDisabled}
                       className={clsx(
                         "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
                         isActive
                           ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
-                          : isOtherActive
-                            ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
+                          : isConfirmed && !isDisabled
+                            ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
+                            : isDisabled
+                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
+                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                       )}
                     >
-                      {complaint}
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">{complaint}</span>
+                        {isConfirmed && !isActive && !isDisabled && (
+                          <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
+                        )}
+                      </div>
                     </button>
                   );
                 })}
@@ -272,6 +303,7 @@ export function ComplaintsTab({
           complaints={complaints}
           onEdit={handleEditComplaint}
           onDelete={handleDeleteComplaint}
+          onClearAll={handleClearAllComplaints}
           loading={loading}
         />
       </div>

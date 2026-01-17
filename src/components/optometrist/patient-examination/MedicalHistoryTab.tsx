@@ -9,7 +9,6 @@ import {
   deleteMedicalCondition,
 } from "@/redux/optometryDataSlice";
 import {
-  Save,
   Heart,
   Activity,
   Pill,
@@ -22,6 +21,7 @@ import {
   Clock,
   FileText,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -208,7 +208,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
   const [formData, setFormData] = useState<MedicalHistoryFormData>(initialFormData);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const [conditionRecordMap, setConditionRecordMap] = useState<Map<string, MedicalConditionRecord>>(new Map());
   const [activeCondition, setActiveCondition] = useState<string | null>(null);
 
@@ -277,7 +276,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
       setConditionRecordMap(recordMap);
       setFormData(newFormData);
-      setHasChanges(false);
     } catch (error) {
       handleError(error, {
         defaultMessage: "Failed to load medical conditions",
@@ -307,7 +305,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
   const handleConditionToggle = (key: keyof MedicalHistoryFormData, value: boolean) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
-    setHasChanges(true);
   };
 
   const handleConditionDetailChange = (
@@ -322,12 +319,10 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
         [field]: value,
       },
     }));
-    setHasChanges(true);
   };
 
   const handleTextChange = (key: keyof MedicalHistoryFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
-    setHasChanges(true);
   };
 
   const handleConditionButtonClick = (conditionId: string) => {
@@ -340,129 +335,77 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     }
   };
 
-  const saveAllChanges = async () => {
+  // Save a single condition immediately when "Add" button is clicked
+  const saveCondition = async (conditionType: string) => {
     const optometristId = localStorage.getItem("user_id");
     if (!optometristId) {
       toast.error("Optometrist ID not found");
       return;
     }
 
+    const detailsKeyMap: Record<string, string> = {
+      diabetes: "diabetesDetails",
+      thyroid_disorder: "thyroidDetails",
+      hypertension: "hypertensionDetails",
+      heart_disease: "heartDetails",
+      asthma: "asthmaDetails",
+      tuberculosis: "tbDetails",
+      kidney_disease: "kidneyDetails",
+      liver_disease: "liverDetails",
+      cancer: "cancerDetails",
+      hiv_aids: "hivDetails",
+    };
+
+    const detailsKey = detailsKeyMap[conditionType];
+    if (!detailsKey) return;
+
+    const details = (formData as any)[detailsKey] as ConditionDetails;
+    const existingRecord = conditionRecordMap.get(conditionType);
+
     setIsSubmitting(true);
     try {
-      const savePromises: Promise<any>[] = [];
-
-      // Process each condition
-      for (const [conditionType, detailsKey] of Object.entries({
-        diabetes: "diabetesDetails",
-        thyroid_disorder: "thyroidDetails",
-        hypertension: "hypertensionDetails",
-        heart_disease: "heartDetails",
-        asthma: "asthmaDetails",
-        tuberculosis: "tbDetails",
-        kidney_disease: "kidneyDetails",
-        liver_disease: "liverDetails",
-        cancer: "cancerDetails",
-        hiv_aids: "hivDetails",
-      })) {
-        const status = (formData as any)[conditionType] as boolean;
-        const details = (formData as any)[detailsKey] as ConditionDetails;
-        const existingRecord = conditionRecordMap.get(conditionType);
-
-        if (status) {
-          // Create or update condition
-          if (existingRecord) {
-            savePromises.push(
-              dispatch(updateMedicalCondition({
-                id: existingRecord.id,
-                data: {
-                  status: true,
-                  duration: details.duration || null,
-                  on_medication: details.medication === "yes",
-                  is_controlled: details.controlled ?? null,
-                  remarks: details.notes || null,
-                },
-              })).unwrap()
-            );
-          } else {
-            savePromises.push(
-              dispatch(addMedicalCondition({
-                data: {
-                  patient_id: patientId,
-                  optometrist_id: optometristId,
-                  visit_id: visitId || null,
-                  condition_name: conditionType,
-                  status: true,
-                  duration: details.duration || null,
-                  on_medication: details.medication === "yes",
-                  is_controlled: details.controlled ?? null,
-                  remarks: details.notes || null,
-                },
-              })).unwrap()
-            );
-          }
-        } else {
-          // Delete condition if it exists
-          if (existingRecord) {
-            savePromises.push(
-              dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap()
-            );
-          }
-        }
+      if (existingRecord) {
+        // Update existing record
+        await dispatch(updateMedicalCondition({
+          id: existingRecord.id,
+          data: {
+            status: true,
+            duration: details.duration || null,
+            on_medication: details.medication === "yes",
+            is_controlled: details.controlled ?? null,
+            remarks: details.notes || null,
+          },
+        })).unwrap();
+        toast.success("Condition updated");
+      } else {
+        // Create new record
+        await dispatch(addMedicalCondition({
+          data: {
+            patient_id: patientId,
+            optometrist_id: optometristId,
+            visit_id: visitId || null,
+            condition_name: conditionType,
+            status: true,
+            duration: details.duration || null,
+            on_medication: details.medication === "yes",
+            is_controlled: details.controlled ?? null,
+            remarks: details.notes || null,
+          },
+        })).unwrap();
+        toast.success("Condition added");
       }
 
-      // Process text fields (other_conditions, current_medications, family_history, lifestyle_notes)
-      const textFields = ["other_conditions", "current_medications", "family_history", "lifestyle_notes"] as const;
-
-      for (const fieldName of textFields) {
-        const value = formData[fieldName];
-        const existingRecord = conditionRecordMap.get(fieldName);
-
-        if (value && value.trim()) {
-          // Has content - create or update
-          if (existingRecord) {
-            savePromises.push(
-              dispatch(updateMedicalCondition({
-                id: existingRecord.id,
-                data: {
-                  status: true,
-                  remarks: value.trim(),
-                },
-              })).unwrap()
-            );
-          } else {
-            savePromises.push(
-              dispatch(addMedicalCondition({
-                data: {
-                  patient_id: patientId,
-                  optometrist_id: optometristId,
-                  visit_id: visitId || null,
-                  condition_name: fieldName,
-                  status: true,
-                  remarks: value.trim(),
-                },
-              })).unwrap()
-            );
-          }
-        } else {
-          // Empty content - delete if exists
-          if (existingRecord) {
-            savePromises.push(
-              dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap()
-            );
-          }
-        }
-      }
-
-      await Promise.all(savePromises);
+      // Update local form state to mark as active
+      setFormData((prev) => ({ ...prev, [conditionType]: true }));
 
       // Refresh data to get updated records
       await fetchConditions();
 
-      setHasChanges(false);
-      toast.success("All changes saved successfully");
+      // Close the form
+      setActiveCondition(null);
     } catch (error: any) {
       handleError(error, {
-        defaultMessage: "Failed to save changes",
+        defaultMessage: "Failed to save condition",
         logError: true,
       });
     } finally {
@@ -483,7 +426,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
 
       setFormData(initialFormData);
       setConditionRecordMap(new Map());
-      setHasChanges(false);
       setActiveCondition(null);
       toast.success("Medical history cleared");
     } catch (error) {
@@ -548,22 +490,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                   Add Medical Conditions
                 </h3>
               </div>
-              {hasChanges && (
-                <button
-                  type="button"
-                  onClick={saveAllChanges}
-                  disabled={!hasChanges || isSubmitting}
-                  className={clsx(
-                    "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-all shadow-md",
-                    hasChanges
-                      ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white hover:from-sky-700 hover:to-blue-700 hover:shadow-lg hover:scale-105 active:scale-95 shadow-sky-500/30"
-                      : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
-                  )}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {isSubmitting ? "Saving..." : "Save"}
-                </button>
-              )}
             </div>
           </div>
 
@@ -593,7 +519,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                           : isActive
                             ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
                             : isDisabled
-                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
                               : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                       )}
                     >
@@ -601,7 +527,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                         <Icon className={clsx("h-3.5 w-3.5 flex-shrink-0", isDisabled && "text-slate-400")} />
                         <span className="truncate">{condition.label}</span>
                         {isActive && activeCondition !== condition.id && !isDisabled && (
-                          <Check className="h-3 w-3 text-emerald-600 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                         )}
                       </div>
                     </button>
@@ -741,21 +667,23 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
                             <button
                               type="button"
                               onClick={() => setActiveCondition(null)}
-                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                              disabled={isSubmitting}
+                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
                             >
                               Cancel
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                setFormData((prev) => ({ ...prev, [key]: true }));
-                                setHasChanges(true);
-                                setActiveCondition(null);
-                              }}
-                              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition"
+                              onClick={() => saveCondition(key)}
+                              disabled={isSubmitting}
+                              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:from-sky-700 hover:to-blue-700 transition disabled:opacity-50"
                             >
-                              <Check className="h-3.5 w-3.5" />
-                              {isActive ? "Update" : "Add"}
+                              {isSubmitting ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5" />
+                              )}
+                              {isSubmitting ? "Saving..." : isActive ? "Update" : "Add"}
                             </button>
                           </div>
                         </div>
@@ -821,7 +749,6 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
           formData={formData}
           onClear={handleClear}
           loading={isLoading}
-          hasChanges={hasChanges}
         />
       </div>
     </div>

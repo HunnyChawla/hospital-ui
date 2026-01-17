@@ -61,7 +61,6 @@ interface ConfirmedMedicalHistorySummaryProps {
   formData: MedicalHistoryFormData;
   onClear: () => void;
   loading?: boolean;
-  hasChanges?: boolean;
 }
 
 const conditionConfig = {
@@ -159,7 +158,6 @@ export function ConfirmedMedicalHistorySummary({
   formData,
   onClear,
   loading = false,
-  hasChanges = false,
 }: ConfirmedMedicalHistorySummaryProps) {
   const getActiveConditions = () => {
     const active: Array<{
@@ -207,9 +205,6 @@ export function ConfirmedMedicalHistorySummary({
               </span>
             )}
           </div>
-          {hasChanges && (
-            <span className="text-xs text-amber-600 font-medium">Unsaved</span>
-          )}
         </div>
       </div>
 

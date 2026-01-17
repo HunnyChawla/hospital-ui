@@ -131,6 +131,24 @@ export function DrugAllergyTab({
     }
   };
 
+  const handleClearAllAllergies = async () => {
+    if (!confirm("Are you sure you want to delete all drug allergies? This action cannot be undone.")) return;
+
+    try {
+      const deletePromises = drugAllergies.map(allergy =>
+        dispatch(deleteDrugAllergy({ id: allergy.id })).unwrap()
+      );
+      await Promise.all(deletePromises);
+      toast.success("All drug allergies cleared");
+      onRefresh();
+    } catch (error) {
+      handleError(error, {
+        defaultMessage: "Failed to clear drug allergies",
+        logError: true,
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData(initialFormData);
     setDrugSearch("");
@@ -372,6 +390,7 @@ export function DrugAllergyTab({
           drugAllergies={drugAllergies}
           loading={loading}
           onDelete={handleDelete}
+          onClearAll={handleClearAllAllergies}
         />
       </div>
     </div>

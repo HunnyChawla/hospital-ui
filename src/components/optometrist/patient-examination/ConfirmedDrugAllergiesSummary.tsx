@@ -7,6 +7,7 @@ import clsx from "clsx";
 interface ConfirmedDrugAllergiesSummaryProps {
   drugAllergies: DrugAllergyRecord[];
   onDelete: (id: string) => void;
+  onClearAll?: () => void;
   loading?: boolean;
 }
 
@@ -26,6 +27,7 @@ const getSeverityColor = (severity: string) => {
 export function ConfirmedDrugAllergiesSummary({
   drugAllergies,
   onDelete,
+  onClearAll,
   loading = false,
 }: ConfirmedDrugAllergiesSummaryProps) {
   return (
@@ -107,7 +109,7 @@ export function ConfirmedDrugAllergiesSummary({
 
                     <button
                       onClick={() => onDelete(allergy.id)}
-                      className="ml-2 rounded p-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition"
+                      className="ml-2 rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-red-600 transition shadow-sm border border-slate-200 hover:border-red-200"
                       title="Delete allergy record"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -118,6 +120,20 @@ export function ConfirmedDrugAllergiesSummary({
           </div>
         )}
       </div>
+
+      {/* Footer Actions - Clear All */}
+      {drugAllergies.length > 0 && onClearAll && (
+        <div className="border-t border-slate-100 p-3">
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear All
+          </button>
+        </div>
+      )}
     </div>
   );
 }
