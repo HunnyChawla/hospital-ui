@@ -613,5 +613,10 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
     </div>
   );
 
-  return createPortal(modalContent, document.body);
+  // Determine the mounting point - if we are in fullscreen mode, mount to the fullscreen element
+  // regarding of whether the modal was opened before or after entering fullscreen
+  // Since this component is only rendered when mounted is true (client-side), direct DOM access is safe
+  const mountNode = document.fullscreenElement || document.body;
+
+  return createPortal(modalContent, mountNode);
 }
