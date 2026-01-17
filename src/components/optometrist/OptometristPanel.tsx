@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppSelector } from "@/redux/hooks";
-import { Eye, RefreshCw, Wifi, WifiOff, Loader2, AlertCircle, ChevronDown } from "lucide-react";
+import { Eye, RefreshCw, Wifi, WifiOff, Loader2, AlertCircle, ChevronDown, Settings, Maximize2, Minimize2, BarChart3, Users, LayoutTemplate } from "lucide-react";
 import { useOptometristPanel } from "@/hooks/useOptometristPanel";
 import { useOptometryData } from "@/hooks/useOptometryData";
 import { useOptometristPanelPreferences } from "@/hooks/useOptometristPanelPreferences";
@@ -23,7 +23,39 @@ import type { OptometristActionType } from "./dashboard/OptometristCollapsibleQu
 
 
 
+
 export function OptometristPanel() {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(async () => {
+    if (!containerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error("Error toggling fullscreen:", err);
+    }
+  }, []);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   // Use our custom hooks
   const {
     userId,
@@ -412,7 +444,7 @@ export function OptometristPanel() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden">
+    <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900">
       <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4">
         {/* Header */}
         <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
@@ -486,6 +518,73 @@ export function OptometristPanel() {
           >
             <RefreshCw className={`h-4 w-4 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
           </button>
+
+          {/* Settings Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
+              title="View Settings"
+            >
+              <Settings className={`h-4 w-4 transition-transform ${isSettingsOpen ? "rotate-90" : ""}`} />
+            </button>
+
+            {isSettingsOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsSettingsOpen(false)}
+                />
+                <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="mb-2 px-2 py-1.5 border-b border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-900">View Settings</h3>
+                  </div>
+
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        toggleFullscreen();
+                        setIsSettingsOpen(false);
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                        <span>Fullscreen</span>
+                      </div>
+                      <span className="text-xs text-slate-400">F11</span>
+                    </button>
+
+                    <button
+                      onClick={() => toggleStats()}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        <span>Statistics</span>
+                      </div>
+                      <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.statsVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
+                        <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.statsVisible ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => toggleQueue()}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span>Patient Queue</span>
+                      </div>
+                      <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.queueVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
+                        <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.queueVisible ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Error message */}

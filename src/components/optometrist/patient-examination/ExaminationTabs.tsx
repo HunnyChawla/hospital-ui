@@ -15,8 +15,6 @@ import {
   LayoutGrid,
   LayoutList,
   LayoutDashboard,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 import { VisionTab } from "./VisionTab";
@@ -142,50 +140,9 @@ export function ExaminationTabs({
   refreshCurrentSpecs,
 }: ExaminationTabsProps) {
   const { viewMode, setViewMode } = useExaminationViewPreference();
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle fullscreen change events
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
-
-  // Toggle fullscreen
-  const toggleFullscreen = useCallback(async () => {
-    if (!containerRef.current) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await containerRef.current.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.error("Error toggling fullscreen:", err);
-    }
-  }, []);
-
-  // Keyboard shortcut for fullscreen (Escape is handled by browser, F11 for toggle)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F11") {
-        e.preventDefault();
-        toggleFullscreen();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [toggleFullscreen]);
 
   // If compact view mode, render the compact view component
   if (viewMode === "compact") {
@@ -194,7 +151,7 @@ export function ExaminationTabs({
         ref={containerRef}
         className={clsx(
           "flex h-full min-h-0 flex-col",
-          isFullscreen && "bg-white"
+          "flex h-full min-h-0 flex-col"
         )}
       >
         {/* View Toggle Header */}
@@ -235,24 +192,6 @@ export function ExaminationTabs({
                 </button>
               </div>
 
-              {/* Fullscreen Toggle */}
-              <button
-                onClick={toggleFullscreen}
-                className={clsx(
-                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-sm",
-                  isFullscreen
-                    ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                )}
-                title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="h-3.5 w-3.5" />
-                ) : (
-                  <Maximize2 className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
-              </button>
             </div>
           </div>
         </div>
@@ -292,7 +231,7 @@ export function ExaminationTabs({
         ref={containerRef}
         className={clsx(
           "flex h-full min-h-0 flex-col",
-          isFullscreen && "bg-white"
+          "flex h-full min-h-0 flex-col"
         )}
       >
         {/* View Toggle Header */}
@@ -333,24 +272,6 @@ export function ExaminationTabs({
                 </button>
               </div>
 
-              {/* Fullscreen Toggle */}
-              <button
-                onClick={toggleFullscreen}
-                className={clsx(
-                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-sm",
-                  isFullscreen
-                    ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                )}
-                title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="h-3.5 w-3.5" />
-                ) : (
-                  <Maximize2 className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
-              </button>
             </div>
           </div>
         </div>
@@ -389,7 +310,7 @@ export function ExaminationTabs({
       ref={containerRef}
       className={clsx(
         "flex h-full min-h-0 flex-col",
-        isFullscreen && "bg-white"
+        "flex h-full min-h-0 flex-col"
       )}
     >
       {/* Tab Navigation */}
@@ -454,23 +375,6 @@ export function ExaminationTabs({
               </button>
             </div>
 
-            {/* Fullscreen Toggle */}
-            <button
-              onClick={toggleFullscreen}
-              className={clsx(
-                "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition-all shadow-sm",
-                isFullscreen
-                  ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              )}
-              title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="h-3.5 w-3.5" />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
-              )}
-            </button>
           </div>
         </div>
       </div>
@@ -576,6 +480,6 @@ export function ExaminationTabs({
           />
         )}
       </div>
-    </div>
+    </div >
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { OptometristCollapsibleStatsSection } from "./OptometristCollapsibleStatsSection";
 import { OptometristCollapsibleQueueSection, type OptometristActionType } from "./OptometristCollapsibleQueueSection";
 import { OptometristActivePatientCard } from "@/components/optometrist/dashboard/OptometristActivePatientCard";
@@ -83,19 +83,24 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   optometristId,
   doctorId,
 }) => {
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
+  const [isQueueExpanded, setIsQueueExpanded] = useState(true);
   const selectedPatient = queuePatients.find(p => p.patient_id === selectedPatientId);
   const isCompleted = selectedPatient?.status === "completed" || selectedPatient?.status === "consultation_completed";
 
   return (
     <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
       {/* Stats Section - Horizontal 4-column layout at top */}
-      <OptometristCollapsibleStatsSection
-        stats={stats}
-        loading={statsLoading}
-        isVisible={statsVisible}
-        onToggle={onToggleStats}
-        compact={false}
-      />
+      {/* Stats Section - Horizontal 4-column layout at top */}
+      {statsVisible && (
+        <OptometristCollapsibleStatsSection
+          stats={stats}
+          loading={statsLoading}
+          isVisible={isStatsExpanded}
+          onToggle={() => setIsStatsExpanded(!isStatsExpanded)}
+          compact={false}
+        />
+      )}
 
       {/* Main content area: Patient Area + Queue Sidebar */}
       <div className="flex gap-3 sm:gap-4 relative flex-1 min-h-0 overflow-hidden">
@@ -120,9 +125,9 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
         </div>
 
         {/* Queue Toggle Button (visible when sidebar is collapsed) */}
-        {!queueVisible && (
+        {queueVisible && !isQueueExpanded && (
           <button
-            onClick={onToggleQueue}
+            onClick={() => setIsQueueExpanded(true)}
             className="group flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-md transition-all hover:bg-sky-50 hover:border-sky-400 hover:text-sky-600 hover:scale-110 active:scale-95 z-20 relative animate-in fade-in slide-in-from-right-2 duration-300"
             title="Show patient queue"
           >
@@ -147,10 +152,10 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
 
         {/* Queue Sidebar - Right side with responsive width */}
         <div
-          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${queueVisible ? "w-64 sm:w-72 lg:w-80" : "w-0 overflow-hidden"
+          className={`sidebar-transition flex-shrink-0 h-full min-h-0 transition-all duration-300 ${queueVisible && isQueueExpanded ? "w-64 sm:w-72 lg:w-80" : "w-0 overflow-hidden"
             }`}
         >
-          {queueVisible && (
+          {queueVisible && isQueueExpanded && (
             <OptometristCollapsibleQueueSection
               queuePatients={queuePatients}
               activeFilter={queueFilter}
@@ -160,8 +165,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
               onAction={onAction}
               updatingVisitId={updatingVisitId}
               loading={queueLoading}
-              isVisible={queueVisible}
-              onToggle={onToggleQueue}
+              isVisible={true}
+              onToggle={() => setIsQueueExpanded(!isQueueExpanded)}
               isDoctor={isDoctor}
             />
           )}
