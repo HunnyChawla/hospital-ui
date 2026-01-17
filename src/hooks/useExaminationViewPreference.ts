@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 
-export type ExaminationViewMode = "tabs" | "single";
+export type ExaminationViewMode = "tabs" | "single" | "compact";
 
 export interface ExaminationViewPreferences {
   viewMode: ExaminationViewMode;

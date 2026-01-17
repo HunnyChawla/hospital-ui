@@ -410,6 +410,49 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
         }
       }
 
+      // Process text fields (other_conditions, current_medications, family_history, lifestyle_notes)
+      const textFields = ["other_conditions", "current_medications", "family_history", "lifestyle_notes"] as const;
+
+      for (const fieldName of textFields) {
+        const value = formData[fieldName];
+        const existingRecord = conditionRecordMap.get(fieldName);
+
+        if (value && value.trim()) {
+          // Has content - create or update
+          if (existingRecord) {
+            savePromises.push(
+              dispatch(updateMedicalCondition({
+                id: existingRecord.id,
+                data: {
+                  status: true,
+                  remarks: value.trim(),
+                },
+              })).unwrap()
+            );
+          } else {
+            savePromises.push(
+              dispatch(addMedicalCondition({
+                data: {
+                  patient_id: patientId,
+                  optometrist_id: optometristId,
+                  visit_id: visitId || null,
+                  condition_name: fieldName,
+                  status: true,
+                  remarks: value.trim(),
+                },
+              })).unwrap()
+            );
+          }
+        } else {
+          // Empty content - delete if exists
+          if (existingRecord) {
+            savePromises.push(
+              dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap()
+            );
+          }
+        }
+      }
+
       await Promise.all(savePromises);
 
       // Refresh data to get updated records

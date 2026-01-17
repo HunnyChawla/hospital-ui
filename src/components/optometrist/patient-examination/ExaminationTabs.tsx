@@ -14,6 +14,7 @@ import {
   EyeOff,
   LayoutGrid,
   LayoutList,
+  LayoutDashboard,
   Maximize2,
   Minimize2,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
 import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
 import { ExaminationSingleView } from "./ExaminationSingleView";
+import { ExaminationCompactView } from "./ExaminationCompactView";
 import type {
   ComplaintRecord,
   OphthalmicSurgeryRecord,
@@ -176,6 +178,104 @@ export function ExaminationTabs({
     };
   }, [toggleFullscreen]);
 
+  // If compact view mode, render the compact view component
+  if (viewMode === "compact") {
+    return (
+      <div
+        ref={containerRef}
+        className={clsx(
+          "flex h-full min-h-0 flex-col",
+          isFullscreen && "bg-white"
+        )}
+      >
+        {/* View Toggle Header */}
+        <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <LayoutDashboard className="h-4 w-4 text-sky-600" />
+              <span className="text-sm font-semibold text-slate-700">Compact View</span>
+              <span className="text-xs text-slate-500 hidden sm:inline">(Summary cards with modal editing)</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+                <button
+                  onClick={() => setViewMode("tabs")}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                  title="Tabs View"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Tabs</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("single")}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                  title="Single View"
+                >
+                  <LayoutList className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Single</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("compact")}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
+                  title="Compact View"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Compact</span>
+                </button>
+              </div>
+
+              {/* Fullscreen Toggle */}
+              <button
+                onClick={toggleFullscreen}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-sm",
+                  isFullscreen
+                    ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                )}
+                title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Compact View Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
+          <ExaminationCompactView
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            complaints={complaints}
+            ophthalmicHistory={ophthalmicHistory}
+            drugAllergies={drugAllergies}
+            arDataRecords={arDataRecords}
+            refractionRecords={refractionRecords}
+            iopRecords={iopRecords}
+            iopTrends={iopTrends}
+            visionRecords={visionRecords}
+            loading={loading}
+            refreshComplaints={refreshComplaints}
+            refreshOphthalmicHistory={refreshOphthalmicHistory}
+            refreshDrugAllergies={refreshDrugAllergies}
+            refreshARData={refreshARData}
+            refreshRefraction={refreshRefraction}
+            refreshIOP={refreshIOP}
+            refreshVision={refreshVision}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // If single view mode, render the single view component
   if (viewMode === "single") {
     return (
@@ -201,6 +301,7 @@ export function ExaminationTabs({
                 <button
                   onClick={() => setViewMode("tabs")}
                   className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                  title="Tabs View"
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Tabs</span>
@@ -208,9 +309,18 @@ export function ExaminationTabs({
                 <button
                   onClick={() => setViewMode("single")}
                   className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
+                  title="Single View"
                 >
                   <LayoutList className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Single</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("compact")}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                  title="Compact View"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Compact</span>
                 </button>
               </div>
 
@@ -319,13 +429,20 @@ export function ExaminationTabs({
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
               </button>
-            <button
-              onClick={() => setViewMode("single")}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-              title="Single View"
-            >
-              <LayoutList className="h-3.5 w-3.5" />
-            </button>
+              <button
+                onClick={() => setViewMode("single")}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                title="Single View"
+              >
+                <LayoutList className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode("compact")}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                title="Compact View"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+              </button>
             </div>
 
             {/* Fullscreen Toggle */}

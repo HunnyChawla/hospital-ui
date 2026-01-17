@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
 import {
   MessageSquare,
   FileHeart,
@@ -44,6 +46,7 @@ import type {
   RefractionRecord,
   IOPRecord,
   VisionRecord,
+  MedicalConditionRecord,
 } from "@/types";
 
 interface ExaminationSingleViewProps {
@@ -115,19 +118,51 @@ export function ExaminationSingleView({
   refreshIOP,
   refreshVision,
 }: ExaminationSingleViewProps) {
+  const dispatch = useAppDispatch();
   const { toggleSection, isSectionCollapsed } = useExaminationViewPreference();
+  const [medicalConditions, setMedicalConditions] = useState<MedicalConditionRecord[]>([]);
+
+  // Fetch medical conditions
+  useEffect(() => {
+    const fetchConditions = async () => {
+      try {
+        const result = await dispatch(fetchMedicalConditions({ patient_id: patientId })).unwrap();
+
+        let conditions: MedicalConditionRecord[] = [];
+        if (Array.isArray(result)) {
+          conditions = result;
+        } else if (result && typeof result === 'object') {
+          const resultObj = result as any;
+          if (Array.isArray(resultObj.data)) {
+            conditions = resultObj.data;
+          } else if (Array.isArray(resultObj.items)) {
+            conditions = resultObj.items;
+          }
+        }
+        setMedicalConditions(conditions);
+      } catch (error) {
+        console.error("Failed to fetch medical conditions:", error);
+      }
+    };
+
+    fetchConditions();
+
+    // Set up interval to periodically refresh medical conditions
+    const interval = setInterval(fetchConditions, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [patientId, dispatch]);
 
   // Calculate section statuses
   const sectionStatuses = useMemo(() => ({
     complaints: getComplaintsStatus(complaints),
     vision: getVisionStatus(visionRecords, visitId),
-    medical_history: getMedicalHistoryStatus([]), // Will be loaded by MedicalHistoryTab itself
+    medical_history: getMedicalHistoryStatus(medicalConditions),
     ophthalmic_history: getOphthalmicHistoryStatus(ophthalmicHistory),
     allergies: getDrugAllergyStatus(drugAllergies),
     ar_data: getARDataStatus(arDataRecords, visitId),
     refraction: getRefractionStatus(refractionRecords, visitId),
     iop: getIOPStatus(iopRecords, visitId),
-  }), [complaints, visionRecords, ophthalmicHistory, drugAllergies, arDataRecords, refractionRecords, iopRecords, visitId]);
+  }), [complaints, visionRecords, medicalConditions, ophthalmicHistory, drugAllergies, arDataRecords, refractionRecords, iopRecords, visitId]);
 
   // Calculate overall progress
   const completedCount = useMemo(() => {
@@ -192,13 +227,12 @@ export function ExaminationSingleView({
                     element.scrollIntoView({ behavior: "smooth", block: "start" });
                   }
                 }}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  isComplete
-                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                    : isPartial
-                      ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${isComplete
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                  : isPartial
+                    ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
               >
                 {isComplete ? (
                   <CheckCircle2 className="h-3 w-3" />
