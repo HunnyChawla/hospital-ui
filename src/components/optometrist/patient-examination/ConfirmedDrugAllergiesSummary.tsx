@@ -1,11 +1,12 @@
 "use client";
 
-import { ShieldCheck, AlertCircle, AlertTriangle, Trash2 } from "lucide-react";
+import { ShieldCheck, AlertCircle, AlertTriangle, Trash2, Pencil } from "lucide-react";
 import type { DrugAllergyRecord } from "@/types";
 import clsx from "clsx";
 
 interface ConfirmedDrugAllergiesSummaryProps {
   drugAllergies: DrugAllergyRecord[];
+  onEdit?: (id: string) => void;
   onDelete: (id: string) => void;
   onClearAll?: () => void;
   loading?: boolean;
@@ -26,6 +27,7 @@ const getSeverityColor = (severity: string) => {
 
 export function ConfirmedDrugAllergiesSummary({
   drugAllergies,
+  onEdit,
   onDelete,
   onClearAll,
   loading = false,
@@ -73,8 +75,8 @@ export function ConfirmedDrugAllergiesSummary({
                     allergy.severity === "severe"
                       ? "border-red-200 bg-red-50"
                       : allergy.severity === "moderate"
-                      ? "border-amber-200 bg-amber-50"
-                      : "border-slate-200 bg-white"
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-slate-200 bg-white"
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -107,13 +109,24 @@ export function ConfirmedDrugAllergiesSummary({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => onDelete(allergy.id)}
-                      className="ml-2 rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-red-600 transition shadow-sm border border-slate-200 hover:border-red-200"
-                      title="Delete allergy record"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {onEdit && (
+                        <button
+                          onClick={() => onEdit(allergy.id)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-sky-600 transition shadow-sm border border-slate-200 hover:border-sky-200"
+                          title="Edit allergy record"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDelete(allergy.id)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-red-600 transition shadow-sm border border-slate-200 hover:border-red-200"
+                        title="Delete allergy record"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

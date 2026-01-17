@@ -436,6 +436,47 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     }
   };
 
+  const handleEditCondition = (conditionKey: string) => {
+    // Open the form for editing this condition
+    setActiveCondition(conditionKey);
+  };
+
+  const handleDeleteCondition = async (conditionKey: string) => {
+    if (!confirm(`Are you sure you want to delete this condition?`)) return;
+
+    const record = conditionRecordMap.get(conditionKey);
+    if (!record) {
+      toast.error("Condition record not found");
+      return;
+    }
+
+    try {
+      await dispatch(deleteMedicalCondition({ id: record.id })).unwrap();
+
+      // Reset the form state for this condition
+      const detailsKey = getDetailsKeyForCondition(conditionKey);
+      if (detailsKey) {
+        setFormData((prev) => ({
+          ...prev,
+          [conditionKey]: false,
+          [detailsKey]: {},
+        }));
+      }
+
+      // Remove from the record map
+      const newMap = new Map(conditionRecordMap);
+      newMap.delete(conditionKey);
+      setConditionRecordMap(newMap);
+
+      toast.success("Condition deleted");
+    } catch (error) {
+      handleError(error, {
+        defaultMessage: "Failed to delete condition",
+        logError: true,
+      });
+    }
+  };
+
   const getActiveConditionsCount = () => {
     let count = 0;
     if (formData.diabetes) count++;
@@ -748,6 +789,8 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
           medicalHistory={null}
           formData={formData}
           onClear={handleClear}
+          onEdit={handleEditCondition}
+          onDelete={handleDeleteCondition}
           loading={isLoading}
         />
       </div>

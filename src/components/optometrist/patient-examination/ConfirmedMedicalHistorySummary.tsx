@@ -12,6 +12,7 @@ import {
   Clock,
   Check,
   X,
+  Pencil,
 } from "lucide-react";
 import clsx from "clsx";
 import type { MedicalHistoryRecord } from "@/types";
@@ -60,6 +61,8 @@ interface ConfirmedMedicalHistorySummaryProps {
   medicalHistory: MedicalHistoryRecord | null;
   formData: MedicalHistoryFormData;
   onClear: () => void;
+  onEdit?: (conditionKey: string) => void;
+  onDelete?: (conditionKey: string) => void;
   loading?: boolean;
 }
 
@@ -157,6 +160,8 @@ export function ConfirmedMedicalHistorySummary({
   medicalHistory,
   formData,
   onClear,
+  onEdit,
+  onDelete,
   loading = false,
 }: ConfirmedMedicalHistorySummaryProps) {
   const getActiveConditions = () => {
@@ -240,8 +245,32 @@ export function ConfirmedMedicalHistorySummary({
                   <div className="flex items-start gap-2">
                     <Icon className={clsx("h-4 w-4 mt-0.5", config.color)} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-slate-900">
-                        {config.label}
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold text-slate-900">
+                          {config.label}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {onEdit && (
+                            <button
+                              type="button"
+                              onClick={() => onEdit(key)}
+                              className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-sky-600 transition"
+                              title={`Edit ${config.label}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {onDelete && (
+                            <button
+                              type="button"
+                              onClick={() => onDelete(key)}
+                              className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-red-600 transition"
+                              title={`Delete ${config.label}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Details */}

@@ -250,16 +250,48 @@ export function VisionSummary({ record }: { record: any }) {
 export function ComplaintsSummary({ complaints }: { complaints: any[] }) {
     if (!complaints || complaints.length === 0) return null;
 
+    // Helper to extract eye abbreviation from complaint text
+    const getEyeAbbreviation = (complaintText: string | undefined | null): string | null => {
+        if (!complaintText) return null;
+        const match = complaintText.match(/\((RE|LE|BE|GE)\)/);
+        return match ? match[1] : null;
+    };
+
+    // Helper to get eye badge color
+    const getEyeBadgeColor = (eye: string) => {
+        const eyeUpper = eye.toUpperCase();
+        if (eyeUpper.includes("RE")) return "bg-blue-600 text-white";
+        if (eyeUpper.includes("LE")) return "bg-green-600 text-white";
+        if (eyeUpper.includes("BE")) return "bg-purple-600 text-white";
+        if (eyeUpper.includes("GE")) return "bg-slate-600 text-white";
+        return "bg-slate-600 text-white";
+    };
+
     return (
         <div className="flex flex-wrap gap-2">
-            {complaints.slice(0, 4).map((c, i) => (
-                <span
-                    key={i}
-                    className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 border border-sky-200"
-                >
-                    {c.complaint.replace(/\s*\((RE|LE|BE|GE)\)\s*$/, "")}
-                </span>
-            ))}
+            {complaints.slice(0, 4).map((c, i) => {
+                const eyeAbbr = getEyeAbbreviation(c.complaint);
+                const complaintTextOnly = c.complaint
+                    ? c.complaint.replace(/\s*\((RE|LE|BE|GE)\)\s*$/, "").trim()
+                    : "Unknown";
+
+                return (
+                    <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 border border-sky-200"
+                    >
+                        {complaintTextOnly}
+                        {eyeAbbr && (
+                            <span className={clsx(
+                                "inline-flex items-center justify-center rounded-full px-1.5 py-0 text-[10px] font-bold",
+                                getEyeBadgeColor(eyeAbbr)
+                            )}>
+                                {eyeAbbr}
+                            </span>
+                        )}
+                    </span>
+                );
+            })}
             {complaints.length > 4 && (
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                     +{complaints.length - 4} more
@@ -377,6 +409,14 @@ export function IOPSummary({ record }: { record: any }) {
 export function OphthalmicHistorySummary({ surgeries }: { surgeries: any[] }) {
     if (!surgeries || surgeries.length === 0) return null;
 
+    // Helper to format eye display
+    const formatEye = (eye: string) => {
+        if (eye === "OD") return "RE";
+        if (eye === "OS") return "LE";
+        if (eye === "OU") return "BE";
+        return eye;
+    };
+
     return (
         <div className="flex flex-wrap gap-2">
             {surgeries.slice(0, 3).map((s, i) => (
@@ -384,7 +424,7 @@ export function OphthalmicHistorySummary({ surgeries }: { surgeries: any[] }) {
                     key={i}
                     className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 border border-green-200"
                 >
-                    {s.surgery_type || s.surgeryType} ({s.eye})
+                    {s.surgery_name || s.surgery_type || s.surgeryType || "Unknown Surgery"} ({formatEye(s.eye)})
                 </span>
             ))}
             {surgeries.length > 3 && (
@@ -423,6 +463,34 @@ export function DrugAllergiesSummary({ allergies }: { allergies: any[] }) {
 export function MedicalHistorySummary({ conditions }: { conditions: any[] }) {
     if (!conditions || conditions.length === 0) return null;
 
+    // Mapping of condition names to display labels
+    const conditionLabels: Record<string, string> = {
+        diabetes: "Diabetes Mellitus",
+        hypertension: "Hypertension",
+        heart_disease: "Heart Disease",
+        thyroid_disorder: "Thyroid Disorder",
+        asthma: "Asthma",
+        tuberculosis: "Tuberculosis",
+        kidney_disease: "Kidney Disease",
+        liver_disease: "Liver Disease",
+        cancer: "Cancer",
+        hiv_aids: "HIV/AIDS",
+    };
+
+    // Helper to format condition name
+    const formatConditionName = (condition: any): string => {
+        const conditionName = condition.condition_name || condition.name || "";
+        // Check if we have a predefined label
+        if (conditionLabels[conditionName]) {
+            return conditionLabels[conditionName];
+        }
+        // Otherwise, format the name: replace underscores with spaces and capitalize each word
+        return conditionName
+            .split("_")
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(" ");
+    };
+
     return (
         <div className="flex flex-wrap gap-2">
             {conditions.slice(0, 4).map((c, i) => (
@@ -430,7 +498,7 @@ export function MedicalHistorySummary({ conditions }: { conditions: any[] }) {
                     key={i}
                     className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700 border border-purple-200"
                 >
-                    {c.condition_name || c.name}
+                    {formatConditionName(c)}
                 </span>
             ))}
             {conditions.length > 4 && (

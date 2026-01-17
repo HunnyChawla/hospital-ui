@@ -131,6 +131,36 @@ export function DrugAllergyTab({
     }
   };
 
+  const handleEdit = (allergyId: string) => {
+    // Find the allergy record by ID
+    const allergy = drugAllergies.find((a) => a.id === allergyId);
+    if (!allergy) {
+      toast.error("Allergy record not found");
+      return;
+    }
+
+    // Populate the form with the allergy data
+    setDrugSearch(allergy.drug_name);
+    setFormData((prev) => ({
+      ...prev,
+      drug_name: allergy.drug_name,
+      severity: allergy.severity as "mild" | "moderate" | "severe",
+      notes: allergy.notes || "",
+    }));
+
+    // Parse reactions and set them
+    const reactions = allergy.reaction.split(",").map((r) => r.trim());
+    const commonReactionsList = reactions.filter((r) => commonReactions.includes(r));
+    const customReaction = reactions.filter((r) => !commonReactions.includes(r)).join(", ");
+
+    setSelectedReactions(commonReactionsList);
+    setFormData((prev) => ({ ...prev, reaction: customReaction }));
+
+    // Delete the old record so user can save as new (update flow)
+    // Note: We don't delete here - let user manually save the updated record
+    toast.info("Edit the allergy details and click 'Add Allergy' to update");
+  };
+
   const handleClearAllAllergies = async () => {
     if (!confirm("Are you sure you want to delete all drug allergies? This action cannot be undone.")) return;
 
@@ -389,6 +419,7 @@ export function DrugAllergyTab({
         <ConfirmedDrugAllergiesSummary
           drugAllergies={drugAllergies}
           loading={loading}
+          onEdit={handleEdit}
           onDelete={handleDelete}
           onClearAll={handleClearAllAllergies}
         />
