@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { ChevronRight, Users, CheckCircle, Play, X, RotateCcw, AlertTriangle, Clock } from "lucide-react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
+import { ChevronRight, ChevronLeft, Users, CheckCircle, Play, X, RotateCcw, AlertTriangle, Clock } from "lucide-react";
 import { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
 import {
   filterOptometristQueuePatients,
@@ -40,6 +40,55 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   onToggle,
   isDoctor = false,
 }) => {
+  // Scroll functionality for tabs
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(false);
+
+  const checkScrollButtons = useCallback(() => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setShowLeftScroll(scrollLeft > 0);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScrollButtons();
+    const container = tabsContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScrollButtons);
+      window.addEventListener("resize", checkScrollButtons);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", checkScrollButtons);
+      }
+      window.removeEventListener("resize", checkScrollButtons);
+    };
+  }, [checkScrollButtons]);
+
+  // Re-check scroll buttons when filters change or visibility changes
+  useEffect(() => {
+    if (isVisible) {
+      // Small timeout to allow render
+      const timer = setTimeout(checkScrollButtons, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, queuePatients, activeFilter, isDoctor, checkScrollButtons]);
+
+  const scrollTabs = (direction: "left" | "right") => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const scrollAmount = 150;
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
   // Format date and time for display
   const formatDateTime = (dateString: string) => {
     try {
@@ -138,7 +187,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
         title={isVisible ? "Collapse queue" : "Expand queue"}
       >
         <div className="flex items-center gap-2.5">
-          <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30 transition-transform group-hover:scale-110">
+          <div className="rounded-lg bg-gradient-to-br from-sky-50 to-blue-600 p-1.5 shadow-md shadow-sky-500/30 transition-transform group-hover:scale-110">
             <Users className="h-4 w-4 text-white" />
           </div>
           <span className="text-sm font-bold text-slate-800">Patient Queue</span>
@@ -156,21 +205,46 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       {isVisible && (
         <div className="border-t border-slate-200/60 flex flex-col flex-1 min-h-0">
           {/* Filter Tabs */}
-          <div className="flex border-b border-slate-200/60 flex-shrink-0 bg-slate-50/50 overflow-x-auto scrollbar-hide">
-            {filters.map((filter) => (
+          <div className="relative border-b border-slate-200/60 flex-shrink-0 bg-slate-50/50">
+            {/* Left Scroll Button */}
+            {showLeftScroll && (
               <button
-                key={filter.key}
-                onClick={() => onFilterChange(filter.key)}
-                className={`flex-shrink-0 px-4 py-2.5 text-xs font-semibold transition-all border-b-2 whitespace-nowrap ${activeFilter === filter.key
-                  ? "text-sky-700 border-sky-600 bg-gradient-to-b from-sky-50 to-white shadow-sm"
-                  : "text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/50"
-                  }`}
+                onClick={() => scrollTabs("left")}
+                className="absolute left-0 top-0 bottom-0 z-10 flex w-8 items-center justify-center bg-gradient-to-r from-white via-white/80 to-transparent backdrop-blur-[2px] hover:text-sky-600 transition-colors"
               >
-                {filter.label}
-                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${activeFilter === filter.key ? "bg-sky-200/50" : "bg-slate-200/50"
-                  }`}>({filter.count})</span>
+                <ChevronLeft className="h-4 w-4 text-slate-600" />
               </button>
-            ))}
+            )}
+
+            {/* Right Scroll Button */}
+            {showRightScroll && (
+              <button
+                onClick={() => scrollTabs("right")}
+                className="absolute right-0 top-0 bottom-0 z-10 flex w-8 items-center justify-center bg-gradient-to-l from-white via-white/80 to-transparent backdrop-blur-[2px] hover:text-sky-600 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4 text-slate-600" />
+              </button>
+            )}
+
+            <div
+              ref={tabsContainerRef}
+              className="flex overflow-x-auto scrollbar-hide px-1"
+            >
+              {filters.map((filter) => (
+                <button
+                  key={filter.key}
+                  onClick={() => onFilterChange(filter.key)}
+                  className={`flex-shrink-0 px-4 py-2.5 text-xs font-semibold transition-all border-b-2 whitespace-nowrap ${activeFilter === filter.key
+                    ? "text-sky-700 border-sky-600 bg-gradient-to-b from-sky-50 to-white shadow-sm"
+                    : "text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/50"
+                    }`}
+                >
+                  {filter.label}
+                  <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${activeFilter === filter.key ? "bg-sky-200/50" : "bg-slate-200/50"
+                    }`}>({filter.count})</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Patient List */}
@@ -281,7 +355,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 ) : (
                                   <>
                                     <Users className="h-3.5 w-3.5" />
-                                    Pick
+                                    Call Patient
                                   </>
                                 )}
                               </button>
@@ -337,7 +411,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                   ) : (
                                     <>
                                       <X className="h-3.5 w-3.5" />
-                                      Unpick
+                                      Return to Queue
                                     </>
                                   )}
                                 </button>
