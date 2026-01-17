@@ -14,7 +14,7 @@ interface CompactDataSummaryProps {
     statusText?: string;
     summary?: ReactNode;
     onEdit: () => void;
-    colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green";
+    colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green" | "violet";
 }
 
 const colorSchemes = {
@@ -94,6 +94,17 @@ const colorSchemes = {
         buttonBg: "bg-rose-50 hover:bg-rose-100",
         buttonBorder: "border-rose-200 hover:border-rose-300",
         buttonText: "text-rose-600",
+    },
+    violet: {
+        bg: "bg-violet-50/50",
+        border: "border-violet-200/80",
+        borderHover: "hover:border-violet-300",
+        icon: "text-violet-500",
+        iconBg: "bg-violet-50",
+        title: "text-slate-700",
+        buttonBg: "bg-violet-50 hover:bg-violet-100",
+        buttonBorder: "border-violet-200 hover:border-violet-300",
+        buttonText: "text-violet-600",
     },
 };
 
@@ -427,6 +438,40 @@ export function MedicalHistorySummary({ conditions }: { conditions: any[] }) {
                     +{conditions.length - 4} more
                 </span>
             )}
+        </div>
+    );
+}
+
+// Current Specs Summary
+export function CurrentSpecsSummary({ record }: { record: any }) {
+    if (!record) return null;
+
+    const formatValue = (v: number | string | null | undefined) => {
+        if (v == null) return "—";
+        const num = typeof v === "number" ? v : parseFloat(v);
+        return isNaN(num) ? "—" : num.toFixed(2);
+    };
+
+    return (
+        <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="flex items-center gap-3">
+                <div className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                <div>
+                    <span className="font-medium text-blue-900">OD:</span>
+                    <span className="ml-2 text-slate-600">
+                        Sph {formatValue(record.od_sph)} / Cyl {formatValue(record.od_cyl)}
+                    </span>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                <div className="h-2.5 w-2.5 rounded-full bg-green-500 flex-shrink-0" />
+                <div>
+                    <span className="font-medium text-green-900">OS:</span>
+                    <span className="ml-2 text-slate-600">
+                        Sph {formatValue(record.os_sph)} / Cyl {formatValue(record.os_cyl)}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 }

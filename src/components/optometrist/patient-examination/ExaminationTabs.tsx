@@ -27,6 +27,7 @@ import { DrugAllergyTab } from "./DrugAllergyTab";
 import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
+import { CurrentSpecsTab } from "./CurrentSpecsTab";
 import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
 import { ExaminationSingleView } from "./ExaminationSingleView";
 import { ExaminationCompactView } from "./ExaminationCompactView";
@@ -40,11 +41,13 @@ import type {
   IOPTrend,
   PatientOptometryTimeline,
   VisionRecord,
+  CurrentSpecsRecord,
 } from "@/types";
 
 type ActiveTab =
   | "complaints"
   | "vision"
+  | "current_specs"
   | "medical_history"
   | "ophthalmic_history"
   | "allergies"
@@ -69,6 +72,7 @@ interface ExaminationTabsProps {
   iopRecords: IOPRecord[];
   iopTrends: IOPTrend[] | any; // TODO: Fix type - should be IOPTrendSummary
   visionRecords: VisionRecord[];
+  currentSpecsRecords: CurrentSpecsRecord[];
   patientOptometryHistory: PatientOptometryTimeline | null;
   historyLoading?: boolean;
   refreshHistory?: () => void;
@@ -82,6 +86,7 @@ interface ExaminationTabsProps {
     ophthalmicHistory: boolean;
     drugAllergies: boolean;
     vision: boolean;
+    currentSpecs: boolean;
   };
 
   // Refresh functions
@@ -92,11 +97,13 @@ interface ExaminationTabsProps {
   refreshRefraction: () => void;
   refreshIOP: () => void;
   refreshVision: () => void;
+  refreshCurrentSpecs: () => void;
 }
 
 const tabs = [
   { id: "complaints", label: "Complaints", icon: MessageSquare },
   { id: "vision", label: "Vision", icon: EyeOff },
+  { id: "current_specs", label: "Current Specs", icon: Glasses },
   { id: "medical_history", label: "Medical History", icon: FileHeart },
   { id: "ophthalmic_history", label: "Eye Surgery History", icon: Eye },
   { id: "allergies", label: "Drug Allergies", icon: AlertTriangle },
@@ -120,6 +127,7 @@ export function ExaminationTabs({
   iopRecords,
   iopTrends,
   visionRecords,
+  currentSpecsRecords,
   patientOptometryHistory,
   historyLoading,
   refreshHistory,
@@ -131,6 +139,7 @@ export function ExaminationTabs({
   refreshRefraction,
   refreshIOP,
   refreshVision,
+  refreshCurrentSpecs,
 }: ExaminationTabsProps) {
   const { viewMode, setViewMode } = useExaminationViewPreference();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -487,6 +496,17 @@ export function ExaminationTabs({
             visionRecords={visionRecords}
             loading={loading.vision}
             onRefresh={refreshVision}
+          />
+        )}
+
+        {activeTab === "current_specs" && (
+          <CurrentSpecsTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            currentSpecsRecords={currentSpecsRecords}
+            loading={loading.currentSpecs}
+            onRefresh={refreshCurrentSpecs}
           />
         )}
 

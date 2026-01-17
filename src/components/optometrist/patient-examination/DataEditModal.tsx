@@ -5,13 +5,15 @@ import { X } from "lucide-react";
 import clsx from "clsx";
 import { createPortal } from "react-dom";
 
+
+
 export interface DataEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
     icon?: ReactNode;
     children: ReactNode;
-    colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green";
+    colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green" | "violet";
     size?: "md" | "lg" | "xl" | "full";
 }
 
@@ -71,6 +73,14 @@ const colorSchemes = {
         border: "border-rose-200",
         shadow: "shadow-rose-200/40",
         closeBtn: "bg-rose-100 hover:bg-rose-200 text-rose-600",
+    },
+    violet: {
+        header: "from-violet-50 to-violet-100/80",
+        headerText: "text-violet-700",
+        iconBg: "bg-violet-100",
+        border: "border-violet-200",
+        shadow: "shadow-violet-200/40",
+        closeBtn: "bg-violet-100 hover:bg-violet-200 text-violet-600",
     },
 };
 

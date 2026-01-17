@@ -8,6 +8,7 @@ import { ophthalmicHistoryApi, CreateOphthalmicSurgeryRequest } from "@/services
 import { drugAllergyApi, CreateDrugAllergyRequest } from "@/services/drugAllergyApi";
 import { optometryMedicalConditionsApi, CreateMedicalConditionRequest, UpdateMedicalConditionRequest } from "@/services/optometryMedicalConditionsApi";
 import { visionApi, CreateVisionRequest } from "@/services/visionApi";
+import { currentSpecsApi, CreateCurrentSpecsRequest, UpdateCurrentSpecsRequest } from "@/services/currentSpecsApi";
 import type {
   RefractionRecord,
   IOPRecord,
@@ -20,6 +21,7 @@ import type {
 
   DrugAllergyRecord,
   VisionRecord,
+  CurrentSpecsRecord,
 } from "@/types";
 
 type OptometryDataState = {
@@ -42,6 +44,8 @@ type OptometryDataState = {
   drugAllergies: DrugAllergyRecord[];
   // Vision Records
   visionRecords: VisionRecord[];
+  // Current Specs
+  currentSpecsRecords: CurrentSpecsRecord[];
   // Loading states
   loading: {
     refraction: boolean;
@@ -54,6 +58,7 @@ type OptometryDataState = {
 
     drugAllergies: boolean;
     vision: boolean;
+    currentSpecs: boolean;
   };
   error: string | null;
 };
@@ -69,6 +74,7 @@ const initialState: OptometryDataState = {
   ophthalmicHistory: [],
   drugAllergies: [],
   visionRecords: [],
+  currentSpecsRecords: [],
   loading: {
     refraction: false,
     iop: false,
@@ -79,6 +85,7 @@ const initialState: OptometryDataState = {
     ophthalmicHistory: false,
     drugAllergies: false,
     vision: false,
+    currentSpecs: false,
   },
   error: null,
 };
@@ -490,6 +497,50 @@ export const addVisionRecord = createAsyncThunk(
 );
 
 // ============================================
+// CURRENT SPECS THUNKS
+// ============================================
+
+export const fetchCurrentSpecs = createAsyncThunk(
+  "optometryData/fetchCurrentSpecs",
+  async (params: { patient_id: string; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const response = await currentSpecsApi.getByPatient(params.patient_id, {
+        page: 1,
+        page_size: 100,
+        tenant_id: params.tenant_id,
+      });
+      return response.items;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const addCurrentSpecs = createAsyncThunk(
+  "optometryData/addCurrentSpecs",
+  async (params: { data: CreateCurrentSpecsRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await currentSpecsApi.create(params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const updateCurrentSpecs = createAsyncThunk(
+  "optometryData/updateCurrentSpecs",
+  async (params: { id: string; data: UpdateCurrentSpecsRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await currentSpecsApi.update(params.id, params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// ============================================
 // SLICE
 // ============================================
 
@@ -508,6 +559,7 @@ const optometryDataSlice = createSlice({
 
       state.drugAllergies = [];
       state.visionRecords = [];
+      state.currentSpecsRecords = [];
       state.error = null;
     },
   },
@@ -713,6 +765,27 @@ const optometryDataSlice = createSlice({
       })
       .addCase(addVisionRecord.fulfilled, (state, action) => {
         state.visionRecords.unshift(action.payload);
+      })
+      // Current Specs
+      .addCase(fetchCurrentSpecs.pending, (state) => {
+        state.loading.currentSpecs = true;
+      })
+      .addCase(fetchCurrentSpecs.fulfilled, (state, action) => {
+        state.loading.currentSpecs = false;
+        state.currentSpecsRecords = action.payload;
+      })
+      .addCase(fetchCurrentSpecs.rejected, (state, action) => {
+        state.loading.currentSpecs = false;
+        state.error = action.payload as string;
+      })
+      .addCase(addCurrentSpecs.fulfilled, (state, action) => {
+        state.currentSpecsRecords.unshift(action.payload);
+      })
+      .addCase(updateCurrentSpecs.fulfilled, (state, action) => {
+        const idx = state.currentSpecsRecords.findIndex((r) => r.id === action.payload.id);
+        if (idx >= 0) {
+          state.currentSpecsRecords[idx] = action.payload;
+        }
       });
   },
 });

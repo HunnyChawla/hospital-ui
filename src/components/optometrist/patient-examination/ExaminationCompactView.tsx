@@ -26,6 +26,7 @@ import {
     OphthalmicHistorySummary,
     DrugAllergiesSummary,
     MedicalHistorySummary,
+    CurrentSpecsSummary,
     type SummaryStatus,
 } from "./CompactDataSummary";
 import { DataEditModal } from "./DataEditModal";
@@ -33,6 +34,7 @@ import { DataEditModal } from "./DataEditModal";
 // Import tab components
 import { ComplaintsTab } from "./ComplaintsTab";
 import { VisionTab } from "./VisionTab";
+import { CurrentSpecsTab } from "./CurrentSpecsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
 import { DrugAllergyTab } from "./DrugAllergyTab";
@@ -49,6 +51,7 @@ import {
     getARDataStatus,
     getRefractionStatus,
     getIOPStatus,
+    getCurrentSpecsStatus,
 } from "./SingleViewSection";
 
 import type {
@@ -60,6 +63,7 @@ import type {
     IOPRecord,
     VisionRecord,
     MedicalConditionRecord,
+    CurrentSpecsRecord,
 } from "@/types";
 
 type SectionId =
@@ -70,7 +74,8 @@ type SectionId =
     | "allergies"
     | "ar_data"
     | "refraction"
-    | "iop";
+    | "iop"
+    | "current_specs";
 
 interface ExaminationCompactViewProps {
     patientId: string;
@@ -86,6 +91,7 @@ interface ExaminationCompactViewProps {
     iopRecords: IOPRecord[];
     iopTrends: any;
     visionRecords: VisionRecord[];
+    currentSpecsRecords?: CurrentSpecsRecord[]; // Added
 
     // Loading states
     loading: {
@@ -96,6 +102,7 @@ interface ExaminationCompactViewProps {
         ophthalmicHistory: boolean;
         drugAllergies: boolean;
         vision: boolean;
+        currentSpecs?: boolean;
     };
 
     // Refresh functions
@@ -106,13 +113,14 @@ interface ExaminationCompactViewProps {
     refreshRefraction: () => void;
     refreshIOP: () => void;
     refreshVision: () => void;
+    refreshCurrentSpecs?: () => void;
 }
 
 interface SectionConfig {
     id: SectionId;
     title: string;
     icon: React.ComponentType<{ className?: string }>;
-    colorScheme: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green";
+    colorScheme: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green" | "violet";
     modalSize: "md" | "lg" | "xl" | "full";
 }
 
@@ -124,6 +132,7 @@ const sections: SectionConfig[] = [
     { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose", modalSize: "lg" },
     { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber", modalSize: "xl" },
     { id: "refraction", title: "Refraction", icon: Glasses, colorScheme: "sky", modalSize: "xl" },
+    { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet", modalSize: "lg" },
     { id: "iop", title: "Intraocular Pressure (IOP)", icon: Activity, colorScheme: "emerald", modalSize: "lg" },
 ];
 
@@ -139,6 +148,7 @@ export function ExaminationCompactView({
     iopRecords,
     iopTrends,
     visionRecords,
+    currentSpecsRecords,
     loading,
     refreshComplaints,
     refreshOphthalmicHistory,
@@ -147,6 +157,7 @@ export function ExaminationCompactView({
     refreshRefraction,
     refreshIOP,
     refreshVision,
+    refreshCurrentSpecs,
 }: ExaminationCompactViewProps) {
     const dispatch = useAppDispatch();
     const [activeModal, setActiveModal] = useState<SectionId | null>(null);
@@ -234,6 +245,7 @@ export function ExaminationCompactView({
             ar_data: getARDataStatus(arDataRecords, visitId) as SummaryStatus,
             refraction: getRefractionStatus(refractionRecords, visitId) as SummaryStatus,
             iop: getIOPStatus(iopRecords, visitId) as SummaryStatus,
+            current_specs: getCurrentSpecsStatus(currentSpecsRecords || [], visitId) as SummaryStatus,
         }),
         [
             complaints,
@@ -244,6 +256,7 @@ export function ExaminationCompactView({
             arDataRecords,
             refractionRecords,
             iopRecords,
+            currentSpecsRecords,
             visitId,
         ]
     );
@@ -295,6 +308,8 @@ export function ExaminationCompactView({
                 return <RefractionSummary record={currentRefractionRecord} />;
             case "iop":
                 return <IOPSummary record={currentIOPRecord} />;
+            case "current_specs":
+                return <CurrentSpecsSummary record={currentSpecsRecords?.find(r => r.visit_id === visitId)} />;
             default:
                 return null;
         }
@@ -376,6 +391,17 @@ export function ExaminationCompactView({
                         iopTrends={iopTrends}
                         loading={loading.iop}
                         onRefresh={refreshIOP}
+                    />
+                );
+            case "current_specs":
+                return (
+                    <CurrentSpecsTab
+                        patientId={patientId}
+                        visitId={visitId}
+                        optometristId={optometristId}
+                        currentSpecsRecords={currentSpecsRecords || []}
+                        loading={loading.currentSpecs || false}
+                        onRefresh={refreshCurrentSpecs || (() => { })}
                     />
                 );
             default:

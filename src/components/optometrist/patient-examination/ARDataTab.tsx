@@ -45,11 +45,11 @@ const initialFormData: ARDataFormData = {
   notes: "",
 };
 
-// Preset values
-const SPHERE_PRESETS = [-6, -3, -1, 0, 1, 2, 3];
-const CYLINDER_PRESETS = [0, -0.25, -0.5, -0.75, -1, -1.5, -2];
-const AXIS_PRESETS = [0, 45, 90, 135, 180];
-const PD_PRESETS = [58, 60, 62, 64, 66, 68];
+// Preset values - expanded for frequently used values
+const SPHERE_PRESETS = [-8, -6, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 6];
+const CYLINDER_PRESETS = [0, -0.25, -0.5, -0.75, -1, -1.25, -1.5, -1.75, -2, -2.5, -3];
+const AXIS_PRESETS = [0, 10, 20, 30, 45, 60, 70, 80, 90, 100, 110, 120, 135, 150, 160, 170, 180];
+const PD_PRESETS = [54, 56, 58, 60, 61, 62, 63, 64, 65, 66, 68, 70];
 
 export function ARDataTab({
   patientId,

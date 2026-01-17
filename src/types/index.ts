@@ -647,3 +647,44 @@ export interface CreateVisionRequest {
 
 export interface VisionResponse extends VisionRecord { }
 
+// ============================================
+// CURRENT SPECS TYPES
+// ============================================
+
+export type LensType = "SINGLE" | "BIFOCAL" | "PROGRESSIVE";
+export type SpecsUsage = "DISTANCE" | "NEAR" | "BOTH";
+export type MeasuredBy = "LENSOMETER" | "PATIENT_REPORTED" | "PRESCRIPTION";
+
+export interface CurrentSpecsRecord {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  optometrist_id: string;
+  visit_id: string;
+
+  // Right Eye (OD)
+  od_sph?: string | null;
+  od_cyl?: string | null;
+  od_axis?: number | null;
+  od_add?: string | null;
+
+  // Left Eye (OS)
+  os_sph?: string | null;
+  os_cyl?: string | null;
+  os_axis?: number | null;
+  os_add?: string | null;
+
+  // Additional fields
+  lens_type?: LensType | null;
+  usage?: SpecsUsage | null;
+  measured_by?: MeasuredBy | null;
+  is_comfortable?: boolean | null;
+  remarks?: string | null;
+
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+

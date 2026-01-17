@@ -26,11 +26,13 @@ import {
   getARDataStatus,
   getRefractionStatus,
   getIOPStatus,
+  getCurrentSpecsStatus,
 } from "./SingleViewSection";
 
 // Import tab components
 import { ComplaintsTab } from "./ComplaintsTab";
 import { VisionTab } from "./VisionTab";
+import { CurrentSpecsTab } from "./CurrentSpecsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
 import { DrugAllergyTab } from "./DrugAllergyTab";
@@ -47,6 +49,7 @@ import type {
   IOPRecord,
   VisionRecord,
   MedicalConditionRecord,
+  CurrentSpecsRecord,
 } from "@/types";
 
 interface ExaminationSingleViewProps {
@@ -63,6 +66,7 @@ interface ExaminationSingleViewProps {
   iopRecords: IOPRecord[];
   iopTrends: any;
   visionRecords: VisionRecord[];
+  currentSpecsRecords?: CurrentSpecsRecord[];
 
   // Loading states
   loading: {
@@ -73,6 +77,7 @@ interface ExaminationSingleViewProps {
     ophthalmicHistory: boolean;
     drugAllergies: boolean;
     vision: boolean;
+    currentSpecs?: boolean;
   };
 
   // Refresh functions
@@ -83,12 +88,14 @@ interface ExaminationSingleViewProps {
   refreshRefraction: () => void;
   refreshIOP: () => void;
   refreshVision: () => void;
+  refreshCurrentSpecs?: () => void;
 }
 
 // Define the sections for the single view
 const sections = [
   { id: "complaints", title: "Complaints", icon: MessageSquare, colorScheme: "sky" as const },
   { id: "vision", title: "Vision / Visual Acuity", icon: EyeOff, colorScheme: "blue" as const },
+  { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet" as const },
   { id: "medical_history", title: "Medical History", icon: FileHeart, colorScheme: "purple" as const },
   { id: "ophthalmic_history", title: "Eye Surgery History", icon: Eye, colorScheme: "green" as const },
   { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose" as const },
@@ -109,6 +116,7 @@ export function ExaminationSingleView({
   iopRecords,
   iopTrends,
   visionRecords,
+  currentSpecsRecords = [],
   loading,
   refreshComplaints,
   refreshOphthalmicHistory,
@@ -117,6 +125,7 @@ export function ExaminationSingleView({
   refreshRefraction,
   refreshIOP,
   refreshVision,
+  refreshCurrentSpecs,
 }: ExaminationSingleViewProps) {
   const dispatch = useAppDispatch();
   const { toggleSection, isSectionCollapsed } = useExaminationViewPreference();
@@ -156,13 +165,14 @@ export function ExaminationSingleView({
   const sectionStatuses = useMemo(() => ({
     complaints: getComplaintsStatus(complaints),
     vision: getVisionStatus(visionRecords, visitId),
+    current_specs: getCurrentSpecsStatus(currentSpecsRecords, visitId),
     medical_history: getMedicalHistoryStatus(medicalConditions),
     ophthalmic_history: getOphthalmicHistoryStatus(ophthalmicHistory),
     allergies: getDrugAllergyStatus(drugAllergies),
     ar_data: getARDataStatus(arDataRecords, visitId),
     refraction: getRefractionStatus(refractionRecords, visitId),
     iop: getIOPStatus(iopRecords, visitId),
-  }), [complaints, visionRecords, medicalConditions, ophthalmicHistory, drugAllergies, arDataRecords, refractionRecords, iopRecords, visitId]);
+  }), [complaints, visionRecords, currentSpecsRecords, medicalConditions, ophthalmicHistory, drugAllergies, arDataRecords, refractionRecords, iopRecords, visitId]);
 
   // Calculate overall progress
   const completedCount = useMemo(() => {
@@ -286,6 +296,26 @@ export function ExaminationSingleView({
             visionRecords={visionRecords}
             loading={loading.vision}
             onRefresh={refreshVision}
+          />
+        </SingleViewSection>
+
+        {/* Current Specs Section */}
+        <SingleViewSection
+          id="current_specs"
+          title="Current Specs"
+          icon={<Glasses className="h-5 w-5" />}
+          status={sectionStatuses.current_specs}
+          isExpanded={!isSectionCollapsed("current_specs")}
+          onToggle={() => toggleSection("current_specs")}
+          colorScheme="violet"
+        >
+          <CurrentSpecsTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            currentSpecsRecords={currentSpecsRecords}
+            loading={loading.currentSpecs || false}
+            onRefresh={refreshCurrentSpecs || (() => { })}
           />
         </SingleViewSection>
 

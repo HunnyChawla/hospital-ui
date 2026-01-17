@@ -15,7 +15,7 @@ interface SingleViewSectionProps {
   isExpanded: boolean;
   onToggle: () => void;
   children: ReactNode;
-  colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green";
+  colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green" | "violet";
 }
 
 const colorSchemes = {
@@ -60,6 +60,12 @@ const colorSchemes = {
     border: "border-rose-200",
     icon: "text-rose-600",
     title: "text-rose-900",
+  },
+  violet: {
+    header: "from-violet-50 to-violet-100/50",
+    border: "border-violet-200",
+    icon: "text-violet-600",
+    title: "text-violet-900",
   },
 };
 
@@ -227,6 +233,17 @@ export function getIOPStatus(iopRecords: any[], visitId: string): SectionStatus 
   const hasVisitData = iopRecords.some(
     (r) => r.visit_id === visitId && (r.od_pressure != null || r.os_pressure != null)
   );
+  if (!hasVisitData) return "empty";
+  return "complete";
+}
+
+export function getCurrentSpecsStatus(currentSpecsRecords: any[], visitId: string): SectionStatus {
+  const hasVisitData = currentSpecsRecords.some((r) => {
+    if (r.visit_id !== visitId) return false;
+    const hasOD = r.od_sph != null || r.od_cyl != null;
+    const hasOS = r.os_sph != null || r.os_cyl != null;
+    return hasOD || hasOS;
+  });
   if (!hasVisitData) return "empty";
   return "complete";
 }

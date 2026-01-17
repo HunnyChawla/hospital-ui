@@ -11,6 +11,7 @@ import {
   fetchDrugAllergies,
   fetchMedicalConditions,
   fetchVisionData,
+  fetchCurrentSpecs,
 } from "@/redux/optometryDataSlice";
 import {
   fetchPatientOptometryHistory,
@@ -43,6 +44,7 @@ export const useOptometryData = ({
     ophthalmicHistory,
     drugAllergies,
     visionRecords,
+    currentSpecsRecords,
     loading,
     error,
   } = useAppSelector((state) => state.optometryData);
@@ -114,6 +116,13 @@ export const useOptometryData = ({
       // Fetch vision data
       dispatch(
         fetchVisionData({
+          patient_id: patientId,
+        })
+      );
+
+      // Fetch current specs
+      dispatch(
+        fetchCurrentSpecs({
           patient_id: patientId,
         })
       );
@@ -242,6 +251,16 @@ export const useOptometryData = ({
     }
   }, [patientId, dispatch]);
 
+  const refreshCurrentSpecs = useCallback(() => {
+    if (patientId) {
+      dispatch(
+        fetchCurrentSpecs({
+          patient_id: patientId,
+        })
+      );
+    }
+  }, [patientId, dispatch]);
+
   return {
     // Data
     refractionRecords,
@@ -253,6 +272,7 @@ export const useOptometryData = ({
     ophthalmicHistory,
     drugAllergies,
     visionRecords,
+    currentSpecsRecords,
     patientOptometryHistory,
 
     // Loading states
@@ -271,5 +291,6 @@ export const useOptometryData = ({
     refreshOphthalmicHistory,
     refreshDrugAllergies,
     refreshVision,
+    refreshCurrentSpecs,
   };
 };

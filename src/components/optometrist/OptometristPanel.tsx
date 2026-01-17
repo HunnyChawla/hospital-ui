@@ -123,6 +123,7 @@ export function OptometristPanel() {
     ophthalmicHistory,
     drugAllergies,
     visionRecords,
+    currentSpecsRecords,
     patientOptometryHistory,
     loading: dataLoading,
     refreshHistory,
@@ -133,6 +134,7 @@ export function OptometristPanel() {
     refreshOphthalmicHistory,
     refreshDrugAllergies,
     refreshVision,
+    refreshCurrentSpecs,
   } = useOptometryData({
     patientId: selectedPatientId,
     visitId: currentVisitId || null,
@@ -546,6 +548,7 @@ export function OptometristPanel() {
                 iopRecords={iopRecords}
                 iopTrends={iopTrends}
                 visionRecords={visionRecords}
+                currentSpecsRecords={currentSpecsRecords}
                 patientOptometryHistory={patientOptometryHistory}
                 historyLoading={historyLoading}
                 refreshHistory={refreshHistory}
@@ -557,6 +560,7 @@ export function OptometristPanel() {
                 refreshRefraction={refreshRefraction}
                 refreshIOP={refreshIOP}
                 refreshVision={refreshVision}
+                refreshCurrentSpecs={refreshCurrentSpecs}
               />
             )}
           </OptometristPanelVerticalLayout>
