@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { VisitSummary } from "./VisitSummary";
 import { prescriptionDataApi } from "@/services/prescriptionDataApi";
+import { currentSpecsApi } from "@/services/currentSpecsApi";
 import { handleError } from "@/utils/errorHandler";
 
 interface ShowSummaryButtonProps {
@@ -33,8 +34,15 @@ export function ShowSummaryButton({
 
     setIsLoading(true);
     try {
-      const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
-      setSummaryData(data);
+      const [data, currentSpecsRes] = await Promise.all([
+        prescriptionDataApi.getPrescriptionData(patientId, visitId),
+        visitId ? currentSpecsApi.list({ visit_id: visitId }) : Promise.resolve({ items: [] })
+      ]);
+
+      setSummaryData({
+        ...data,
+        current_specs: currentSpecsRes.items || []
+      });
       setShowSummary(true);
     } catch (error: any) {
       handleError(error, {

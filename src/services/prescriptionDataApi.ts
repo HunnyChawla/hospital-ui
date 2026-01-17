@@ -150,6 +150,23 @@ export interface PrescriptionDataResponse {
     created_by: string;
     updated_by: string | null;
   }>;
+  current_specs?: Array<{
+    id: string;
+    od_sph?: string | null;
+    od_cyl?: string | null;
+    od_axis?: number | null;
+    od_add?: string | null;
+    os_sph?: string | null;
+    os_cyl?: string | null;
+    os_axis?: number | null;
+    os_add?: string | null;
+    lens_type?: string | null;
+    usage?: string | null;
+    measured_by?: string | null;
+    is_comfortable?: boolean | null;
+    remarks?: string | null;
+    created_at?: string;
+  }>;
 }
 
 export const prescriptionDataApi = {

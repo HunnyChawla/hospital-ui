@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Eye, Calendar, User, Activity, Pill, AlertCircle, FileText, Gauge } from "lucide-react";
+import { X, Eye, Calendar, User, Activity, Pill, AlertCircle, FileText, Gauge, Glasses } from "lucide-react";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 // Dynamic layout component that balances content across columns
@@ -96,6 +96,65 @@ function VisitSummaryLayout({
           ))}
         </div>
       )
+    },
+    {
+      id: 'current_specs',
+      title: 'Current Specs / Glasses',
+      icon: <Glasses className="h-5 w-5 text-violet-600" />,
+      hasData: data.current_specs && data.current_specs.length > 0,
+      content: data.current_specs?.map((spec) => (
+        <div key={spec.id} className="rounded-lg bg-slate-50 p-4 mb-4 last:mb-0">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {spec.lens_type && (
+              <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-medium">
+                {spec.lens_type.replace(/_/g, " ")}
+              </span>
+            )}
+            {spec.usage && (
+              <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                {spec.usage.replace(/_/g, " ")}
+              </span>
+            )}
+            {spec.measured_by && (
+              <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                Via: {spec.measured_by.replace(/_/g, " ")}
+              </span>
+            )}
+            {spec.is_comfortable !== null && (
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${spec.is_comfortable ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                {spec.is_comfortable ? 'Comfortable' : 'Issues Reported'}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg bg-white border border-slate-200 p-3">
+              <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Right Eye (OD)</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{spec.od_sph || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{spec.od_cyl || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.od_axis ? spec.od_axis + "°" : "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{spec.od_add || "—"}</span></div>
+              </div>
+            </div>
+            <div className="rounded-lg bg-white border border-slate-200 p-3">
+              <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Left Eye (OS)</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{spec.os_sph || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{spec.os_cyl || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.os_axis ? spec.os_axis + "°" : "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{spec.os_add || "—"}</span></div>
+              </div>
+            </div>
+          </div>
+
+          {spec.remarks && (
+            <p className="mt-3 text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 italic">
+              "{spec.remarks}"
+            </p>
+          )}
+        </div>
+      ))
     },
     {
       id: 'ophthalmic_history',
