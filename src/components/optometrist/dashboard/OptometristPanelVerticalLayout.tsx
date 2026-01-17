@@ -213,6 +213,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             patientName={selectedPatientName}
             patientUhid={selectedPatientUhid}
             visitId={visitId}
+            visitType={selectedPatient?.visit_type}
             activeTab={activeTab}
             onTabChange={onTabChange}
             onClose={onClearPatient}

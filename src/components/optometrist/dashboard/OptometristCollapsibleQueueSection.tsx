@@ -299,12 +299,19 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             }`}>
                             Token: {patient.token_number}
                           </span>
-                          {isEmergency && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-red-500 text-white shadow-sm animate-pulse">
+                          {isEmergency ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-red-500 text-white shadow-sm animate-pulse whitespace-nowrap">
                               <AlertTriangle className="h-3 w-3" />
                               Emergency
                             </span>
-                          )}
+                          ) : patient.visit_type ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium uppercase tracking-wider whitespace-nowrap ${patient.visit_type === 'walk_in'
+                              ? "bg-amber-100 text-amber-700 border border-amber-200"
+                              : "bg-blue-100 text-blue-700 border border-blue-200"
+                              }`}>
+                              {patient.visit_type.replace(/_/g, " ")}
+                            </span>
+                          ) : null}
                         </div>
                         <div className={`text-xs mt-1.5 flex items-center gap-1 whitespace-nowrap ${isEmergency ? "text-red-600" : "text-slate-500"}`}>
                           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -312,6 +319,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                           </svg>
                           {formatDateTime(patient.checked_in_at || patient.time)}
                         </div>
+
                       </div>
                       <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
                         <span className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${getStatusColorGeneric(patient.status)}`}>
@@ -331,6 +339,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             </span>
                           </div>
                         )}
+
                       </div>
                     </div>
 
@@ -549,7 +558,6 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             )}
                           </>
                         )}
-                        {/* END: Doctor Actions */}
                       </div>
                     )}
                   </div>

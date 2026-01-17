@@ -23,6 +23,7 @@ interface OptometristActivePatientCardProps {
   patientName?: string;
   patientUhid?: string;
   visitId?: string;
+  visitType?: string;
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
@@ -39,6 +40,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   patientName,
   patientUhid,
   visitId,
+  visitType,
   onClose,
   showPatientCard,
   children,
@@ -74,9 +76,21 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
               <Eye className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold text-slate-900 sm:text-lg">
-                {patientName || "Patient Details"}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="truncate text-base font-bold text-slate-900 sm:text-lg">
+                  {patientName || "Patient Details"}
+                </h2>
+                {visitType && (
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wider ${visitType.toLowerCase().includes('emergency')
+                      ? "bg-red-100 text-red-700"
+                      : visitType.toLowerCase() === 'walk_in'
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}>
+                    {visitType.replace(/_/g, " ")}
+                  </span>
+                )}
+              </div>
               <p className="truncate text-xs font-medium text-slate-600 sm:text-sm">
                 {patientUhid || patientId}
               </p>
@@ -89,8 +103,8 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
               <button
                 onClick={() => setViewMode("tabs")}
                 className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "tabs"
-                    ? "bg-sky-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100"
                   }`}
                 title="Tabs View"
               >
@@ -100,8 +114,8 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
               <button
                 onClick={() => setViewMode("single")}
                 className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "single"
-                    ? "bg-sky-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100"
                   }`}
                 title="Single View"
               >
@@ -111,8 +125,8 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
               <button
                 onClick={() => setViewMode("compact")}
                 className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "compact"
-                    ? "bg-sky-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100"
                   }`}
                 title="Compact View"
               >
