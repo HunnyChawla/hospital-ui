@@ -20,6 +20,7 @@ import { getTenantIdForApi } from "@/utils/auth";
 import { handleError } from "@/utils/errorHandler";
 import { OptometristStats } from "@/types";
 import type { OptometristActionType } from "./dashboard/OptometristCollapsibleQueueSection";
+import { ExaminationViewProvider } from "@/context/ExaminationViewContext";
 
 
 
@@ -444,227 +445,229 @@ export function OptometristPanel() {
   }
 
   return (
-    <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900">
-      <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4">
-        {/* Header */}
-        <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
-          <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">
-            <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
-              <Eye className="h-5 w-5 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
-                {optometristUser?.full_name || "Optometrist"}
-              </p>
-              {selectedDoctor && !isDoctor && (
-                <div className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
-                  <span>Assigned to:</span>
-                  {doctorMappings.length > 1 ? (
-                    <div className="relative">
-                      <select
-                        value={selectedDoctor.doctor_id}
-                        onChange={(e) => setSelectedDoctor(e.target.value)}
-                        className="appearance-none bg-white border border-slate-200 rounded-md px-2 py-0.5 pr-6 text-xs font-medium text-slate-700 hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 cursor-pointer transition-all"
-                      >
-                        {doctorMappings.map((mapping) => (
-                          <option key={mapping.doctor_id} value={mapping.doctor_id}>
-                            {mapping.doctor_name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
-                    </div>
-                  ) : (
-                    <span className="font-medium text-slate-700">{selectedDoctor.doctor_name}</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-
-
-            {/* Live Queue Connection Status */}
-            <div className="flex items-center gap-2">
-              {connectionStatus === "connected" && (
-                <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-3 py-1.5 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
-                  <div className="relative">
-                    <Wifi className="h-3.5 w-3.5 text-white" />
-                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
+    <ExaminationViewProvider>
+      <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900">
+        <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4">
+          {/* Header */}
+          <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">
+              <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
+                <Eye className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
+                  {optometristUser?.full_name || "Optometrist"}
+                </p>
+                {selectedDoctor && !isDoctor && (
+                  <div className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
+                    <span>Assigned to:</span>
+                    {doctorMappings.length > 1 ? (
+                      <div className="relative">
+                        <select
+                          value={selectedDoctor.doctor_id}
+                          onChange={(e) => setSelectedDoctor(e.target.value)}
+                          className="appearance-none bg-white border border-slate-200 rounded-md px-2 py-0.5 pr-6 text-xs font-medium text-slate-700 hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 cursor-pointer transition-all"
+                        >
+                          {doctorMappings.map((mapping) => (
+                            <option key={mapping.doctor_id} value={mapping.doctor_id}>
+                              {mapping.doctor_name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                      </div>
+                    ) : (
+                      <span className="font-medium text-slate-700">{selectedDoctor.doctor_name}</span>
+                    )}
                   </div>
-                  <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
-                </div>
-              )}
-              {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
-                <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-400/30">
-                  <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
-                  <span className="text-xs font-semibold text-white hidden sm:inline">
-                    {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
-                  </span>
-                </div>
-              )}
-              {(connectionStatus === "error" || connectionStatus === "disconnected") && (
-                <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 shadow-md shadow-rose-500/30">
-                  <WifiOff className="h-3.5 w-3.5 text-white" />
-                  <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
-                </div>
-              )}
+                )}
+              </div>
+
+
+
+              {/* Live Queue Connection Status */}
+              <div className="flex items-center gap-2">
+                {connectionStatus === "connected" && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-3 py-1.5 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="relative">
+                      <Wifi className="h-3.5 w-3.5 text-white" />
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
+                    </div>
+                    <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
+                  </div>
+                )}
+                {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-400/30">
+                    <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                    <span className="text-xs font-semibold text-white hidden sm:inline">
+                      {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
+                    </span>
+                  </div>
+                )}
+                {(connectionStatus === "error" || connectionStatus === "disconnected") && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 shadow-md shadow-rose-500/30">
+                    <WifiOff className="h-3.5 w-3.5 text-white" />
+                    <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={refreshSchedule}
-            className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
-            title="Refresh schedule"
-          >
-            <RefreshCw className={`h-4 w-4 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
-          </button>
-
-          {/* Settings Dropdown */}
-          <div className="relative">
             <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              onClick={refreshSchedule}
               className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
-              title="View Settings"
+              title="Refresh schedule"
             >
-              <Settings className={`h-4 w-4 transition-transform ${isSettingsOpen ? "rotate-90" : ""}`} />
+              <RefreshCw className={`h-4 w-4 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
             </button>
 
-            {isSettingsOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsSettingsOpen(false)}
-                />
-                <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="mb-2 px-2 py-1.5 border-b border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-900">View Settings</h3>
+            {/* Settings Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
+                title="View Settings"
+              >
+                <Settings className={`h-4 w-4 transition-transform ${isSettingsOpen ? "rotate-90" : ""}`} />
+              </button>
+
+              {isSettingsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSettingsOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="mb-2 px-2 py-1.5 border-b border-slate-100">
+                      <h3 className="text-sm font-semibold text-slate-900">View Settings</h3>
+                    </div>
+
+                    <div className="space-y-1">
+                      <button
+                        onClick={() => {
+                          toggleFullscreen();
+                          setIsSettingsOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                          <span>Fullscreen</span>
+                        </div>
+                        <span className="text-xs text-slate-400">F11</span>
+                      </button>
+
+                      <button
+                        onClick={() => toggleStats()}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" />
+                          <span>Statistics</span>
+                        </div>
+                        <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.statsVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
+                          <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.statsVisible ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => toggleQueue()}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <span>Patient Queue</span>
+                        </div>
+                        <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.queueVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
+                          <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.queueVisible ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </div>
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        toggleFullscreen();
-                        setIsSettingsOpen(false);
-                      }}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                        <span>Fullscreen</span>
-                      </div>
-                      <span className="text-xs text-slate-400">F11</span>
-                    </button>
-
-                    <button
-                      onClick={() => toggleStats()}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4" />
-                        <span>Statistics</span>
-                      </div>
-                      <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.statsVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
-                        <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.statsVisible ? 'translate-x-4' : 'translate-x-0'}`} />
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => toggleQueue()}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span>Patient Queue</span>
-                      </div>
-                      <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.queueVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
-                        <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.queueVisible ? 'translate-x-4' : 'translate-x-0'}`} />
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Error message */}
-        {panelError && (
-          <div className="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 p-4 flex-shrink-0 shadow-sm animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
-              <p className="text-sm text-rose-700 font-medium">
-                {typeof panelError === 'string' ? panelError : JSON.stringify(panelError)}
-              </p>
+                </>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Dashboard Layout */}
-        <div className="flex-1 min-h-0 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-700">
-          <OptometristPanelVerticalLayout
-            stats={liveStats}
-            statsLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
-            statsVisible={preferences.statsVisible}
-            onToggleStats={toggleStats}
-            queuePatients={queuePatients}
-            queueFilter={preferences.queueFilter}
-            onQueueFilterChange={setQueueFilter}
-            queueLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
-            queueVisible={preferences.queueVisible}
-            onToggleQueue={toggleQueue}
-            selectedPatientId={selectedPatientId}
-            selectedPatientName={selectedPatientName}
-            selectedPatientUhid={selectedPatientUhid}
-            visitId={currentVisitId}
-            activeTab={activeTab}
-            onSelectPatient={selectPatient}
-            onClearPatient={() => {
-              selectPatient(null);
-              setSelectedPatientName("");
-              setSelectedPatientUhid("");
-              setCurrentVisitId(undefined);
-            }}
-            onTabChange={setActiveTab}
-            onAction={handleOptometristAction}
-            updatingVisitId={updatingVisitId}
-            isDoctor={isDoctor}
-            optometristId={isDoctor ? optometristIdForVisit : userId || ""}
-            doctorId={selectedDoctor?.doctor_id || ""}
-          >
-            {/* Tab content will be rendered inside layout */}
-            {selectedPatientId && (
-              <ExaminationTabs
-                patientId={selectedPatientId}
-                visitId={currentVisitId || ""}
-                optometristId={userId || ""}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                complaints={complaints}
-                ophthalmicHistory={ophthalmicHistory}
-                drugAllergies={drugAllergies}
-                arDataRecords={arDataRecords}
-                refractionRecords={refractionRecords}
-                iopRecords={iopRecords}
-                iopTrends={iopTrends}
-                visionRecords={visionRecords}
-                currentSpecsRecords={currentSpecsRecords}
-                patientOptometryHistory={patientOptometryHistory}
-                historyLoading={historyLoading}
-                refreshHistory={refreshHistory}
-                loading={dataLoading}
-                refreshComplaints={refreshComplaints}
-                refreshOphthalmicHistory={refreshOphthalmicHistory}
-                refreshDrugAllergies={refreshDrugAllergies}
-                refreshARData={refreshARData}
-                refreshRefraction={refreshRefraction}
-                refreshIOP={refreshIOP}
-                refreshVision={refreshVision}
-                refreshCurrentSpecs={refreshCurrentSpecs}
-              />
-            )}
-          </OptometristPanelVerticalLayout>
+          {/* Error message */}
+          {panelError && (
+            <div className="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 p-4 flex-shrink-0 shadow-sm animate-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+                <p className="text-sm text-rose-700 font-medium">
+                  {typeof panelError === 'string' ? panelError : JSON.stringify(panelError)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Dashboard Layout */}
+          <div className="flex-1 min-h-0 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-700">
+            <OptometristPanelVerticalLayout
+              stats={liveStats}
+              statsLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
+              statsVisible={preferences.statsVisible}
+              onToggleStats={toggleStats}
+              queuePatients={queuePatients}
+              queueFilter={preferences.queueFilter}
+              onQueueFilterChange={setQueueFilter}
+              queueLoading={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
+              queueVisible={preferences.queueVisible}
+              onToggleQueue={toggleQueue}
+              selectedPatientId={selectedPatientId}
+              selectedPatientName={selectedPatientName}
+              selectedPatientUhid={selectedPatientUhid}
+              visitId={currentVisitId}
+              activeTab={activeTab}
+              onSelectPatient={selectPatient}
+              onClearPatient={() => {
+                selectPatient(null);
+                setSelectedPatientName("");
+                setSelectedPatientUhid("");
+                setCurrentVisitId(undefined);
+              }}
+              onTabChange={setActiveTab}
+              onAction={handleOptometristAction}
+              updatingVisitId={updatingVisitId}
+              isDoctor={isDoctor}
+              optometristId={isDoctor ? optometristIdForVisit : userId || ""}
+              doctorId={selectedDoctor?.doctor_id || ""}
+            >
+              {/* Tab content will be rendered inside layout */}
+              {selectedPatientId && (
+                <ExaminationTabs
+                  patientId={selectedPatientId}
+                  visitId={currentVisitId || ""}
+                  optometristId={userId || ""}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  complaints={complaints}
+                  ophthalmicHistory={ophthalmicHistory}
+                  drugAllergies={drugAllergies}
+                  arDataRecords={arDataRecords}
+                  refractionRecords={refractionRecords}
+                  iopRecords={iopRecords}
+                  iopTrends={iopTrends}
+                  visionRecords={visionRecords}
+                  currentSpecsRecords={currentSpecsRecords}
+                  patientOptometryHistory={patientOptometryHistory}
+                  historyLoading={historyLoading}
+                  refreshHistory={refreshHistory}
+                  loading={dataLoading}
+                  refreshComplaints={refreshComplaints}
+                  refreshOphthalmicHistory={refreshOphthalmicHistory}
+                  refreshDrugAllergies={refreshDrugAllergies}
+                  refreshARData={refreshARData}
+                  refreshRefraction={refreshRefraction}
+                  refreshIOP={refreshIOP}
+                  refreshVision={refreshVision}
+                  refreshCurrentSpecs={refreshCurrentSpecs}
+                />
+              )}
+            </OptometristPanelVerticalLayout>
+          </div>
         </div>
       </div>
-    </div>
+    </ExaminationViewProvider>
   );
 }

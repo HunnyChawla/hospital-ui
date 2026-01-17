@@ -192,44 +192,13 @@ export function ExaminationTabs({
           "flex h-full min-h-0 flex-col"
         )}
       >
-        {/* View Toggle Header */}
+        {/* View Header */}
         <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center px-4 py-3">
             <div className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4 text-sky-600" />
               <span className="text-sm font-semibold text-slate-700">Compact View</span>
               <span className="text-xs text-slate-500 hidden sm:inline">(Summary cards with modal editing)</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-                <button
-                  onClick={() => setViewMode("tabs")}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-                  title="Tabs View"
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Tabs</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("single")}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-                  title="Single View"
-                >
-                  <LayoutList className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Single</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("compact")}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
-                  title="Compact View"
-                >
-                  <LayoutDashboard className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Compact</span>
-                </button>
-              </div>
-
             </div>
           </div>
         </div>
@@ -272,44 +241,13 @@ export function ExaminationTabs({
           "flex h-full min-h-0 flex-col"
         )}
       >
-        {/* View Toggle Header */}
+        {/* View Header */}
         <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center px-4 py-3">
             <div className="flex items-center gap-2">
               <LayoutList className="h-4 w-4 text-sky-600" />
               <span className="text-sm font-semibold text-slate-700">Single View</span>
               <span className="text-xs text-slate-500 hidden sm:inline">(All sections on one page)</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-                <button
-                  onClick={() => setViewMode("tabs")}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-                  title="Tabs View"
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Tabs</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("single")}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
-                  title="Single View"
-                >
-                  <LayoutList className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Single</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("compact")}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-                  title="Compact View"
-                >
-                  <LayoutDashboard className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Compact</span>
-                </button>
-              </div>
-
             </div>
           </div>
         </div>
@@ -444,33 +382,7 @@ export function ExaminationTabs({
             </svg>
           </button>
 
-          <div className="flex items-center gap-2">
-            {/* View Mode Toggle */}
-            <div className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-              <button
-                onClick={() => setViewMode("tabs")}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
-                title="Tabs View"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode("single")}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-                title="Single View"
-              >
-                <LayoutList className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode("compact")}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
-                title="Compact View"
-              >
-                <LayoutDashboard className="h-3.5 w-3.5" />
-              </button>
-            </div>
 
-          </div>
         </div>
       </div>
 

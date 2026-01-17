@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { Eye, X } from "lucide-react";
+import { Eye, X, LayoutGrid, LayoutList, LayoutDashboard } from "lucide-react";
 import { CreatePrescriptionButton } from "../prescriptions/CreatePrescriptionButton";
 import { ShowSummaryButton } from "../summary/ShowSummaryButton";
+import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 
 type ActiveTab =
   | "complaints"
@@ -46,6 +47,8 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   doctorId,
   isCompleted = false,
 }) => {
+  const { viewMode, setViewMode } = useExaminationViewPreference();
+
   if (!showPatientCard) {
     return (
       <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-slate-200/60 bg-gradient-to-br from-slate-50 to-slate-100/50 p-12 backdrop-blur-sm">
@@ -81,6 +84,43 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
           </div>
 
           <div className="flex flex-shrink-0 items-center gap-2">
+            {/* View Mode Toggle Buttons */}
+            <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode("tabs")}
+                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "tabs"
+                    ? "bg-sky-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                title="Tabs View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Tabs</span>
+              </button>
+              <button
+                onClick={() => setViewMode("single")}
+                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "single"
+                    ? "bg-sky-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                title="Single View"
+              >
+                <LayoutList className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Single</span>
+              </button>
+              <button
+                onClick={() => setViewMode("compact")}
+                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "compact"
+                    ? "bg-sky-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                title="Compact View"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Compact</span>
+              </button>
+            </div>
+
             {isDoctor ? (
               <CreatePrescriptionButton
                 patientId={patientId || ""}
