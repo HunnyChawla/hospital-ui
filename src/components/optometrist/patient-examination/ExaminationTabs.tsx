@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
 import clsx from "clsx";
 import {
   MessageSquare,
@@ -11,7 +12,12 @@ import {
   Activity,
   History,
   EyeOff,
+  LayoutGrid,
+  LayoutList,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
+import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 import { VisionTab } from "./VisionTab";
 import { ComplaintsTab } from "./ComplaintsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
@@ -21,6 +27,7 @@ import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
 import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
+import { ExaminationSingleView } from "./ExaminationSingleView";
 import type {
   ComplaintRecord,
   OphthalmicSurgeryRecord,
@@ -123,11 +130,152 @@ export function ExaminationTabs({
   refreshIOP,
   refreshVision,
 }: ExaminationTabsProps) {
+  const { viewMode, setViewMode } = useExaminationViewPreference();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(async () => {
+    if (!containerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error("Error toggling fullscreen:", err);
+    }
+  }, []);
+
+  // Keyboard shortcut for fullscreen (Escape is handled by browser, F11 for toggle)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F11") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [toggleFullscreen]);
+
+  // If single view mode, render the single view component
+  if (viewMode === "single") {
+    return (
+      <div
+        ref={containerRef}
+        className={clsx(
+          "flex h-full min-h-0 flex-col",
+          isFullscreen && "bg-white"
+        )}
+      >
+        {/* View Toggle Header */}
+        <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <LayoutList className="h-4 w-4 text-sky-600" />
+              <span className="text-sm font-semibold text-slate-700">Single View</span>
+              <span className="text-xs text-slate-500 hidden sm:inline">(All sections on one page)</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+                <button
+                  onClick={() => setViewMode("tabs")}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Tabs</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("single")}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
+                >
+                  <LayoutList className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Single</span>
+                </button>
+              </div>
+
+              {/* Fullscreen Toggle */}
+              <button
+                onClick={toggleFullscreen}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-sm",
+                  isFullscreen
+                    ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                )}
+                title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Single View Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
+          <ExaminationSingleView
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            complaints={complaints}
+            ophthalmicHistory={ophthalmicHistory}
+            drugAllergies={drugAllergies}
+            arDataRecords={arDataRecords}
+            refractionRecords={refractionRecords}
+            iopRecords={iopRecords}
+            iopTrends={iopTrends}
+            visionRecords={visionRecords}
+            loading={loading}
+            refreshComplaints={refreshComplaints}
+            refreshOphthalmicHistory={refreshOphthalmicHistory}
+            refreshDrugAllergies={refreshDrugAllergies}
+            refreshARData={refreshARData}
+            refreshRefraction={refreshRefraction}
+            refreshIOP={refreshIOP}
+            refreshVision={refreshVision}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Tabs view mode (default)
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      ref={containerRef}
+      className={clsx(
+        "flex h-full min-h-0 flex-col",
+        isFullscreen && "bg-white"
+      )}
+    >
       {/* Tab Navigation */}
       <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
-        <div className="flex gap-1 px-2 py-2 sm:px-4">
+        <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -159,6 +307,44 @@ export function ExaminationTabs({
                 </button>
               );
             })}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode("tabs")}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all bg-sky-600 text-white shadow-sm"
+                title="Tabs View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+            <button
+              onClick={() => setViewMode("single")}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all text-slate-600 hover:bg-slate-100"
+              title="Single View"
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+            </button>
+            </div>
+
+            {/* Fullscreen Toggle */}
+            <button
+              onClick={toggleFullscreen}
+              className={clsx(
+                "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition-all shadow-sm",
+                isFullscreen
+                  ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+              )}
+              title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
+            </button>
           </div>
         </div>
       </div>
