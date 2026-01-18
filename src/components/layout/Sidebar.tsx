@@ -30,6 +30,8 @@ import Image from "next/image";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { Tooltip } from "@/components/common/Tooltip";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { fetchDoctors } from "@/redux/doctorsSlice";
 
 // Navigation items
 const navItems = [
@@ -51,7 +53,7 @@ const navItems = [
   { label: "MRD Documents", href: "/mrd", icon: FileText },
   { label: "Doctors", href: "/doctors", icon: Stethoscope },
   { label: "My Panel", href: "/doctor-panel", icon: Stethoscope, roles: ["doctor"] },
-  { label: "Optometry Panel", href: "/optometrist-panel", icon: Eye, roles: ["optometrist", "admin", "doctor"] },
+  { label: "Optometry Panel", href: "/optometrist-panel", icon: Eye, roles: ["optometrist", "doctor"] },
   { label: "Staff", href: "/users", icon: UserCog },
   { label: "Tenants", href: "/tenants", icon: Building2, roles: ["platform_owner"] },
 ];
@@ -61,6 +63,14 @@ export function Sidebar() {
   const pathname = usePathname();
   const { hospitalName } = useTenant();
   const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar, toggleDesktopSidebar } = useSidebar();
+  const dispatch = useAppDispatch();
+  const doctors = useAppSelector((state) => state.doctors.list);
+
+  useEffect(() => {
+    if (userRole === "doctor" && doctors.length === 0) {
+      dispatch(fetchDoctors());
+    }
+  }, [userRole, doctors.length, dispatch]);
 
   useEffect(() => {
     // Get user role from localStorage
@@ -71,6 +81,20 @@ export function Sidebar() {
   }, []);
 
   const isRoleAllowed = (item: typeof navItems[0]): boolean => {
+    if (userRole === "doctor") {
+      const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+      const currentDoctor = doctors.find((d) => d.user_id === userId);
+      const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
+
+      if (item.label === "Optometry Panel") {
+        return isOphthalmologist;
+      }
+
+      if (item.label === "My Panel") {
+        return !isOphthalmologist;
+      }
+    }
+
     if (!item.roles) return true; // No role restriction
     if (!userRole) return false;
     return item.roles.includes(userRole);
