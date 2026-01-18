@@ -208,6 +208,7 @@ export function ExaminationTabs({
             iopRecords={iopRecords}
             iopTrends={iopTrends}
             visionRecords={visionRecords}
+            currentSpecsRecords={currentSpecsRecords}
             loading={loading}
             refreshComplaints={refreshComplaints}
             refreshOphthalmicHistory={refreshOphthalmicHistory}
@@ -216,6 +217,7 @@ export function ExaminationTabs({
             refreshRefraction={refreshRefraction}
             refreshIOP={refreshIOP}
             refreshVision={refreshVision}
+            refreshCurrentSpecs={refreshCurrentSpecs}
           />
         </div>
       </div>
@@ -248,6 +250,7 @@ export function ExaminationTabs({
             iopRecords={iopRecords}
             iopTrends={iopTrends}
             visionRecords={visionRecords}
+            currentSpecsRecords={currentSpecsRecords}
             loading={loading}
             refreshComplaints={refreshComplaints}
             refreshOphthalmicHistory={refreshOphthalmicHistory}
@@ -256,6 +259,7 @@ export function ExaminationTabs({
             refreshRefraction={refreshRefraction}
             refreshIOP={refreshIOP}
             refreshVision={refreshVision}
+            refreshCurrentSpecs={refreshCurrentSpecs}
           />
         </div>
       </div>
