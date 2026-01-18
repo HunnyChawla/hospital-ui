@@ -269,7 +269,22 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                 return (
                   <div
                     key={patient.patient_id}
-                    onClick={() => onSelectPatient(patient.patient_id)}
+                    onClick={() => {
+                      if (activeFilter !== "pending") {
+                        onSelectPatient(patient.patient_id);
+                      } else {
+                        // Pending tab restrictions
+                        if (isDoctor) {
+                          if (patient.status === "consultation_in_progress") {
+                            onSelectPatient(patient.patient_id);
+                          }
+                        } else {
+                          if (patient.status === "optometrist_investigation_in_progress") {
+                            onSelectPatient(patient.patient_id);
+                          }
+                        }
+                      }
+                    }}
                     className={`p-4 cursor-pointer transition-all duration-200 border-b last:border-b-0 animate-in fade-in slide-in-from-right-2 ${isEmergency
                       ? isSelected
                         ? "bg-gradient-to-r from-red-50 via-rose-50 to-red-50/30 border-l-4 border-red-600 shadow-md border-b-red-200"
@@ -305,11 +320,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               Emergency
                             </span>
                           ) : patient.visit_type ? (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium uppercase tracking-wider whitespace-nowrap ${patient.visit_type === 'walk_in'
-                              ? "bg-amber-100 text-amber-700 border border-amber-200"
-                              : "bg-blue-100 text-blue-700 border border-blue-200"
-                              }`}>
-                              {patient.visit_type.replace(/_/g, " ")}
+                            <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
+                              {patient.visit_type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
                             </span>
                           ) : null}
                         </div>
@@ -353,7 +365,6 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onSelectPatient(patient.patient_id);
                                   onAction(patient.visit_id, "pick");
                                 }}
                                 disabled={updatingVisitId === patient.visit_id}

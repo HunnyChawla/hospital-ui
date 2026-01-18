@@ -162,6 +162,9 @@ export function PrescriptionFormSection({
     const [showSettingsModal, setShowSettingsModal] = useState(false);
 
     const [searchingMedicines, setSearchingMedicines] = useState(false);
+    const [diagnosisSearchQuery, setDiagnosisSearchQuery] = useState("");
+    const [searchingDiagnoses, setSearchingDiagnoses] = useState(false);
+    const [diagnosisSearchResults, setDiagnosisSearchResults] = useState<any[]>([]);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
     const [shouldPrint, setShouldPrint] = useState(false);
     const [printWithHeader, setPrintWithHeader] = useState(true);
@@ -480,6 +483,31 @@ export function PrescriptionFormSection({
         return () => clearTimeout(debounce);
     }, [medicineSearchQuery]);
 
+    // Search diagnoses
+    useEffect(() => {
+        const searchQuery = async () => {
+            if (!diagnosisSearchQuery || diagnosisSearchQuery.trim().length < 2) {
+                setDiagnosisSearchResults([]);
+                return;
+            }
+
+            if (!doctorId) return;
+
+            setSearchingDiagnoses(true);
+            try {
+                const results = await quickPresetsApi.getDiagnoses(doctorId, diagnosisSearchQuery);
+                setDiagnosisSearchResults(results || []);
+            } catch (error) {
+                console.error("Diagnosis search error:", error);
+            } finally {
+                setSearchingDiagnoses(false);
+            }
+        };
+
+        const debounce = setTimeout(searchQuery, 300);
+        return () => clearTimeout(debounce);
+    }, [diagnosisSearchQuery, doctorId]);
+
     // Handle diagnosis toggle
     const handleDiagnosisToggle = (value: string) => {
         setSelectedDiagnoses(prev => {
@@ -531,6 +559,7 @@ export function PrescriptionFormSection({
         }
     };
 
+
     const handleAddMedicine = (medicine?: any) => {
         appendMedicine({
             medicine_id: medicine?.id || medicine?.medicine_id || "",
@@ -543,6 +572,12 @@ export function PrescriptionFormSection({
         });
         setMedicineSearchQuery("");
         setMedicineSearchResults([]);
+    };
+
+    const handleAddDiagnosisFromSearch = (diagnosis: any) => {
+        handleDiagnosisToggle(diagnosis.value);
+        setDiagnosisSearchQuery("");
+        setDiagnosisSearchResults([]);
     };
 
     const handleToggleCoating = (coating: string) => {
@@ -998,7 +1033,43 @@ export function PrescriptionFormSection({
 
                             <div className="p-6 space-y-5">
                                 {/* Quick Select */}
-                                <div>
+                                <div className="space-y-4">
+                                    <div className="relative group/search">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-sky-500 transition-colors">
+                                            {searchingDiagnoses ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <Stethoscope className="h-5 w-5" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={diagnosisSearchQuery}
+                                            onChange={(e) => setDiagnosisSearchQuery(e.target.value)}
+                                            placeholder="Search diagnosis..."
+                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3.5 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/20 transition-all shadow-sm hover:border-slate-300"
+                                        />
+                                        {diagnosisSearchResults.length > 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-sky-200 bg-white shadow-2xl">
+                                                <ul className="max-h-60 overflow-y-auto py-1">
+                                                    {diagnosisSearchResults.map((diagnosis) => (
+                                                        <li
+                                                            key={diagnosis.id || diagnosis.value}
+                                                            onClick={() => handleAddDiagnosisFromSearch(diagnosis)}
+                                                            className="cursor-pointer px-4 py-3 hover:bg-sky-50 active:bg-sky-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                        >
+                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-sky-700 transition-colors">{diagnosis.label}</div>
+                                                            {diagnosis.category && (
+                                                                <div className="text-xs text-slate-500 mt-1 capitalize">{diagnosis.category}</div>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
+
                                     <div className="flex items-center gap-2 mb-3">
                                         <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
                                             <Sparkles className="h-3.5 w-3.5 text-white" />

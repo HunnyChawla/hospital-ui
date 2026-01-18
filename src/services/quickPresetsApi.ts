@@ -34,9 +34,11 @@ export interface UpdateQuickMedicinesRequest {
 // Service
 export const quickPresetsApi = {
     // Diagnoses
-    getDiagnoses: async (doctorId: string): Promise<QuickDiagnosis[]> => {
+    getDiagnoses: async (doctorId: string, search?: string): Promise<QuickDiagnosis[]> => {
         try {
-            const response = await apiClient.get<QuickDiagnosis[]>(`/doctors/${doctorId}/quick-presets/diagnoses`);
+            const response = await apiClient.get<QuickDiagnosis[]>(`/doctors/${doctorId}/quick-presets/diagnoses`, {
+                params: { search }
+            });
             return response.data;
         } catch (error: any) {
             if (error.response?.status === 404) return []; // No presets yet

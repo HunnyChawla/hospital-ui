@@ -192,16 +192,7 @@ export function ExaminationTabs({
           "flex h-full min-h-0 flex-col"
         )}
       >
-        {/* View Header */}
-        <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
-          <div className="flex items-center px-4 py-3">
-            <div className="flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4 text-sky-600" />
-              <span className="text-sm font-semibold text-slate-700">Compact View</span>
-              <span className="text-xs text-slate-500 hidden sm:inline">(Summary cards with modal editing)</span>
-            </div>
-          </div>
-        </div>
+
 
         {/* Compact View Content */}
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
@@ -241,16 +232,7 @@ export function ExaminationTabs({
           "flex h-full min-h-0 flex-col"
         )}
       >
-        {/* View Header */}
-        <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
-          <div className="flex items-center px-4 py-3">
-            <div className="flex items-center gap-2">
-              <LayoutList className="h-4 w-4 text-sky-600" />
-              <span className="text-sm font-semibold text-slate-700">Single View</span>
-              <span className="text-xs text-slate-500 hidden sm:inline">(All sections on one page)</span>
-            </div>
-          </div>
-        </div>
+
 
         {/* Single View Content */}
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">

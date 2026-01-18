@@ -81,13 +81,13 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
                   {patientName || "Patient Details"}
                 </h2>
                 {visitType && (
-                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wider ${visitType.toLowerCase().includes('emergency')
-                      ? "bg-red-100 text-red-700"
-                      : visitType.toLowerCase() === 'walk_in'
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-blue-100 text-blue-700"
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${visitType.toLowerCase().includes('emergency')
+                    ? "bg-red-100 text-red-700 uppercase tracking-wider"
+                    : visitType.toLowerCase() === 'walk_in'
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-blue-100 text-blue-700"
                     }`}>
-                    {visitType.replace(/_/g, " ")}
+                    {visitType.toLowerCase().includes('emergency') ? visitType.replace(/_/g, " ") : visitType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                 )}
               </div>
