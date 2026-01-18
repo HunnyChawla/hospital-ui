@@ -240,10 +240,28 @@ export function getIOPStatus(iopRecords: any[], visitId: string): SectionStatus 
 export function getCurrentSpecsStatus(currentSpecsRecords: any[], visitId: string): SectionStatus {
   const hasVisitData = currentSpecsRecords.some((r) => {
     if (r.visit_id !== visitId) return false;
-    const hasOD = r.od_sph != null || r.od_cyl != null;
-    const hasOS = r.os_sph != null || r.os_cyl != null;
-    return hasOD || hasOS;
+
+    const hasOD =
+      r.od_sph != null ||
+      r.od_cyl != null ||
+      r.od_axis != null ||
+      r.od_add != null;
+
+    const hasOS =
+      r.os_sph != null ||
+      r.os_cyl != null ||
+      r.os_axis != null ||
+      r.os_add != null;
+
+    const hasMetadata =
+      r.lens_type != null ||
+      r.usage != null ||
+      r.measured_by != null ||
+      (r.remarks && r.remarks.trim().length > 0);
+
+    return hasOD || hasOS || hasMetadata;
   });
+
   if (!hasVisitData) return "empty";
   return "complete";
 }

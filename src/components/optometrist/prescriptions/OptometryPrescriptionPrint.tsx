@@ -5,6 +5,23 @@ import type { OptometryPrescription } from "@/types";
 import { useTenant } from "@/hooks/useTenant";
 import Image from "next/image";
 
+interface CurrentSpecs {
+  id: string;
+  od_sph: string;
+  od_cyl: string;
+  od_axis: number;
+  od_add: string;
+  os_sph: string;
+  os_cyl: string;
+  os_axis: number;
+  os_add: string;
+  lens_type: string;
+  usage: string;
+  measured_by: string;
+  is_comfortable: boolean;
+  remarks: string | null;
+}
+
 interface OptometryPrescriptionPrintProps {
   prescription: OptometryPrescription;
   patientName: string;
@@ -12,6 +29,7 @@ interface OptometryPrescriptionPrintProps {
   patientGender?: string;
   patientUhid?: string;
   optometristName: string;
+  currentSpecs?: CurrentSpecs[] | null;
 }
 
 export const OptometryPrescriptionPrint = forwardRef<
@@ -25,6 +43,7 @@ export const OptometryPrescriptionPrint = forwardRef<
     patientGender,
     patientUhid,
     optometristName,
+    currentSpecs,
   },
   ref
 ) {
@@ -130,6 +149,89 @@ export const OptometryPrescriptionPrint = forwardRef<
           </div>
         </div>
       </div>
+
+      {/* Current Specs (Patient's existing glasses) */}
+      {currentSpecs && currentSpecs.length > 0 && (
+        <div className="mb-8">
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Current Spectacle Prescription</h3>
+          <table className="w-full border-collapse border-2 border-slate-900">
+            <thead>
+              <tr className="bg-amber-50">
+                <th className="border border-slate-900 px-4 py-3 text-left text-sm font-bold uppercase">
+                  Eye
+                </th>
+                <th className="border border-slate-900 px-4 py-3 text-center text-sm font-bold uppercase">
+                  Sphere (SPH)
+                </th>
+                <th className="border border-slate-900 px-4 py-3 text-center text-sm font-bold uppercase">
+                  Cylinder (CYL)
+                </th>
+                <th className="border border-slate-900 px-4 py-3 text-center text-sm font-bold uppercase">
+                  Axis
+                </th>
+                <th className="border border-slate-900 px-4 py-3 text-center text-sm font-bold uppercase">
+                  Add Power
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* OD (Right Eye) */}
+              <tr>
+                <td className="border border-slate-900 px-4 py-3 font-semibold">
+                  OD (Right Eye)
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].od_sph || "-"}
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].od_cyl || "-"}
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].od_axis !== undefined && currentSpecs[0].od_axis !== null ? `${currentSpecs[0].od_axis}°` : "-"}
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].od_add || "-"}
+                </td>
+              </tr>
+              {/* OS (Left Eye) */}
+              <tr>
+                <td className="border border-slate-900 px-4 py-3 font-semibold">
+                  OS (Left Eye)
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].os_sph || "-"}
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].os_cyl || "-"}
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].os_axis !== undefined && currentSpecs[0].os_axis !== null ? `${currentSpecs[0].os_axis}°` : "-"}
+                </td>
+                <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
+                  {currentSpecs[0].os_add || "-"}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {/* Current Specs Details */}
+          <div className="mt-3 grid grid-cols-3 gap-4 text-sm text-slate-600">
+            {currentSpecs[0].lens_type && (
+              <p><span className="font-medium">Lens Type:</span> {currentSpecs[0].lens_type}</p>
+            )}
+            {currentSpecs[0].usage && (
+              <p><span className="font-medium">Usage:</span> {currentSpecs[0].usage}</p>
+            )}
+            {currentSpecs[0].measured_by && (
+              <p><span className="font-medium">Measured By:</span> {currentSpecs[0].measured_by}</p>
+            )}
+          </div>
+          {currentSpecs[0].remarks && (
+            <p className="mt-2 text-sm text-slate-600">
+              <span className="font-medium">Remarks:</span> {currentSpecs[0].remarks}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Prescription Table */}
       <div className="mb-8">

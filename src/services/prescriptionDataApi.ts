@@ -152,21 +152,29 @@ export interface PrescriptionDataResponse {
   }>;
   current_specs?: Array<{
     id: string;
-    od_sph?: string | null;
-    od_cyl?: string | null;
-    od_axis?: number | null;
-    od_add?: string | null;
-    os_sph?: string | null;
-    os_cyl?: string | null;
-    os_axis?: number | null;
-    os_add?: string | null;
-    lens_type?: string | null;
-    usage?: string | null;
-    measured_by?: string | null;
-    is_comfortable?: boolean | null;
-    remarks?: string | null;
-    created_at?: string;
-  }>;
+    tenant_id: string;
+    patient_id: string;
+    optometrist_id: string;
+    visit_id: string;
+    od_sph: string;
+    od_cyl: string;
+    od_axis: number;
+    od_add: string;
+    os_sph: string;
+    os_cyl: string;
+    os_axis: number;
+    os_add: string;
+    lens_type: string;
+    usage: string;
+    measured_by: string;
+    is_comfortable: boolean;
+    remarks: string | null;
+    recorded_at: string;
+    created_at: string;
+    updated_at: string;
+    created_by: string;
+    updated_by: string | null;
+  }> | null;
 }
 
 export const prescriptionDataApi = {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { addARData, updateARData } from "@/redux/optometryDataSlice";
-import { Plus, Save, X, RotateCcw, Scan, History } from "lucide-react";
+import { Plus, Save, X, RotateCcw, Scan, History, Settings } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { ARDataRecord } from "@/types";
@@ -13,6 +13,8 @@ import { EyeValueInput, NumericStepper } from "../shared";
 import { CopyFromPreviousButton } from "../templates";
 import { handleError } from "@/utils/errorHandler";
 import { ARDataHistorySection } from "./ARDataHistorySection";
+import { useRefractionSettings } from "@/hooks/useRefractionSettings";
+import { RefractionSettingsModal } from "./RefractionSettingsModal";
 
 interface ARDataTabProps {
   patientId: string;
@@ -46,9 +48,6 @@ const initialFormData: ARDataFormData = {
 };
 
 // Preset values - expanded for frequently used values
-const SPHERE_PRESETS = [-8, -6, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 6];
-const CYLINDER_PRESETS = [0, -0.25, -0.5, -0.75, -1, -1.25, -1.5, -1.75, -2, -2.5, -3];
-const AXIS_PRESETS = [0, 10, 20, 30, 45, 60, 70, 80, 90, 100, 110, 120, 135, 150, 160, 170, 180];
 const PD_PRESETS = [54, 56, 58, 60, 61, 62, 63, 64, 65, 66, 68, 70];
 
 export function ARDataTab({
@@ -64,6 +63,17 @@ export function ARDataTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ARDataFormData>(initialFormData);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+
+  // Settings Hook
+  const {
+    settings,
+    updateSettings,
+    isSettingsOpen: showSettings,
+    setIsSettingsOpen: setShowSettings,
+    spherePresets,
+    cylinderPresets,
+    axisPresets
+  } = useRefractionSettings();
 
   // Format display values
   const formatValue = (
@@ -289,15 +299,24 @@ export function ARDataTab({
             Record auto-refractor measurements for both eyes
           </p>
         </div>
-        {!isAdding && (
+        <div className="flex items-center gap-2">
+          {!isAdding && (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+            >
+              <Plus className="h-4 w-4" />
+              {hasExistingForVisit ? "Edit AR Data" : "Add AR Data"}
+            </button>
+          )}
           <button
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+            onClick={() => setShowSettings(true)}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            title="Configure Quick Buttons"
           >
-            <Plus className="h-4 w-4" />
-            {hasExistingForVisit ? "Edit AR Data" : "Add AR Data"}
+            <Settings className="h-5 w-5" />
           </button>
-        )}
+        </div>
       </div>
 
       {/* This Visit's AR Data - Only show if data exists for current visit */}
@@ -421,7 +440,7 @@ export function ARDataTab({
               min={-30}
               max={30}
               unit="D"
-              presets={SPHERE_PRESETS}
+              presets={spherePresets}
             />
 
             {/* Cylinder */}
@@ -435,7 +454,7 @@ export function ARDataTab({
               min={-10}
               max={0}
               unit="D"
-              presets={CYLINDER_PRESETS}
+              presets={cylinderPresets}
             />
 
             {/* Axis */}
@@ -449,7 +468,7 @@ export function ARDataTab({
               min={0}
               max={180}
               unit="°"
-              presets={AXIS_PRESETS}
+              presets={axisPresets}
             />
 
             {/* Pupillary Distance */}
@@ -558,6 +577,14 @@ export function ARDataTab({
           data from the last visit.
         </p>
       </div>
-    </div>
+
+      {/* Settings Modal */}
+      <RefractionSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        currentSettings={settings}
+        onSave={updateSettings}
+      />
+    </div >
   );
 }

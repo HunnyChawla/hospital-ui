@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { addRefractionRecord, updateRefractionRecord, updateRefractionCombinedRecord } from "@/redux/optometryDataSlice";
-import { Plus, Save, X, RotateCcw, Eye } from "lucide-react";
+import { Plus, Save, X, RotateCcw, Eye, Settings } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { RefractionRecord } from "@/types";
@@ -15,6 +15,8 @@ import { refractionTemplates, type RefractionTemplate } from "../mock";
 import { refractionApi } from "@/services/refractionApi";
 import { handleError } from "@/utils/errorHandler";
 import { RefractionHistorySection } from "./RefractionHistorySection";
+import { useRefractionSettings } from "@/hooks/useRefractionSettings";
+import { RefractionSettingsModal } from "./RefractionSettingsModal";
 
 interface RefractionTabProps {
   patientId: string;
@@ -59,11 +61,12 @@ const initialFormData: RefractionFormData = {
   notes: "",
 };
 
+
 // Preset values for quick selection - expanded for frequently used values
-const SPHERE_PRESETS = [-8, -6, -4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 6];
-const CYLINDER_PRESETS = [0, -0.25, -0.5, -0.75, -1, -1.25, -1.5, -1.75, -2, -2.5, -3, -4];
-const AXIS_PRESETS = [0, 10, 20, 30, 45, 60, 70, 80, 90, 100, 110, 120, 135, 150, 160, 170, 180];
-const ADD_POWER_PRESETS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5];
+// const SPHERE_PRESETS = [-8, -6, -4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 6];
+// const CYLINDER_PRESETS = [0, -0.25, -0.5, -0.75, -1, -1.25, -1.5, -1.75, -2, -2.5, -3, -4];
+// const AXIS_PRESETS = [0, 10, 20, 30, 45, 60, 70, 80, 90, 100, 110, 120, 135, 150, 160, 170, 180];
+// const ADD_POWER_PRESETS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5];
 const PD_PRESETS = [54, 56, 58, 60, 61, 62, 63, 64, 65, 66, 68, 70];
 
 export function RefractionTab({
@@ -82,6 +85,18 @@ export function RefractionTab({
   const [editingODId, setEditingODId] = useState<string | null>(null);
   const [editingOSId, setEditingOSId] = useState<string | null>(null);
   const [visitRefractions, setVisitRefractions] = useState<any[]>([]);
+
+  // Settings Hook
+  const {
+    settings,
+    updateSettings,
+    isSettingsOpen: showSettings,
+    setIsSettingsOpen: setShowSettings,
+    spherePresets,
+    cylinderPresets,
+    axisPresets,
+    addPowerPresets
+  } = useRefractionSettings();
 
   const toNumberOrNull = (v: any): number | null => {
     if (v === null || v === undefined || v === "") return null;
@@ -495,15 +510,24 @@ export function RefractionTab({
             Enter refraction values for both eyes simultaneously
           </p>
         </div>
-        {!isAdding && (
+        <div className="flex items-center gap-2">
+          {!isAdding && (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+            >
+              <Plus className="h-4 w-4" />
+              {hasExistingForVisit ? "Edit Refraction" : "Add Refraction"}
+            </button>
+          )}
           <button
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+            onClick={() => setShowSettings(true)}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            title="Configure Quick Buttons"
           >
-            <Plus className="h-4 w-4" />
-            {hasExistingForVisit ? "Edit Refraction" : "Add Refraction"}
+            <Settings className="h-5 w-5" />
           </button>
-        )}
+        </div>
       </div>
 
       {/* Current Visit Refraction Display - Only show when there's data for THIS visit */}
@@ -684,7 +708,7 @@ export function RefractionTab({
               min={-30}
               max={30}
               unit="D"
-              presets={SPHERE_PRESETS}
+              presets={spherePresets}
               required
               odError={errors.od_sphere}
               osError={errors.os_sphere}
@@ -700,8 +724,9 @@ export function RefractionTab({
               step={0.25}
               min={-10}
               max={0}
+
               unit="D"
-              presets={CYLINDER_PRESETS}
+              presets={cylinderPresets}
             />
 
             {/* Axis */}
@@ -715,7 +740,7 @@ export function RefractionTab({
               min={0}
               max={180}
               unit="°"
-              presets={AXIS_PRESETS}
+              presets={axisPresets}
               required={
                 (formData.od.cylinder !== null && formData.od.cylinder !== 0) ||
                 (formData.os.cylinder !== null && formData.os.cylinder !== 0)
@@ -734,8 +759,9 @@ export function RefractionTab({
               step={0.25}
               min={0.5}
               max={4}
+
               unit="D"
-              presets={ADD_POWER_PRESETS}
+              presets={addPowerPresets}
             />
 
             {/* Pupillary Distance */}
@@ -838,6 +864,12 @@ export function RefractionTab({
           directly for precise values.
         </p>
       </div>
+      <RefractionSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        currentSettings={settings}
+        onSave={updateSettings}
+      />
     </div>
   );
 }

@@ -185,6 +185,54 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     </div>
                 </div>
 
+                {/* Current Specs (Patient's existing glasses) */}
+                {visitData?.current_specs && visitData.current_specs.length > 0 && (
+                    <div className="grid grid-cols-[150px_1fr] gap-2 mb-4">
+                        <div className="font-semibold text-slate-700">Current Specs</div>
+                        <div>
+                            <table className="w-full text-xs border-collapse border border-slate-300">
+                                <thead>
+                                    <tr className="bg-amber-50">
+                                        <th className="border border-slate-300 p-1 w-12">Eye</th>
+                                        <th className="border border-slate-300 p-1">Sph</th>
+                                        <th className="border border-slate-300 p-1">Cyl</th>
+                                        <th className="border border-slate-300 p-1">Axis</th>
+                                        <th className="border border-slate-300 p-1">Add</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="border border-slate-300 p-1 font-bold text-center">Right</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_sph)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_cyl)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_axis)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_add)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="border border-slate-300 p-1 font-bold text-center">Left</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_sph)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_cyl)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_axis)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_add)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            {/* Additional details */}
+                            <div className="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-500">
+                                {visitData.current_specs[0].lens_type && (
+                                    <span>Lens: {visitData.current_specs[0].lens_type}</span>
+                                )}
+                                {visitData.current_specs[0].usage && (
+                                    <span>Usage: {visitData.current_specs[0].usage}</span>
+                                )}
+                                {visitData.current_specs[0].measured_by && (
+                                    <span>Measured by: {visitData.current_specs[0].measured_by}</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Additional Refraction Table (Glasses Prescription) if items exist */}
                 {(prescription.items?.length > 0) && (
                     <div className="grid grid-cols-[150px_1fr] gap-2 mb-4">

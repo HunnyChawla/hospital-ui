@@ -7,6 +7,23 @@ import { OptometryPrescriptionPrint } from "./OptometryPrescriptionPrint";
 import { useReactToPrint } from "react-to-print";
 import type { RefractionRecord } from "@/types";
 
+interface CurrentSpecs {
+  id: string;
+  od_sph: string;
+  od_cyl: string;
+  od_axis: number;
+  od_add: string;
+  os_sph: string;
+  os_cyl: string;
+  os_axis: number;
+  os_add: string;
+  lens_type: string;
+  usage: string;
+  measured_by: string;
+  is_comfortable: boolean;
+  remarks: string | null;
+}
+
 interface PrescriptionButtonProps {
   patientId: string;
   patientName: string;
@@ -18,6 +35,7 @@ interface PrescriptionButtonProps {
   optometristName: string;
   latestRefractionOD?: RefractionRecord | null;
   latestRefractionOS?: RefractionRecord | null;
+  currentSpecs?: CurrentSpecs | null;
 }
 
 export function PrescriptionButton({
@@ -31,6 +49,7 @@ export function PrescriptionButton({
   optometristName,
   latestRefractionOD,
   latestRefractionOS,
+  currentSpecs,
 }: PrescriptionButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPrescription, setCurrentPrescription] = useState<any>(null);
@@ -129,6 +148,7 @@ export function PrescriptionButton({
               patientGender={patientGender}
               patientUhid={patientUhid}
               optometristName={optometristName}
+              currentSpecs={currentSpecs ? [currentSpecs] : null}
             />
           </div>
         </div>

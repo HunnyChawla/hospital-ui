@@ -43,7 +43,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
@@ -68,7 +68,12 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
     </div>
   );
 
-  // Use portal to render modal at root level, ensuring it's always on top
-  return createPortal(modalContent, document.body);
+  // Determine the mounting point
+  // If we are in fullscreen mode, mount to the fullscreen element
+  // regarding of whether the modal was opened before or after entering fullscreen
+  const mountNode = (typeof document !== 'undefined' && document.fullscreenElement) || document.body;
+
+  // Use portal to render modal at root level (or fullscreen root), ensuring it's always on top
+  return createPortal(modalContent, mountNode);
 }
 
