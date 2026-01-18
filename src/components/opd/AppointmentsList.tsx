@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/redux/hooks";
-import { useAppointmentsByDoctor } from "@/hooks/queries/useAppointments";
+import { useAppointmentsByDoctor, appointmentKeys } from "@/hooks/queries/useAppointments";
 import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
@@ -131,6 +131,18 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
     setPage(1);
   }, [selectedDoctorId, startDate, endDate]);
 
+  // Listen for appointment:created event to refresh the list
+  useEffect(() => {
+    const handleAppointmentCreated = () => {
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    };
+
+    window.addEventListener("appointment:created", handleAppointmentCreated);
+    return () => {
+      window.removeEventListener("appointment:created", handleAppointmentCreated);
+    };
+  }, [queryClient]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       // Completion statuses
@@ -227,6 +239,8 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   const handleAfterCreated = (visitId: string) => {
     // Invalidate OPD visits query to refresh the OPD tab
     queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
+    // Invalidate appointments query to refresh the list and hide the + button
+    queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
   };
 
   const handleExportPDF = useCallback(async () => {
