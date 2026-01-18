@@ -223,7 +223,7 @@ export type DoctorStats = {
 // OPTOMETRY PANEL TYPES
 // ============================================
 
-// Optometrist Panel - Schedule & Stats
+// My Panel (Optometrist) - Schedule & Stats
 export type OptometristScheduleSlot = {
   time: string;
   type: "appointment" | "walk_in" | "emergency";

@@ -53,7 +53,7 @@ const navItems = [
   { label: "MRD Documents", href: "/mrd", icon: FileText },
   { label: "Doctors", href: "/doctors", icon: Stethoscope },
   { label: "My Panel", href: "/doctor-panel", icon: Stethoscope, roles: ["doctor"] },
-  { label: "Optometry Panel", href: "/optometrist-panel", icon: Eye, roles: ["optometrist", "doctor"] },
+  { label: "My Panel", href: "/optometrist-panel", icon: Eye, roles: ["optometrist", "doctor"] },
   { label: "Staff", href: "/users", icon: UserCog },
   { label: "Tenants", href: "/tenants", icon: Building2, roles: ["platform_owner"] },
 ];
@@ -86,11 +86,11 @@ export function Sidebar() {
       const currentDoctor = doctors.find((d) => d.user_id === userId);
       const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
 
-      if (item.label === "Optometry Panel") {
+      if (item.href === "/optometrist-panel") {
         return isOphthalmologist;
       }
 
-      if (item.label === "My Panel") {
+      if (item.href === "/doctor-panel") {
         return !isOphthalmologist;
       }
     }

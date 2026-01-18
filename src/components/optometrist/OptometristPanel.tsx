@@ -434,7 +434,7 @@ export function OptometristPanel() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <Eye className="w-16 h-16 mx-auto mb-4 text-sky-500" />
-          <h2 className="text-2xl font-bold mb-2">Optometry Panel</h2>
+          <h2 className="text-2xl font-bold mb-2">My Panel</h2>
           <p className="text-gray-600">Please log in to continue</p>
         </div>
       </div>
