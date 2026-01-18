@@ -301,7 +301,8 @@ export function OptometristPanel() {
 
   const handleOptometristAction = useCallback(async (
     visitId: string,
-    action: OptometristActionType
+    action: OptometristActionType,
+    dilationMinutes?: number
   ) => {
     setUpdatingVisitId(visitId);
     try {
@@ -361,6 +362,20 @@ export function OptometristPanel() {
           setSelectedPatientName("");
           setSelectedPatientUhid("");
           setCurrentVisitId(undefined);
+          break;
+
+        case "start_dilation":
+          // Start dilation with selected duration (default 20 minutes)
+          const duration = dilationMinutes || 20;
+          await optometristVisitsApi.startDilation(visitId, duration, apiTenantId);
+          toast.success(`Dilation started (${duration} min)`);
+          // Switch to dilation filter to see the patient
+          setQueueFilter("dilation");
+          break;
+
+        case "complete_dilation":
+          await optometristVisitsApi.completeDilation(visitId, apiTenantId);
+          toast.success("Dilation completed");
           break;
 
         default:
