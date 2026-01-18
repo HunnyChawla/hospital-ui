@@ -241,10 +241,9 @@ export function PrescriptionFormSection({
             const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
             setPlannedSurgeries(surgs.items || []);
 
-            if (!fullPrescriptionData) {
-                const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
-                setFullPrescriptionData(data);
-            }
+            // Always fetch fresh data for print to ensure all clinical modification are reflected
+            const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
+            setFullPrescriptionData(data);
         } catch (error) {
             console.error("Failed to fetch prescription data for print", error);
             toast.error("Failed to load print data");
