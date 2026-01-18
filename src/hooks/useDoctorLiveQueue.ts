@@ -23,6 +23,7 @@ export type DoctorQueuePatient = {
     dilation_started_at?: string | null;
     dilation_duration_minutes?: number | null;
     dilation_completed_at?: string | null;
+    is_revisit?: boolean;
 };
 
 function mapSSEDataToQueuePatients(data: any): DoctorQueuePatient[] {
@@ -50,6 +51,7 @@ function mapSSEDataToQueuePatients(data: any): DoctorQueuePatient[] {
         dilation_started_at: item.dilation_started_at || null,
         dilation_duration_minutes: item.dilation_duration_minutes || null,
         dilation_completed_at: item.dilation_completed_at || null,
+        is_revisit: item.is_revisit || false,
     });
 
     if (Array.isArray(data)) {

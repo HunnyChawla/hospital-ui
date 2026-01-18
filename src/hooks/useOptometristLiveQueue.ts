@@ -21,6 +21,7 @@ export type OptometristQueuePatient = {
   dilation_duration_minutes?: number | null;
   dilation_completed_at?: string | null;
   expected_next_status_time?: string | null;
+  is_revisit?: boolean;
 };
 
 type QueuePatient = OptometristQueuePatient;
@@ -49,6 +50,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       dilation_duration_minutes: item.dilation_duration_minutes || null,
       dilation_completed_at: item.dilation_completed_at || null,
       expected_next_status_time: item.expected_next_status_time || null,
+      is_revisit: item.is_revisit || false,
     }));
   }
 
@@ -73,6 +75,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       dilation_duration_minutes: item.dilation_duration_minutes || null,
       dilation_completed_at: item.dilation_completed_at || null,
       expected_next_status_time: item.expected_next_status_time || null,
+      is_revisit: item.is_revisit || false,
     }));
   }
 
@@ -97,6 +100,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       dilation_duration_minutes: item.dilation_duration_minutes || null,
       dilation_completed_at: item.dilation_completed_at || null,
       expected_next_status_time: item.expected_next_status_time || null,
+      is_revisit: item.is_revisit || false,
     }));
   }
 
@@ -121,6 +125,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
       dilation_duration_minutes: item.dilation_duration_minutes || null,
       dilation_completed_at: item.dilation_completed_at || null,
       expected_next_status_time: item.expected_next_status_time || null,
+      is_revisit: item.is_revisit || false,
     }));
   }
 
@@ -146,6 +151,7 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
         dilation_duration_minutes: data.dilation_duration_minutes || null,
         dilation_completed_at: data.dilation_completed_at || null,
         expected_next_status_time: data.expected_next_status_time || null,
+        is_revisit: data.is_revisit || false,
       },
     ];
   }

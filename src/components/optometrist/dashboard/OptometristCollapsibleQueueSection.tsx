@@ -327,6 +327,11 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               {patient.visit_type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
                             </span>
                           ) : null}
+                          {patient.is_revisit && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                              Revisit
+                            </span>
+                          )}
                         </div>
                         <div className={`text-xs mt-1.5 flex items-center gap-1 whitespace-nowrap ${isEmergency ? "text-red-600" : "text-slate-500"}`}>
                           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

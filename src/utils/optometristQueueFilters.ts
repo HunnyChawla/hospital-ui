@@ -20,6 +20,7 @@ export interface OptometristQueuePatient {
   dilation_duration_minutes?: number | null;
   dilation_completed_at?: string | null;
   expected_next_status_time?: string | null;
+  is_revisit?: boolean;
 }
 
 export interface FilterConfig {
