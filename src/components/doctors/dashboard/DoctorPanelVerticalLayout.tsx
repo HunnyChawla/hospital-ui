@@ -130,9 +130,8 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
 
         {/* Queue Sidebar - Right side (collapses to save space) */}
         <div
-          className={`sidebar-transition flex-shrink-0 ${
-            queueVisible ? "w-80" : "w-0 overflow-hidden"
-          }`}
+          className={`sidebar-transition flex-shrink-0 ${queueVisible ? "w-80" : "w-0 overflow-hidden"
+            }`}
         >
           {queueVisible && (
             <CollapsibleQueueSection

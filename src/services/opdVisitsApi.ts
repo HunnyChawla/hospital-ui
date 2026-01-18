@@ -45,6 +45,7 @@ export interface Visit {
   updated_at: string;
   optometrist_id?: string | null;
   optometrist_name?: string | null;
+  optometrist_investigation_completed_at?: string | null;
 }
 
 export interface CreateVisitRequest {

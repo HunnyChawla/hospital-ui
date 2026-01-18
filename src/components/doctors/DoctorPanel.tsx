@@ -124,7 +124,7 @@ export function DoctorPanel() {
       if (todaySchedule && todaySchedule.slots) {
         const currentSlot = todaySchedule.slots.find(
           slot => slot.patient_id === selectedPatientId &&
-          (slot.status === "checked_in" || slot.status === "in_consultation")
+            (slot.status === "checked_in" || slot.status === "in_consultation")
         );
         setCurrentVisitId(currentSlot?.item_id);
       }
@@ -141,8 +141,8 @@ export function DoctorPanel() {
         const visitType = (slot.type === "emergency" || slot.visit_type === "emergency" || slot.is_emergency)
           ? "emergency"
           : slot.type === "appointment" || slot.visit_type === "appointment"
-          ? "appointment"
-          : "walk_in";
+            ? "appointment"
+            : "walk_in";
 
         return {
           patient_id: slot.patient_id,

@@ -7,7 +7,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2 } from "lucide-react";
+import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -1017,10 +1017,47 @@ export function OpdList({ doctorId }: OpdListProps) {
               </div>
 
               <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3">
-                <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(visit.status)}`}>
-                  {getStatusIcon(visit.status)}
-                  <span className="capitalize">{visit.status.replace("_", " ")}</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(visit.status)}`}>
+                    {getStatusIcon(visit.status)}
+                    <span className="capitalize">{visit.status.replace("_", " ")}</span>
+                  </span>
+                  {visit.optometrist_investigation_completed_at && (
+                    <div className="group relative">
+                      <span className="flex cursor-help items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                        <span>Optometrist</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-500 font-normal">
+                          {new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </span>
+
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-0 mb-2 hidden w-max min-w-[180px] flex-col gap-1 rounded-lg bg-slate-800 p-3 text-xs text-white shadow-xl ring-1 ring-white/10 group-hover:flex z-50">
+                        <div className="font-semibold text-emerald-400 border-b border-white/10 pb-2 mb-1 flex items-center gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Investigation Completed
+                        </div>
+                        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-slate-300">
+                          <span className="text-slate-400">Done at:</span>
+                          <span className="text-white font-medium">
+                            {new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+
+                          {visit.optometrist_name && (
+                            <>
+                              <span className="text-slate-400">Done by:</span>
+                              <span className="text-white font-medium">{visit.optometrist_name}</span>
+                            </>
+                          )}
+                        </div>
+                        {/* Arrow */}
+                        <div className="absolute top-full left-4 -mt-1.5 h-3 w-3 rotate-45 bg-slate-800 ring-1 ring-white/10 border-b border-r border-transparent"></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {visit.status === "checked_in" && (
                     <>
@@ -1164,12 +1201,39 @@ export function OpdList({ doctorId }: OpdListProps) {
                       onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
                     />
                   )}
+                  {visit.status === "no_show" && (
+                    <button
+                      onClick={() => {
+                        const newStatus = visit.optometrist_investigation_completed_at
+                          ? "awaiting_doctor"
+                          : "awaiting_optometrist";
+                        handleUpdateStatus(visit.id, newStatus);
+                      }}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="Recall Patient"
+                    >
+                      <RotateCcw className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Recall</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ))}
         </div>
-      )}
+      )
+      }
 
       {/* Pagination */}
       {

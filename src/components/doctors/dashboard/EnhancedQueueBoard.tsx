@@ -85,20 +85,18 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
               <button
                 key={filter}
                 onClick={() => onFilterChange(filter)}
-                className={`filter-tab-transition flex min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-semibold transition ${
-                  isActive
+                className={`filter-tab-transition flex min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-semibold transition ${isActive
                     ? `border-${config.color}-500 bg-${config.color}-50 text-${config.color}-700`
                     : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 <Icon className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="truncate">{config.label}</span>
                 <span
-                  className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold ${
-                    isActive
+                  className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold ${isActive
                       ? `bg-${config.color}-200 text-${config.color}-800`
                       : "bg-slate-200 text-slate-700"
-                  }`}
+                    }`}
                 >
                   {count}
                 </span>
@@ -132,13 +130,12 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
               return (
                 <div
                   key={`${patient.patient_id}-${patient.item_id}`}
-                  className={`group cursor-pointer rounded-lg border p-3 transition ${
-                    isSelected
+                  className={`group cursor-pointer rounded-lg border p-3 transition ${isSelected
                       ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200 shadow-md"
                       : isEmergency
-                      ? "border-red-500 bg-red-50 ring-2 ring-red-300 shadow-lg hover:border-red-600 hover:shadow-xl"
-                      : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md"
-                  }`}
+                        ? "border-red-500 bg-red-50 ring-2 ring-red-300 shadow-lg hover:border-red-600 hover:shadow-xl"
+                        : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md"
+                    }`}
                   onClick={() => onSelectPatient(patient.patient_id)}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -146,11 +143,10 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
                     <div className="flex min-w-0 flex-1 items-start gap-2">
                       {/* Token Number */}
                       <div
-                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg font-bold ${
-                          isEmergency
+                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg font-bold ${isEmergency
                             ? "bg-red-600 text-white ring-2 ring-red-300"
                             : "bg-slate-100 text-slate-700"
-                        }`}
+                          }`}
                       >
                         <span className="text-sm">{patient.token_number}</span>
                       </div>
