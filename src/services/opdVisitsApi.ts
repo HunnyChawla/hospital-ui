@@ -46,6 +46,9 @@ export interface Visit {
   optometrist_id?: string | null;
   optometrist_name?: string | null;
   optometrist_investigation_completed_at?: string | null;
+  dilation_started_at?: string | null;
+  dilation_duration_minutes?: number | null;
+  dilation_completed_at?: string | null;
 }
 
 export interface CreateVisitRequest {
@@ -166,6 +169,17 @@ export const opdVisitsApi = {
     const url = `/opd/visits${queryString ? `?${queryString}` : ""}`;
 
     const response = await apiClient.get<OpdVisitsSearchResponse>(url);
+    return response.data;
+  },
+
+  async completeDilation(visitId: string, tenantId?: string): Promise<Visit> {
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params = effectiveTenantId ? { tenant_id: effectiveTenantId } : {};
+    const response = await apiClient.post<Visit>(
+      `/opd/eye-hospital/visits/${visitId}/complete-dilation`,
+      {},
+      { params }
+    );
     return response.data;
   },
 };

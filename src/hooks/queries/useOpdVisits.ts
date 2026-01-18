@@ -177,3 +177,25 @@ export function useCompleteAndAdvance() {
     onError: createMutationErrorHandler('Failed to complete visit'),
   });
 }
+
+/**
+ * Complete dilation for a visit
+ */
+export function useCompleteDilation() {
+  const queryClient = useQueryClient();
+  const { tenantId, isPlatformOwner } = useTenantContext();
+
+  return useMutation({
+    mutationFn: async (visitId: string) => {
+      return await opdVisitsApi.completeDilation(
+        visitId,
+        isPlatformOwner ? tenantId ?? undefined : undefined
+      );
+    },
+    onSuccess: () => {
+      toast.success('Dilation marked as completed');
+      queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
+    },
+    onError: createMutationErrorHandler('Failed to complete dilation'),
+  });
+}

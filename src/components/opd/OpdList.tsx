@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAppSelector } from "@/redux/hooks";
-import { useOpdVisits, useUpdateOpdVisitStatus } from "@/hooks/queries/useOpdVisits";
+import { useOpdVisits, useUpdateOpdVisitStatus, useCompleteDilation } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw } from "lucide-react";
+import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw, Droplets } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -210,6 +210,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
   // React Query mutation for updating visit status
   const updateStatusMutation = useUpdateOpdVisitStatus();
+  const completeDilationMutation = useCompleteDilation();
 
   const [printVisitData, setPrintVisitData] = useState<{
     visit: Visit;
@@ -498,6 +499,14 @@ export function OpdList({ doctorId }: OpdListProps) {
       setCancelling(false);
       setShowCancellationModal(false);
       setPendingCancellation(null);
+    }
+  };
+
+  const handleCompleteDilation = async (visitId: string) => {
+    try {
+      await completeDilationMutation.mutateAsync(visitId);
+    } catch (error) {
+      // Error handling is in the mutation
     }
   };
 
@@ -1022,6 +1031,19 @@ export function OpdList({ doctorId }: OpdListProps) {
                     {getStatusIcon(visit.status)}
                     <span className="capitalize">{visit.status.replace("_", " ")}</span>
                   </span>
+                  {visit.status === "dilation_in_progress" && visit.dilation_started_at && (
+                    <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium shadow-sm transition-colors ${new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000)
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-indigo-50 text-indigo-700 border-indigo-200 shadow-indigo-100"
+                      }`}>
+                      <ClockIcon className="h-3.5 w-3.5" />
+                      <span>
+                        {new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000)
+                          ? "Overdue"
+                          : "Exp"}: {new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  )}
                   {visit.optometrist_investigation_completed_at && (
                     <div className="group relative">
                       <span className="flex cursor-help items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100">
@@ -1184,6 +1206,35 @@ export function OpdList({ doctorId }: OpdListProps) {
                       >
                         <X className="h-4 w-4 shrink-0" />
                         <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
+                      </button>
+                      <PrintButtonsGroup
+                        visit={visit}
+                        onPrintOpd={() => handlePrintOpd(visit.id)}
+                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+                      />
+                    </>
+                  )}
+                  {visit.status === "dilation_in_progress" && (
+                    <>
+                      <button
+                        onClick={() => handleCompleteDilation(visit.id)}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Complete Dilation"
+                      >
+                        <CheckCircle className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete Dilation</span>
                       </button>
                       <PrintButtonsGroup
                         visit={visit}
