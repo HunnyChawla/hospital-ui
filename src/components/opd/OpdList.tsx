@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAppSelector } from "@/redux/hooks";
 import { useOpdVisits, useUpdateOpdVisitStatus, useCompleteDilation } from "@/hooks/queries/useOpdVisits";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw, Droplets } from "lucide-react";
+import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw, Droplets, LayoutGrid, List } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -180,6 +180,293 @@ function PrintButtonsGroup({
   );
 }
 
+// Compact Action Button with Tooltip
+function CompactActionButton({
+  onClick,
+  icon: Icon,
+  title,
+  color,
+  disabled = false,
+}: {
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  color: "amber" | "emerald" | "rose" | "slate" | "sky" | "indigo" | "violet";
+  disabled?: boolean;
+}) {
+  const colorClasses = {
+    amber: "bg-amber-500 hover:bg-amber-600",
+    emerald: "bg-emerald-500 hover:bg-emerald-600",
+    rose: "bg-rose-500 hover:bg-rose-600",
+    slate: "bg-slate-500 hover:bg-slate-600",
+    sky: "bg-sky-500 hover:bg-sky-600",
+    indigo: "bg-indigo-500 hover:bg-indigo-600",
+    violet: "bg-violet-500 hover:bg-violet-600",
+  };
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      className={`flex h-7 w-7 items-center justify-center rounded-md text-white transition-all ${colorClasses[color]} disabled:cursor-not-allowed disabled:opacity-50`}
+      title={title}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+// Visit List Row Component - compact horizontal display for list view
+function VisitListRow({
+  visit,
+  actions,
+  getStatusIcon,
+  getStatusColor,
+  onPrintOpd,
+  onPrintInvoice,
+  onPrintPayment,
+}: {
+  visit: Visit;
+  actions: Array<{
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    color: "amber" | "emerald" | "rose" | "slate" | "sky" | "indigo" | "violet";
+    onClick: () => void;
+  }>;
+  getStatusIcon: (status: string) => React.ReactElement;
+  getStatusColor: (status: string) => string;
+  onPrintOpd: () => void;
+  onPrintInvoice: () => void;
+  onPrintPayment: () => void;
+}) {
+  const isDilating = visit.status === "dilation_in_progress";
+  const dilationOverdue = isDilating && visit.dilation_started_at &&
+    new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000);
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3 shadow-sm hover:border-slate-200 hover:shadow transition">
+      {/* Token */}
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold text-sm">
+        #{visit.token_number}
+      </div>
+
+      {/* Patient Name */}
+      <div className="min-w-0 flex-1 max-w-[180px]">
+        <p className="font-semibold text-slate-900 text-sm truncate">
+          {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
+        </p>
+        {visit.patient_mobile && (
+          <p className="text-xs text-slate-500 truncate sm:hidden">{visit.patient_mobile}</p>
+        )}
+      </div>
+
+      {/* Mobile - hidden on small screens */}
+      <div className="hidden sm:block min-w-[100px] text-xs text-slate-500">
+        {visit.patient_mobile || "-"}
+      </div>
+
+      {/* Visit Type - hidden on small screens */}
+      <div className="hidden md:block min-w-[80px]">
+        <span className={`text-xs px-2 py-0.5 rounded ${visit.visit_type === "emergency" ? "bg-rose-50 text-rose-700 font-medium" : "text-slate-600"}`}>
+          {visit.visit_type === "walk_in" ? "Walk-in" : visit.visit_type === "appointment" ? "Appt" : visit.visit_type === "emergency" ? "Emergency" : String(visit.visit_type || "").replace("_", " ")}
+        </span>
+      </div>
+
+      {/* Status Badge */}
+      <div className="min-w-[140px]">
+        {isDilating ? (
+          <div className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold ${
+            dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-violet-50 text-violet-700 border-violet-200"
+          }`}>
+            <Droplets className="h-3 w-3" />
+            <span>Dilating</span>
+            {visit.dilation_started_at && (
+              <>
+                <span className="text-slate-300">|</span>
+                <ClockIcon className="h-3 w-3" />
+                <span>
+                  {dilationOverdue
+                    ? "Overdue"
+                    : new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <span className={`pill inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
+            {getStatusIcon(visit.status)}
+            <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
+          </span>
+        )}
+      </div>
+
+      {/* Optometrist indicator - hidden on small screens */}
+      <div className="hidden lg:block w-6">
+        {visit.optometrist_investigation_completed_at && (
+          <span className="flex items-center justify-center rounded border border-emerald-200 bg-emerald-50 p-1" title={`Optometrist done at ${new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}>
+            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+          </span>
+        )}
+      </div>
+
+      {/* Time - hidden on small screens */}
+      <div className="hidden lg:block min-w-[60px] text-xs text-slate-500">
+        {visit.checked_in_at ? new Date(visit.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        {actions.map((action, idx) => (
+          <CompactActionButton
+            key={idx}
+            icon={action.icon}
+            title={action.title}
+            color={action.color}
+            onClick={action.onClick}
+          />
+        ))}
+        <PrintButtonsGroup
+          visit={visit}
+          onPrintOpd={onPrintOpd}
+          onPrintInvoice={onPrintInvoice}
+          onPrintPayment={onPrintPayment}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Visit Card Component - unified compact card for grid view
+function VisitCard({
+  visit,
+  actions,
+  getStatusIcon,
+  getStatusColor,
+  onPrintOpd,
+  onPrintInvoice,
+  onPrintPayment,
+}: {
+  visit: Visit;
+  actions: Array<{
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    color: "amber" | "emerald" | "rose" | "slate" | "sky" | "indigo" | "violet";
+    onClick: () => void;
+  }>;
+  getStatusIcon: (status: string) => React.ReactElement;
+  getStatusColor: (status: string) => string;
+  onPrintOpd: () => void;
+  onPrintInvoice: () => void;
+  onPrintPayment: () => void;
+}) {
+  const isDilating = visit.status === "dilation_in_progress";
+  const dilationOverdue = isDilating && visit.dilation_started_at &&
+    new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000);
+
+  return (
+    <div className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full hover:border-slate-200 hover:shadow transition">
+      {/* Header: Token + Patient Info */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
+          #{visit.token_number}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-slate-900 truncate">
+            {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            {visit.patient_mobile && <span>{visit.patient_mobile}</span>}
+            <span className={`flex items-center gap-1 ${visit.visit_type === "emergency" ? "pill px-2 py-0.5 bg-rose-50 text-rose-700 font-medium" : ""}`}>
+              <User className="h-3 w-3" />
+              {visit.visit_type === "walk_in" ? "Walk-in" : visit.visit_type === "appointment" ? "Appt" : visit.visit_type === "emergency" ? "Emergency" : String(visit.visit_type || "").replace("_", " ")}
+            </span>
+            {visit.checked_in_at && (
+              <span>{new Date(visit.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer: Status + Actions - Unified Compact Layout */}
+      <div className="mt-4 border-t border-slate-50 pt-3">
+        <div className="flex items-center justify-between gap-2">
+          {/* Status Badges */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            {/* Main status badge */}
+            {isDilating ? (
+              <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold ${
+                dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-300" : "bg-violet-50 text-violet-700 border-violet-200"
+              }`}>
+                <Droplets className="h-3 w-3" />
+                <span>Dilating</span>
+                {visit.dilation_started_at && (
+                  <>
+                    <span className="text-slate-300">|</span>
+                    <ClockIcon className="h-3 w-3" />
+                    <span className="font-medium">
+                      {dilationOverdue
+                        ? "Overdue"
+                        : new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <span className={`pill flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
+                {getStatusIcon(visit.status)}
+                <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
+              </span>
+            )}
+
+            {/* Optometrist completed indicator */}
+            {visit.optometrist_investigation_completed_at && (
+              <div className="group relative">
+                <span className="flex cursor-help items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 p-1" title="Optometrist investigation completed">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                </span>
+                {/* Tooltip on hover */}
+                <div className="absolute bottom-full left-0 mb-2 hidden w-max min-w-[160px] flex-col gap-1 rounded-lg bg-slate-800 p-2.5 text-xs text-white shadow-xl ring-1 ring-white/10 group-hover:flex z-50">
+                  <div className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Optometrist Done
+                  </div>
+                  <div className="text-slate-300 text-[10px]">
+                    {new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {visit.optometrist_name && ` - ${visit.optometrist_name}`}
+                  </div>
+                  <div className="absolute top-full left-3 -mt-1 h-2 w-2 rotate-45 bg-slate-800"></div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons - always compact */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {actions.map((action, idx) => (
+              <CompactActionButton
+                key={idx}
+                icon={action.icon}
+                title={action.title}
+                color={action.color}
+                onClick={action.onClick}
+              />
+            ))}
+            <PrintButtonsGroup
+              visit={visit}
+              onPrintOpd={onPrintOpd}
+              onPrintInvoice={onPrintInvoice}
+              onPrintPayment={onPrintPayment}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function OpdList({ doctorId }: OpdListProps) {
   // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const { list: doctors } = useAppSelector((s) => s.doctors);
@@ -239,6 +526,14 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [cancelling, setCancelling] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
+
+  // View mode state - persisted in localStorage
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('opd_visits_view') as 'list' | 'grid') || 'grid';
+    }
+    return 'grid';
+  });
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -410,6 +705,59 @@ export function OpdList({ doctorId }: OpdListProps) {
       default:
         return "bg-amber-50 text-amber-700";
     }
+  };
+
+  // Get action buttons for each status - used by both list and card views
+  const getStatusActions = (visit: Visit): Array<{
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    color: "amber" | "emerald" | "rose" | "slate" | "sky" | "indigo" | "violet";
+    onClick: () => void;
+  }> => {
+    const actions: Array<{
+      icon: React.ComponentType<{ className?: string }>;
+      title: string;
+      color: "amber" | "emerald" | "rose" | "slate" | "sky" | "indigo" | "violet";
+      onClick: () => void;
+    }> = [];
+
+    switch (visit.status) {
+      case "checked_in":
+        actions.push(
+          { icon: Play, title: "Start Consultation", color: "amber", onClick: () => handleUpdateStatus(visit.id, "in_consultation") },
+          { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") },
+          { icon: X, title: "Cancel", color: "rose", onClick: () => handleUpdateStatus(visit.id, "cancelled", visit) },
+          { icon: User, title: "No Show", color: "slate", onClick: () => handleUpdateStatus(visit.id, "no_show") }
+        );
+        break;
+      case "in_consultation":
+      case "consultation_in_progress":
+        actions.push(
+          { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") },
+          { icon: X, title: "Cancel", color: "rose", onClick: () => handleUpdateStatus(visit.id, "cancelled", visit) }
+        );
+        break;
+      case "dilation_in_progress":
+        actions.push(
+          { icon: CheckCircle, title: "Complete Dilation", color: "emerald", onClick: () => handleCompleteDilation(visit.id) }
+        );
+        break;
+      case "no_show":
+        actions.push({
+          icon: RotateCcw,
+          title: "Recall Patient",
+          color: "sky",
+          onClick: () => {
+            const newStatus = visit.optometrist_investigation_completed_at
+              ? "awaiting_doctor"
+              : "awaiting_optometrist";
+            handleUpdateStatus(visit.id, newStatus as VisitStatus);
+          },
+        });
+        break;
+      // completed, cancelled, and other statuses: no action buttons (print only)
+    }
+    return actions;
   };
 
   const handleUpdateStatus = async (visitId: string, newStatus: VisitStatus, visit?: Visit) => {
@@ -947,24 +1295,54 @@ export function OpdList({ doctorId }: OpdListProps) {
           </label>
         </div>
 
-        <button
-          onClick={handleExportPDF}
-          disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 lg:w-auto"
-          title="Export all visits to PDF"
-        >
-          {exporting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Exporting...</span>
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4" />
-              <span>Export PDF</span>
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+            <button
+              onClick={() => {
+                setViewMode("list");
+                localStorage.setItem("opd_visits_view", "list");
+              }}
+              className={`flex items-center justify-center rounded-lg p-2 transition ${
+                viewMode === "list" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
+              }`}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                setViewMode("grid");
+                localStorage.setItem("opd_visits_view", "grid");
+              }}
+              className={`flex items-center justify-center rounded-lg p-2 transition ${
+                viewMode === "grid" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+
+          <button
+            onClick={handleExportPDF}
+            disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 lg:w-auto"
+            title="Export all visits to PDF"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>Export PDF</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {dateRangeError && (
@@ -985,306 +1363,50 @@ export function OpdList({ doctorId }: OpdListProps) {
         <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center">
           <p className="text-slate-500">No OPD visits found for selected doctor and date range</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      ) : viewMode === 'list' ? (
+        /* List View */
+        <div className="space-y-2">
+          {/* Header row for list view */}
+          <div className="hidden sm:flex items-center gap-3 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+            <div className="w-9">Token</div>
+            <div className="flex-1 max-w-[180px]">Patient</div>
+            <div className="min-w-[100px] hidden sm:block">Mobile</div>
+            <div className="min-w-[80px] hidden md:block">Type</div>
+            <div className="min-w-[140px]">Status</div>
+            <div className="w-6 hidden lg:block"></div>
+            <div className="min-w-[60px] hidden lg:block">Time</div>
+            <div className="shrink-0 w-[140px] text-right">Actions</div>
+          </div>
           {visits.map((visit) => (
-            <div
+            <VisitListRow
               key={visit.id}
-              className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full"
-            >
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
-                    #{visit.token_number}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-900 truncate">
-                      {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      {visit.patient_mobile && (
-                        <span>{visit.patient_mobile}</span>
-                      )}
-                      <span className={`flex items-center gap-1 ${visit.visit_type === "emergency" ? "pill px-2 py-0.5 bg-rose-50 text-rose-700 font-medium" : ""}`}>
-                        <User className="h-3 w-3" />
-                        {visit.visit_type === "walk_in"
-                          ? "Walk-in"
-                          : visit.visit_type === "appointment"
-                            ? "From Appointment"
-                            : visit.visit_type === "emergency"
-                              ? "Emergency"
-                              : String(visit.visit_type).replace("_", " ")}
-                      </span>
-                      {visit.checked_in_at && (
-                        <span>
-                          {formatDate(visit.checked_in_at)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3">
-                <div className="flex items-center gap-2">
-                  <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(visit.status)}`}>
-                    {getStatusIcon(visit.status)}
-                    <span className="capitalize">{visit.status.replace("_", " ")}</span>
-                  </span>
-                  {visit.status === "dilation_in_progress" && visit.dilation_started_at && (
-                    <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium shadow-sm transition-colors ${new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000)
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-indigo-50 text-indigo-700 border-indigo-200 shadow-indigo-100"
-                      }`}>
-                      <ClockIcon className="h-3.5 w-3.5" />
-                      <span>
-                        {new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000)
-                          ? "Overdue"
-                          : "Exp"}: {new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  )}
-                  {visit.optometrist_investigation_completed_at && (
-                    <div className="group relative">
-                      <span className="flex cursor-help items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                        <span>Optometrist</span>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-slate-500 font-normal">
-                          {new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </span>
-
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-0 mb-2 hidden w-max min-w-[180px] flex-col gap-1 rounded-lg bg-slate-800 p-3 text-xs text-white shadow-xl ring-1 ring-white/10 group-hover:flex z-50">
-                        <div className="font-semibold text-emerald-400 border-b border-white/10 pb-2 mb-1 flex items-center gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Investigation Completed
-                        </div>
-                        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-slate-300">
-                          <span className="text-slate-400">Done at:</span>
-                          <span className="text-white font-medium">
-                            {new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-
-                          {visit.optometrist_name && (
-                            <>
-                              <span className="text-slate-400">Done by:</span>
-                              <span className="text-white font-medium">{visit.optometrist_name}</span>
-                            </>
-                          )}
-                        </div>
-                        {/* Arrow */}
-                        <div className="absolute top-full left-4 -mt-1.5 h-3 w-3 rotate-45 bg-slate-800 ring-1 ring-white/10 border-b border-r border-transparent"></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {visit.status === "checked_in" && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "in_consultation")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Start Consultation"
-                      >
-                        <Play className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Start Consultation</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "completed")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Complete"
-                      >
-                        <CheckCircle className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Cancel"
-                      >
-                        <X className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "no_show")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-slate-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="No Show"
-                      >
-                        <User className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">No Show</span>
-                      </button>
-                      <PrintButtonsGroup
-                        visit={visit}
-                        onPrintOpd={() => handlePrintOpd(visit.id)}
-                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                      />
-                    </>
-                  )}
-                  {visit.status === "in_consultation" && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "completed")}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Complete"
-                      >
-                        <CheckCircle className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(visit.id, "cancelled", visit)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Cancel"
-                      >
-                        <X className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                      </button>
-                      <PrintButtonsGroup
-                        visit={visit}
-                        onPrintOpd={() => handlePrintOpd(visit.id)}
-                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                      />
-                    </>
-                  )}
-                  {visit.status === "dilation_in_progress" && (
-                    <>
-                      <button
-                        onClick={() => handleCompleteDilation(visit.id)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Complete Dilation"
-                      >
-                        <CheckCircle className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete Dilation</span>
-                      </button>
-                      <PrintButtonsGroup
-                        visit={visit}
-                        onPrintOpd={() => handlePrintOpd(visit.id)}
-                        onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                        onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                      />
-                    </>
-                  )}
-                  {visit.status === "completed" && (
-                    <PrintButtonsGroup
-                      visit={visit}
-                      onPrintOpd={() => handlePrintOpd(visit.id)}
-                      onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
-                      onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
-                    />
-                  )}
-                  {visit.status === "no_show" && (
-                    <button
-                      onClick={() => {
-                        const newStatus = visit.optometrist_investigation_completed_at
-                          ? "awaiting_doctor"
-                          : "awaiting_optometrist";
-                        handleUpdateStatus(visit.id, newStatus);
-                      }}
-                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                      style={{ width: "2rem" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.width = "auto";
-                        e.currentTarget.style.paddingLeft = "0.75rem";
-                        e.currentTarget.style.paddingRight = "0.75rem";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.width = "2rem";
-                        e.currentTarget.style.paddingLeft = "0.5rem";
-                        e.currentTarget.style.paddingRight = "0.5rem";
-                      }}
-                      title="Recall Patient"
-                    >
-                      <RotateCcw className="h-4 w-4 shrink-0" />
-                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Recall</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+              visit={visit}
+              actions={getStatusActions(visit)}
+              getStatusIcon={getStatusIcon}
+              getStatusColor={getStatusColor}
+              onPrintOpd={() => handlePrintOpd(visit.id)}
+              onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+              onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+            />
           ))}
         </div>
-      )
-      }
+      ) : (
+        /* Grid/Card View */
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {visits.map((visit) => (
+            <VisitCard
+              key={visit.id}
+              visit={visit}
+              actions={getStatusActions(visit)}
+              getStatusIcon={getStatusIcon}
+              getStatusColor={getStatusColor}
+              onPrintOpd={() => handlePrintOpd(visit.id)}
+              onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
+              onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Pagination */}
       {
