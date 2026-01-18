@@ -532,55 +532,64 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             {patient.status === "consultation_in_progress" && (
                               <>
                                 <div className="relative flex-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDilationDropdownVisitId(
-                                        dilationDropdownVisitId === patient.visit_id ? null : patient.visit_id
-                                      );
-                                    }}
-                                    disabled={updatingVisitId === patient.visit_id}
-                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/30 transition-all hover:from-violet-600 hover:to-purple-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                                  >
-                                    {updatingVisitId === patient.visit_id ? (
-                                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                    ) : (
-                                      <>
-                                        <Droplet className="h-3.5 w-3.5" />
-                                        Start Dilation
-                                      </>
-                                    )}
-                                  </button>
-
-                                  {/* Duration Picker Dropdown */}
-                                  {dilationDropdownVisitId === patient.visit_id && (
+                                  {patient.dilation_completed_at ? (
+                                    <div className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-sm cursor-default">
+                                      <CheckCircle className="h-3.5 w-3.5" />
+                                      Dilation Done: {new Date(patient.dilation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  ) : (
                                     <>
-                                      <div
-                                        className="fixed inset-0 z-40"
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setDilationDropdownVisitId(null);
+                                          setDilationDropdownVisitId(
+                                            dilationDropdownVisitId === patient.visit_id ? null : patient.visit_id
+                                          );
                                         }}
-                                      />
-                                      <div className="absolute top-full left-0 mt-1 z-50 min-w-full w-max bg-white border border-slate-200 rounded-lg shadow-xl p-2 animate-in fade-in zoom-in-95 duration-150">
-                                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 px-1">Select Duration</p>
-                                        <div className="flex flex-col gap-1 min-w-[140px]">
-                                          {[15, 20, 30, 45, 60].map((mins) => (
-                                            <button
-                                              key={mins}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setDilationDropdownVisitId(null);
-                                                onAction(patient.visit_id, "start_dilation", mins);
-                                              }}
-                                              className="w-full text-left px-3 py-2 text-xs font-semibold rounded-md border border-slate-200 bg-slate-50 text-slate-700 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 transition-all flex items-center justify-between group"
-                                            >
-                                              <span>{mins} minutes</span>
-                                              <Clock className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-violet-500" />
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
+                                        disabled={updatingVisitId === patient.visit_id}
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/30 transition-all hover:from-violet-600 hover:to-purple-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                      >
+                                        {updatingVisitId === patient.visit_id ? (
+                                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                        ) : (
+                                          <>
+                                            <Droplet className="h-3.5 w-3.5" />
+                                            Start Dilation
+                                          </>
+                                        )}
+                                      </button>
+
+                                      {/* Duration Picker Dropdown */}
+                                      {dilationDropdownVisitId === patient.visit_id && (
+                                        <>
+                                          <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setDilationDropdownVisitId(null);
+                                            }}
+                                          />
+                                          <div className="absolute top-full left-0 mt-1 z-50 min-w-full w-max bg-white border border-slate-200 rounded-lg shadow-xl p-2 animate-in fade-in zoom-in-95 duration-150">
+                                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 px-1">Select Duration</p>
+                                            <div className="flex flex-col gap-1 min-w-[140px]">
+                                              {[15, 20, 30, 45, 60].map((mins) => (
+                                                <button
+                                                  key={mins}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDilationDropdownVisitId(null);
+                                                    onAction(patient.visit_id, "start_dilation", mins);
+                                                  }}
+                                                  className="w-full text-left px-3 py-2 text-xs font-semibold rounded-md border border-slate-200 bg-slate-50 text-slate-700 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 transition-all flex items-center justify-between group"
+                                                >
+                                                  <span>{mins} minutes</span>
+                                                  <Clock className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-violet-500" />
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
                                     </>
                                   )}
                                 </div>
