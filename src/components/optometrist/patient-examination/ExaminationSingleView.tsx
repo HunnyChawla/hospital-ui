@@ -281,7 +281,7 @@ export function ExaminationSingleView({
   return (
     <div className="space-y-8 pb-10">
       {/* Sticky Header with Progress & Quick Jump */}
-      <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-4 mb-6">
+      <div className="sticky top-0 z-40 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-4 mb-6">
         {/* Progress Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
