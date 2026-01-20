@@ -304,7 +304,7 @@ export function NumericStepper({
                   "disabled:opacity-40 disabled:cursor-not-allowed"
                 )}
               >
-                {preset >= 0 ? `+${preset}` : preset}
+                {step >= 1 ? preset : (preset >= 0 ? `+${preset}` : preset)}
               </button>
             ))}
           </div>
