@@ -41,6 +41,7 @@ export function AppointmentForm({
   const [dropdownResults, setDropdownResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const previousPatientsCount = useRef(patients.length);
   const justSelectedRef = useRef(false);
@@ -76,8 +77,13 @@ export function AppointmentForm({
 
   // Dropdown search effect
   useEffect(() => {
+    // Check against selectedPatientData or Redux store
+    const selectedName = (selectedPatientData && selectedPatientData.id === patientId)
+      ? selectedPatientData.name
+      : patients.find(p => p.id === patientId)?.name;
+
     // Don't search if we just selected a patient or if a patient is already selected
-    if (justSelectedRef.current || (patientId && dropdownSearchTerm === patients.find(p => p.id === patientId)?.name)) {
+    if (justSelectedRef.current || (patientId && dropdownSearchTerm === selectedName)) {
       return;
     }
 
@@ -129,6 +135,7 @@ export function AppointmentForm({
     justSelectedRef.current = true;
     setPatientId(patient.id);
     setDropdownSearchTerm(patient.name);
+    setSelectedPatientData(patient);
     setShowDropdown(false);
     setDropdownResults([]); // Clear results to prevent dropdown from showing again
     // Reset the flag after a short delay
@@ -140,12 +147,24 @@ export function AppointmentForm({
   // Listen for patient creation event to select the newly created patient
   useEffect(() => {
     const handlePatientCreated = (event: CustomEvent) => {
-      const { patientId: newPatientId } = event.detail;
+      const { patientId: newPatientId, patient } = event.detail;
+
+      if (patient) {
+        setPatientId(patient.id);
+        setDropdownSearchTerm(patient.name);
+        setSelectedPatientData(patient);
+        setShowDropdown(false);
+        setDropdownResults([]);
+        toast.success("Patient added and selected");
+        return;
+      }
+
       if (newPatientId) {
         const newPatient = patients.find((p) => p.id === newPatientId);
         if (newPatient) {
           setPatientId(newPatient.id);
           setDropdownSearchTerm(newPatient.name);
+          setSelectedPatientData(newPatient);
           setShowDropdown(false);
           setDropdownResults([]);
           toast.success("Patient added and selected");
@@ -293,7 +312,9 @@ export function AppointmentForm({
             {patientId && (
               <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
                 <p className="text-xs text-sky-700">
-                  Selected: {patients.find((p) => p.id === patientId)?.name || "Patient"}
+                  Selected: {(selectedPatientData && selectedPatientData.id === patientId)
+                    ? selectedPatientData.name
+                    : patients.find((p) => p.id === patientId)?.name || "Patient"}
                 </p>
               </div>
             )}
@@ -361,7 +382,9 @@ export function AppointmentForm({
               <div className="flex items-center gap-2 text-sm">
                 <User className="h-4 w-4 text-sky-600" />
                 <span className="font-semibold text-slate-900">
-                  {patients.find((p) => p.id === (patientId || defaultPatientId))?.name || "Patient selected"}
+                  {(selectedPatientData && selectedPatientData.id === (patientId || defaultPatientId))
+                    ? selectedPatientData.name
+                    : patients.find((p) => p.id === (patientId || defaultPatientId))?.name || "Patient selected"}
                 </span>
               </div>
             </div>
