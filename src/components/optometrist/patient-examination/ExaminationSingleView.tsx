@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
+import { useExaminationViewContext } from "@/context/ExaminationViewContext";
 import {
   MessageSquare,
   FileHeart,
@@ -15,9 +16,9 @@ import {
   CheckCircle2,
   Circle,
 } from "lucide-react";
-import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
-import { SingleViewSection } from "./SingleViewSection";
+
 import {
+  SingleViewSection,
   getComplaintsStatus,
   getVisionStatus,
   getMedicalHistoryStatus,
@@ -27,9 +28,10 @@ import {
   getRefractionStatus,
   getIOPStatus,
   getCurrentSpecsStatus,
+  type SectionStatus,
 } from "./SingleViewSection";
 
-// Import tab components
+// Import tab content components
 import { ComplaintsTab } from "./ComplaintsTab";
 import { VisionTab } from "./VisionTab";
 import { CurrentSpecsTab } from "./CurrentSpecsTab";
@@ -91,17 +93,17 @@ interface ExaminationSingleViewProps {
   refreshCurrentSpecs?: () => void;
 }
 
-// Define the sections for the single view
+// Reordered according to user request
 const sections = [
   { id: "complaints", title: "Complaints", icon: MessageSquare, colorScheme: "sky" as const },
-  { id: "vision", title: "Vision / Visual Acuity", icon: EyeOff, colorScheme: "blue" as const },
-  { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet" as const },
-  { id: "medical_history", title: "Medical History", icon: FileHeart, colorScheme: "purple" as const },
   { id: "ophthalmic_history", title: "Eye Surgery History", icon: Eye, colorScheme: "green" as const },
-  { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose" as const },
-  { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber" as const },
-  { id: "refraction", title: "Refraction", icon: Glasses, colorScheme: "sky" as const },
+  { id: "medical_history", title: "Medical History", icon: FileHeart, colorScheme: "purple" as const },
+  { id: "vision", title: "Vision / Visual Acuity", icon: EyeOff, colorScheme: "blue" as const },
   { id: "iop", title: "Intraocular Pressure (IOP)", icon: Activity, colorScheme: "emerald" as const },
+  { id: "refraction", title: "Refraction", icon: Glasses, colorScheme: "sky" as const },
+  { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber" as const },
+  { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet" as const },
+  { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose" as const },
 ] as const;
 
 export function ExaminationSingleView({
@@ -116,7 +118,7 @@ export function ExaminationSingleView({
   iopRecords,
   iopTrends,
   visionRecords,
-  currentSpecsRecords = [],
+  currentSpecsRecords,
   loading,
   refreshComplaints,
   refreshOphthalmicHistory,
@@ -128,7 +130,7 @@ export function ExaminationSingleView({
   refreshCurrentSpecs,
 }: ExaminationSingleViewProps) {
   const dispatch = useAppDispatch();
-  const { toggleSection, isSectionCollapsed } = useExaminationViewPreference();
+  const { hiddenTabs, toggleSection, isSectionCollapsed } = useExaminationViewContext();
   const [medicalConditions, setMedicalConditions] = useState<MedicalConditionRecord[]>([]);
 
   // Fetch medical conditions
@@ -155,51 +157,146 @@ export function ExaminationSingleView({
     };
 
     fetchConditions();
-
-    // Set up interval to periodically refresh medical conditions
-    const interval = setInterval(fetchConditions, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
   }, [patientId, dispatch]);
 
   // Calculate section statuses
-  const sectionStatuses = useMemo(() => ({
-    complaints: getComplaintsStatus(complaints),
-    vision: getVisionStatus(visionRecords, visitId),
-    current_specs: getCurrentSpecsStatus(currentSpecsRecords, visitId),
-    medical_history: getMedicalHistoryStatus(medicalConditions),
-    ophthalmic_history: getOphthalmicHistoryStatus(ophthalmicHistory),
-    allergies: getDrugAllergyStatus(drugAllergies),
-    ar_data: getARDataStatus(arDataRecords, visitId),
-    refraction: getRefractionStatus(refractionRecords, visitId),
-    iop: getIOPStatus(iopRecords, visitId),
-  }), [complaints, visionRecords, currentSpecsRecords, medicalConditions, ophthalmicHistory, drugAllergies, arDataRecords, refractionRecords, iopRecords, visitId]);
+  const sectionStatuses = useMemo(
+    () => ({
+      complaints: getComplaintsStatus(complaints),
+      vision: getVisionStatus(visionRecords, visitId),
+      medical_history: getMedicalHistoryStatus(medicalConditions),
+      ophthalmic_history: getOphthalmicHistoryStatus(ophthalmicHistory),
+      allergies: getDrugAllergyStatus(drugAllergies),
+      ar_data: getARDataStatus(arDataRecords, visitId),
+      refraction: getRefractionStatus(refractionRecords, visitId),
+      iop: getIOPStatus(iopRecords, visitId),
+      current_specs: getCurrentSpecsStatus(currentSpecsRecords || [], visitId),
+    }),
+    [
+      complaints,
+      visionRecords,
+      medicalConditions,
+      ophthalmicHistory,
+      drugAllergies,
+      arDataRecords,
+      refractionRecords,
+      iopRecords,
+      currentSpecsRecords,
+      visitId,
+    ]
+  );
 
-  // Calculate overall progress
+  // Calculate overall progress based on visible sections
   const completedCount = useMemo(() => {
-    return Object.values(sectionStatuses).filter(status => status === "complete").length;
-  }, [sectionStatuses]);
+    return sections
+      .filter((s) => !hiddenTabs.includes(s.id))
+      .filter((s) => sectionStatuses[s.id as keyof typeof sectionStatuses] === "complete")
+      .length;
+  }, [sectionStatuses, hiddenTabs]);
 
-  const totalSections = sections.length;
-  const progressPercent = Math.round((completedCount / totalSections) * 100);
+  const totalSections = sections.filter((s) => !hiddenTabs.includes(s.id)).length;
+  // Avoid division by zero
+  const progressPercent = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
-  // Generate status text for each section
-  const getStatusText = (sectionId: string): string | undefined => {
+  // Render content function maps section ID to component
+  const renderSectionContent = (sectionId: string) => {
     switch (sectionId) {
       case "complaints":
-        return complaints.length > 0 ? `${complaints.length} item${complaints.length > 1 ? "s" : ""}` : undefined;
+        return (
+          <ComplaintsTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            complaints={complaints}
+            loading={loading.complaints}
+            onRefresh={refreshComplaints}
+          />
+        );
+      case "vision":
+        return (
+          <VisionTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            visionRecords={visionRecords}
+            loading={loading.vision}
+            onRefresh={refreshVision}
+          />
+        );
+      case "medical_history":
+        return <MedicalHistoryTab patientId={patientId} visitId={visitId} />;
       case "ophthalmic_history":
-        return ophthalmicHistory.length > 0 ? `${ophthalmicHistory.length} item${ophthalmicHistory.length > 1 ? "s" : ""}` : undefined;
+        return (
+          <OphthalHistoryTab
+            patientId={patientId}
+            ophthalmicHistory={ophthalmicHistory}
+            loading={loading.ophthalmicHistory}
+            onRefresh={refreshOphthalmicHistory}
+          />
+        );
       case "allergies":
-        return drugAllergies.length > 0 ? `${drugAllergies.length} item${drugAllergies.length > 1 ? "s" : ""}` : undefined;
+        return (
+          <DrugAllergyTab
+            patientId={patientId}
+            drugAllergies={drugAllergies}
+            loading={loading.drugAllergies}
+            onRefresh={refreshDrugAllergies}
+          />
+        );
+      case "ar_data":
+        return (
+          <ARDataTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            arDataRecords={arDataRecords}
+            loading={loading.arData}
+            onRefresh={refreshARData}
+          />
+        );
+      case "refraction":
+        return (
+          <RefractionTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            refractionRecords={refractionRecords}
+            loading={loading.refraction}
+            onRefresh={refreshRefraction}
+          />
+        );
+      case "iop":
+        return (
+          <IOPTab
+            patientId={patientId}
+            visitId={visitId}
+            iopRecords={iopRecords}
+            iopTrends={iopTrends}
+            loading={loading.iop}
+            onRefresh={refreshIOP}
+          />
+        );
+      case "current_specs":
+        return (
+          <CurrentSpecsTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            currentSpecsRecords={currentSpecsRecords || []}
+            loading={loading.currentSpecs || false}
+            onRefresh={refreshCurrentSpecs || (() => { })}
+          />
+        );
       default:
-        return undefined;
+        return null;
     }
   };
 
   return (
-    <div className="space-y-4 pb-6">
-      {/* Progress Header */}
-      <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-4">
+    <div className="space-y-8 pb-10">
+      {/* Sticky Header with Progress & Quick Jump */}
+      <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-4 mb-6">
+        {/* Progress Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -213,225 +310,83 @@ export function ExaminationSingleView({
         </div>
 
         {/* Progress Bar */}
-        <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+        <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-4">
           <div
             className="h-full bg-gradient-to-r from-sky-500 to-emerald-500 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
-        {/* Quick Navigation */}
-        <div className="flex flex-wrap gap-2 mt-3">
+        {/* Quick Jump Links */}
+        <div className="flex flex-wrap gap-2">
           {sections.map((section) => {
-            const status = sectionStatuses[section.id as keyof typeof sectionStatuses];
+            // Skip if section is hidden
+            if (hiddenTabs.includes(section.id)) return null;
+
+            const status = sectionStatuses[section.id as keyof typeof sectionStatuses] as SectionStatus;
             const isComplete = status === "complete";
             const isPartial = status === "partial";
 
             return (
-              <button
+              <a
                 key={section.id}
-                onClick={() => {
-                  // Scroll to section
-                  const element = document.getElementById(section.id);
-                  if (element) {
-                    element.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }
-                }}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${isComplete
-                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                href={`#section-${section.id}`}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all shadow-sm ${isComplete
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
                   : isPartial
-                    ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200"
+                    : "bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600"
                   }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById(`section-${section.id}`)?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }}
               >
                 {isComplete ? (
-                  <CheckCircle2 className="h-3 w-3" />
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : isPartial ? (
+                  <Circle className="h-3.5 w-3.5 fill-current" />
                 ) : (
-                  <Circle className="h-3 w-3" />
+                  <section.icon className="h-3.5 w-3.5" />
                 )}
-                <span>{section.title.split(" ")[0]}</span>
-              </button>
+                <span>{section.title}</span>
+              </a>
             );
           })}
         </div>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-4">
-        {/* Complaints Section */}
-        <SingleViewSection
-          id="complaints"
-          title="Complaints"
-          icon={<MessageSquare className="h-5 w-5" />}
-          status={sectionStatuses.complaints}
-          statusText={getStatusText("complaints")}
-          isExpanded={!isSectionCollapsed("complaints")}
-          onToggle={() => toggleSection("complaints")}
-          colorScheme="sky"
-        >
-          <ComplaintsTab
-            patientId={patientId}
-            visitId={visitId}
-            optometristId={optometristId}
-            complaints={complaints}
-            loading={loading.complaints}
-            onRefresh={refreshComplaints}
-          />
-        </SingleViewSection>
+      {sections.map((section) => {
+        // Skip if section is hidden
+        if (hiddenTabs.includes(section.id)) return null;
 
-        {/* Vision Section */}
-        <SingleViewSection
-          id="vision"
-          title="Vision / Visual Acuity"
-          icon={<EyeOff className="h-5 w-5" />}
-          status={sectionStatuses.vision}
-          isExpanded={!isSectionCollapsed("vision")}
-          onToggle={() => toggleSection("vision")}
-          colorScheme="blue"
-        >
-          <VisionTab
-            patientId={patientId}
-            visitId={visitId}
-            optometristId={optometristId}
-            visionRecords={visionRecords}
-            loading={loading.vision}
-            onRefresh={refreshVision}
-          />
-        </SingleViewSection>
+        const status = sectionStatuses[section.id as keyof typeof sectionStatuses] as SectionStatus;
 
-        {/* Current Specs Section */}
-        <SingleViewSection
-          id="current_specs"
-          title="Current Specs"
-          icon={<Glasses className="h-5 w-5" />}
-          status={sectionStatuses.current_specs}
-          isExpanded={!isSectionCollapsed("current_specs")}
-          onToggle={() => toggleSection("current_specs")}
-          colorScheme="violet"
-        >
-          <CurrentSpecsTab
-            patientId={patientId}
-            visitId={visitId}
-            optometristId={optometristId}
-            currentSpecsRecords={currentSpecsRecords}
-            loading={loading.currentSpecs || false}
-            onRefresh={refreshCurrentSpecs || (() => { })}
-          />
-        </SingleViewSection>
+        return (
+          <div key={section.id} id={`section-${section.id}`} className="scroll-mt-24">
+            <SingleViewSection
+              id={section.id}
+              title={section.title}
+              icon={<section.icon className="h-5 w-5" />}
+              status={status}
+              isExpanded={!isSectionCollapsed(section.id)}
+              onToggle={() => toggleSection(section.id)}
+              colorScheme={section.colorScheme}
+            >
+              {renderSectionContent(section.id)}
+            </SingleViewSection>
+          </div>
+        );
+      })}
 
-        {/* Medical History Section */}
-        <SingleViewSection
-          id="medical_history"
-          title="Medical History"
-          icon={<FileHeart className="h-5 w-5" />}
-          status={sectionStatuses.medical_history}
-          isExpanded={!isSectionCollapsed("medical_history")}
-          onToggle={() => toggleSection("medical_history")}
-          colorScheme="purple"
-        >
-          <MedicalHistoryTab
-            patientId={patientId}
-            visitId={visitId}
-          />
-        </SingleViewSection>
-
-        {/* Ophthalmic History Section */}
-        <SingleViewSection
-          id="ophthalmic_history"
-          title="Eye Surgery History"
-          icon={<Eye className="h-5 w-5" />}
-          status={sectionStatuses.ophthalmic_history}
-          statusText={getStatusText("ophthalmic_history")}
-          isExpanded={!isSectionCollapsed("ophthalmic_history")}
-          onToggle={() => toggleSection("ophthalmic_history")}
-          colorScheme="green"
-        >
-          <OphthalHistoryTab
-            patientId={patientId}
-            ophthalmicHistory={ophthalmicHistory}
-            loading={loading.ophthalmicHistory}
-            onRefresh={refreshOphthalmicHistory}
-          />
-        </SingleViewSection>
-
-        {/* Drug Allergies Section */}
-        <SingleViewSection
-          id="allergies"
-          title="Drug Allergies"
-          icon={<AlertTriangle className="h-5 w-5" />}
-          status={sectionStatuses.allergies}
-          statusText={getStatusText("allergies")}
-          isExpanded={!isSectionCollapsed("allergies")}
-          onToggle={() => toggleSection("allergies")}
-          colorScheme="rose"
-        >
-          <DrugAllergyTab
-            patientId={patientId}
-            drugAllergies={drugAllergies}
-            loading={loading.drugAllergies}
-            onRefresh={refreshDrugAllergies}
-          />
-        </SingleViewSection>
-
-        {/* AR Data Section */}
-        <SingleViewSection
-          id="ar_data"
-          title="AR Data (Auto-Refraction)"
-          icon={<Scan className="h-5 w-5" />}
-          status={sectionStatuses.ar_data}
-          isExpanded={!isSectionCollapsed("ar_data")}
-          onToggle={() => toggleSection("ar_data")}
-          colorScheme="amber"
-        >
-          <ARDataTab
-            patientId={patientId}
-            visitId={visitId}
-            optometristId={optometristId}
-            arDataRecords={arDataRecords}
-            loading={loading.arData}
-            onRefresh={refreshARData}
-          />
-        </SingleViewSection>
-
-        {/* Refraction Section */}
-        <SingleViewSection
-          id="refraction"
-          title="Refraction"
-          icon={<Glasses className="h-5 w-5" />}
-          status={sectionStatuses.refraction}
-          isExpanded={!isSectionCollapsed("refraction")}
-          onToggle={() => toggleSection("refraction")}
-          colorScheme="sky"
-        >
-          <RefractionTab
-            patientId={patientId}
-            visitId={visitId}
-            optometristId={optometristId}
-            refractionRecords={refractionRecords}
-            loading={loading.refraction}
-            onRefresh={refreshRefraction}
-          />
-        </SingleViewSection>
-
-        {/* IOP Section */}
-        <SingleViewSection
-          id="iop"
-          title="Intraocular Pressure (IOP)"
-          icon={<Activity className="h-5 w-5" />}
-          status={sectionStatuses.iop}
-          isExpanded={!isSectionCollapsed("iop")}
-          onToggle={() => toggleSection("iop")}
-          colorScheme="emerald"
-        >
-          <IOPTab
-            patientId={patientId}
-            visitId={visitId}
-            iopRecords={iopRecords}
-            iopTrends={iopTrends}
-            loading={loading.iop}
-            onRefresh={refreshIOP}
-          />
-        </SingleViewSection>
+      {/* End of Examination Indicator */}
+      <div className="flex items-center justify-center py-8 opacity-60">
+        <div className="h-px bg-slate-300 w-24"></div>
+        <span className="mx-4 text-xs font-medium text-slate-400 uppercase tracking-widest">End of Examination</span>
+        <div className="h-px bg-slate-300 w-24"></div>
       </div>
     </div>
   );

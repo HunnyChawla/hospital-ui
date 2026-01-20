@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
+import { useExaminationViewContext } from "@/context/ExaminationViewContext";
 import { VisionTab } from "./VisionTab";
 import { ComplaintsTab } from "./ComplaintsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
@@ -98,16 +99,17 @@ interface ExaminationTabsProps {
   refreshCurrentSpecs: () => void;
 }
 
+// Reordered according to user request
 const tabs = [
   { id: "complaints", label: "Complaints", icon: MessageSquare },
-  { id: "vision", label: "Vision", icon: EyeOff },
-  { id: "current_specs", label: "Current Specs", icon: Glasses },
+  { id: "ophthalmic_history", label: "Eye Surgery", icon: Eye },
   { id: "medical_history", label: "Medical History", icon: FileHeart },
-  { id: "ophthalmic_history", label: "Eye Surgery History", icon: Eye },
-  { id: "allergies", label: "Drug Allergies", icon: AlertTriangle },
-  { id: "ar_data", label: "AR Data", icon: Scan },
-  { id: "refraction", label: "Refraction", icon: Glasses },
+  { id: "vision", label: "Vision", icon: EyeOff },
   { id: "iop", label: "IOP", icon: Activity },
+  { id: "refraction", label: "Refraction", icon: Glasses },
+  { id: "ar_data", label: "AR Data", icon: Scan },
+  { id: "current_specs", label: "Current Specs", icon: Glasses },
+  { id: "allergies", label: "Drug Allergies", icon: AlertTriangle },
   { id: "previous_history", label: "Previous History", icon: History },
 ] as const;
 
@@ -140,6 +142,7 @@ export function ExaminationTabs({
   refreshCurrentSpecs,
 }: ExaminationTabsProps) {
   const { viewMode, setViewMode } = useExaminationViewPreference();
+  const { hiddenTabs } = useExaminationViewContext();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Scroll functionality for tabs - must be before any early returns
@@ -310,6 +313,9 @@ export function ExaminationTabs({
             className="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hide"
           >
             {tabs.map((tab) => {
+              // Hide tab if in hiddenTabs list
+              if (hiddenTabs.includes(tab.id)) return null;
+
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
 

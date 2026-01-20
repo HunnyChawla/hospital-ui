@@ -1,28 +1,56 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import {
+    MessageSquare,
+    Eye,
+    FileHeart,
+    EyeOff,
+    Activity,
+    Glasses,
+    Scan,
+    AlertTriangle,
+    History
+} from "lucide-react";
 
 export type ExaminationViewMode = "tabs" | "single" | "compact";
 
 export interface ExaminationViewPreferences {
     viewMode: ExaminationViewMode;
     collapsedSections: string[];
+    hiddenTabs: string[];
 }
 
 interface ExaminationViewContextType {
     viewMode: ExaminationViewMode;
     collapsedSections: string[];
+    hiddenTabs: string[];
     setViewMode: (mode: ExaminationViewMode) => void;
     toggleViewMode: () => void;
     toggleSection: (sectionId: string) => void;
+    toggleTabVisibility: (tabId: string) => void;
     isSectionCollapsed: (sectionId: string) => boolean;
     expandAllSections: () => void;
     collapseAllSections: (sectionIds: string[]) => void;
 }
 
+export const SECTION_CONFIG = [
+    { id: "complaints", label: "Complaint", icon: MessageSquare },
+    { id: "ophthalmic_history", label: "Eye Surgery", icon: Eye },
+    { id: "medical_history", label: "Medical History", icon: FileHeart },
+    { id: "vision", label: "Vision", icon: EyeOff },
+    { id: "iop", label: "IOP", icon: Activity },
+    { id: "refraction", label: "Refraction", icon: Glasses },
+    { id: "ar_data", label: "Auto Refraction", icon: Scan },
+    { id: "current_specs", label: "Current Specs", icon: Glasses },
+    { id: "allergies", label: "Drug Allergy", icon: AlertTriangle },
+    { id: "previous_history", label: "Previous History", icon: History },
+] as const;
+
 const DEFAULT_PREFERENCES: ExaminationViewPreferences = {
     viewMode: "tabs",
     collapsedSections: ["previous_history"],
+    hiddenTabs: [],
 };
 
 const STORAGE_KEY = "examination_view_preferences";
@@ -47,7 +75,13 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 try {
-                    setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(stored) });
+                    const parsed = JSON.parse(stored);
+                    setPreferences({
+                        ...DEFAULT_PREFERENCES,
+                        ...parsed,
+                        // Ensure hiddenTabs is initialized if it doesn't exist in stored prefs
+                        hiddenTabs: parsed.hiddenTabs || []
+                    });
                 } catch {
                     // Keep default preferences on error
                 }
@@ -80,6 +114,14 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
         savePreferences({ ...preferences, collapsedSections: newCollapsedSections });
     }, [preferences, savePreferences]);
 
+    const toggleTabVisibility = useCallback((tabId: string) => {
+        const isHidden = preferences.hiddenTabs.includes(tabId);
+        const newHiddenTabs = isHidden
+            ? preferences.hiddenTabs.filter((id) => id !== tabId)
+            : [...preferences.hiddenTabs, tabId];
+        savePreferences({ ...preferences, hiddenTabs: newHiddenTabs });
+    }, [preferences, savePreferences]);
+
     const isSectionCollapsed = useCallback((sectionId: string) => {
         return preferences.collapsedSections.includes(sectionId);
     }, [preferences.collapsedSections]);
@@ -100,9 +142,11 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
     const value = {
         viewMode: preferences.viewMode,
         collapsedSections: preferences.collapsedSections,
+        hiddenTabs: preferences.hiddenTabs,
         setViewMode,
         toggleViewMode,
         toggleSection,
+        toggleTabVisibility,
         isSectionCollapsed,
         expandAllSections,
         collapseAllSections,

@@ -22,12 +22,11 @@ import { OptometristStats } from "@/types";
 import type { OptometristActionType } from "./dashboard/OptometristCollapsibleQueueSection";
 import { ExaminationViewProvider } from "@/context/ExaminationViewContext";
 import { FullscreenContainerProvider } from "@/context/FullscreenContainerContext";
-
-
-
+import { TabVisibilitySettings } from "./TabVisibilitySettings";
 
 export function OptometristPanel() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTabSettingsOpen, setIsTabSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -562,6 +561,19 @@ export function OptometristPanel() {
                       <div className="space-y-1">
                         <button
                           onClick={() => {
+                            setIsTabSettingsOpen(true);
+                            setIsSettingsOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <LayoutTemplate className="h-4 w-4" />
+                            <span>Customize Tabs</span>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => {
                             toggleFullscreen();
                             setIsSettingsOpen(false);
                           }}
@@ -605,6 +617,12 @@ export function OptometristPanel() {
                 )}
               </div>
             </div>
+
+            {/* Tab Settings Modal */}
+            <TabVisibilitySettings
+              isOpen={isTabSettingsOpen}
+              onClose={() => setIsTabSettingsOpen(false)}
+            />
 
             {/* Error message */}
             {panelError && (

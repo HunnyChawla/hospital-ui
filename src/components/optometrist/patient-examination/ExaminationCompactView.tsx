@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
+import { useExaminationViewContext } from "@/context/ExaminationViewContext";
 import {
     MessageSquare,
     FileHeart,
@@ -124,16 +125,17 @@ interface SectionConfig {
     modalSize: "md" | "lg" | "xl" | "full";
 }
 
+// Reordered according to user request
 const sections: SectionConfig[] = [
     { id: "complaints", title: "Complaints", icon: MessageSquare, colorScheme: "sky", modalSize: "lg" },
-    { id: "vision", title: "Vision / Visual Acuity", icon: EyeOff, colorScheme: "blue", modalSize: "xl" },
-    { id: "medical_history", title: "Medical History", icon: FileHeart, colorScheme: "purple", modalSize: "xl" },
     { id: "ophthalmic_history", title: "Eye Surgery History", icon: Eye, colorScheme: "green", modalSize: "lg" },
-    { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose", modalSize: "lg" },
-    { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber", modalSize: "xl" },
-    { id: "refraction", title: "Refraction", icon: Glasses, colorScheme: "sky", modalSize: "xl" },
-    { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet", modalSize: "lg" },
+    { id: "medical_history", title: "Medical History", icon: FileHeart, colorScheme: "purple", modalSize: "xl" },
+    { id: "vision", title: "Vision / Visual Acuity", icon: EyeOff, colorScheme: "blue", modalSize: "xl" },
     { id: "iop", title: "Intraocular Pressure (IOP)", icon: Activity, colorScheme: "emerald", modalSize: "lg" },
+    { id: "refraction", title: "Refraction", icon: Glasses, colorScheme: "sky", modalSize: "xl" },
+    { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber", modalSize: "xl" },
+    { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet", modalSize: "lg" },
+    { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose", modalSize: "lg" },
 ];
 
 export function ExaminationCompactView({
@@ -160,6 +162,7 @@ export function ExaminationCompactView({
     refreshCurrentSpecs,
 }: ExaminationCompactViewProps) {
     const dispatch = useAppDispatch();
+    const { hiddenTabs } = useExaminationViewContext();
     const [activeModal, setActiveModal] = useState<SectionId | null>(null);
     const [medicalConditions, setMedicalConditions] = useState<MedicalConditionRecord[]>([]);
 
@@ -261,13 +264,17 @@ export function ExaminationCompactView({
         ]
     );
 
-    // Calculate overall progress
+    // Calculate overall progress based on visible sections
     const completedCount = useMemo(() => {
-        return Object.values(sectionStatuses).filter((status) => status === "complete").length;
-    }, [sectionStatuses]);
+        return sections
+            .filter((s) => !hiddenTabs.includes(s.id))
+            .filter((s) => sectionStatuses[s.id] === "complete")
+            .length;
+    }, [sectionStatuses, hiddenTabs]);
 
-    const totalSections = sections.length;
-    const progressPercent = Math.round((completedCount / totalSections) * 100);
+    const totalSections = sections.filter((s) => !hiddenTabs.includes(s.id)).length;
+    // Avoid division by zero
+    const progressPercent = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
     // Generate status text for each section
     const getStatusText = (sectionId: SectionId): string | undefined => {
@@ -439,6 +446,9 @@ export function ExaminationCompactView({
                 {/* Quick Navigation */}
                 <div className="flex flex-wrap gap-2 mt-3">
                     {sections.map((section) => {
+                        // Skip if section is hidden
+                        if (hiddenTabs.includes(section.id)) return null;
+
                         const status = sectionStatuses[section.id];
                         const isComplete = status === "complete";
                         const isPartial = status === "partial";
@@ -469,6 +479,9 @@ export function ExaminationCompactView({
             {/* Compact Section Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {sections.map((section) => {
+                    // Skip if section is hidden
+                    if (hiddenTabs.includes(section.id)) return null;
+
                     const SectionIcon = section.icon;
                     const status = sectionStatuses[section.id];
 
