@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
-import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
+// import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
 import { useExaminationViewContext } from "@/context/ExaminationViewContext";
 import {
   MessageSquare,
@@ -69,6 +69,7 @@ interface ExaminationSingleViewProps {
   iopTrends: any;
   visionRecords: VisionRecord[];
   currentSpecsRecords?: CurrentSpecsRecord[];
+  medicalConditions: MedicalConditionRecord[];
 
   // Loading states
   loading: {
@@ -84,6 +85,7 @@ interface ExaminationSingleViewProps {
 
   // Refresh functions
   refreshComplaints: () => void;
+  refreshMedicalHistory: () => void;
   refreshOphthalmicHistory: () => void;
   refreshDrugAllergies: () => void;
   refreshARData: () => void;
@@ -119,8 +121,10 @@ export function ExaminationSingleView({
   iopTrends,
   visionRecords,
   currentSpecsRecords,
+  medicalConditions,
   loading,
   refreshComplaints,
+  refreshMedicalHistory,
   refreshOphthalmicHistory,
   refreshDrugAllergies,
   refreshARData,
@@ -131,33 +135,8 @@ export function ExaminationSingleView({
 }: ExaminationSingleViewProps) {
   const dispatch = useAppDispatch();
   const { hiddenTabs, toggleSection, isSectionCollapsed } = useExaminationViewContext();
-  const [medicalConditions, setMedicalConditions] = useState<MedicalConditionRecord[]>([]);
+  // internal state for medicalConditions removed in favor of prop
 
-  // Fetch medical conditions
-  useEffect(() => {
-    const fetchConditions = async () => {
-      try {
-        const result = await dispatch(fetchMedicalConditions({ patient_id: patientId })).unwrap();
-
-        let conditions: MedicalConditionRecord[] = [];
-        if (Array.isArray(result)) {
-          conditions = result;
-        } else if (result && typeof result === 'object') {
-          const resultObj = result as any;
-          if (Array.isArray(resultObj.data)) {
-            conditions = resultObj.data;
-          } else if (Array.isArray(resultObj.items)) {
-            conditions = resultObj.items;
-          }
-        }
-        setMedicalConditions(conditions);
-      } catch (error) {
-        console.error("Failed to fetch medical conditions:", error);
-      }
-    };
-
-    fetchConditions();
-  }, [patientId, dispatch]);
 
   // Calculate section statuses
   const sectionStatuses = useMemo(
@@ -224,7 +203,14 @@ export function ExaminationSingleView({
           />
         );
       case "medical_history":
-        return <MedicalHistoryTab patientId={patientId} visitId={visitId} />;
+        return (
+          <MedicalHistoryTab
+            patientId={patientId}
+            visitId={visitId}
+            medicalConditions={medicalConditions}
+            onRefresh={refreshMedicalHistory}
+          />
+        );
       case "ophthalmic_history":
         return (
           <OphthalHistoryTab

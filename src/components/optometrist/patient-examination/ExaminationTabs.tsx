@@ -41,6 +41,7 @@ import type {
   PatientOptometryTimeline,
   VisionRecord,
   CurrentSpecsRecord,
+  MedicalConditionRecord,
 } from "@/types";
 
 type ActiveTab =
@@ -72,6 +73,7 @@ interface ExaminationTabsProps {
   iopTrends: IOPTrend[] | any; // TODO: Fix type - should be IOPTrendSummary
   visionRecords: VisionRecord[];
   currentSpecsRecords: CurrentSpecsRecord[];
+  medicalConditions: MedicalConditionRecord[];
   patientOptometryHistory: PatientOptometryTimeline | null;
   historyLoading?: boolean;
   refreshHistory?: () => void;
@@ -90,6 +92,7 @@ interface ExaminationTabsProps {
 
   // Refresh functions
   refreshComplaints: () => void;
+  refreshMedicalHistory: () => void;
   refreshOphthalmicHistory: () => void;
   refreshDrugAllergies: () => void;
   refreshARData: () => void;
@@ -133,6 +136,7 @@ export function ExaminationTabs({
   refreshHistory,
   loading,
   refreshComplaints,
+  refreshMedicalHistory,
   refreshOphthalmicHistory,
   refreshDrugAllergies,
   refreshARData,
@@ -140,6 +144,7 @@ export function ExaminationTabs({
   refreshIOP,
   refreshVision,
   refreshCurrentSpecs,
+  medicalConditions,
 }: ExaminationTabsProps) {
   const { viewMode, setViewMode } = useExaminationViewPreference();
   const { hiddenTabs } = useExaminationViewContext();
@@ -212,8 +217,10 @@ export function ExaminationTabs({
             iopTrends={iopTrends}
             visionRecords={visionRecords}
             currentSpecsRecords={currentSpecsRecords}
+            medicalConditions={medicalConditions}
             loading={loading}
             refreshComplaints={refreshComplaints}
+            refreshMedicalHistory={refreshMedicalHistory}
             refreshOphthalmicHistory={refreshOphthalmicHistory}
             refreshDrugAllergies={refreshDrugAllergies}
             refreshARData={refreshARData}
@@ -254,8 +261,10 @@ export function ExaminationTabs({
             iopTrends={iopTrends}
             visionRecords={visionRecords}
             currentSpecsRecords={currentSpecsRecords}
+            medicalConditions={medicalConditions}
             loading={loading}
             refreshComplaints={refreshComplaints}
+            refreshMedicalHistory={refreshMedicalHistory}
             refreshOphthalmicHistory={refreshOphthalmicHistory}
             refreshDrugAllergies={refreshDrugAllergies}
             refreshARData={refreshARData}
@@ -417,6 +426,8 @@ export function ExaminationTabs({
           <MedicalHistoryTab
             patientId={patientId}
             visitId={visitId}
+            medicalConditions={medicalConditions}
+            onRefresh={refreshMedicalHistory}
           />
         )}
 

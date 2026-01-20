@@ -153,6 +153,7 @@ export function OptometristPanel() {
     iopTrends,
     arDataRecords,
     complaints,
+    medicalConditions,
     ophthalmicHistory,
     drugAllergies,
     visionRecords,
@@ -164,6 +165,7 @@ export function OptometristPanel() {
     refreshIOP,
     refreshARData,
     refreshComplaints,
+    refreshMedicalHistory,
     refreshOphthalmicHistory,
     refreshDrugAllergies,
     refreshVision,
@@ -677,6 +679,7 @@ export function OptometristPanel() {
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
                     complaints={complaints}
+                    medicalConditions={medicalConditions}
                     ophthalmicHistory={ophthalmicHistory}
                     drugAllergies={drugAllergies}
                     arDataRecords={arDataRecords}
@@ -690,6 +693,7 @@ export function OptometristPanel() {
                     refreshHistory={refreshHistory}
                     loading={dataLoading}
                     refreshComplaints={refreshComplaints}
+                    refreshMedicalHistory={refreshMedicalHistory}
                     refreshOphthalmicHistory={refreshOphthalmicHistory}
                     refreshDrugAllergies={refreshDrugAllergies}
                     refreshARData={refreshARData}

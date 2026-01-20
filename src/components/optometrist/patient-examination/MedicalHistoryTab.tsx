@@ -38,7 +38,12 @@ import { handleError } from "@/utils/errorHandler";
 interface MedicalHistoryTabProps {
   patientId: string;
   visitId?: string;
+  medicalConditions?: MedicalConditionRecord[];
+  onRefresh?: () => void;
+  loading?: boolean;
 }
+
+// ... (interfaces and constants)
 
 interface ConditionDetails {
   duration?: string;
@@ -203,90 +208,61 @@ const conditionConfig = {
   },
 };
 
-export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps) {
+export function MedicalHistoryTab({
+  patientId,
+  visitId,
+  medicalConditions = [],
+  onRefresh,
+  loading = false
+}: MedicalHistoryTabProps) {
   const dispatch = useAppDispatch();
-  const [medicalConditions, setMedicalConditions] = useState<MedicalConditionRecord[]>([]);
+  // Removed local medicalConditions state
   const [formData, setFormData] = useState<MedicalHistoryFormData>(initialFormData);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [conditionRecordMap, setConditionRecordMap] = useState<Map<string, MedicalConditionRecord>>(new Map());
   const [activeCondition, setActiveCondition] = useState<string | null>(null);
 
-  // Fetch medical conditions on mount
+  // Sync form data with passed medicalConditions prop
   useEffect(() => {
-    fetchConditions();
-  }, [patientId]);
+    // Build form data from props
+    const recordMap = new Map<string, MedicalConditionRecord>();
+    const newFormData = { ...initialFormData };
 
-  const fetchConditions = async () => {
-    setIsLoading(true);
-    try {
-      const result = await dispatch(fetchMedicalConditions({ patient_id: patientId })).unwrap();
+    medicalConditions.forEach((condition) => {
+      recordMap.set(condition.condition_name, condition);
 
-      // Handle different possible response formats
-      let conditions: MedicalConditionRecord[] = [];
+      // Set the condition status
+      if (condition.condition_name in newFormData) {
+        (newFormData as any)[condition.condition_name] = condition.status ?? true;
 
-      if (Array.isArray(result)) {
-        // Direct array response
-        conditions = result;
-      } else if (result && typeof result === 'object') {
-        // Object with data/items properties
-        const resultObj = result as any;
-        if (Array.isArray(resultObj.data)) {
-          conditions = resultObj.data;
-        } else if (Array.isArray(resultObj.items)) {
-          conditions = resultObj.items;
+        // Set the details
+        const detailsKey = getDetailsKeyForCondition(condition.condition_name);
+        if (detailsKey) {
+          (newFormData as any)[detailsKey] = {
+            duration: condition.duration,
+            medication: condition.on_medication ? "yes" : "no",
+            controlled: condition.is_controlled,
+            notes: condition.remarks,
+          };
         }
       }
 
-      setMedicalConditions(conditions);
+      // Handle text fields
+      if (condition.condition_name === "other_conditions") {
+        newFormData.other_conditions = condition.remarks || "";
+      } else if (condition.condition_name === "current_medications") {
+        newFormData.current_medications = condition.remarks || "";
+      } else if (condition.condition_name === "family_history") {
+        newFormData.family_history = condition.remarks || "";
+      } else if (condition.condition_name === "lifestyle_notes") {
+        newFormData.lifestyle_notes = condition.remarks || "";
+      }
+    });
 
-      // Build form data from fetched conditions
-      const recordMap = new Map<string, MedicalConditionRecord>();
-      const newFormData = { ...initialFormData };
+    setConditionRecordMap(recordMap);
+    setFormData(newFormData);
+  }, [medicalConditions]);
 
-      conditions.forEach((condition) => {
-        recordMap.set(condition.condition_name, condition);
-
-        // Set the condition status
-        if (condition.condition_name in newFormData) {
-          (newFormData as any)[condition.condition_name] = condition.status ?? true;
-
-          // Set the details
-          const detailsKey = getDetailsKeyForCondition(condition.condition_name);
-          if (detailsKey) {
-            (newFormData as any)[detailsKey] = {
-              duration: condition.duration,
-              medication: condition.on_medication ? "yes" : "no",
-              controlled: condition.is_controlled,
-              notes: condition.remarks,
-            };
-          }
-        }
-
-        // Handle text fields
-        if (condition.condition_name === "other_conditions") {
-          newFormData.other_conditions = condition.remarks || "";
-        } else if (condition.condition_name === "current_medications") {
-          newFormData.current_medications = condition.remarks || "";
-        } else if (condition.condition_name === "family_history") {
-          newFormData.family_history = condition.remarks || "";
-        } else if (condition.condition_name === "lifestyle_notes") {
-          newFormData.lifestyle_notes = condition.remarks || "";
-        }
-      });
-
-      setConditionRecordMap(recordMap);
-      setFormData(newFormData);
-    } catch (error) {
-      handleError(error, {
-        defaultMessage: "Failed to load medical conditions",
-        showToast: true,
-        logError: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getDetailsKeyForCondition = (conditionType: string): string | null => {
     const mapping: Record<string, string> = {
@@ -400,7 +376,9 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
       setFormData((prev) => ({ ...prev, [conditionType]: true }));
 
       // Refresh data to get updated records
-      await fetchConditions();
+      if (onRefresh) {
+        onRefresh();
+      }
 
       // Close the form
       setActiveCondition(null);
@@ -493,7 +471,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
     return count;
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="bg-white rounded-xl border border-slate-200/60 shadow-lg overflow-hidden backdrop-blur-sm animate-in fade-in duration-300">
         <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
@@ -788,7 +766,7 @@ export function MedicalHistoryTab({ patientId, visitId }: MedicalHistoryTabProps
       onClear={handleClear}
       onEdit={handleEditCondition}
       onDelete={handleDeleteCondition}
-      loading={isLoading}
+      loading={loading}
     />
   );
 

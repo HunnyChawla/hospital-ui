@@ -41,6 +41,7 @@ export const useOptometryData = ({
     arDataRecords,
     complaints,
     medicalHistory,
+    medicalConditions,
     ophthalmicHistory,
     drugAllergies,
     visionRecords,
@@ -92,12 +93,12 @@ export const useOptometryData = ({
         })
       );
 
-      // Fetch medical history
-      // dispatch(
-      //   fetchMedicalHistory({
-      //     patient_id: patientId,
-      //   })
-      // );
+      // Fetch medical conditions (new API)
+      dispatch(
+        fetchMedicalConditions({
+          patient_id: patientId,
+        })
+      );
 
       // Fetch ophthalmic surgery history
       dispatch(
@@ -269,6 +270,7 @@ export const useOptometryData = ({
     arDataRecords,
     complaints,
     medicalHistory,
+    medicalConditions,
     ophthalmicHistory,
     drugAllergies,
     visionRecords,

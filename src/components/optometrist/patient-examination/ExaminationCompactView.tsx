@@ -93,6 +93,7 @@ interface ExaminationCompactViewProps {
     iopTrends: any;
     visionRecords: VisionRecord[];
     currentSpecsRecords?: CurrentSpecsRecord[]; // Added
+    medicalConditions: MedicalConditionRecord[];
 
     // Loading states
     loading: {
@@ -108,6 +109,7 @@ interface ExaminationCompactViewProps {
 
     // Refresh functions
     refreshComplaints: () => void;
+    refreshMedicalHistory: () => void;
     refreshOphthalmicHistory: () => void;
     refreshDrugAllergies: () => void;
     refreshARData: () => void;
@@ -151,8 +153,10 @@ export function ExaminationCompactView({
     iopTrends,
     visionRecords,
     currentSpecsRecords,
+    medicalConditions,
     loading,
     refreshComplaints,
+    refreshMedicalHistory,
     refreshOphthalmicHistory,
     refreshDrugAllergies,
     refreshARData,
@@ -164,54 +168,12 @@ export function ExaminationCompactView({
     const dispatch = useAppDispatch();
     const { hiddenTabs } = useExaminationViewContext();
     const [activeModal, setActiveModal] = useState<SectionId | null>(null);
-    const [medicalConditions, setMedicalConditions] = useState<MedicalConditionRecord[]>([]);
-
-    // Fetch medical conditions
-    useEffect(() => {
-        const fetchConditions = async () => {
-            try {
-                const result = await dispatch(fetchMedicalConditions({ patient_id: patientId })).unwrap();
-
-                let conditions: MedicalConditionRecord[] = [];
-                if (Array.isArray(result)) {
-                    conditions = result;
-                } else if (result && typeof result === 'object') {
-                    const resultObj = result as any;
-                    if (Array.isArray(resultObj.data)) {
-                        conditions = resultObj.data;
-                    } else if (Array.isArray(resultObj.items)) {
-                        conditions = resultObj.items;
-                    }
-                }
-                setMedicalConditions(conditions);
-            } catch (error) {
-                console.error("Failed to fetch medical conditions:", error);
-            }
-        };
-
-        fetchConditions();
-    }, [patientId, dispatch]);
 
     // Refresh medical conditions when modal closes
     const handleModalClose = () => {
         setActiveModal(null);
-        // Refetch medical conditions if it was the medical history modal
         if (activeModal === "medical_history") {
-            dispatch(fetchMedicalConditions({ patient_id: patientId })).unwrap()
-                .then((result: any) => {
-                    let conditions: MedicalConditionRecord[] = [];
-                    if (Array.isArray(result)) {
-                        conditions = result;
-                    } else if (result && typeof result === 'object') {
-                        if (Array.isArray(result.data)) {
-                            conditions = result.data;
-                        } else if (Array.isArray(result.items)) {
-                            conditions = result.items;
-                        }
-                    }
-                    setMedicalConditions(conditions);
-                })
-                .catch(console.error);
+            refreshMedicalHistory();
         }
     };
 
@@ -348,7 +310,14 @@ export function ExaminationCompactView({
                     />
                 );
             case "medical_history":
-                return <MedicalHistoryTab patientId={patientId} visitId={visitId} />;
+                return (
+                    <MedicalHistoryTab
+                        patientId={patientId}
+                        visitId={visitId}
+                        medicalConditions={medicalConditions}
+                        onRefresh={refreshMedicalHistory}
+                    />
+                );
             case "ophthalmic_history":
                 return (
                     <OphthalHistoryTab

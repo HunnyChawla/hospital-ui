@@ -700,8 +700,16 @@ const optometryDataSlice = createSlice({
       })
       .addCase(fetchMedicalConditions.fulfilled, (state, action) => {
         state.loading.medicalConditions = false;
-        // Ensure the payload is an array
-        state.medicalConditions = Array.isArray(action.payload) ? action.payload : [];
+        const payload = action.payload as any;
+        if (Array.isArray(payload)) {
+          state.medicalConditions = payload;
+        } else if (payload && Array.isArray(payload.items)) {
+          state.medicalConditions = payload.items;
+        } else if (payload && Array.isArray(payload.data)) {
+          state.medicalConditions = payload.data;
+        } else {
+          state.medicalConditions = [];
+        }
       })
       .addCase(fetchMedicalConditions.rejected, (state, action) => {
         state.loading.medicalConditions = false;
