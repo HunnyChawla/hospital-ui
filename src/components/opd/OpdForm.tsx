@@ -229,7 +229,18 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   // Listen for patient creation event to select the newly created patient
   useEffect(() => {
     const handlePatientCreated = (event: CustomEvent) => {
-      const { patientId: newPatientId } = event.detail;
+      const { patientId: newPatientId, patient } = event.detail;
+
+      if (patient) {
+        setPatientId(patient.id);
+        setDropdownSearchTerm(patient.name);
+        setSelectedPatientData(patient);
+        setShowDropdown(false);
+        setDropdownResults([]);
+        toast.success("Patient added and selected");
+        return;
+      }
+
       if (newPatientId) {
         const newPatient = patients.find((p) => p.id === newPatientId);
         if (newPatient) {

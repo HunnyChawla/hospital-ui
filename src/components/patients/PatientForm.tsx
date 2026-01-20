@@ -4,11 +4,11 @@ import { useForm } from "react-hook-form";
 import { useEffect } from "react";
 import { useCreatePatient, useUpdatePatient, usePatient } from "@/hooks/queries/usePatients";
 import { Patient } from "@/types";
-import { CreatePatientRequest } from "@/services/patientsApi";
+import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
 
 interface PatientFormProps {
   defaultValues?: Patient;
-  onSuccess?: () => void;
+  onSuccess?: (patient?: Patient) => void;
 }
 
 export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
@@ -90,10 +90,22 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       onSuccess?.();
     } else {
       // Create new patient
-      await createPatient.mutateAsync(patientData);
+      const newPatientApi = await createPatient.mutateAsync(patientData);
+      const newPatient = patientsApi.mapToPatients([newPatientApi])[0];
+
+      // Dispatch event for auto-selection
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent("patient:created", {
+          detail: {
+            patientId: newPatient.id,
+            patient: newPatient
+          }
+        }));
+      }
+
       // React Query mutation already shows toast and invalidates cache!
       reset();
-      onSuccess?.();
+      onSuccess?.(newPatient);
     }
   };
 
