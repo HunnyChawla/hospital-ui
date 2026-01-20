@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import clsx from "clsx";
 import { X, Check, AlertCircle } from "lucide-react";
 import { EyeSelector, SeveritySelector } from "../shared";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type EyeType = "LE" | "RE" | "BE" | "GE";
 type Severity = "mild" | "moderate" | "severe";
@@ -11,7 +12,7 @@ type Severity = "mild" | "moderate" | "severe";
 interface FormData {
   text: string;
   eye: EyeType;
-  severity: Severity;
+  severity: Severity | null;
   duration: string;
   notes?: string;
 }
@@ -77,8 +78,8 @@ export function InlineComplaintForm({
 
   const handleSubmit = async () => {
     // Validation
-    if (!eye || !severity) {
-      setError("Eye and Severity are required");
+    if (!eye) {
+      setError("Eye is required");
       return;
     }
 
@@ -93,7 +94,7 @@ export function InlineComplaintForm({
         notes: notes.trim() || undefined,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save complaint");
+      setError(getErrorMessage(err));
     }
   };
 

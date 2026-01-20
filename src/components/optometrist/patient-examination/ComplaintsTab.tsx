@@ -29,7 +29,7 @@ type EyeType = "LE" | "RE" | "BE" | "GE";
 interface FormData {
   text: string;
   eye: EyeType;
-  severity: Severity;
+  severity: Severity | null;
   duration: string;
   notes?: string;
 }
@@ -76,7 +76,7 @@ export function ComplaintsTab({
             visit_id: visitId,
             optometrist_id: optometristId,
             complaint: `${data.text} (${data.eye})`,
-            severity: data.severity,
+            severity: data.severity || null,
             duration: data.duration || null,
             notes: data.notes || null,
           },
@@ -168,7 +168,7 @@ export function ComplaintsTab({
 
     return {
       eye,
-      severity: (editingComplaint.severity as Severity) || "moderate",
+      severity: (editingComplaint.severity as Severity) || null,
       duration: editingComplaint.duration || "",
       notes: editingComplaint.notes || "",
     };

@@ -8,7 +8,7 @@ export interface CreateComplaintRequest {
   visit_id: string;
   optometrist_id: string;
   complaint: string;
-  severity: "mild" | "moderate" | "severe" | null;
+  severity?: "mild" | "moderate" | "severe" | null;
   duration: string | null;
   notes?: string | null;
 }
