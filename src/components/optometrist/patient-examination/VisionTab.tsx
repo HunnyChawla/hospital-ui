@@ -3,11 +3,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Save, Eye, X, RotateCcw, Plus, Copy } from "lucide-react";
+import { Loader2, Save, Eye, X, RotateCcw, Plus, Copy, Settings } from "lucide-react";
 import { VisionRecord, CreateVisionRequest } from "@/types";
 import { useAppDispatch } from "@/redux/hooks";
-import { addVisionRecord } from "@/redux/optometryDataSlice";
+import { addVisionRecord, updateVisionRecord } from "@/redux/optometryDataSlice";
 import clsx from "clsx";
+import { useVisionSettings } from "@/hooks/useVisionSettings";
+import { VisionSettingsModal } from "./VisionSettingsModal";
 
 // Import shared components
 import { VASelector } from "../shared";
@@ -76,6 +78,7 @@ export function VisionTab({
     const dispatch = useAppDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const { settings, updateSettings, isSettingsOpen, setIsSettingsOpen } = useVisionSettings();
 
     // Get the record for this visit
     const currentVisitRecord = useMemo(
@@ -149,8 +152,11 @@ export function VisionTab({
                 ...data,
             };
 
-            // API handles upsert based on visit_id
-            await dispatch(addVisionRecord({ data: payload })).unwrap();
+            if (hasExistingForVisit && currentVisitRecord?.id) {
+                await dispatch(updateVisionRecord({ id: currentVisitRecord.id, data: payload })).unwrap();
+            } else {
+                await dispatch(addVisionRecord({ data: payload })).unwrap();
+            }
 
             toast.success("Vision record saved successfully");
             setIsEditing(false);
@@ -196,11 +202,16 @@ export function VisionTab({
         };
         const c = colors[colorScheme];
 
+        // Determine options to show based on settings
+        const optionsToShow = settings.useFullQuickSelect
+            ? NEAR_VA_OPTIONS
+            : NEAR_VA_OPTIONS.slice(0, 6);
+
         return (
             <div className="space-y-2">
                 <label className="block text-sm font-medium text-slate-700">{label}</label>
                 <div className="flex flex-wrap gap-1">
-                    {NEAR_VA_OPTIONS.slice(0, 6).map((opt) => (
+                    {optionsToShow.map((opt) => (
                         <button
                             key={opt}
                             type="button"
@@ -220,6 +231,13 @@ export function VisionTab({
 
     return (
         <div className="space-y-6">
+            <VisionSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                currentSettings={settings}
+                onSave={updateSettings}
+            />
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -230,15 +248,24 @@ export function VisionTab({
                         Record distance and near visual acuity for both eyes
                     </p>
                 </div>
-                {!isEditing && (
+                <div className="flex items-center gap-2">
+                    {!isEditing && (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {hasExistingForVisit ? "Edit Vision" : "Add Vision"}
+                        </button>
+                    )}
                     <button
-                        onClick={() => setIsEditing(true)}
-                        className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                        title="Configure Vision Settings"
                     >
-                        <Plus className="h-4 w-4" />
-                        {hasExistingForVisit ? "Edit Vision" : "Add Vision"}
+                        <Settings className="h-5 w-5" />
                     </button>
-                )}
+                </div>
             </div>
 
             {/* This Visit's Vision - Only show if data exists for current visit */}
@@ -408,24 +435,28 @@ export function VisionTab({
                                             value={formValues.od_ucva_distance || null}
                                             onChange={(v) => setValue("od_ucva_distance", v)}
                                             colorScheme="blue"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                         <VASelector
                                             label="Pinhole (PH)"
                                             value={formValues.od_ph_va || null}
                                             onChange={(v) => setValue("od_ph_va", v)}
                                             colorScheme="blue"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                         <VASelector
                                             label="With Current Specs"
                                             value={formValues.od_va_with_current_specs || null}
                                             onChange={(v) => setValue("od_va_with_current_specs", v)}
                                             colorScheme="blue"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                         <VASelector
                                             label="BCVA (Best Corrected)"
                                             value={formValues.od_bcva_distance || null}
                                             onChange={(v) => setValue("od_bcva_distance", v)}
                                             colorScheme="blue"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                     </div>
 
@@ -440,24 +471,28 @@ export function VisionTab({
                                             value={formValues.os_ucva_distance || null}
                                             onChange={(v) => setValue("os_ucva_distance", v)}
                                             colorScheme="green"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                         <VASelector
                                             label="Pinhole (PH)"
                                             value={formValues.os_ph_va || null}
                                             onChange={(v) => setValue("os_ph_va", v)}
                                             colorScheme="green"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                         <VASelector
                                             label="With Current Specs"
                                             value={formValues.os_va_with_current_specs || null}
                                             onChange={(v) => setValue("os_va_with_current_specs", v)}
                                             colorScheme="green"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                         <VASelector
                                             label="BCVA (Best Corrected)"
                                             value={formValues.os_bcva_distance || null}
                                             onChange={(v) => setValue("os_bcva_distance", v)}
                                             colorScheme="green"
+                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
                                     </div>
                                 </div>

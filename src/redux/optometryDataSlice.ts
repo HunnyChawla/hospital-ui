@@ -496,6 +496,18 @@ export const addVisionRecord = createAsyncThunk(
   }
 );
 
+export const updateVisionRecord = createAsyncThunk(
+  "optometryData/updateVisionRecord",
+  async (params: { id: string; data: CreateVisionRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const record = await visionApi.update(params.id, params.data, params.tenant_id);
+      return record;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 // ============================================
 // CURRENT SPECS THUNKS
 // ============================================
@@ -765,6 +777,14 @@ const optometryDataSlice = createSlice({
       })
       .addCase(addVisionRecord.fulfilled, (state, action) => {
         state.visionRecords.unshift(action.payload);
+      })
+      .addCase(updateVisionRecord.fulfilled, (state, action) => {
+        const idx = state.visionRecords.findIndex((r) => r.id === action.payload.id);
+        if (idx >= 0) {
+          state.visionRecords[idx] = action.payload;
+        } else {
+          state.visionRecords.unshift(action.payload);
+        }
       })
       // Current Specs
       .addCase(fetchCurrentSpecs.pending, (state) => {

@@ -19,6 +19,7 @@ interface VASelectorProps {
   placeholder?: string;
   showQuickSelect?: boolean;
   colorScheme?: "blue" | "green" | "neutral";
+  mode?: "standard" | "full";
   error?: string;
   className?: string;
 }
@@ -73,6 +74,7 @@ export function VASelector({
   placeholder = "Select visual acuity...",
   showQuickSelect = true,
   colorScheme = "neutral",
+  mode = "standard",
   error,
   className,
 }: VASelectorProps) {
@@ -134,101 +136,125 @@ export function VASelector({
         </label>
       )}
 
-      {/* Quick Select Buttons */}
-      {showQuickSelect && (
+      {/* Full Quick Select Mode */}
+      {mode === "full" ? (
         <div className="flex flex-wrap gap-1 mb-2">
-          {quickSelectValues.map((qv) => (
+          {vaOptions.map((opt) => (
             <button
-              key={qv}
+              key={opt.value}
               type="button"
-              onClick={() => handleQuickSelect(qv)}
+              onClick={() => handleQuickSelect(opt.value)}
               disabled={disabled}
+              title={opt.label}
               className={clsx(
-                "rounded-md border px-2 py-1 text-xs font-medium transition",
-                value === qv ? colors.quickSelectActive : colors.quickSelect,
+                "rounded-md border p-2 text-xs font-medium transition min-w-[3rem] text-center",
+                value === opt.value ? colors.quickSelectActive : colors.quickSelect,
                 disabled && "cursor-not-allowed opacity-50"
               )}
             >
-              {qv}
+              {opt.value}
             </button>
           ))}
         </div>
-      )}
-
-      {/* Dropdown */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
-          disabled={disabled}
-          className={clsx(
-            "flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-left text-sm transition",
-            colors.button,
-            "focus:outline-none focus:ring-2",
-            disabled && "cursor-not-allowed bg-slate-50 opacity-50",
-            error && "border-red-300"
+      ) : (
+        <>
+          {/* Quick Select Buttons */}
+          {showQuickSelect && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {quickSelectValues.map((qv) => (
+                <button
+                  key={qv}
+                  type="button"
+                  onClick={() => handleQuickSelect(qv)}
+                  disabled={disabled}
+                  className={clsx(
+                    "rounded-md border px-2 py-1 text-xs font-medium transition",
+                    value === qv ? colors.quickSelectActive : colors.quickSelect,
+                    disabled && "cursor-not-allowed opacity-50"
+                  )}
+                >
+                  {qv}
+                </button>
+              ))}
+            </div>
           )}
-        >
-          <span className={value ? "text-slate-900" : "text-slate-500"}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <ChevronDown
-            className={clsx(
-              "h-4 w-4 text-slate-400 transition",
-              isOpen && "rotate-180"
-            )}
-          />
-        </button>
 
-        {/* Dropdown Menu */}
-        {isOpen && (
-          <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
-            {/* Search Input */}
-            <div className="border-b border-slate-200 p-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search VA..."
-                  className="w-full rounded-md border border-slate-200 py-1.5 pl-8 pr-3 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-            </div>
-
-            {/* Options List */}
-            <div className="max-h-48 overflow-y-auto py-1">
-              {filteredOptions.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-slate-500">
-                  No results found
-                </div>
-              ) : (
-                filteredOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => handleSelect(opt.value)}
-                    className={clsx(
-                      "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition",
-                      value === opt.value
-                        ? "bg-sky-50 text-sky-700"
-                        : "text-slate-700 hover:bg-slate-50",
-                      opt.isCommon && "font-medium"
-                    )}
-                  >
-                    <span>{opt.label}</span>
-                    {value === opt.value && (
-                      <Check className="h-4 w-4 text-sky-600" />
-                    )}
-                  </button>
-                ))
+          {/* Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => !disabled && setIsOpen(!isOpen)}
+              disabled={disabled}
+              className={clsx(
+                "flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-left text-sm transition",
+                colors.button,
+                "focus:outline-none focus:ring-2",
+                disabled && "cursor-not-allowed bg-slate-50 opacity-50",
+                error && "border-red-300"
               )}
-            </div>
+            >
+              <span className={value ? "text-slate-900" : "text-slate-500"}>
+                {selectedOption ? selectedOption.label : placeholder}
+              </span>
+              <ChevronDown
+                className={clsx(
+                  "h-4 w-4 text-slate-400 transition",
+                  isOpen && "rotate-180"
+                )}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isOpen && (
+              <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                {/* Search Input */}
+                <div className="border-b border-slate-200 p-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search VA..."
+                      className="w-full rounded-md border border-slate-200 py-1.5 pl-8 pr-3 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Options List */}
+                <div className="max-h-48 overflow-y-auto py-1">
+                  {filteredOptions.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-slate-500">
+                      No results found
+                    </div>
+                  ) : (
+                    filteredOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handleSelect(opt.value)}
+                        className={clsx(
+                          "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition",
+                          value === opt.value
+                            ? "bg-sky-50 text-sky-700"
+                            : "text-slate-700 hover:bg-slate-50",
+                          opt.isCommon && "font-medium"
+                        )}
+                      >
+                        <span>{opt.label}</span>
+                        {value === opt.value && (
+                          <Check className="h-4 w-4 text-sky-600" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>

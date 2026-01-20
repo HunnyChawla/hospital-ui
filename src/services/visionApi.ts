@@ -12,6 +12,13 @@ export const visionApi = {
         return response.data;
     },
 
+    update: async (id: string, data: CreateVisionRequest, tenant_id?: string | null): Promise<VisionResponse> => {
+        const apiTenantId = getTenantIdForApi(tenant_id);
+        const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+        const response = await apiClient.put<VisionResponse>(`/vision/${id}`, data, { params });
+        return response.data;
+    },
+
     getByPatient: async (
         patient_id: string,
         params: { page?: number; page_size?: number; tenant_id?: string | null } = {}
