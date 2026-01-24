@@ -449,7 +449,7 @@ export function IOPTab({
                 <NumericStepper
                   value={formData.od_pressure}
                   onChange={(v) => setFormData((prev) => ({ ...prev, od_pressure: v }))}
-                  step={0.5}
+                  step={1}
                   min={5}
                   max={50}
                   presets={PRESSURE_PRESETS}
@@ -488,7 +488,7 @@ export function IOPTab({
                 <NumericStepper
                   value={formData.os_pressure}
                   onChange={(v) => setFormData((prev) => ({ ...prev, os_pressure: v }))}
-                  step={0.5}
+                  step={1}
                   min={5}
                   max={50}
                   presets={PRESSURE_PRESETS}
