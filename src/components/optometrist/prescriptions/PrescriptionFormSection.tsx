@@ -942,10 +942,16 @@ export function PrescriptionFormSection({
                                 plannedSurgeries={plannedSurgeries}
                             />
                         </div>
-                    ) : (
+                    ) : isLoading ? (
                         <div className="p-12 text-center text-slate-500">
                             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-sky-500" />
                             Loading prescription details...
+                        </div>
+                    ) : (
+                        <div className="p-12 text-center text-slate-500">
+                            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                            <p className="font-medium">No prescription found</p>
+                            <p className="text-sm mt-1">No prescription was created for this visit.</p>
                         </div>
                     )}
                 </div>

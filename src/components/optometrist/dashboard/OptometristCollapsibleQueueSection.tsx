@@ -271,7 +271,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
 
                 return (
                   <div
-                    key={patient.patient_id}
+                    key={patient.visit_id}
                     onClick={() => {
                       if (activeFilter !== "pending") {
                         onSelectPatient(patient.patient_id);
@@ -626,11 +626,10 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               <div className="flex w-full items-center gap-2">
                                 {/* Dilation timer info */}
                                 {patient.dilation_started_at && (
-                                  <div className={`flex items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] font-medium ${
-                                    new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
+                                  <div className={`flex items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] font-medium ${new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
                                       ? "bg-amber-50 text-amber-700 border-amber-200"
                                       : "bg-violet-50 text-violet-700 border-violet-200"
-                                  }`}>
+                                    }`}>
                                     <Clock className="h-3 w-3" />
                                     <span>
                                       {new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
