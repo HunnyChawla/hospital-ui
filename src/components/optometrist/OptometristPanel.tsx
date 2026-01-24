@@ -706,8 +706,13 @@ export function OptometristPanel() {
               </OptometristPanelVerticalLayout>
             </div>
           </div>
+          {/* Portal container for dropdowns in fullscreen mode */}
+          <div id="portal-root" className="fixed inset-0 pointer-events-none z-[99999]">
+            <div id="headlessui-portal-root" />
+          </div>
         </div>
       </FullscreenContainerProvider>
     </ExaminationViewProvider>
   );
 }
+
