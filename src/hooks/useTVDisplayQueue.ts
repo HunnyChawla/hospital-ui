@@ -156,33 +156,13 @@ export function useTVDisplayQueue({
         }
 
         setOptometristPatients((prev) => {
-            if (newPatients.length === 1 && newPatients[0].visit_id) {
-                const existingIndex = prev.findIndex((p) => p.visit_id === newPatients[0].visit_id);
-                if (existingIndex >= 0) {
-                    const existing = prev[existingIndex];
-                    const updated = newPatients[0];
-                    if (
-                        existing.patient_id === updated.patient_id &&
-                        existing.status === updated.status &&
-                        existing.visit_type === updated.visit_type
-                    ) {
-                        return prev;
-                    }
-                    const updatedArray = [...prev];
-                    updatedArray[existingIndex] = updated;
-                    return updatedArray;
-                } else {
-                    return [...prev, newPatients[0]];
-                }
-            } else if (newPatients.length > 0) {
+            if (newPatients.length > 0 || (newPatients.length === 0 && prev.length > 0)) {
                 if (arePatientsEqual(prev, newPatients)) {
                     return prev;
                 }
                 return newPatients;
-            } else {
-                // Empty array received from backend - this is actual data indicating empty queue
-                return [];
             }
+            return prev;
         });
     }, []);
 
