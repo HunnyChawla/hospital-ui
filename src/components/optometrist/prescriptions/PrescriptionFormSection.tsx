@@ -11,7 +11,7 @@ import {
     CheckCircle,
     AlertCircle,
     Eye,
-    Droplets,
+
     Loader2,
     ChevronDown,
     ChevronUp,
@@ -78,7 +78,7 @@ interface FormData {
     vision_type: string;
     lens_material: string;
     coatings: string[];
-    dilation_required: boolean;
+
     medicine_items: MedicineItem[];
     advice_items: AdviceItem[];
 }
@@ -271,7 +271,7 @@ export function PrescriptionFormSection({
             vision_type: "",
             lens_material: "",
             coatings: [],
-            dilation_required: false,
+
             medicine_items: [],
             advice_items: [],
         },
@@ -324,7 +324,7 @@ export function PrescriptionFormSection({
                         vision_type: existing.vision_type || "",
                         lens_material: existing.lens_material || "",
                         coatings: existing.coatings || [],
-                        dilation_required: false,
+
                         medicine_items: existing.medicine_items || [],
                         advice_items: existing.advice_items || [],
                     });
@@ -1369,26 +1369,7 @@ export function PrescriptionFormSection({
                                     )}
                                 </div>
 
-                                {/* Dilation Toggle */}
-                                <div className="flex items-center justify-between p-4 rounded-lg border border-orange-100 bg-orange-50/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
-                                            <Droplets className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <span className="font-bold text-slate-800 block text-sm">Dilated Examination</span>
-                                            <span className="text-xs text-orange-600/80">Requires patient consent (approx. 30 mins)</span>
-                                        </div>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            {...register("dilation_required")}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                                    </label>
-                                </div>
+
 
                                 {/* Plan of Action */}
                                 <div>
