@@ -148,7 +148,8 @@ export function PrescriptionButton({
               patientGender={patientGender}
               patientUhid={patientUhid}
               optometristName={optometristName}
-              currentSpecs={currentSpecs ? [currentSpecs] : null}
+              refractionOD={latestRefractionOD}
+              refractionOS={latestRefractionOS}
             />
           </div>
         </div>

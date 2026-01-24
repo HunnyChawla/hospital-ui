@@ -43,9 +43,6 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
             return val || "-";
         };
 
-        // Debug visitData to see what's actually being passed
-        console.log('DoctorPrescriptionPrint visitData:', visitData);
-
         return (
             <div ref={ref} className="p-8 bg-white text-black print:p-4 font-sans max-w-4xl mx-auto text-sm">
                 {/* Header Section - Configurable */}
@@ -185,10 +182,10 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     </div>
                 </div>
 
-                {/* Current Specs (Patient's existing glasses) */}
-                {visitData?.current_specs && visitData.current_specs.length > 0 && (
+                {/* Refraction Details */}
+                {visitData?.refraction && (
                     <div className="grid grid-cols-[150px_1fr] gap-2 mb-4">
-                        <div className="font-semibold text-slate-700">Current Specs</div>
+                        <div className="font-semibold text-slate-700">Refraction Details</div>
                         <div>
                             <table className="w-full text-xs border-collapse border border-slate-300">
                                 <thead>
@@ -203,32 +200,29 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 <tbody>
                                     <tr>
                                         <td className="border border-slate-300 p-1 font-bold text-center">Right</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_sph)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_cyl)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_axis)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].od_add)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.refraction.od_sphere)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.refraction.od_cylinder)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">
+                                            {visitData.refraction.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
+                                        </td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.refraction.od_add_power)}</td>
                                     </tr>
                                     <tr>
                                         <td className="border border-slate-300 p-1 font-bold text-center">Left</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_sph)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_cyl)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_axis)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.current_specs[0].os_add)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.refraction.os_sphere)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.refraction.os_cylinder)}</td>
+                                        <td className="border border-slate-300 p-1 text-center">
+                                            {visitData.refraction.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
+                                        </td>
+                                        <td className="border border-slate-300 p-1 text-center">{formatVal(visitData.refraction.os_add_power)}</td>
                                     </tr>
                                 </tbody>
                             </table>
-                            {/* Additional details */}
-                            <div className="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-500">
-                                {visitData.current_specs[0].lens_type && (
-                                    <span>Lens: {visitData.current_specs[0].lens_type}</span>
-                                )}
-                                {visitData.current_specs[0].usage && (
-                                    <span>Usage: {visitData.current_specs[0].usage}</span>
-                                )}
-                                {visitData.current_specs[0].measured_by && (
-                                    <span>Measured by: {visitData.current_specs[0].measured_by}</span>
-                                )}
-                            </div>
+                            {visitData.refraction.notes && (
+                                <p className="mt-1 text-[10px] text-slate-500 italic">
+                                    Notes: {visitData.refraction.notes}
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}

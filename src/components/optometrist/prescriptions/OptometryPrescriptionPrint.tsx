@@ -1,26 +1,9 @@
 "use client";
 
 import { forwardRef } from "react";
-import type { OptometryPrescription } from "@/types";
+import type { OptometryPrescription, RefractionRecord } from "@/types";
 import { useTenant } from "@/hooks/useTenant";
 import Image from "next/image";
-
-interface CurrentSpecs {
-  id: string;
-  od_sph: string;
-  od_cyl: string;
-  od_axis: number;
-  od_add: string;
-  os_sph: string;
-  os_cyl: string;
-  os_axis: number;
-  os_add: string;
-  lens_type: string;
-  usage: string;
-  measured_by: string;
-  is_comfortable: boolean;
-  remarks: string | null;
-}
 
 interface OptometryPrescriptionPrintProps {
   prescription: OptometryPrescription;
@@ -29,7 +12,8 @@ interface OptometryPrescriptionPrintProps {
   patientGender?: string;
   patientUhid?: string;
   optometristName: string;
-  currentSpecs?: CurrentSpecs[] | null;
+  refractionOD?: RefractionRecord | null;
+  refractionOS?: RefractionRecord | null;
 }
 
 export const OptometryPrescriptionPrint = forwardRef<
@@ -43,7 +27,8 @@ export const OptometryPrescriptionPrint = forwardRef<
     patientGender,
     patientUhid,
     optometristName,
-    currentSpecs,
+    refractionOD,
+    refractionOS,
   },
   ref
 ) {
@@ -68,8 +53,9 @@ export const OptometryPrescriptionPrint = forwardRef<
   const odItem = prescription.items.find((i) => i.eye === "OD");
   const osItem = prescription.items.find((i) => i.eye === "OS");
 
-  const formatValue = (value: number | null, type: "sphere" | "cylinder" | "axis" | "add") => {
-    if (value === null) return "-";
+  const formatValue = (value: number | string | null | undefined, type: "sphere" | "cylinder" | "axis" | "add" | "va") => {
+    if (value === null || value === undefined) return "-";
+    if (typeof value === "string") return value;
     if (type === "axis") return `${value}°`;
     return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
   };
@@ -150,10 +136,10 @@ export const OptometryPrescriptionPrint = forwardRef<
         </div>
       </div>
 
-      {/* Current Specs (Patient's existing glasses) */}
-      {currentSpecs && currentSpecs.length > 0 && (
+      {/* Refraction Details */}
+      {(refractionOD || refractionOS) && (
         <div className="mb-8">
-          <h3 className="mb-4 text-lg font-bold text-slate-900">Current Spectacle Prescription</h3>
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Refraction Details</h3>
           <table className="w-full border-collapse border-2 border-slate-900">
             <thead>
               <tr className="bg-amber-50">
@@ -181,16 +167,16 @@ export const OptometryPrescriptionPrint = forwardRef<
                   OD (Right Eye)
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].od_sph || "-"}
+                  {refractionOD ? formatValue(refractionOD.sphere, "sphere") : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].od_cyl || "-"}
+                  {refractionOD ? formatValue(refractionOD.cylinder, "cylinder") : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].od_axis !== undefined && currentSpecs[0].od_axis !== null ? `${currentSpecs[0].od_axis}°` : "-"}
+                  {refractionOD ? formatValue(refractionOD.axis, "axis") : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].od_add || "-"}
+                  {refractionOD ? formatValue(refractionOD.add_power, "add") : "-"}
                 </td>
               </tr>
               {/* OS (Left Eye) */}
@@ -199,37 +185,26 @@ export const OptometryPrescriptionPrint = forwardRef<
                   OS (Left Eye)
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].os_sph || "-"}
+                  {refractionOS ? formatValue(refractionOS.sphere, "sphere") : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].os_cyl || "-"}
+                  {refractionOS ? formatValue(refractionOS.cylinder, "cylinder") : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].os_axis !== undefined && currentSpecs[0].os_axis !== null ? `${currentSpecs[0].os_axis}°` : "-"}
+                  {refractionOS ? formatValue(refractionOS.axis, "axis") : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {currentSpecs[0].os_add || "-"}
+                  {refractionOS ? formatValue(refractionOS.add_power, "add") : "-"}
                 </td>
               </tr>
             </tbody>
           </table>
-          {/* Current Specs Details */}
-          <div className="mt-3 grid grid-cols-3 gap-4 text-sm text-slate-600">
-            {currentSpecs[0].lens_type && (
-              <p><span className="font-medium">Lens Type:</span> {currentSpecs[0].lens_type}</p>
-            )}
-            {currentSpecs[0].usage && (
-              <p><span className="font-medium">Usage:</span> {currentSpecs[0].usage}</p>
-            )}
-            {currentSpecs[0].measured_by && (
-              <p><span className="font-medium">Measured By:</span> {currentSpecs[0].measured_by}</p>
+          <div className="mt-2 text-sm text-slate-600">
+            {/* Notes if needed */}
+            {(refractionOD?.notes || refractionOS?.notes) && (
+              <p><span className="font-medium">Notes:</span> {[refractionOD?.notes, refractionOS?.notes].filter(Boolean).join("; ")}</p>
             )}
           </div>
-          {currentSpecs[0].remarks && (
-            <p className="mt-2 text-sm text-slate-600">
-              <span className="font-medium">Remarks:</span> {currentSpecs[0].remarks}
-            </p>
-          )}
         </div>
       )}
 

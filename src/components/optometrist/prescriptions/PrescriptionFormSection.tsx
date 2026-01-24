@@ -222,9 +222,9 @@ export function PrescriptionFormSection({
         },
     });
 
-    // Effect to trigger print after save
+    // Effect to trigger print after save - waits for fullPrescriptionData to be available
     useEffect(() => {
-        if (savedPrescription && shouldPrint) {
+        if (savedPrescription && shouldPrint && fullPrescriptionData) {
             // Increased timeout to ensure React has fully rendered the print content
             const timer = setTimeout(() => {
                 handlePrint();
@@ -232,7 +232,7 @@ export function PrescriptionFormSection({
             }, 800);
             return () => clearTimeout(timer);
         }
-    }, [savedPrescription, shouldPrint]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [savedPrescription, shouldPrint, fullPrescriptionData]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handlePrintClick = async () => {
         setIsSubmitting(true);
@@ -244,13 +244,15 @@ export function PrescriptionFormSection({
             // Always fetch fresh data for print to ensure all clinical modification are reflected
             const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
             setFullPrescriptionData(data);
+
+            // Only trigger print after data is successfully fetched
+            setShouldPrint(true);
         } catch (error) {
             console.error("Failed to fetch prescription data for print", error);
             toast.error("Failed to load print data");
         } finally {
             setIsSubmitting(false);
         }
-        setShouldPrint(true);
     };
 
     const {
@@ -721,7 +723,7 @@ export function PrescriptionFormSection({
 
     const executeSubmit = async (data: FormData, options: { print?: boolean; finalize?: boolean }) => {
         setIsSubmitting(true);
-        if (options.print) setShouldPrint(true);
+        // Moved setShouldPrint(true) to later to ensure we have data first
 
         try {
             let result;
@@ -790,6 +792,10 @@ export function PrescriptionFormSection({
             } catch (error) {
                 console.error("Failed to fetch full prescription data for print", error);
                 setSavedPrescription(result);
+            }
+
+            if (options.print) {
+                setShouldPrint(true);
             }
 
             if (options.finalize) {
@@ -965,7 +971,7 @@ export function PrescriptionFormSection({
                                 } as any}
                                 showHeader={printWithHeader}
                                 doctorSignature={doctorSignature}
-                                visitData={fullPrescriptionData}
+                                visitData={fullPrescriptionData || examinationData}
                                 plannedSurgeries={plannedSurgeries}
                             />
                         </div>
