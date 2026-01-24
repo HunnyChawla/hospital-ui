@@ -5,18 +5,32 @@ import {
     Eye,
     AlertCircle,
     FileText,
-    Gauge,
     Activity,
     Pill,
     Stethoscope
 } from "lucide-react";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { EditableRefractionCard } from "./EditableRefractionCard";
+import { EditableIOPCard } from "./EditableIOPCard";
+import { EditableVisionCard } from "./EditableVisionCard";
 
 interface ExaminationSummarySectionProps {
     data: PrescriptionDataResponse;
+    patientId: string;
+    visitId: string;
+    optometristId: string;
+    onDataChange?: () => void;
+    isReadOnly?: boolean;
 }
 
-export function ExaminationSummarySection({ data }: ExaminationSummarySectionProps) {
+export function ExaminationSummarySection({
+    data,
+    patientId,
+    visitId,
+    optometristId,
+    onDataChange,
+    isReadOnly = false,
+}: ExaminationSummarySectionProps) {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
             year: "numeric",
@@ -116,215 +130,35 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                 </section>
             )}
 
-            {/* Refraction */}
-            {data.refraction && (
-                <section className="rounded-lg border border-slate-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Eye className="h-4 w-4 text-teal-600" />
-                        <h4 className="font-semibold text-slate-900">Refraction</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="rounded bg-blue-50 p-3">
-                            <p className="text-xs font-semibold text-blue-700 mb-2">OD (Right Eye)</p>
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Sphere:</span>
-                                    <span className="font-medium">{data.refraction.od_sphere}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Cylinder:</span>
-                                    <span className="font-medium">{data.refraction.od_cylinder}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Axis:</span>
-                                    <span className="font-medium">{data.refraction.od_axis}°</span>
-                                </div>
-                                {data.refraction.od_add_power && (
-                                    <div className="flex justify-between">
-                                        <span className="text-slate-600">Add:</span>
-                                        <span className="font-medium">{data.refraction.od_add_power}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="rounded bg-green-50 p-3">
-                            <p className="text-xs font-semibold text-green-700 mb-2">OS (Left Eye)</p>
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Sphere:</span>
-                                    <span className="font-medium">{data.refraction.os_sphere}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Cylinder:</span>
-                                    <span className="font-medium">{data.refraction.os_cylinder}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Axis:</span>
-                                    <span className="font-medium">{data.refraction.os_axis}°</span>
-                                </div>
-                                {data.refraction.os_add_power && (
-                                    <div className="flex justify-between">
-                                        <span className="text-slate-600">Add:</span>
-                                        <span className="font-medium">{data.refraction.os_add_power}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-500 text-right">
-                        Recorded: {formatDateTime(data.refraction.recorded_at)}
-                    </p>
-                </section>
-            )}
+            {/* Refraction - Editable */}
+            <EditableRefractionCard
+                data={data.refraction}
+                patientId={patientId}
+                visitId={visitId}
+                optometristId={optometristId}
+                onSave={onDataChange || (() => {})}
+                isReadOnly={isReadOnly}
+            />
 
-            {/* IOP */}
-            {data.iop && (
-                <section className="rounded-lg border border-slate-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Gauge className="h-4 w-4 text-indigo-600" />
-                        <h4 className="font-semibold text-slate-900">IOP (Intraocular Pressure)</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="rounded bg-indigo-50 p-3 text-center">
-                            <p className="text-xs font-semibold text-indigo-700 mb-1">OD</p>
-                            <p className="text-2xl font-bold text-indigo-600">{data.iop.od_pressure}</p>
-                            <p className="text-xs text-indigo-600">mmHg</p>
-                        </div>
-                        <div className="rounded bg-indigo-50 p-3 text-center">
-                            <p className="text-xs font-semibold text-indigo-700 mb-1">OS</p>
-                            <p className="text-2xl font-bold text-indigo-600">{data.iop.os_pressure}</p>
-                            <p className="text-xs text-indigo-600">mmHg</p>
-                        </div>
-                    </div>
-                    <div className="mt-2 flex justify-between text-xs text-slate-500">
-                        <span>Method: {data.iop.measurement_method}</span>
-                        <span>{formatDateTime(data.iop.measurement_time)}</span>
-                    </div>
-                </section>
-            )}
+            {/* IOP - Editable */}
+            <EditableIOPCard
+                data={data.iop}
+                patientId={patientId}
+                visitId={visitId}
+                optometristId={optometristId}
+                onSave={onDataChange || (() => {})}
+                isReadOnly={isReadOnly}
+            />
 
-            {/* Vision */}
-            {data.vision && (
-                <section className="rounded-lg border border-slate-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Eye className="h-4 w-4 text-cyan-600" />
-                        <h4 className="font-semibold text-slate-900">Visual Acuity</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="rounded bg-blue-50 p-3">
-                            <p className="text-xs font-semibold text-blue-700 mb-2">OD (Right Eye)</p>
-                            <div className="space-y-1.5">
-                                <p className="text-xs font-medium text-slate-600 border-b border-blue-200 pb-1">Distance Vision</p>
-                                <div className="space-y-1 text-sm">
-                                    {data.vision.od_ucva_distance && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">UCVA:</span>
-                                            <span className="font-medium">{data.vision.od_ucva_distance}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.od_ph_va && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">PH:</span>
-                                            <span className="font-medium">{data.vision.od_ph_va}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.od_va_with_current_specs && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">With Specs:</span>
-                                            <span className="font-medium">{data.vision.od_va_with_current_specs}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.od_bcva_distance && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">BCVA:</span>
-                                            <span className="font-medium">{data.vision.od_bcva_distance}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <p className="text-xs font-medium text-slate-600 border-b border-blue-200 pb-1 mt-2">Near Vision</p>
-                                <div className="space-y-1 text-sm">
-                                    {data.vision.od_near_ucva && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">UCVA:</span>
-                                            <span className="font-medium">{data.vision.od_near_ucva}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.od_near_with_current_specs && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">With Specs:</span>
-                                            <span className="font-medium">{data.vision.od_near_with_current_specs}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.od_near_bcva && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">BCVA:</span>
-                                            <span className="font-medium">{data.vision.od_near_bcva}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded bg-green-50 p-3">
-                            <p className="text-xs font-semibold text-green-700 mb-2">OS (Left Eye)</p>
-                            <div className="space-y-1.5">
-                                <p className="text-xs font-medium text-slate-600 border-b border-green-200 pb-1">Distance Vision</p>
-                                <div className="space-y-1 text-sm">
-                                    {data.vision.os_ucva_distance && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">UCVA:</span>
-                                            <span className="font-medium">{data.vision.os_ucva_distance}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.os_ph_va && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">PH:</span>
-                                            <span className="font-medium">{data.vision.os_ph_va}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.os_va_with_current_specs && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">With Specs:</span>
-                                            <span className="font-medium">{data.vision.os_va_with_current_specs}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.os_bcva_distance && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">BCVA:</span>
-                                            <span className="font-medium">{data.vision.os_bcva_distance}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <p className="text-xs font-medium text-slate-600 border-b border-green-200 pb-1 mt-2">Near Vision</p>
-                                <div className="space-y-1 text-sm">
-                                    {data.vision.os_near_ucva && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">UCVA:</span>
-                                            <span className="font-medium">{data.vision.os_near_ucva}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.os_near_with_current_specs && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">With Specs:</span>
-                                            <span className="font-medium">{data.vision.os_near_with_current_specs}</span>
-                                        </div>
-                                    )}
-                                    {data.vision.os_near_bcva && (
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-600">BCVA:</span>
-                                            <span className="font-medium">{data.vision.os_near_bcva}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {data.vision.notes && (
-                        <p className="mt-2 text-xs text-slate-500">
-                            Notes: {data.vision.notes}
-                        </p>
-                    )}
-                </section>
-            )}
+            {/* Vision - Editable */}
+            <EditableVisionCard
+                data={data.vision}
+                patientId={patientId}
+                visitId={visitId}
+                optometristId={optometristId}
+                onSave={onDataChange || (() => {})}
+                isReadOnly={isReadOnly}
+            />
 
             {/* Medical Conditions */}
             {data.medical_conditions && data.medical_conditions.length > 0 && (
@@ -394,8 +228,8 @@ export function ExaminationSummarySection({ data }: ExaminationSummarySectionPro
                 </section>
             )}
 
-            {/* No Data State */}
-            {!data.complaints?.length && !data.ar_data && !data.refraction && !data.iop && !data.vision && !data.medical_conditions?.length && (
+            {/* No Data State - Show only when ALL sections are empty */}
+            {!data.complaints?.length && !data.ar_data && !data.refraction && !data.iop && !data.vision && !data.medical_conditions?.length && !data.drug_allergies?.length && !data.ophthalmic_history?.length && (
                 <div className="text-center py-8">
                     <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500">No examination data recorded yet</p>

@@ -136,6 +136,16 @@ export function DoctorPrescriptionModal({
         }
     }, [isOpen, patientId, visitId]);
 
+    // Refresh summary data after edits (refraction/IOP)
+    const refreshSummaryData = useCallback(async () => {
+        try {
+            const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
+            setSummaryData(data);
+        } catch (error) {
+            handleError(error, { defaultMessage: "Failed to refresh examination data" });
+        }
+    }, [patientId, visitId]);
+
     // Resize Handlers
     const startResizingLeft = useCallback(() => {
         isResizingLeft.current = true;
@@ -397,7 +407,14 @@ export function DoctorPrescriptionModal({
                                     </div>
                                 </div>
                             ) : summaryData ? (
-                                <ExaminationSummarySection data={summaryData} />
+                                <ExaminationSummarySection
+                                    data={summaryData}
+                                    patientId={patientId}
+                                    visitId={visitId}
+                                    optometristId={optometristId}
+                                    onDataChange={refreshSummaryData}
+                                    isReadOnly={isCompleted}
+                                />
                             ) : (
                                 <div className="flex items-center justify-center h-full">
                                     <p className="text-sm text-slate-500">No data available</p>
