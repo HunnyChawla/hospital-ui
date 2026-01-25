@@ -36,6 +36,8 @@ interface DoctorPanelVerticalLayoutProps {
 
   // Visit status
   onUpdateVisitStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
+  onPickPatient?: (visitId: string) => void;
+  onUnpickPatient?: (visitId: string) => void;
   updatingVisitId?: string | null;
 
   // Prescription
@@ -67,6 +69,8 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   onClearPatient,
   onTabChange,
   onUpdateVisitStatus,
+  onPickPatient,
+  onUnpickPatient,
   updatingVisitId,
   onCreatePrescription,
   onPrintOpd,
@@ -141,6 +145,8 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
               onSelectPatient={onSelectPatient}
               selectedPatientId={selectedPatientId}
               onUpdateStatus={onUpdateVisitStatus}
+              onPickPatient={onPickPatient}
+              onUnpickPatient={onUnpickPatient}
               updatingVisitId={updatingVisitId}
               loading={queueLoading}
               isVisible={queueVisible}

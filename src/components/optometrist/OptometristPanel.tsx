@@ -339,6 +339,20 @@ export function OptometristPanel() {
           break;
 
         // Doctor Actions
+        case "pick_doctor":
+          if (!isDoctor) throw new Error("Only doctors can pick patients");
+          const doctorToPick = selectedDoctor?.doctor_id;
+          if (!doctorToPick) throw new Error("Doctor ID not resolved");
+          await optometristVisitsApi.pickDoctor(visitId, doctorToPick, apiTenantId);
+          toast.success("Patient called successfully");
+          break;
+
+        case "unpick_doctor":
+          if (!isDoctor) throw new Error("Only doctors can unpick patients");
+          await optometristVisitsApi.unpickDoctor(visitId, apiTenantId);
+          toast.success("Patient returned to queue");
+          break;
+
         case "mark_no_show":
           await optometristVisitsApi.markNoShow(visitId, apiTenantId);
           toast.success("Patient marked as No Show");

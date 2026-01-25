@@ -18,6 +18,8 @@ interface EnhancedQueueBoardProps {
   onSelectPatient: (patientId: string) => void;
   selectedPatientId: string | null;
   onUpdateStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
+  onPickPatient?: (visitId: string) => void;
+  onUnpickPatient?: (visitId: string) => void;
   updatingVisitId?: string | null;
   loading?: boolean;
 }
@@ -29,6 +31,8 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
   onSelectPatient,
   selectedPatientId,
   onUpdateStatus,
+  onPickPatient,
+  onUnpickPatient,
   updatingVisitId,
   loading = false,
 }) => {
@@ -124,8 +128,9 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
               const isSelected = patient.patient_id === selectedPatientId;
               const isUpdating = patient.item_id === updatingVisitId;
               const isEmergency = patient.visit_type === "emergency";
-              const canStart = patient.status === "checked_in";
-              const canComplete = patient.status === "in_consultation";
+              const canStart = patient.status === "doctor_assigned";
+              const canCall = patient.status === "awaiting_doctor";
+              const canComplete = patient.status === "in_consultation" || patient.status === "consultation_in_progress";
 
               return (
                 <div
@@ -183,42 +188,87 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
                   </div>
 
                   {/* Action Buttons */}
-                  {onUpdateStatus && (canStart || canComplete) && (
-                    <div className="mt-2 flex gap-2">
-                      {canStart && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUpdateStatus(patient.item_id, "in_consultation");
-                          }}
-                          disabled={isUpdating}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            "Start Consultation"
-                          )}
-                        </button>
-                      )}
-                      {canComplete && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUpdateStatus(patient.item_id, "completed");
-                          }}
-                          disabled={isUpdating}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            "Mark Complete"
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-2 flex flex-col gap-2">
+                    {/* Status Update Buttons */}
+                    {onUpdateStatus && (canStart || canComplete) && (
+                      <div className="flex gap-2">
+                        {canStart && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateStatus(patient.item_id, "in_consultation");
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Start Consultation"
+                            )}
+                          </button>
+                        )}
+                        {canComplete && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateStatus(patient.item_id, "completed");
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Mark Complete"
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pick/Unpick Buttons */}
+                    {(onPickPatient || onUnpickPatient) && (
+                      <div className="flex gap-2">
+                        {onPickPatient && canCall && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPickPatient(patient.item_id); // item_id is visit_id
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                {/* Optional Icon if needed */}
+                                <span>Call Patient</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {onUnpickPatient && canStart && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUnpickPatient(patient.item_id);
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Return to Queue"
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

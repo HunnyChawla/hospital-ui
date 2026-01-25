@@ -11,7 +11,7 @@ import {
   type OptometristQueuePatient
 } from "@/utils/optometristQueueFilters";
 
-export type OptometristActionType = "pick" | "unpick" | "start_investigation" | "complete_investigation" | "mark_no_show" | "start_consultation" | "complete_consultation" | "start_dilation" | "complete_dilation";
+export type OptometristActionType = "pick" | "unpick" | "start_investigation" | "complete_investigation" | "mark_no_show" | "start_consultation" | "complete_consultation" | "start_dilation" | "complete_dilation" | "pick_doctor" | "unpick_doctor";
 
 interface OptometristCollapsibleQueueSectionProps {
   queuePatients: any[]; // Supports both OptometristQueuePatient and DoctorQueuePatient
@@ -494,7 +494,30 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                         {/* START: Doctor Actions */}
                         {isDoctor && (
                           <>
-                            {(patient.status === "doctor_assigned" || patient.status === "awaiting_doctor") && index === 0 && (
+                            {/* Call Patient (Pick Doctor) - Show for awaiting_doctor */}
+                            {patient.status === "awaiting_doctor" && index === 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectPatient(patient.patient_id);
+                                  onAction(patient.visit_id, "pick_doctor");
+                                }}
+                                disabled={updatingVisitId === patient.visit_id}
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/30 transition-all hover:bg-violet-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                              >
+                                {updatingVisitId === patient.visit_id ? (
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                ) : (
+                                  <>
+                                    <Users className="h-3.5 w-3.5" />
+                                    Call Patient
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            {/* Doctor Assigned Actions */}
+                            {patient.status === "doctor_assigned" && (
                               <>
                                 <button
                                   onClick={(e) => {
@@ -517,21 +540,42 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onAction(patient.visit_id, "mark_no_show");
+                                    onAction(patient.visit_id, "unpick_doctor");
                                   }}
                                   disabled={updatingVisitId === patient.visit_id}
-                                  className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-all hover:from-rose-600 hover:to-red-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                  className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-slate-400 to-slate-500 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-slate-400/30 transition-all hover:from-slate-500 hover:to-slate-600 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                                 >
                                   {updatingVisitId === patient.visit_id ? (
                                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                   ) : (
                                     <>
-                                      <AlertTriangle className="h-3.5 w-3.5" />
-                                      No Show
+                                      <X className="h-3.5 w-3.5" />
+                                      Return to Queue
                                     </>
                                   )}
                                 </button>
                               </>
+                            )}
+
+                            {/* No Show Button - Show for both statuses */}
+                            {(patient.status === "doctor_assigned" || patient.status === "awaiting_doctor") && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAction(patient.visit_id, "mark_no_show");
+                                }}
+                                disabled={updatingVisitId === patient.visit_id}
+                                className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-all hover:from-rose-600 hover:to-red-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                              >
+                                {updatingVisitId === patient.visit_id ? (
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    No Show
+                                  </>
+                                )}
+                              </button>
                             )}
 
                             {patient.status === "consultation_in_progress" && (
@@ -627,8 +671,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 {/* Dilation timer info */}
                                 {patient.dilation_started_at && (
                                   <div className={`flex items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] font-medium ${new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
-                                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                                      : "bg-violet-50 text-violet-700 border-violet-200"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-violet-50 text-violet-700 border-violet-200"
                                     }`}>
                                     <Clock className="h-3 w-3" />
                                     <span>

@@ -11,6 +11,8 @@ interface QueuePatientCardProps {
     isEmergency?: boolean;
     queueType: "optometrist" | "doctor";
     viewMode?: 'list' | 'tiles';
+    onCall?: (visitId: string) => void;
+    onReturn?: (visitId: string) => void;
 }
 
 export function QueuePatientCard({
@@ -19,6 +21,8 @@ export function QueuePatientCard({
     isGreyed = false,
     queueType,
     viewMode = 'list',
+    onCall,
+    onReturn,
 }: QueuePatientCardProps) {
     const isEmergency = patient.visit_type === "emergency";
     const tokenNumber =
@@ -266,6 +270,39 @@ export function QueuePatientCard({
                         </div>
                     )}
                 </div>
+
+                {/* Action Buttons for Doctor Queue */}
+                {queueType === "doctor" && (
+                    <div className={`flex flex-col gap-2 ${viewMode === 'tiles' ? 'w-full mt-2' : ''}`}>
+                        {/* Call Button - Show if assigned/awaiting doctor */}
+                        {onCall && (patient.status === "awaiting_doctor" || patient.status === "doctor_assigned") && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCall(patient.visit_id);
+                                }}
+                                className={`flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-violet-700 hover:shadow-md active:scale-95 ${viewMode === 'tiles' ? 'w-full' : ''}`}
+                            >
+                                <Stethoscope className="h-3.5 w-3.5" />
+                                <span>Call Patient</span>
+                            </button>
+                        )}
+
+                        {/* Return to Queue Button - Show if assigned to doctor but not yet started consultation? Or strictly for "doctor_assigned" status if that exists for picked patients */}
+                        {onReturn && patient.status === "doctor_assigned" && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReturn(patient.visit_id);
+                                }}
+                                className={`flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 active:scale-95 ${viewMode === 'tiles' ? 'w-full' : ''}`}
+                            >
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Return to Queue</span>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

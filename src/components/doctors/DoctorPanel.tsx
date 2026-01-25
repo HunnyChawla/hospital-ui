@@ -19,6 +19,7 @@ import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
+import { optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
@@ -243,6 +244,35 @@ export function DoctorPanel() {
     }
   };
 
+  const handlePickPatient = async (visitId: string) => {
+    if (!currentDoctor?.id) return;
+    setUpdatingVisitId(visitId);
+    try {
+      await optometristVisitsApi.pickDoctor(visitId, currentDoctor.id);
+      toast.success("Patient called successfully");
+      await refreshSchedule();
+    } catch (error: any) {
+      console.error("Failed to pick patient:", error);
+      toast.error(error?.response?.data?.detail || "Failed to call patient");
+    } finally {
+      setUpdatingVisitId(null);
+    }
+  };
+
+  const handleUnpickPatient = async (visitId: string) => {
+    setUpdatingVisitId(visitId);
+    try {
+      await optometristVisitsApi.unpickDoctor(visitId);
+      toast.success("Patient returned to queue");
+      await refreshSchedule();
+    } catch (error: any) {
+      console.error("Failed to unpick patient:", error);
+      toast.error(error?.response?.data?.detail || "Failed to return patient");
+    } finally {
+      setUpdatingVisitId(null);
+    }
+  };
+
   const handlePrintOpd = async () => {
     if (!currentVisitId || !selectedPatientId) {
       toast.error("No active visit to print");
@@ -459,6 +489,8 @@ export function DoctorPanel() {
         onClearPatient={handleClearPatient}
         onTabChange={setActiveTab}
         onUpdateVisitStatus={handleUpdateVisitStatus}
+        onPickPatient={handlePickPatient}
+        onUnpickPatient={handleUnpickPatient}
         updatingVisitId={updatingVisitId}
         onCreatePrescription={() => setShowPrescriptionModal(true)}
         onPrintOpd={handlePrintOpd}

@@ -140,7 +140,7 @@ export function useTVDisplayQueue({
     const doctorSseUrl = useMemo(
         () =>
             doctorId && autoConnect
-                ? `/opd/eye-hospital/doctor-queue/${doctorId}/stream?status=awaiting_doctor,consultation_in_progress,optometrist_investigation_in_progress,dilation_in_progress,dilation_completed`
+                ? `/opd/eye-hospital/group-queue/${doctorId}/stream?status=awaiting_doctor,doctor_assigned,consultation_in_progress,optometrist_investigation_in_progress,dilation_in_progress,dilation_completed`
                 : null,
         [doctorId, autoConnect]
     );

@@ -214,4 +214,44 @@ export const optometristVisitsApi = {
     );
     return response.data;
   },
+
+  /**
+   * Pick a patient from the group queue (Doctor)
+   * POST /opd/eye-hospital/visits/{visit_id}/pick-doctor
+   */
+  async pickDoctor(
+    visitId: string,
+    doctorId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/pick-doctor`,
+      {},
+      {
+        params: {
+          doctor_id: doctorId,
+          ...(params ? { tenant_id: params } : {})
+        }
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Release a patient back to the group queue (Doctor)
+   * POST /opd/eye-hospital/visits/{visit_id}/unpick-doctor
+   */
+  async unpickDoctor(
+    visitId: string,
+    tenantId?: string
+  ): Promise<OptometristVisitResponse> {
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/unpick-doctor`,
+      {},
+      params ? { params: { tenant_id: params } } : undefined
+    );
+    return response.data;
+  },
 };

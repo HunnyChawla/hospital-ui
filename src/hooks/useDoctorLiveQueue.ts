@@ -121,7 +121,7 @@ export function useDoctorLiveQueue({
 
     const sseUrl = useMemo(
         () => (doctorId && autoConnect
-            ? `/opd/eye-hospital/doctor-queue/${doctorId}/stream?status=${statusQuery}`
+            ? `/opd/eye-hospital/group-queue/${doctorId}/stream?status=${statusQuery}`
             : null),
         [doctorId, autoConnect, statusQuery]
     );

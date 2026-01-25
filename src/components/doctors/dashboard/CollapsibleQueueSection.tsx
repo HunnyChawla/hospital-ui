@@ -13,6 +13,8 @@ interface CollapsibleQueueSectionProps {
   onSelectPatient: (patientId: string) => void;
   selectedPatientId: string | null;
   onUpdateStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
+  onPickPatient?: (visitId: string) => void;
+  onUnpickPatient?: (visitId: string) => void;
   updatingVisitId?: string | null;
   loading?: boolean;
   isVisible: boolean;
@@ -26,6 +28,8 @@ export const CollapsibleQueueSection: React.FC<CollapsibleQueueSectionProps> = (
   onSelectPatient,
   selectedPatientId,
   onUpdateStatus,
+  onPickPatient,
+  onUnpickPatient,
   updatingVisitId,
   loading = false,
   isVisible,
@@ -55,6 +59,8 @@ export const CollapsibleQueueSection: React.FC<CollapsibleQueueSectionProps> = (
           onSelectPatient={onSelectPatient}
           selectedPatientId={selectedPatientId}
           onUpdateStatus={onUpdateStatus}
+          onPickPatient={onPickPatient}
+          onUnpickPatient={onUnpickPatient}
           updatingVisitId={updatingVisitId}
           loading={loading}
         />
