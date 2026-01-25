@@ -718,6 +718,7 @@ export type ScreenPermission = {
   screen_path: string;
   screen_label: string;
   is_enabled: boolean;
+  is_default?: boolean;
 };
 
 export type RolePermissions = {

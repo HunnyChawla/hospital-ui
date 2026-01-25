@@ -81,11 +81,11 @@ export const fetchAllRolePermissions = createAsyncThunk<
 // Update role permissions
 export const updateRolePermissions = createAsyncThunk<
   RolePermissions,
-  { role: string; screenPaths: string[]; tenantId?: string },
+  { role: string; screenPaths: string[]; tenantId?: string; defaultScreenPath?: string },
   { rejectValue: string }
->("permissions/updateRole", async ({ role, screenPaths, tenantId }, { rejectWithValue }) => {
+>("permissions/updateRole", async ({ role, screenPaths, tenantId, defaultScreenPath }, { rejectWithValue }) => {
   try {
-    return await permissionsApi.updateRolePermissions(role, screenPaths, tenantId);
+    return await permissionsApi.updateRolePermissions(role, screenPaths, tenantId, defaultScreenPath);
   } catch (error) {
     return rejectWithValue(getErrorMessage(error));
   }

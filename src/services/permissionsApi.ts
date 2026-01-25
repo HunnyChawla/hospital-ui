@@ -66,13 +66,17 @@ export const permissionsApi = {
   async updateRolePermissions(
     role: string,
     screenPaths: string[],
-    tenantId?: string
+    tenantId?: string,
+    defaultScreenPath?: string
   ): Promise<RolePermissions> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<RolePermissions>(
       `/permissions/roles/${role}`,
-      { screen_paths: screenPaths },
+      {
+        screen_paths: screenPaths,
+        default_screen_path: defaultScreenPath,
+      },
       { params }
     );
     return response.data;

@@ -29,6 +29,7 @@ export function RolePermissionsPanel() {
   const { isPlatformOwner } = usePermissions();
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [editedPermissions, setEditedPermissions] = useState<Set<string>>(new Set());
+  const [defaultScreen, setDefaultScreen] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Check if a screen can only be modified by platform owner
@@ -48,7 +49,7 @@ export function RolePermissionsPanel() {
     dispatch(fetchAllRolePermissions());
   }, [dispatch]);
 
-  // Initialize edited permissions when role changes or data loads
+  // Initialize edited permissions and default screen when role changes or data loads
   useEffect(() => {
     // Safety check: ensure allRolePermissions is an array
     if (!Array.isArray(allRolePermissions)) return;
@@ -59,6 +60,11 @@ export function RolePermissionsPanel() {
         .filter((p) => p.is_enabled)
         .map((p) => p.screen_path);
       setEditedPermissions(new Set(enabledPaths));
+
+      // Find default screen
+      const defaultPerm = rolePerms.permissions.find((p) => p.is_default);
+      setDefaultScreen(defaultPerm ? defaultPerm.screen_path : null);
+
       setHasChanges(false);
     }
   }, [selectedRole, allRolePermissions]);
@@ -71,11 +77,30 @@ export function RolePermissionsPanel() {
       const newSet = new Set(prev);
       if (newSet.has(screenPath)) {
         newSet.delete(screenPath);
+        // If we're removing the default screen, unset it
+        if (defaultScreen === screenPath) {
+          setDefaultScreen(null);
+        }
       } else {
         newSet.add(screenPath);
       }
       return newSet;
     });
+    setHasChanges(true);
+  };
+
+  const handleSetDefault = (e: React.MouseEvent, screenPath: string) => {
+    e.stopPropagation(); // Prevent toggling permission when clicking default icon
+
+    // Can only set default if screen is enabled
+    if (!editedPermissions.has(screenPath)) return;
+
+    if (defaultScreen === screenPath) {
+      // Unset if already default
+      setDefaultScreen(null);
+    } else {
+      setDefaultScreen(screenPath);
+    }
     setHasChanges(true);
   };
 
@@ -85,6 +110,7 @@ export function RolePermissionsPanel() {
         updateRolePermissions({
           role: selectedRole,
           screenPaths: Array.from(editedPermissions),
+          defaultScreenPath: defaultScreen || undefined,
         })
       ).unwrap();
       toast.success(`Permissions updated for ${ROLE_LABELS[selectedRole]}`);
@@ -136,11 +162,10 @@ export function RolePermissionsPanel() {
           <button
             key={role}
             onClick={() => setSelectedRole(role)}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-              selectedRole === role
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${selectedRole === role
                 ? "bg-sky-500 text-white"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
+              }`}
           >
             {ROLE_LABELS[role]}
           </button>
@@ -149,7 +174,7 @@ export function RolePermissionsPanel() {
 
       <p className="text-sm text-slate-500">
         Configure which screens the <strong>{ROLE_LABELS[selectedRole]}</strong> role can access by default.
-        Platform Owner always has access to all screens.
+        Click the star icon to set a screen as the <strong>Default Screen</strong> (landing page) for this role.
       </p>
 
       {/* Permissions Grid */}
@@ -169,31 +194,61 @@ export function RolePermissionsPanel() {
                   .filter((screen) => canModifyScreen(screen.path))
                   .map((screen) => {
                     const isEnabled = editedPermissions.has(screen.path);
+                    const isDefault = defaultScreen === screen.path;
 
                     return (
                       <button
                         key={screen.path}
                         onClick={() => togglePermission(screen.path)}
-                        className={`flex items-center justify-between rounded-xl border p-3 transition ${
-                          isEnabled
+                        className={`group relative flex items-center justify-between rounded-xl border p-3 transition ${isEnabled
                             ? "border-emerald-200 bg-emerald-50"
                             : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         <span className="text-sm font-medium text-slate-700">
                           {screen.label}
                         </span>
-                        <span
-                          className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                            isEnabled ? "bg-emerald-500 text-white" : "bg-slate-300 text-white"
-                          }`}
-                        >
-                          {isEnabled ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <X className="h-4 w-4" />
+
+                        <div className="flex items-center gap-2">
+                          {/* Default Screen Toggle */}
+                          {isEnabled && (
+                            <div
+                              role="button"
+                              onClick={(e) => handleSetDefault(e, screen.path)}
+                              title={isDefault ? "Default Screen" : "Set as Default Screen"}
+                              className={`p-1 rounded-full transition-colors ${isDefault
+                                  ? "text-amber-500 bg-amber-100"
+                                  : "text-slate-300 hover:text-amber-400 hover:bg-amber-50"
+                                }`}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill={isDefault ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lucide lucide-star"
+                              >
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                              </svg>
+                            </div>
                           )}
-                        </span>
+
+                          <span
+                            className={`flex h-6 w-6 items-center justify-center rounded-full ${isEnabled ? "bg-emerald-500 text-white" : "bg-slate-300 text-white"
+                              }`}
+                          >
+                            {isEnabled ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <X className="h-4 w-4" />
+                            )}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
