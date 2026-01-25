@@ -688,3 +688,63 @@ export interface CurrentSpecsRecord {
   updated_by?: string | null;
 }
 
+// ============================================
+// RBAC PERMISSION TYPES
+// ============================================
+
+export type UserRole =
+  | "admin"
+  | "doctor"
+  | "nurse"
+  | "receptionist"
+  | "optometrist"
+  | "lab_technician"
+  | "platform_owner";
+
+export type ScreenDetail = {
+  path: string;
+  label: string;
+  icon: string;
+};
+
+export type UserPermissions = {
+  role: UserRole;
+  allowed_screens: string[];
+  screen_details: ScreenDetail[];
+};
+
+export type ScreenPermission = {
+  screen_path: string;
+  screen_label: string;
+  is_enabled: boolean;
+};
+
+export type RolePermissions = {
+  role: string;
+  permissions: ScreenPermission[];
+};
+
+export type UserSpecificPermissions = {
+  user_id: string;
+  user_name: string;
+  role: string;
+  role_screens: string[];
+  additional_screens: string[];
+  all_allowed_screens: string[];
+};
+
+export type UserPermissionSummary = {
+  user_id: string;
+  user_name: string;
+  role: string;
+  additional_screens_count: number;
+};
+
+export type AvailableScreen = {
+  path: string;
+  label: string;
+  icon: string;
+  category: "main" | "clinical" | "admin" | "reports";
+  description?: string;
+};
+

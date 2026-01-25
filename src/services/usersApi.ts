@@ -38,6 +38,7 @@ export interface UsersSearchParams {
   role?: UserRole;
   status?: UserStatus;
   tenant_id?: string;
+  search?: string;
 }
 
 export interface UsersSearchResponse {
@@ -62,6 +63,7 @@ export const usersApi = {
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.role) queryParams.append("role", params.role);
     if (params?.status) queryParams.append("status", params.status);
+    if (params?.search && params.search.trim()) queryParams.append("search", params.search.trim());
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 

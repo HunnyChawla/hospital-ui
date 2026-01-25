@@ -30,7 +30,8 @@ export const useOptometristPanel = () => {
 
   // Get current optometrist user from localStorage
   const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
-  const userRole = typeof window !== "undefined" ? localStorage.getItem("role") : null;
+  const rawRole = typeof window !== "undefined" ? localStorage.getItem("role") : null;
+  const userRole = rawRole ? rawRole.toLowerCase() : null;
   const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
 
   // State for optometrist-doctor mappings

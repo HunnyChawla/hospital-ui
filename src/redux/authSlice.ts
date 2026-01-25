@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authApi, LoginRequest, LoginResponse } from "@/services/authApi";
 import { usersApi } from "@/services/usersApi";
 import { fetchTenant, clearTenant } from "./tenantSlice";
+import { fetchMyPermissions, clearPermissions } from "./permissionsSlice";
 
 type AuthState = {
   user: LoginResponse | null;
@@ -58,9 +59,10 @@ export const login = createAsyncThunk(
           localStorage.removeItem("must_change_password");
         }
 
-        // Fetch tenant data and user details after successful login
+        // Fetch tenant data, user details, and permissions after successful login
         dispatch(fetchTenant(tenantId));
         dispatch(fetchUserDetails(response.user_id));
+        dispatch(fetchMyPermissions());
       }
       return response;
     } catch (error: any) {
@@ -83,8 +85,9 @@ export const logout = createAsyncThunk("auth/logout", async (_, { dispatch }) =>
     localStorage.removeItem("must_change_password");
   }
 
-  // Clear tenant data
+  // Clear tenant data and permissions
   dispatch(clearTenant());
+  dispatch(clearPermissions());
 });
 
 const authSlice = createSlice({

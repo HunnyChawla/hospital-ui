@@ -6,6 +6,7 @@ import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
+import { fetchMyPermissions } from "@/redux/permissionsSlice";
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
 import { TopBar } from "@/components/layout/TopBar";
@@ -133,6 +134,7 @@ export default function DashboardLayout({
   const doctors = useAppSelector((s) => s.doctors);
   const wards = useAppSelector((s) => s.wards);
   const beds = useAppSelector((s) => s.beds);
+  const permissions = useAppSelector((s) => s.permissions);
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
@@ -162,6 +164,11 @@ export default function DashboardLayout({
       // Fetch beds once if not already loaded
       if (beds.list.length === 0 && !beds.loading) {
         dispatch(fetchBeds());
+      }
+
+      // Fetch permissions if not already initialized
+      if (!permissions.initialized && !permissions.loading) {
+        dispatch(fetchMyPermissions());
       }
 
       setIsCheckingAuth(false);

@@ -21,9 +21,11 @@ import {
   MonitorPlay,
   Building2,
   CalendarDays,
+  Shield,
+  LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -32,39 +34,44 @@ import { useSidebar } from "@/hooks/useSidebar";
 import { Tooltip } from "@/components/common/Tooltip";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
+import { usePermissions } from "@/hooks/usePermissions";
 
-// Navigation items
-const navItems = [
+// Icon mapping from string names to Lucide components
+const iconMap: Record<string, LucideIcon> = {
+  Home,
+  BarChart3,
+  Users2,
+  Activity,
+  MonitorPlay,
+  BedDouble,
+  FlaskConical,
+  Beaker,
+  Package,
+  CalendarDays,
+  CreditCard,
+  FileText,
+  Stethoscope,
+  Eye,
+  UserCog,
+  Building2,
+  Shield,
+  LayoutList,
+  Radio,
+};
+
+// Fallback navigation items (used when permissions not loaded)
+const fallbackNavItems = [
   { label: "Dashboard", href: "/", icon: Home },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Patients", href: "/patients", icon: Users2 },
-  { label: "Appointments/OPD", href: "/opd", icon: Activity },
-  // { label: "Queue", href: "/queue", icon: LayoutList },
-  // { label: "Live Queue", href: "/queue/live", icon: Radio },
-  { label: "TV Display", href: "/queue/tv-display", icon: MonitorPlay },
-  { label: "IPD", href: "/admissions", icon: BedDouble },
-  { label: "Lab Bookings", href: "/lab-bookings", icon: FlaskConical },
-  { label: "Lab Reports", href: "/lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"] },
-  { label: "Lab Test Catalog", href: "/labs", icon: Beaker },
-  { label: "Service Master", href: "/services", icon: Package },
-  { label: "Surgeries", href: "/surgeries", icon: Activity, roles: ["admin", "receptionist"] },
-  { label: "Planned Surgeries", href: "/planned-surgeries", icon: CalendarDays, roles: ["admin", "receptionist", "doctor"] },
-  { label: "Billing", href: "/billing", icon: CreditCard },
-  { label: "MRD Documents", href: "/mrd", icon: FileText },
-  { label: "Doctors", href: "/doctors", icon: Stethoscope },
-  { label: "My Panel", href: "/doctor-panel", icon: Stethoscope, roles: ["doctor"] },
-  { label: "My Panel", href: "/optometrist-panel", icon: Eye, roles: ["optometrist", "doctor"] },
-  { label: "Staff", href: "/users", icon: UserCog },
-  { label: "Tenants", href: "/tenants", icon: Building2, roles: ["platform_owner"] },
 ];
 
 export function Sidebar() {
-  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const { hospitalName } = useTenant();
   const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar, toggleDesktopSidebar } = useSidebar();
   const dispatch = useAppDispatch();
   const doctors = useAppSelector((state) => state.doctors.list);
+  const { screenDetails, userRole, initialized, loading } = usePermissions();
 
   useEffect(() => {
     if (userRole === "doctor" && doctors.length === 0) {
@@ -72,33 +79,35 @@ export function Sidebar() {
     }
   }, [userRole, doctors.length, dispatch]);
 
-  useEffect(() => {
-    // Get user role from localStorage
-    if (typeof window !== "undefined") {
-      const role = localStorage.getItem("role");
-      setUserRole(role);
-    }
-  }, []);
-
-  const isRoleAllowed = (item: typeof navItems[0]): boolean => {
-    if (userRole === "doctor") {
-      const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
-      const currentDoctor = doctors.find((d) => d.user_id === userId);
-      const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
-
-      if (item.href === "/optometrist-panel") {
-        return isOphthalmologist;
-      }
-
-      if (item.href === "/doctor-panel") {
-        return !isOphthalmologist;
-      }
+  // Build navigation items from permissions
+  const navItems = useMemo(() => {
+    // If permissions not loaded, show fallback
+    if (!initialized || loading || screenDetails.length === 0) {
+      return fallbackNavItems;
     }
 
-    if (!item.roles) return true; // No role restriction
-    if (!userRole) return false;
-    return item.roles.includes(userRole);
-  };
+    // Map screen details to nav items with icon components
+    return screenDetails.map((screen) => ({
+      label: screen.label,
+      href: screen.path,
+      icon: iconMap[screen.icon] || Home,
+    }));
+  }, [screenDetails, initialized, loading]);
+
+  // Filter for ophthalmologist vs regular doctor panel
+  const filteredNavItems = useMemo(() => {
+    if (userRole !== "doctor") return navItems;
+
+    const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+    const currentDoctor = doctors.find((d) => d.user_id === userId);
+    const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
+
+    return navItems.filter((item) => {
+      if (item.href === "/optometrist-panel") return isOphthalmologist;
+      if (item.href === "/doctor-panel") return !isOphthalmologist;
+      return true;
+    });
+  }, [navItems, userRole, doctors]);
 
   // Handle navigation click - close mobile drawer if on mobile
   const handleNavClick = () => {
@@ -142,9 +151,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide min-h-0">
-        {navItems.map((item) => {
-          if (!isRoleAllowed(item)) return null;
-
+        {filteredNavItems.map((item) => {
           const Icon = item.icon;
           const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
           const active = normalizedPathname === item.href;
@@ -156,7 +163,7 @@ export function Sidebar() {
 
           return (
             <Link
-              key={item.label}
+              key={item.href}
               href={item.href}
               className={baseClassName}
               onClick={handleNavClick}
@@ -185,9 +192,6 @@ export function Sidebar() {
 
   // Render collapsed sidebar with icons only
   const renderCollapsedIcons = () => {
-    // Get filtered nav items (same logic as expanded)
-    const filteredNavItems = navItems.filter(isRoleAllowed);
-
     return (
       <>
         {/* Expand Button */}
@@ -236,7 +240,7 @@ export function Sidebar() {
             );
 
             return (
-              <Tooltip key={item.label} content={item.label} side="right">
+              <Tooltip key={item.href} content={item.label} side="right">
                 <Link
                   href={item.href}
                   className={iconButtonClass}
