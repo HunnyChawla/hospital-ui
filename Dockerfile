@@ -16,7 +16,8 @@ COPY package.json package-lock.json* ./
 
 # Install all dependencies including devDependencies (needed for TypeScript build)
 # Don't set NODE_ENV=production yet, as it would skip devDependencies
-RUN npm ci
+# Use BuildKit cache mount to persist npm cache between builds
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source code (including .env.production if it exists)
 COPY . .

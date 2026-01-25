@@ -388,7 +388,12 @@ export function useTVDisplayQueue({
 
             // Doctor Queue Announcement
             if (doctorAnnouncement) {
-                const current = doctorAnnouncement;
+                const current: {
+                    name: string;
+                    token: string | number;
+                    cabin: string | null;
+                    messageType: "proceed"
+                } = doctorAnnouncement;
                 // If Optometrist played (English+Hindi ~12s), wait 14s. Else immediate.
                 const delay = announcementData ? 14000 : 1000;
 

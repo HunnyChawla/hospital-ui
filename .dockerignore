@@ -45,3 +45,8 @@ Thumbs.db
 .temp/
 *.log
 
+# Large/dev files not needed in Docker image
+openapi.json
+*.py
+tsconfig.tsbuildinfo
+

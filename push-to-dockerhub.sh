@@ -158,8 +158,10 @@ print_success "Buildx builder ready"
 # Build and push with version tag if available
 print_step "Building and pushing multi-platform image..."
 
-# Construct the build command
+# Construct the build command with registry cache for faster multi-platform builds
 BUILD_CMD="docker buildx build --platform ${PLATFORMS} --push"
+BUILD_CMD="${BUILD_CMD} --cache-from=type=registry,ref=${FULL_IMAGE_NAME}:buildcache"
+BUILD_CMD="${BUILD_CMD} --cache-to=type=registry,ref=${FULL_IMAGE_NAME}:buildcache,mode=max,compression=zstd,compression-level=3"
 
 # Add tags
 BUILD_CMD="${BUILD_CMD} -t ${FULL_IMAGE_NAME}:${TAG}"
