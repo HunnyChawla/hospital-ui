@@ -64,9 +64,12 @@ export default function LoginPage() {
     }
 
     try {
-      await dispatch(login(formData)).unwrap();
+      const result = await dispatch(login(formData)).unwrap();
       toast.success("Login successful");
-      router.push("/");
+
+      // Navigate to the first permitted screen, or fallback to dashboard
+      const firstScreen = result.permissions?.screen_details?.[0]?.path;
+      router.push(firstScreen || "/");
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);

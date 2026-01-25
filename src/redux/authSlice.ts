@@ -3,6 +3,7 @@ import { authApi, LoginRequest, LoginResponse } from "@/services/authApi";
 import { usersApi } from "@/services/usersApi";
 import { fetchTenant, clearTenant } from "./tenantSlice";
 import { fetchMyPermissions, clearPermissions } from "./permissionsSlice";
+import { UserPermissions } from "@/types";
 
 type AuthState = {
   user: LoginResponse | null;
@@ -59,12 +60,19 @@ export const login = createAsyncThunk(
           localStorage.removeItem("must_change_password");
         }
 
-        // Fetch tenant data, user details, and permissions after successful login
+        // Fetch tenant data and user details (fire and forget - not critical for navigation)
         dispatch(fetchTenant(tenantId));
         dispatch(fetchUserDetails(response.user_id));
-        dispatch(fetchMyPermissions());
+
+        // Await permissions fetch - needed to determine where to navigate after login
+        const permissionsResult = await dispatch(fetchMyPermissions());
+
+        return {
+          ...response,
+          permissions: permissionsResult.payload as UserPermissions | undefined,
+        };
       }
-      return response;
+      return { ...response, permissions: undefined };
     } catch (error: any) {
       // Preserve the error structure for proper error handling
       return rejectWithValue(error);
