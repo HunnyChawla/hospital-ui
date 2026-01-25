@@ -23,6 +23,7 @@ import {
   Building2,
   CalendarDays,
   Shield,
+  Monitor,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -59,6 +60,7 @@ const iconMap: Record<string, LucideIcon> = {
   Shield,
   LayoutList,
   Radio,
+  Monitor,
 };
 
 // Fallback navigation items (used when permissions not loaded)
@@ -89,12 +91,31 @@ export function Sidebar() {
     }
 
     // Map screen details to nav items with icon components
-    return screenDetails.map((screen) => ({
+    let items = screenDetails.map((screen) => ({
       label: screen.label,
       href: screen.path,
       icon: iconMap[screen.icon] || Home,
     }));
-  }, [screenDetails, initialized, loading]);
+
+    // Platform Owner only screens
+    const platformOwnerScreens = ["/screens", "/tenants"];
+
+    if (userRole !== "platform_owner") {
+      items = items.filter((i) => !platformOwnerScreens.includes(i.href));
+    }
+
+    // Add Platform Owner screens if not present
+    if (userRole === "platform_owner") {
+      if (!items.find((i) => i.href === "/screens")) {
+        items.push({ label: "Screens", href: "/screens", icon: Monitor });
+      }
+      if (!items.find((i) => i.href === "/tenants")) {
+        items.push({ label: "Tenants", href: "/tenants", icon: Building2 });
+      }
+    }
+
+    return items;
+  }, [screenDetails, initialized, loading, userRole]);
 
   // Filter for ophthalmologist vs regular doctor panel
   const filteredNavItems = useMemo(() => {
