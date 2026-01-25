@@ -63,11 +63,34 @@ const iconMap: Record<string, LucideIcon> = {
   Monitor,
 };
 
-// Fallback navigation items (used when permissions not loaded)
-const fallbackNavItems = [
-  { label: "Dashboard", href: "/", icon: Home },
-  { label: "Patients", href: "/patients", icon: Users2 },
-];
+// Loading skeleton for navigation items
+const NavLoadingSkeleton = () => (
+  <div className="space-y-1">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div
+        key={i}
+        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 animate-pulse"
+      >
+        <div className="h-5 w-5 rounded bg-slate-200" />
+        <div className="h-4 w-24 rounded bg-slate-200" />
+      </div>
+    ))}
+  </div>
+);
+
+// Loading skeleton for collapsed sidebar
+const NavLoadingSkeletonCollapsed = () => (
+  <div className="space-y-0.5">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div
+        key={i}
+        className="flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl animate-pulse"
+      >
+        <div className="h-4 w-4 sm:h-5 sm:w-5 rounded bg-slate-200" />
+      </div>
+    ))}
+  </div>
+);
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -85,9 +108,9 @@ export function Sidebar() {
 
   // Build navigation items from permissions
   const navItems = useMemo(() => {
-    // If permissions not loaded, show fallback
+    // If permissions not loaded, return empty array (skeleton will be shown)
     if (!initialized || loading || screenDetails.length === 0) {
-      return fallbackNavItems;
+      return [];
     }
 
     // Map screen details to nav items with icon components
@@ -174,28 +197,32 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide min-h-0">
-        {filteredNavItems.map((item) => {
-          const Icon = item.icon;
-          const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-          const active = normalizedPathname === item.href;
+        {(!initialized || loading) ? (
+          <NavLoadingSkeleton />
+        ) : (
+          filteredNavItems.map((item) => {
+            const Icon = item.icon;
+            const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+            const active = normalizedPathname === item.href;
 
-          const baseClassName = clsx(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
-            active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
-          );
+            const baseClassName = clsx(
+              "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
+              active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
+            );
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={baseClassName}
-              onClick={handleNavClick}
-            >
-              <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={baseClassName}
+                onClick={handleNavClick}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })
+        )}
       </nav>
 
       <div className="mt-auto flex-shrink-0 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 p-[1px] shadow-lg">
@@ -248,32 +275,36 @@ export function Sidebar() {
 
         {/* Navigation Icons - Scrollable with dynamic sizing */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto scrollbar-hide min-h-0">
-          {filteredNavItems.map((item) => {
-            const Icon = item.icon;
-            const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
-              ? pathname.slice(0, -1)
-              : pathname;
-            const active = normalizedPathname === item.href;
+          {(!initialized || loading) ? (
+            <NavLoadingSkeletonCollapsed />
+          ) : (
+            filteredNavItems.map((item) => {
+              const Icon = item.icon;
+              const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
+                ? pathname.slice(0, -1)
+                : pathname;
+              const active = normalizedPathname === item.href;
 
-            const iconButtonClass = clsx(
-              "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all",
-              active
-                ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
-                : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
-            );
+              const iconButtonClass = clsx(
+                "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all",
+                active
+                  ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
+                  : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
+              );
 
-            return (
-              <Tooltip key={item.href} content={item.label} side="right">
-                <Link
-                  href={item.href}
-                  className={iconButtonClass}
-                  onClick={handleNavClick}
-                >
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Link>
-              </Tooltip>
-            );
-          })}
+              return (
+                <Tooltip key={item.href} content={item.label} side="right">
+                  <Link
+                    href={item.href}
+                    className={iconButtonClass}
+                    onClick={handleNavClick}
+                  >
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </Link>
+                </Tooltip>
+              );
+            })
+          )}
         </nav>
 
         {/* Status Icon at Bottom */}
