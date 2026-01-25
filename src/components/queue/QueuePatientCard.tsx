@@ -89,6 +89,7 @@ export function QueuePatientCard({
 
         // Status-based styling
         switch (patient.status) {
+            case "doctor_assigned":
             case "optometrist_assigned":
                 return {
                     cardBg: "bg-white",
@@ -161,6 +162,7 @@ export function QueuePatientCard({
             case "awaiting_optometrist":
                 return "Waiting";
             case "optometrist_assigned":
+            case "doctor_assigned":
                 return "Your Turn";
             case "optometrist_investigation_in_progress":
                 return "Consulting with optometrist";
@@ -182,6 +184,7 @@ export function QueuePatientCard({
 
         switch (patient.status) {
             case "optometrist_assigned":
+            case "doctor_assigned":
                 return UserCheck;
             case "optometrist_investigation_in_progress":
                 return Eye;

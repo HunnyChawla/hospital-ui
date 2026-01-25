@@ -342,41 +342,30 @@ export function useTVDisplayQueue({
         prevOptRef.current = currentOpt;
 
         // Check Doctor Queue Changes
-        // New logic: Track consulting patient and "next" patient separately
         const currentDoc = doctorPatients;
         const prevDoc = prevDocRef.current;
-
-        // Find consulting patient (status = consultation_in_progress)
-        const currentConsulting = currentDoc.find(p => p.status === "consultation_in_progress");
-        const prevConsulting = prevDoc.find(p => p.status === "consultation_in_progress");
-
-        // Find "Next" patient (first awaiting_doctor in queue)
-        const currentNext = currentDoc.find(p => p.status === "awaiting_doctor");
-        const prevNext = prevDoc.find(p => p.status === "awaiting_doctor");
-
-        // Check if consulting changed (patient entered or exited consulting)
-        const consultingChanged = (prevConsulting?.visit_id || null) !== (currentConsulting?.visit_id || null);
-
-        // Check if next patient changed
-        const nextChanged = (prevNext?.visit_id || null) !== (currentNext?.visit_id || null);
 
         let doctorAnnouncement: {
             name: string;
             token: string | number;
             cabin: string | null;
-            messageType: "ready" | "proceed"
+            messageType: "proceed"
         } | null = null;
 
-        // Only announce if consulting OR next changed, and there IS a next patient
-        if ((consultingChanged || nextChanged) && currentNext) {
-            const hasConsulting = !!currentConsulting;
-            doctorAnnouncement = {
-                name: currentNext.patient_name,
-                token: currentNext.token_number,
-                cabin: currentNext.doctor_cabin || null,
-                messageType: hasConsulting ? "ready" : "proceed"
-            };
-        }
+        currentDoc.forEach(curr => {
+            if (curr.status === "doctor_assigned") {
+                const prev = prevDoc.find(p => p.visit_id === curr.visit_id);
+                // Announce if it's a new assignment (status changed to doctor_assigned)
+                if (!prev || prev.status !== "doctor_assigned") {
+                    doctorAnnouncement = {
+                        name: curr.patient_name,
+                        token: curr.token_number,
+                        cabin: curr.doctor_cabin || null,
+                        messageType: "proceed" // Always "proceed" since they are now assigned
+                    };
+                }
+            }
+        });
 
         prevDocRef.current = currentDoc;
 
@@ -385,9 +374,6 @@ export function useTVDisplayQueue({
             console.log("🔊 Announcement Triggered:", {
                 opt: !!announcementData,
                 doc: !!doctorAnnouncement,
-                consultingChanged,
-                nextChanged,
-                hasConsulting: !!currentConsulting
             });
 
             playSound();
@@ -400,7 +386,7 @@ export function useTVDisplayQueue({
                 }, 1000);
             }
 
-            // Doctor Queue Announcement (for Next patient)
+            // Doctor Queue Announcement
             if (doctorAnnouncement) {
                 const current = doctorAnnouncement;
                 // If Optometrist played (English+Hindi ~12s), wait 14s. Else immediate.
@@ -417,23 +403,13 @@ export function useTVDisplayQueue({
                     let enText: string;
                     let hiText: string;
 
-                    if (current.messageType === "ready") {
-                        // Consulting is in progress, next should be ready
-                        enText = current.cabin
-                            ? `Token number ${current.token}, ${current.name}, please be ready for ${current.cabin}`
-                            : `Token number ${current.token}, ${current.name}, please be ready for consultation`;
-                        hiText = current.cabin
-                            ? `टोकन नंबर ${current.token}, ${current.name}, कृपया ${current.cabin} के लिए तैयार रहें`
-                            : `टोकन नंबर ${current.token}, ${current.name}, कृपया परामर्श के लिए तैयार रहें`;
-                    } else {
-                        // No consulting, next should proceed
-                        enText = current.cabin
-                            ? `Token number ${current.token}, ${current.name}, please proceed to ${current.cabin}`
-                            : `Token number ${current.token}, ${current.name}, please proceed for consultation`;
-                        hiText = current.cabin
-                            ? `टोकन नंबर ${current.token}, ${current.name}, कृपया ${current.cabin} में जाएं`
-                            : `टोकन नंबर ${current.token}, ${current.name}, कृपया परामर्श के लिए जाएं`;
-                    }
+                    // Standard announcement for doctor assignment
+                    enText = current.cabin
+                        ? `Token number ${current.token}, ${current.name}, please proceed to ${current.cabin}`
+                        : `Token number ${current.token}, ${current.name}, please proceed for consultation`;
+                    hiText = current.cabin
+                        ? `टोकन नंबर ${current.token}, ${current.name}, कृपया ${current.cabin} में जाएं`
+                        : `टोकन नंबर ${current.token}, ${current.name}, कृपया परामर्श के लिए जाएं`;
 
                     if (enableVoice) announceText(enText, "en-IN", englishVoiceGender);
                     if (enableHindiVoice) {
