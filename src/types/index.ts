@@ -711,6 +711,7 @@ export type UserPermissions = {
   role: UserRole;
   allowed_screens: string[];
   screen_details: ScreenDetail[];
+  default_screen?: string;
 };
 
 export type ScreenPermission = {
