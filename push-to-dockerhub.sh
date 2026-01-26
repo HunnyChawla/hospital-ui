@@ -161,7 +161,12 @@ docker buildx inspect --bootstrap &> /dev/null
 print_success "Buildx builder ready"
 
 # Build and push with version tag if available
-print_step "Building and pushing multi-platform image..."
+# Build and push with version tag if available
+if [ -n "$PLATFORMS" ]; then
+    print_step "Building and pushing multi-platform image ($PLATFORMS)..."
+else
+    print_step "Building and pushing native image..."
+fi
 
 # Construct the build command with registry cache for faster multi-platform builds
 BUILD_CMD="docker buildx build --push"
@@ -187,9 +192,9 @@ echo ""
 # Execute build
 if $BUILD_CMD; then
     echo ""
-    print_success "Multi-platform image built and pushed successfully!"
+    print_success "Image built and pushed successfully!"
 else
-    print_error "Failed to build/push multi-platform image"
+    print_error "Failed to build/push image"
     exit 1
 fi
 

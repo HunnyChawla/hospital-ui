@@ -46,6 +46,10 @@ COPY --from=builder /app/out /usr/share/nginx/html
 COPY entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Healthcheck to verify nginx is serving content
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+
 # Expose port 80
 EXPOSE 80
 
