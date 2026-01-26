@@ -26,7 +26,8 @@ set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
 :: ---- Default Configuration ----
-if not defined DOCKERHUB_USERNAME set "USERNAME=technesian"
+:: Don't set a default username - let it be empty for local builds
+set "USERNAME="
 if defined DOCKERHUB_USERNAME set "USERNAME=%DOCKERHUB_USERNAME%"
 if not defined DOCKERHUB_IMAGE set "IMAGE_NAME=hospital-ui"
 if defined DOCKERHUB_IMAGE set "IMAGE_NAME=%DOCKERHUB_IMAGE%"
@@ -350,11 +351,13 @@ set "PUSH_FLAG=%~1"
 echo [STEP] Building image: !FULL_IMAGE!:!TAG!
 echo [INFO] Platforms: !PLATFORMS!
 echo [INFO] Cache mode: !CACHE_MODE!
+echo [INFO] Pull latest base images: yes
 if defined VERSION echo [INFO] Version: !VERSION!
 if defined GIT_SHA echo [INFO] Git SHA: !GIT_SHA!
 
 :: Construct command
-set "CMD=docker buildx build --platform !PLATFORMS!"
+:: --pull ensures we always get the latest base images (node:20-alpine, nginx:alpine)
+set "CMD=docker buildx build --pull --platform !PLATFORMS!"
 
 :: Cache configuration
 if "!CACHE_MODE!"=="registry" (
@@ -471,8 +474,9 @@ echo     clean       Remove images and build cache
 echo.
 echo OPTIONS:
 echo     --ci                Non-interactive CI mode (no prompts)
-echo     --no-cache          Disable all caching
+echo     --no-cache          Disable all caching (forces full rebuild)
 echo     --cache=MODE        Cache mode: registry, local, none (default: registry)
+echo                         Note: --pull is always used to get latest base images
 echo     --platform=PLAT     Target platforms (default: linux/amd64)
 echo     --username=USER     Docker Hub username (required for push)
 echo     --image=NAME        Image name (default: hospital-ui)

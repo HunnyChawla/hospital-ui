@@ -257,11 +257,13 @@ do_build() {
     log_step "Building image: ${full_image}:${TAG}"
     log_info "Platforms: ${PLATFORMS}"
     log_info "Cache mode: ${CACHE_MODE}"
+    log_info "Pull latest base images: yes"
     [ -n "$version" ] && log_info "Version: ${version}"
     [ -n "$git_sha" ] && log_info "Git SHA: ${git_sha}"
 
     # Construct build command
-    local cmd="docker buildx build --platform ${PLATFORMS}"
+    # --pull ensures we always get the latest base images (node:20-alpine, nginx:alpine)
+    local cmd="docker buildx build --pull --platform ${PLATFORMS}"
 
     # Cache configuration
     case $CACHE_MODE in
