@@ -1,7 +1,9 @@
 import axios from "axios";
 import { apiClient } from "./api";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+import { API_BASE_URL } from "../utils/env";
+
+const BASE_URL = API_BASE_URL;
 
 export interface LoginRequest {
   email: string;

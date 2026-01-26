@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { API_BASE_URL } from "../utils/env";
 
 export type SSEConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting" | "error";
 
@@ -61,7 +62,7 @@ export function useSSE(
       setError(null);
 
       // Get base URL from environment or use the provided URL
-      const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      const baseURL = API_BASE_URL;
       const fullUrl = url.startsWith("http") ? url : `${baseURL}${url}`;
 
       // Get auth token from localStorage

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Docker Hub Push Script for Hospital UI (Multi-Platform)
-# Usage: ./push-to-dockerhub.sh [username] [image-name] [tag] [--platform=linux/amd64,linux/arm64]
+# Usage: ./push-to-dockerhub.sh [username] [image-name] [tag] [--platform=linux/amd64,linux/arm64] [--multi-platform]
 # Or use environment variables: DOCKERHUB_USERNAME, DOCKERHUB_IMAGE, DOCKERHUB_TAG, DOCKER_PLATFORMS
 
 set -e  # Exit on error
@@ -40,6 +40,10 @@ for arg in "$@"; do
             PLATFORMS="${arg#*=}"
             shift
             ;;
+        --multi-platform)
+            PLATFORMS="linux/amd64,linux/arm64"
+            shift
+            ;;
         --help|-h)
             echo "Docker Hub Push Script for Hospital UI (Multi-Platform)"
             echo ""
@@ -52,8 +56,9 @@ for arg in "$@"; do
             echo ""
             echo "Options:"
             echo "  --platform=PLATFORMS  Comma-separated list of platforms to build"
-            echo "                        Default: linux/amd64,linux/arm64"
             echo "                        Example: --platform=linux/amd64"
+            echo "  --multi-platform      Build for linux/amd64 and linux/arm64"
+            echo "                        (Default behavior is single platform/native)"
             echo "  -h, --help           Show this help message"
             echo ""
             echo "Environment Variables:"
@@ -90,7 +95,7 @@ fi
 DOCKERHUB_USERNAME="${POSITIONAL_ARGS[0]:-${DOCKERHUB_USERNAME:-technesian}}"
 IMAGE_NAME="${POSITIONAL_ARGS[1]:-${DOCKERHUB_IMAGE:-hospital-ui}}"
 TAG="${POSITIONAL_ARGS[2]:-${DOCKERHUB_TAG:-latest}}"
-PLATFORMS="${PLATFORMS:-${DOCKER_PLATFORMS:-linux/amd64,linux/arm64}}"
+PLATFORMS="${PLATFORMS:-${DOCKER_PLATFORMS}}"
 
 # Validate Docker Hub username (should not be empty after defaults)
 if [ -z "$DOCKERHUB_USERNAME" ]; then
@@ -159,7 +164,10 @@ print_success "Buildx builder ready"
 print_step "Building and pushing multi-platform image..."
 
 # Construct the build command with registry cache for faster multi-platform builds
-BUILD_CMD="docker buildx build --platform ${PLATFORMS} --push"
+BUILD_CMD="docker buildx build --push"
+if [ -n "$PLATFORMS" ]; then
+    BUILD_CMD="${BUILD_CMD} --platform ${PLATFORMS}"
+fi
 BUILD_CMD="${BUILD_CMD} --cache-from=type=registry,ref=${FULL_IMAGE_NAME}:buildcache"
 BUILD_CMD="${BUILD_CMD} --cache-to=type=registry,ref=${FULL_IMAGE_NAME}:buildcache,mode=max,compression=zstd,compression-level=3"
 
