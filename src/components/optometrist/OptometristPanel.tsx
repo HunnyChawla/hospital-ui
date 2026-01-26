@@ -10,10 +10,8 @@ import { useOptometristLiveQueue } from "@/hooks/useOptometristLiveQueue";
 import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
 import { OptometristPanelVerticalLayout } from "./dashboard/OptometristPanelVerticalLayout";
 import { ExaminationTabs } from "./patient-examination/ExaminationTabs";
-import { CreatePrescriptionButton } from "./prescriptions/CreatePrescriptionButton";
 import { patientsApi } from "@/services/patientsApi";
 import { optometristVisitsApi } from "@/services/optometristVisitsApi";
-import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { usersApi } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getTenantIdForApi } from "@/utils/auth";
@@ -65,7 +63,6 @@ export function OptometristPanel() {
     doctorMappings,
     mappingsLoading,
     mappingsError,
-    todaySchedule,
     todayStats,
     selectedPatientId,
     activeTab,

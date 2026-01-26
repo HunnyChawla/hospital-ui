@@ -49,6 +49,7 @@ export function DoctorPrescriptionModal({
     onPrescriptionCreated,
     isCompleted = false,
 }: DoctorPrescriptionModalProps) {
+
     const [visitData, setVisitData] = useState<OptometristVisitResponse>();
     const [mounted, setMounted] = useState(false);
     const { tenant, logoDataUrl } = useTenant();

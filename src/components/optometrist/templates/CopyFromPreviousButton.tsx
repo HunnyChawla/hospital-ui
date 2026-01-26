@@ -4,7 +4,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { History, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { mockOptometryService } from "../mock";
-import { handleError, getErrorMessage } from "@/utils/errorHandler";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 type DataType = "refraction" | "ar_data" | "iop" | "complaints" | "medical_history";
 

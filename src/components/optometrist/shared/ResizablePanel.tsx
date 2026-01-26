@@ -65,7 +65,7 @@ export function ResizablePanel({
         setIsDragging(true);
     }, []);
 
-    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const handleTouchStart = useCallback(() => {
         setIsDragging(true);
     }, []);
 

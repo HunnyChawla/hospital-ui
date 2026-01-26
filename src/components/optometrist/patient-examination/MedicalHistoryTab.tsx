@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import {
-  fetchMedicalConditions,
   addMedicalCondition,
   updateMedicalCondition,
   deleteMedicalCondition,
@@ -11,8 +10,6 @@ import {
 import {
   Heart,
   Activity,
-  Pill,
-  Users,
   Sparkles,
   Check,
   AlertCircle,

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import {
     Pill,
-    Plus,
+
     Trash2,
     Calendar,
     Printer,
@@ -262,7 +262,7 @@ export function PrescriptionFormSection({
         watch,
         setValue,
         reset,
-        formState: { errors },
+        formState: { },
     } = useForm<FormData>({
         defaultValues: {
             diagnosis: "",

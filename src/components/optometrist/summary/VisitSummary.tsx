@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Eye, Calendar, User, Activity, Pill, AlertCircle, FileText, Gauge, Glasses } from "lucide-react";
+import { X, Eye, Activity, Pill, AlertCircle, FileText, Gauge, Glasses } from "lucide-react";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 // Dynamic layout component that balances content across columns

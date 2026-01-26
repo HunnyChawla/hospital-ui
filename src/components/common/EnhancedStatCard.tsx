@@ -1,7 +1,7 @@
 "use client";
 
 import { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+
 
 type EnhancedStatCardProps = {
   label: string;
@@ -48,7 +48,7 @@ export function EnhancedStatCard({
           </p>
           <p className="mt-2 text-3xl font-semibold text-slate-900">{value}</p>
           {hint ? <p className="mt-1.5 text-xs text-slate-500">{hint}</p> : null}
-          
+
           {/* Insights Section */}
           {insights.length > 0 && (
             <div className="mt-3 space-y-1.5 pt-3 border-t border-slate-100">

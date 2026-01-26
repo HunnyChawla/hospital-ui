@@ -13,7 +13,7 @@ interface InlineSurgeryFormProps {
   defaultValues?: any;
 }
 
-type EyeType = "OD" | "OS" | "OU";
+
 
 // Generate year options (current year back to 1950)
 const currentYear = new Date().getFullYear();

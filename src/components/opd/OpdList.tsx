@@ -278,9 +278,8 @@ function VisitListRow({
       {/* Status Badge */}
       <div className="min-w-[140px]">
         {isDilating ? (
-          <div className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold ${
-            dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-violet-50 text-violet-700 border-violet-200"
-          }`}>
+          <div className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold ${dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-violet-50 text-violet-700 border-violet-200"
+            }`}>
             <Droplets className="h-3 w-3" />
             <span>Dilating</span>
             {visit.dilation_started_at && (
@@ -397,9 +396,8 @@ function VisitCard({
           <div className="flex items-center gap-1.5 min-w-0">
             {/* Main status badge */}
             {isDilating ? (
-              <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold ${
-                dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-300" : "bg-violet-50 text-violet-700 border-violet-200"
-              }`}>
+              <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold ${dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-300" : "bg-violet-50 text-violet-700 border-violet-200"
+                }`}>
                 <Droplets className="h-3 w-3" />
                 <span>Dilating</span>
                 {visit.dilation_started_at && (
@@ -1303,9 +1301,8 @@ export function OpdList({ doctorId }: OpdListProps) {
                 setViewMode("list");
                 localStorage.setItem("opd_visits_view", "list");
               }}
-              className={`flex items-center justify-center rounded-lg p-2 transition ${
-                viewMode === "list" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
-              }`}
+              className={`flex items-center justify-center rounded-lg p-2 transition ${viewMode === "list" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
+                }`}
               title="List View"
             >
               <List className="h-4 w-4" />
@@ -1315,9 +1312,8 @@ export function OpdList({ doctorId }: OpdListProps) {
                 setViewMode("grid");
                 localStorage.setItem("opd_visits_view", "grid");
               }}
-              className={`flex items-center justify-center rounded-lg p-2 transition ${
-                viewMode === "grid" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
-              }`}
+              className={`flex items-center justify-center rounded-lg p-2 transition ${viewMode === "grid" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
+                }`}
               title="Card View"
             >
               <LayoutGrid className="h-4 w-4" />

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi } from "@/services/paymentsApi";
+
 import { patientsApi } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate } from "@/utils/format";
@@ -111,17 +111,17 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
       // Fetch full invoice details with line items
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const fullInvoice = await invoicesApi.getById(invoice.id, getTenantIdForApi(tenantId));
-      
+
       // Use patient_name and patient_mobile from invoice if available, otherwise fetch
       let patientName = fullInvoice.patient_name || "Unknown";
       let patientMobile = fullInvoice.patient_mobile;
-      
+
       if (!fullInvoice.patient_name || !fullInvoice.patient_mobile) {
         const patient = await patientsApi.getById(fullInvoice.patient_id);
         patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
         patientMobile = patient.mobile;
       }
-      
+
       setPrintInvoiceData({
         invoice: fullInvoice,
         patientName,
@@ -186,21 +186,19 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
             <button
               onClick={() => onStatusFilterChange("pending")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                statusFilter === "pending"
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${statusFilter === "pending"
                   ? "bg-amber-500 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              }`}
+                }`}
             >
               Pending
             </button>
             <button
               onClick={() => onStatusFilterChange("paid")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                statusFilter === "paid"
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${statusFilter === "paid"
                   ? "bg-emerald-500 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              }`}
+                }`}
             >
               Paid
             </button>
@@ -221,9 +219,8 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
             {invoices.map((invoice) => (
               <div
                 key={invoice.id}
-                className={`relative rounded-lg border border-slate-200 bg-white p-3 hover:border-sky-200 transition ${
-                  invoice.status === "pending" ? "pr-32" : "pr-24"
-                }`}
+                className={`relative rounded-lg border border-slate-200 bg-white p-3 hover:border-sky-200 transition ${invoice.status === "pending" ? "pr-32" : "pr-24"
+                  }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">

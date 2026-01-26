@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Clock, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Timer } from "lucide-react";
+import { Clock, CheckCircle, ChevronDown, ChevronUp, Timer } from "lucide-react";
 import { OptometristVisitResponse } from "@/services/optometristVisitsApi";
 
 interface DilationTimerProps {
@@ -94,8 +94,8 @@ export function DilationTimer({
             <div className="flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
                 <div
                     className={`flex items-center gap-3 px-4 py-1.5 rounded-full border shadow-sm transition-colors ${isOverdue
-                            ? "bg-amber-50 border-amber-200 text-amber-800"
-                            : "bg-blue-50 border-blue-200 text-blue-800"
+                        ? "bg-amber-50 border-amber-200 text-amber-800"
+                        : "bg-blue-50 border-blue-200 text-blue-800"
                         }`}
                 >
                     <div className="relative flex items-center justify-center">
@@ -146,8 +146,8 @@ export function DilationTimer({
                                         key={mins}
                                         onClick={() => setSelectedDuration(mins)}
                                         className={`h-9 text-xs font-semibold rounded-lg border transition-all ${selectedDuration === mins
-                                                ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-200"
-                                                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-200"
+                                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                                             }`}
                                     >
                                         {mins} min

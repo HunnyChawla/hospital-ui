@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Building2, Upload } from "lucide-react";
+import NextImage from "next/image";
 
 interface TenantFormProps {
   defaultValues?: Tenant;
@@ -191,11 +192,15 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
       <div className="flex items-start gap-6">
         <div className="flex-shrink-0">
           {logoPreview ? (
-            <img
-              src={logoPreview}
-              alt="Logo preview"
-              className="h-24 w-24 rounded-xl border border-slate-200 object-contain"
-            />
+            <div className="relative h-24 w-24 rounded-xl border border-slate-200 overflow-hidden">
+              <NextImage
+                src={logoPreview}
+                alt="Logo preview"
+                fill
+                className="object-contain"
+                unoptimized
+              />
+            </div>
           ) : (
             <div className="h-24 w-24 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200">
               <Building2 className="h-10 w-10 text-slate-400" />
@@ -405,8 +410,8 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
               ? "Updating..."
               : "Creating..."
             : defaultValues
-            ? "Update Tenant"
-            : "Create Tenant"}
+              ? "Update Tenant"
+              : "Create Tenant"}
         </button>
       </div>
     </form>

@@ -119,9 +119,7 @@ export function QuickPresetsSettingsModal({
         }
     };
 
-    const isDirty = activeTab === "diagnoses"
-        ? JSON.stringify(diagnoses) !== originalDiagnoses
-        : JSON.stringify(medicines) !== originalMedicines;
+
 
     // Check if both might be dirty? Actually save button saves ALL tabs.
     const isAnyDirty = (JSON.stringify(diagnoses) !== originalDiagnoses) ||
@@ -159,8 +157,8 @@ export function QuickPresetsSettingsModal({
                         <button
                             onClick={() => setActiveTab("diagnoses")}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "diagnoses"
-                                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
-                                    : "text-slate-600 hover:bg-slate-200"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                : "text-slate-600 hover:bg-slate-200"
                                 }`}
                         >
                             Diagnoses
@@ -168,8 +166,8 @@ export function QuickPresetsSettingsModal({
                         <button
                             onClick={() => setActiveTab("medicines")}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "medicines"
-                                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
-                                    : "text-slate-600 hover:bg-slate-200"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                : "text-slate-600 hover:bg-slate-200"
                                 }`}
                         >
                             Medicines

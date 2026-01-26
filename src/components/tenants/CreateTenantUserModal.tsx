@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { Modal } from "@/components/common/Modal";
-import { usersApi, CreateUserRequest, UserRole, UserStatus } from "@/services/usersApi";
+import { usersApi, CreateUserRequest } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 
