@@ -283,7 +283,7 @@ export function CurrentSpecsTab({
                         Current Specs / Glasses
                     </h3>
                     <p className="text-sm text-slate-600">
-                        Record patient's existing spectacle prescription
+                        Record patient&apos;s existing spectacle prescription
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -311,7 +311,7 @@ export function CurrentSpecsTab({
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="text-base font-semibold text-slate-900">
-                            This Visit's Current Specs
+                            This Visit&apos;s Current Specs
                         </h4>
                         <div className="flex items-center gap-2">
                             {visitRecord.lens_type && (
@@ -712,7 +712,7 @@ export function CurrentSpecsTab({
                         No Current Specs Recorded
                     </h4>
                     <p className="mt-2 text-sm text-slate-600">
-                        Click "Add Current Specs" to record the patient's existing glasses prescription.
+                        Click &quot;Add Current Specs&quot; to record the patient&apos;s existing glasses prescription.
                     </p>
                     <button
                         onClick={() => setIsAdding(true)}
@@ -727,7 +727,7 @@ export function CurrentSpecsTab({
             {/* Quick Tips */}
             <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
                 <p className="text-sm text-violet-900">
-                    <strong>Tips:</strong> Record the patient's current glasses prescription using a
+                    <strong>Tips:</strong> Record the patient&apos;s current glasses prescription using a
                     lensometer or from their old prescription. Mark if the patient is comfortable
                     with their current glasses to help with new prescription decisions.
                 </p>

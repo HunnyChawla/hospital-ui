@@ -17,6 +17,7 @@ export function useVisionSettings() {
         const saved = localStorage.getItem("vision-settings");
         if (saved) {
             try {
+
                 setSettings(JSON.parse(saved));
             } catch (e) {
                 console.error("Failed to parse vision settings", e);

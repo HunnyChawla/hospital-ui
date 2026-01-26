@@ -297,7 +297,7 @@ export function useTVDisplayQueue({
             const area = areaTranslations[areaKey] || { en: areaKey, hi: areaKey };
 
             if (enableVoice) {
-                let destination = cabin ? cabin : area.en;
+                const destination = cabin ? cabin : area.en;
                 const enText = `Token number ${token}, ${patientName}, please proceed to ${destination}`;
                 announceText(enText, "en-IN", englishVoiceGender);
             }
@@ -405,14 +405,11 @@ export function useTVDisplayQueue({
                         cabin: current.cabin
                     });
 
-                    let enText: string;
-                    let hiText: string;
-
                     // Standard announcement for doctor assignment
-                    enText = current.cabin
+                    const enText = current.cabin
                         ? `Token number ${current.token}, ${current.name}, please proceed to ${current.cabin}`
                         : `Token number ${current.token}, ${current.name}, please proceed for consultation`;
-                    hiText = current.cabin
+                    const hiText = current.cabin
                         ? `टोकन नंबर ${current.token}, ${current.name}, कृपया ${current.cabin} में जाएं`
                         : `टोकन नंबर ${current.token}, ${current.name}, कृपया परामर्श के लिए जाएं`;
 

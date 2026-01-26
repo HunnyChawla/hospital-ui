@@ -64,7 +64,7 @@ export function ServiceForm({ onCreated, onSuccess, defaultValues }: ServiceForm
       if (isEditing && defaultValues) {
         // Update service - only send changed fields
         const updateData: UpdateServiceRequest = {};
-        
+
         if (values.name !== originalValuesRef.current?.name) {
           updateData.name = values.name;
         }
@@ -131,6 +131,7 @@ export function ServiceForm({ onCreated, onSuccess, defaultValues }: ServiceForm
           <h3 className="text-sm font-semibold">Add Service</h3>
         </div>
       )}
+      {/* eslint-disable-next-line react-hooks/refs */}
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3 text-sm">
         <label className="col-span-2 space-y-1">
           <span className="text-slate-600">

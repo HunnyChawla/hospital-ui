@@ -21,7 +21,7 @@ export const fetchTenant = createAsyncThunk(
     try {
       // Fetch tenant data
       const tenantData = await tenantsApi.getById(tenantId);
-      
+
       // Fetch logo and convert to data URL
       let logoDataUrl: string | null = null;
       try {
@@ -38,7 +38,7 @@ export const fetchTenant = createAsyncThunk(
         // Silently fail - logo is optional
         console.error("Failed to fetch logo:", logoErr);
       }
-      
+
       return { tenant: tenantData, logoDataUrl };
     } catch (error: any) {
       return rejectWithValue(error);
@@ -68,7 +68,7 @@ const tenantSlice = createSlice({
         state.logoDataUrl = action.payload.logoDataUrl;
         state.error = null;
       })
-      .addCase(fetchTenant.rejected, (state, action) => {
+      .addCase(fetchTenant.rejected, (state) => {
         state.loading = false;
         state.error = "Failed to load tenant information";
         state.tenant = null;

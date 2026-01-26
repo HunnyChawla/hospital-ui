@@ -56,7 +56,7 @@ export function DoctorQueuePanel({
                             <Stethoscope className="h-5 w-5 text-violet-600" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-800">Doctor's Queue</h2>
+                            <h2 className="text-xl font-bold text-slate-800">Doctor&apos;s Queue</h2>
                             <p className="text-sm text-slate-500">Consultation</p>
                         </div>
                     </div>

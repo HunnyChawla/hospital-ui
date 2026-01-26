@@ -1,6 +1,8 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
-import type { MedicineItem, AdviceItem } from "@/types";
+
+// usage check: They are NOT used in the file.
+
 
 // Types for prescription templates
 

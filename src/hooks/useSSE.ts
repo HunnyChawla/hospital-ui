@@ -38,7 +38,7 @@ export function useSSE(
   const reconnectAttemptsRef = useRef(0);
   const isManualCloseRef = useRef(false);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connectToSSE() {
     if (!url) {
       setStatus("disconnected");
       return;
@@ -112,7 +112,7 @@ export function useSSE(
                       // Exponential backoff
                       const delay = reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1);
                       reconnectTimeoutRef.current = setTimeout(() => {
-                        connect();
+                        connectToSSE();
                       }, delay);
                     } else {
                       setStatus("error");
@@ -134,7 +134,7 @@ export function useSSE(
                 for (const part of parts) {
                   // Reset current data for each event
                   currentData = [];
-                  
+
                   // Process each line of the event
                   const lines = part.split("\n");
                   for (const line of lines) {
@@ -183,7 +183,7 @@ export function useSSE(
                     // Exponential backoff
                     const delay = reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1);
                     reconnectTimeoutRef.current = setTimeout(() => {
-                      connect();
+                      connectToSSE();
                     }, delay);
                   } else {
                     setStatus("error");
@@ -216,7 +216,7 @@ export function useSSE(
               // Exponential backoff
               const delay = reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1);
               reconnectTimeoutRef.current = setTimeout(() => {
-                connect();
+                connectToSSE();
               }, delay);
             } else {
               setStatus("error");

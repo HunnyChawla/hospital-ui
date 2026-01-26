@@ -355,8 +355,8 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
                         <p className="text-xs text-slate-500">{user.email}</p>
                       </div>
                       <span className={`pill px-2 py-0.5 text-xs font-normal ${user.status === "active"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-rose-50 text-rose-700"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-rose-50 text-rose-700"
                         }`}>
                         {user.status}
                       </span>
@@ -485,7 +485,7 @@ export function DoctorForm({ defaultValues, onSuccess }: DoctorFormProps) {
       {/* Signature Upload */}
       <div className="col-span-2 border-t border-slate-100 pt-3 mt-1">
         <label className="space-y-2 block">
-          <span className="text-slate-600 font-medium">Doctor's Signature</span>
+          <span className="text-slate-600 font-medium">Doctor&apos;s Signature</span>
           <div className="flex items-start gap-4">
             {signaturePreview ? (
               <div className="relative group">

@@ -281,7 +281,7 @@ export function DrugAllergyTab({
                     className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-slate-50 transition border-t border-slate-100"
                   >
                     <Pill className="h-4 w-4 text-slate-400" />
-                    Add "{drugSearch.trim()}" as custom drug
+                    Add &quot;{drugSearch.trim()}&quot; as custom drug
                   </button>
                 )}
               </div>

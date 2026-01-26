@@ -27,7 +27,7 @@ export const fetchQueue = createAsyncThunk(
       token: visit.token_number || 0,
       patientName: visit.patient_name || "Unknown",
       status: mapVisitStatusToQueueStatus(visit.status),
-      etaMinutes: calculateETA(visit),
+      etaMinutes: calculateETA(),
       visitId: visit.id, // Store visit ID for status updates
       visit_type: visit.visit_type, // Include visit type for emergency highlighting
     }));
@@ -121,7 +121,7 @@ function mapStatusToQueueStatus(status: string): QueueEntry["status"] {
   return mapVisitStatusToQueueStatus(status);
 }
 
-function calculateETA(visit: any): number {
+function calculateETA(): number {
   // Simple ETA calculation - can be enhanced
   return 15; // Default 15 minutes
 }
@@ -159,7 +159,7 @@ const queueSlice = createSlice({
       .addCase(fetchCombinedQueue.rejected, (state) => {
         state.loading = false;
       })
-      .addCase(updateQueueStatus.fulfilled, (state, action) => {
+      .addCase(updateQueueStatus.fulfilled, () => {
         // Note: We need to refetch the queue to get updated status
         // For now, we'll just mark that an update happened
         // The component should refetch after status update

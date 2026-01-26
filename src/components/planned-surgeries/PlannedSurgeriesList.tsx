@@ -593,7 +593,7 @@ export function PlannedSurgeriesList() {
                                             </div>
                                             <p className="text-base font-medium text-slate-900">No planned surgeries found</p>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Try adjusting your filters to find what you're looking for.
+                                                Try adjusting your filters to find what you&apos;re looking for.
                                             </p>
                                         </div>
                                     </td>

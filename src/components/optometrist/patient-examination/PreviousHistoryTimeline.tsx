@@ -60,7 +60,7 @@ export function PreviousHistoryTimeline({
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
         <Clock className="mx-auto mb-3 h-12 w-12 text-slate-400" />
         <p className="text-slate-600">No previous optometry history found</p>
-        <p className="text-sm text-slate-500">This is the patient's first optometry visit</p>
+        <p className="text-sm text-slate-500">This is the patient&apos;s first optometry visit</p>
       </div>
     );
   }

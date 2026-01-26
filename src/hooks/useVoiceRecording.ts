@@ -27,6 +27,7 @@ export const useVoiceRecording = ({
         (window as any).webkitSpeechRecognition;
 
       if (SpeechRecognition) {
+
         setIsSupported(true);
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = continuous;

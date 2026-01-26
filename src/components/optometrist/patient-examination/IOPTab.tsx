@@ -330,7 +330,7 @@ export function IOPTab({
       {!isAdding && hasExistingForVisit && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-slate-900">
-            This Visit's IOP
+            This Visit&apos;s IOP
           </h4>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* OD */}
@@ -571,7 +571,7 @@ export function IOPTab({
             No IOP Recorded
           </h4>
           <p className="mt-2 text-sm text-slate-600">
-            Click "Add IOP" to record intraocular pressure.
+            Click &quot;Add IOP&quot; to record intraocular pressure.
           </p>
           <button
             onClick={() => setIsAdding(true)}

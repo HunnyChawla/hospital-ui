@@ -1,5 +1,5 @@
 import { apiClient } from "./api";
-import { getTenantIdForApi } from "@/utils/auth";
+
 
 // ============================================================================
 // Types

@@ -232,7 +232,7 @@ export function InlineComplaintForm({
                           )
                         }
                       >
-                        Use "{query}"
+                        Use &quot;{query}&quot;
                       </ComboboxOption>
                     )}
                   </ComboboxOptions>

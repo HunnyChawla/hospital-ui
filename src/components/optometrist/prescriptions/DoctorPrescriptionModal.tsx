@@ -77,6 +77,15 @@ export function DoctorPrescriptionModal({
     const isResizingRight = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    const loadVisitData = async () => {
+        try {
+            const data = await optometristVisitsApi.getById(visitId);
+            setVisitData(data);
+        } catch (error) {
+            console.error("Failed to load visit data:", error);
+        }
+    };
+
     useEffect(() => {
         setMounted(true);
         document.body.style.overflow = "hidden";
@@ -87,15 +96,6 @@ export function DoctorPrescriptionModal({
             document.body.style.overflow = "unset";
         };
     }, [isCompleted, visitId]);
-
-    const loadVisitData = async () => {
-        try {
-            const data = await optometristVisitsApi.getById(visitId);
-            setVisitData(data);
-        } catch (error) {
-            console.error("Failed to load visit data:", error);
-        }
-    };
 
     const handleStartDilation = async (minutes: number) => {
         try {
@@ -239,10 +239,13 @@ export function DoctorPrescriptionModal({
     const handleEditStarted = () => setTemplateToEdit(null);
 
     const { containerRef: fullscreenRef } = useFullscreenContainer();
+    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-    if (!mounted || !isOpen) return null;
+    useEffect(() => {
+        setPortalTarget(fullscreenRef?.current || document.body);
+    }, [fullscreenRef, mounted]);
 
-    const portalTarget = fullscreenRef?.current || document.body;
+    if (!mounted || !isOpen || !portalTarget) return null;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex flex-col bg-slate-50">

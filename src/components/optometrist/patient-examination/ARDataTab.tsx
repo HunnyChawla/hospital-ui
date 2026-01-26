@@ -324,7 +324,7 @@ export function ARDataTab({
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h4 className="text-base font-semibold text-slate-900">
-              This Visit's AR Data
+              This Visit&apos;s AR Data
             </h4>
             {(visitCombinedRecord?.pupillary_distance || visitOD?.pupillary_distance || visitOS?.pupillary_distance) && (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
@@ -549,7 +549,7 @@ export function ARDataTab({
             No AR Data Recorded
           </h4>
           <p className="mt-2 text-sm text-slate-600">
-            Click "Add AR Data" to enter auto-refractor measurements.
+            Click &quot;Add AR Data&quot; to enter auto-refractor measurements.
           </p>
           <button
             onClick={() => setIsAdding(true)}
@@ -573,7 +573,7 @@ export function ARDataTab({
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
         <p className="text-sm text-sky-900">
           <strong>Tip:</strong> AR data from the auto-refractor provides a
-          starting point for subjective refraction. Use "Copy Previous" to load
+          starting point for subjective refraction. Use &quot;Copy Previous&quot; to load
           data from the last visit.
         </p>
       </div>

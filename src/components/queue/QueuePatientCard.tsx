@@ -30,8 +30,7 @@ export function QueuePatientCard({
             ? parseInt(patient.token_number)
             : patient.token_number;
 
-    // Get status-based styling
-    const getStatusStyles = () => {
+    function getStatusStyles(status: string, isNext: boolean, isEmergency: boolean, isGreyed: boolean) {
         // Next patient - Always Green and Highlighted (High Priority)
         if (isNext) {
             return {
@@ -46,7 +45,6 @@ export function QueuePatientCard({
             };
         }
 
-        // Emergency always gets red styling
         // Emergency always gets red styling, UNLESS it is greyed out (still with optometrist)
         if (isEmergency) {
             if (isGreyed) {
@@ -88,7 +86,7 @@ export function QueuePatientCard({
         }
 
         // Status-based styling
-        switch (patient.status) {
+        switch (status) {
             case "doctor_assigned":
             case "optometrist_assigned":
                 return {
@@ -153,12 +151,32 @@ export function QueuePatientCard({
                     animation: "",
                 };
         }
-    };
+    }
 
-    const getStatusLabel = () => {
+    function getStatusIcon(status: string, isNext: boolean, queueType: string) {
+        if (isNext) return Sparkles;
+
+        switch (status) {
+            case "optometrist_assigned":
+            case "doctor_assigned":
+                return UserCheck;
+            case "optometrist_investigation_in_progress":
+                return Eye;
+            case "consultation_in_progress":
+                return queueType === "optometrist" ? Eye : Stethoscope;
+            case "dilation_in_progress":
+                return Droplets;
+            case "dilation_completed":
+                return CheckCircle;
+            default:
+                return Clock;
+        }
+    }
+
+    function getStatusLabel(status: string, isNext: boolean) {
         if (isNext) return "NEXT";
 
-        switch (patient.status) {
+        switch (status) {
             case "awaiting_optometrist":
                 return "Waiting";
             case "optometrist_assigned":
@@ -175,32 +193,13 @@ export function QueuePatientCard({
             case "dilation_completed":
                 return "Dilation Done";
             default:
-                return patient.status.replace(/_/g, " ");
+                return status.replace(/_/g, " ");
         }
-    };
+    }
 
-    const getStatusIcon = () => {
-        if (isNext) return Sparkles;
-
-        switch (patient.status) {
-            case "optometrist_assigned":
-            case "doctor_assigned":
-                return UserCheck;
-            case "optometrist_investigation_in_progress":
-                return Eye;
-            case "consultation_in_progress":
-                return queueType === "optometrist" ? Eye : Stethoscope;
-            case "dilation_in_progress":
-                return Droplets;
-            case "dilation_completed":
-                return CheckCircle;
-            default:
-                return Clock;
-        }
-    };
-
-    const styles = getStatusStyles();
-    const StatusIcon = getStatusIcon();
+    const styles = getStatusStyles(patient.status, isNext, isEmergency, isGreyed);
+    // eslint-disable-next-line react-hooks/static-components
+    const StatusIcon = getStatusIcon(patient.status, isNext, queueType);
 
     return (
         <div
@@ -248,9 +247,10 @@ export function QueuePatientCard({
                 <div className={`flex flex-col ${viewMode === 'tiles' ? 'w-full items-center mt-auto' : 'items-end justify-center min-w-[120px] translate-y-1'}`}>
                     {!isNext && (
                         <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${styles.statusBadgeBg} ${viewMode === 'tiles' ? 'w-full justify-center' : ''}`}>
+                            {/* eslint-disable-next-line react-hooks/static-components */}
                             <StatusIcon className={`h-4 w-4 ${styles.statusBadgeText}`} />
                             <span className={`text-xs font-bold uppercase tracking-wider ${styles.statusBadgeText}`}>
-                                {getStatusLabel()}
+                                {getStatusLabel(patient.status, isNext)}
                             </span>
                         </div>
                     )}

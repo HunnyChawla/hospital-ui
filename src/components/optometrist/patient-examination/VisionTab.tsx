@@ -272,7 +272,7 @@ export function VisionTab({
             {!isEditing && hasExistingForVisit && currentVisitRecord && (
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h4 className="mb-4 text-base font-semibold text-slate-900">
-                        This Visit's Vision
+                        This Visit&apos;s Vision
                     </h4>
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         {/* OD Display */}
@@ -615,7 +615,7 @@ export function VisionTab({
                         No Vision Recorded
                     </h4>
                     <p className="mt-2 text-sm text-slate-600">
-                        Click "Add Vision" to record distance and near visual acuity for both eyes.
+                        Click &quot;Add Vision&quot; to record distance and near visual acuity for both eyes.
                     </p>
                     <button
                         onClick={() => setIsEditing(true)}
@@ -639,7 +639,7 @@ export function VisionTab({
             <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
                 <p className="text-sm text-sky-900">
                     <strong>Tips:</strong> Use the quick-select buttons for common visual acuity values.
-                    The "Copy OD → OS" button copies all right eye values to left eye when both eyes are similar.
+                    The &quot;Copy OD &#8594; OS&quot; button copies all right eye values to left eye when both eyes are similar.
                     Distance vision uses Snellen notation (6/6, 6/9, etc.) while near vision uses N-notation (N5, N6, etc.).
                 </p>
             </div>

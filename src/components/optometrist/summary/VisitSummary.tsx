@@ -150,7 +150,7 @@ function VisitSummaryLayout({
 
           {spec.remarks && (
             <p className="mt-3 text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 italic">
-              "{spec.remarks}"
+              &quot;{spec.remarks}&quot;
             </p>
           )}
         </div>

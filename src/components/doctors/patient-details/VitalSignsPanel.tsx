@@ -187,7 +187,7 @@ export const VitalSignsPanel: React.FC<VitalSignsPanelProps> = ({
       ) : (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-sm text-slate-600">
-            No vital signs recorded yet. Click "Record Vitals" to add the first entry.
+            No vital signs recorded yet. Click &quot;Record Vitals&quot; to add the first entry.
           </p>
         </div>
       )}

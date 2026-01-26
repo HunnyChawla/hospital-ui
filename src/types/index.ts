@@ -645,7 +645,7 @@ export interface CreateVisionRequest {
   notes?: string | null;
 }
 
-export interface VisionResponse extends VisionRecord { }
+export type VisionResponse = VisionRecord;
 
 // ============================================
 // CURRENT SPECS TYPES

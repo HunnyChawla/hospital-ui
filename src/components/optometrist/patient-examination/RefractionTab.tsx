@@ -534,7 +534,7 @@ export function RefractionTab({
       {!isAdding && hasExistingForVisit && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-slate-900">
-            This Visit's Refraction
+            This Visit&apos;s Refraction
             {visitCombined?.pupillary_distance && (
               <span className="ml-4 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
                 PD: {visitCombined.pupillary_distance} mm
@@ -842,7 +842,7 @@ export function RefractionTab({
             No Refraction Recorded
           </h4>
           <p className="mt-2 text-sm text-slate-600">
-            Click "Add Refraction" to enter subjective refraction values for
+            Click &quot;Add Refraction&quot; to enter subjective refraction values for
             both eyes.
           </p>
           <button
@@ -859,7 +859,7 @@ export function RefractionTab({
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
         <p className="text-sm text-sky-900">
           <strong>Tips:</strong> Use templates for common prescriptions, or copy
-          from previous visit for returning patients. The "Same as OD" button
+          from previous visit for returning patients. The &quot;Same as OD&quot; button
           copies values when both eyes are similar. Use +/- buttons or type
           directly for precise values.
         </p>
