@@ -36,7 +36,7 @@ export const quickPresetsApi = {
     // Diagnoses
     getDiagnoses: async (doctorId: string, search?: string): Promise<QuickDiagnosis[]> => {
         try {
-            const response = await apiClient.get<QuickDiagnosis[]>(`/doctors/${doctorId}/quick-presets/diagnoses`, {
+            const response = await apiClient.get<QuickDiagnosis[]>(`/doctors/${doctorId}/quick-presets/group/diagnoses`, {
                 params: { search }
             });
             return response.data;
@@ -48,14 +48,14 @@ export const quickPresetsApi = {
     },
 
     updateDiagnoses: async (doctorId: string, items: QuickDiagnosis[]): Promise<QuickDiagnosis[]> => {
-        const response = await apiClient.put<QuickDiagnosis[]>(`/doctors/${doctorId}/quick-presets/diagnoses`, { items });
+        const response = await apiClient.put<QuickDiagnosis[]>(`/doctors/${doctorId}/quick-presets/group/diagnoses`, { items });
         return response.data;
     },
 
     // Medicines
     getMedicines: async (doctorId: string): Promise<QuickMedicine[]> => {
         try {
-            const response = await apiClient.get<QuickMedicine[]>(`/doctors/${doctorId}/quick-presets/medicines`);
+            const response = await apiClient.get<QuickMedicine[]>(`/doctors/${doctorId}/quick-presets/group/medicines`);
             return response.data;
         } catch (error: any) {
             if (error.response?.status === 404) return [];
@@ -65,7 +65,7 @@ export const quickPresetsApi = {
     },
 
     updateMedicines: async (doctorId: string, items: QuickMedicine[]): Promise<QuickMedicine[]> => {
-        const response = await apiClient.put<QuickMedicine[]>(`/doctors/${doctorId}/quick-presets/medicines`, { items });
+        const response = await apiClient.put<QuickMedicine[]>(`/doctors/${doctorId}/quick-presets/group/medicines`, { items });
         return response.data;
     },
 };
