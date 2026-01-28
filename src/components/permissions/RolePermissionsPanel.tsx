@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchAllRolePermissions,
   updateRolePermissions,
 } from "@/redux/permissionsSlice";
 import {
-  AVAILABLE_SCREENS,
   ALL_ROLES,
   ROLE_LABELS,
   CATEGORY_LABELS,
-  getScreensByCategory,
 } from "@/constants/screens";
+import { screensApi, ScreenResponse } from "@/services/screensApi";
 import { toast } from "sonner";
 import { Shield, Check, X, Save, RefreshCw } from "lucide-react";
 import { UserRole } from "@/types";
@@ -32,6 +31,11 @@ export function RolePermissionsPanel() {
   const [defaultScreen, setDefaultScreen] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Screens state
+  const [screens, setScreens] = useState<ScreenResponse[]>([]);
+  const [screensLoading, setScreensLoading] = useState(true);
+  const [screensError, setScreensError] = useState<string | null>(null);
+
   // Check if a screen can only be modified by platform owner
   const isRestrictedScreen = (screenPath: string) => {
     return PLATFORM_OWNER_ONLY_SCREENS.includes(screenPath);
@@ -44,6 +48,26 @@ export function RolePermissionsPanel() {
     }
     return true;
   };
+
+  // Fetch screens from API
+  useEffect(() => {
+    const loadScreens = async () => {
+      try {
+        setScreensLoading(true);
+        const data = await screensApi.list();
+        // Sort by display_order
+        const sortedData = data.sort((a, b) => a.display_order - b.display_order);
+        setScreens(sortedData);
+        setScreensError(null);
+      } catch (error) {
+        setScreensError("Failed to load screens");
+        console.error("Error loading screens:", error);
+      } finally {
+        setScreensLoading(false);
+      }
+    };
+    loadScreens();
+  }, []);
 
   useEffect(() => {
     dispatch(fetchAllRolePermissions());
@@ -124,7 +148,17 @@ export function RolePermissionsPanel() {
     dispatch(fetchAllRolePermissions());
   };
 
-  const screensByCategory = getScreensByCategory();
+  // Group screens by category dynamically
+  const screensByCategory = useMemo(() => {
+    return screens.reduce((acc, screen) => {
+      const category = screen.category || 'uncategorized';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(screen);
+      return acc;
+    }, {} as Record<string, ScreenResponse[]>);
+  }, [screens]);
 
   return (
     <div className="space-y-6">
@@ -163,8 +197,8 @@ export function RolePermissionsPanel() {
             key={role}
             onClick={() => setSelectedRole(role)}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition ${selectedRole === role
-                ? "bg-sky-500 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              ? "bg-sky-500 text-white"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
           >
             {ROLE_LABELS[role]}
@@ -177,10 +211,21 @@ export function RolePermissionsPanel() {
         Click the star icon to set a screen as the <strong>Default Screen</strong> (landing page) for this role.
       </p>
 
+      {/* Error message for screens */}
+      {screensError && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-700 mb-4">
+          {screensError}
+        </div>
+      )}
+
       {/* Permissions Grid */}
-      {adminLoading ? (
+      {(adminLoading || screensLoading) ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
+        </div>
+      ) : screens.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          No screens available
         </div>
       ) : (
         <div className="space-y-6">
@@ -201,8 +246,8 @@ export function RolePermissionsPanel() {
                         key={screen.path}
                         onClick={() => togglePermission(screen.path)}
                         className={`group relative flex items-center justify-between rounded-xl border p-3 transition ${isEnabled
-                            ? "border-emerald-200 bg-emerald-50"
-                            : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                          ? "border-emerald-200 bg-emerald-50"
+                          : "border-slate-200 bg-slate-50 hover:bg-slate-100"
                           }`}
                       >
                         <span className="text-sm font-medium text-slate-700">
@@ -217,8 +262,8 @@ export function RolePermissionsPanel() {
                               onClick={(e) => handleSetDefault(e, screen.path)}
                               title={isDefault ? "Default Screen" : "Set as Default Screen"}
                               className={`p-1 rounded-full transition-colors ${isDefault
-                                  ? "text-amber-500 bg-amber-100"
-                                  : "text-slate-300 hover:text-amber-400 hover:bg-amber-50"
+                                ? "text-amber-500 bg-amber-100"
+                                : "text-slate-300 hover:text-amber-400 hover:bg-amber-50"
                                 }`}
                             >
                               <svg

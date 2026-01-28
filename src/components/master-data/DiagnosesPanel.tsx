@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Modal } from "../common/Modal";
 import { ConfirmationDialog } from "../common/ConfirmationDialog";
+import { Pagination } from "../common/Pagination";
 import {
     FileText,
     RefreshCcw,
@@ -129,6 +130,27 @@ export function DiagnosesPanel() {
     const handleBulkImportSuccess = () => {
         refresh();
         setShowBulkImportModal(false);
+    };
+
+    const handlePageChange = (page: number) => {
+        dispatch(
+            fetchDiagnoses({
+                page,
+                page_size: lastQuery?.page_size || DEFAULT_QUERY.page_size,
+                search: search.trim() || undefined,
+                status: onlyActive ? "active" : undefined,
+                tenant_id: selectedTenantId || undefined,
+            })
+        );
+    };
+
+    const handleEditClick = (diagnosis: Diagnosis) => {
+        setEditingDiagnosis(diagnosis);
+    };
+
+    const handleEditSuccess = () => {
+        refresh();
+        setEditingDiagnosis(null);
     };
 
     return (
@@ -320,6 +342,29 @@ export function DiagnosesPanel() {
                                             )}
                                         </button>
                                         <button
+                                            onClick={() => handleEditClick(diagnosis)}
+                                            className="group relative flex items-center justify-center overflow-visible rounded-lg bg-gradient-to-r from-sky-500 to-blue-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-sky-600 hover:to-blue-600"
+                                            style={{ width: "2rem", minWidth: "2rem" }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.width = "auto";
+                                                e.currentTarget.style.minWidth = "auto";
+                                                e.currentTarget.style.paddingLeft = "0.75rem";
+                                                e.currentTarget.style.paddingRight = "0.75rem";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.width = "2rem";
+                                                e.currentTarget.style.minWidth = "2rem";
+                                                e.currentTarget.style.paddingLeft = "0.5rem";
+                                                e.currentTarget.style.paddingRight = "0.5rem";
+                                            }}
+                                            title="Edit"
+                                        >
+                                            <Edit className="h-4 w-4 shrink-0" />
+                                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline-block">
+                                                Edit
+                                            </span>
+                                        </button>
+                                        <button
                                             onClick={() => handleDeleteClick(diagnosis.id, diagnosis.diagnosis_name)}
                                             disabled={deletingId === diagnosis.id}
                                             className="group relative flex items-center justify-center overflow-visible rounded-lg bg-gradient-to-r from-rose-500 to-red-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-rose-600 hover:to-red-600 disabled:opacity-60"
@@ -352,9 +397,13 @@ export function DiagnosesPanel() {
                     )}
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                    <p>Total: {total} diagnoses</p>
-                    <p>Filters auto-apply; use Refresh to reload.</p>
+                <div className="border-t border-slate-200">
+                    <Pagination
+                        currentPage={lastQuery?.page || 1}
+                        total={total}
+                        pageSize={lastQuery?.page_size || DEFAULT_QUERY.page_size}
+                        onPageChange={handlePageChange}
+                    />
                 </div>
             </div>
 
@@ -366,6 +415,21 @@ export function DiagnosesPanel() {
                 size="md"
             >
                 <DiagnosisForm onCreated={handleDiagnosisCreated} tenantId={selectedTenantId || undefined} />
+            </Modal>
+
+            <Modal
+                isOpen={!!editingDiagnosis}
+                onClose={() => setEditingDiagnosis(null)}
+                title="Edit Diagnosis"
+                size="md"
+            >
+                {editingDiagnosis && (
+                    <DiagnosisForm
+                        onCreated={handleEditSuccess}
+                        tenantId={selectedTenantId || undefined}
+                        initialData={editingDiagnosis}
+                    />
+                )}
             </Modal>
 
             {/* Bulk Import Modal - Platform Owner Only */}

@@ -2,18 +2,19 @@
 
 import { useForm } from "react-hook-form";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { CreateDiagnosisRequest, DiagnosisStatus } from "@/services/diagnosesApi";
-import { createDiagnosis, fetchDiagnoses } from "@/redux/diagnosesSlice";
+import { CreateDiagnosisRequest, DiagnosisStatus, Diagnosis, UpdateDiagnosisRequest } from "@/services/diagnosesApi";
+import { createDiagnosis, updateDiagnosis, fetchDiagnoses } from "@/redux/diagnosesSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Plus } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 
 type DiagnosisFormProps = {
     onCreated?: () => void;
     tenantId?: string;
+    initialData?: Diagnosis | null;
 };
 
-export function DiagnosisForm({ onCreated, tenantId }: DiagnosisFormProps) {
+export function DiagnosisForm({ onCreated, tenantId, initialData }: DiagnosisFormProps) {
     const dispatch = useAppDispatch();
     const { lastQuery } = useAppSelector((s) => s.diagnoses);
 
@@ -24,13 +25,13 @@ export function DiagnosisForm({ onCreated, tenantId }: DiagnosisFormProps) {
         formState: { errors, isSubmitting },
     } = useForm<CreateDiagnosisRequest>({
         defaultValues: {
-            diagnosis_code: "",
-            diagnosis_name: "",
-            description: "",
-            category: "",
-            status: "active",
-            icd_10_code: "",
-            icd_11_code: "",
+            diagnosis_code: initialData?.diagnosis_code || "",
+            diagnosis_name: initialData?.diagnosis_name || "",
+            description: initialData?.description || "",
+            category: initialData?.category || "",
+            status: initialData?.status || "active",
+            icd_10_code: initialData?.icd_10_code || "",
+            icd_11_code: initialData?.icd_11_code || "",
         },
     });
 
@@ -44,8 +45,14 @@ export function DiagnosisForm({ onCreated, tenantId }: DiagnosisFormProps) {
                 icd_11_code: values.icd_11_code?.trim() || undefined,
             };
 
-            await dispatch(createDiagnosis({ diagnosis: payload, tenantId })).unwrap();
-            toast.success("Diagnosis created successfully");
+            if (initialData) {
+                const updatePayload: UpdateDiagnosisRequest = payload;
+                await dispatch(updateDiagnosis({ id: initialData.id, updates: updatePayload, tenantId })).unwrap();
+                toast.success("Diagnosis updated successfully");
+            } else {
+                await dispatch(createDiagnosis({ diagnosis: payload, tenantId })).unwrap();
+                toast.success("Diagnosis created successfully");
+            }
             reset();
             onCreated?.();
 
@@ -153,8 +160,8 @@ export function DiagnosisForm({ onCreated, tenantId }: DiagnosisFormProps) {
                     disabled={isSubmitting}
                     className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:shadow disabled:opacity-60"
                 >
-                    <Plus className="h-4 w-4" />
-                    {isSubmitting ? "Saving..." : "Create Diagnosis"}
+                    {initialData ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    {isSubmitting ? "Saving..." : initialData ? "Update Diagnosis" : "Create Diagnosis"}
                 </button>
             </div>
         </form>
