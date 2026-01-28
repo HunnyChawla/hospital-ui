@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2 } from "lucide-react";
+import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Search, Loader2 } from "lucide-react";
 import type { QuickDiagnosis } from "@/services/quickPresetsApi";
+import { diagnosesApi, type Diagnosis } from "@/services/diagnosesApi";
 
 interface DiagnosisPresetListProps {
     items: QuickDiagnosis[];
@@ -18,6 +19,58 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
     const [value, setValue] = useState("");
     const [category, setCategory] = useState<QuickDiagnosis["category"]>("other");
 
+    // Search state
+    const [searchResults, setSearchResults] = useState<Diagnosis[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    const handleSearch = (query: string) => {
+        setValue(query);
+        setShowSuggestions(true);
+
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+        if (!query.trim()) {
+            setSearchResults([]);
+            setIsSearching(false);
+            return;
+        }
+
+        setIsSearching(true);
+        searchTimeoutRef.current = setTimeout(async () => {
+            try {
+                const res = await diagnosesApi.list({ search: query, page_size: 5 });
+                setSearchResults(res.items);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+    };
+
+    const selectDiagnosis = (diagnosis: Diagnosis) => {
+        setValue(diagnosis.diagnosis_name);
+
+        // Auto-fill label if empty
+        if (!label) {
+            setLabel(diagnosis.diagnosis_name);
+        }
+
+        // Auto-select category if possible
+        if (diagnosis.category) {
+            const lowerCat = diagnosis.category.toLowerCase();
+            if (lowerCat.includes("refract")) setCategory("refractive");
+            else if (lowerCat.includes("cornea") || lowerCat.includes("surface")) setCategory("surface");
+            else if (lowerCat.includes("lens") || lowerCat.includes("cataract")) setCategory("lens");
+            else if (lowerCat.includes("retina")) setCategory("retina");
+            else setCategory("other");
+        }
+
+        setShowSuggestions(false);
+    };
+
     const startEdit = (index: number) => {
         const item = items[index];
         setLabel(item.label);
@@ -25,6 +78,8 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
         setCategory(item.category);
         setEditingIndex(index);
         setAddingNew(false);
+        setSearchResults([]);
+        setShowSuggestions(false);
     };
 
     const startAdd = () => {
@@ -33,6 +88,8 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
         setCategory("other");
         setAddingNew(true);
         setEditingIndex(null);
+        setSearchResults([]);
+        setShowSuggestions(false);
     };
 
     const cancelForm = () => {
@@ -116,18 +173,53 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
                                     onChange={e => setLabel(e.target.value)}
                                     placeholder="e.g. Myopia"
                                     className="w-full text-xs rounded border border-indigo-200 px-2 py-1.5 focus:border-indigo-500 focus:outline-none"
-                                    autoFocus
                                 />
                             </div>
-                            <div>
+                            <div className="relative">
                                 <label className="text-xs font-medium text-indigo-900 mb-1 block">Full Diagnosis</label>
-                                <input
-                                    type="text"
-                                    value={value}
-                                    onChange={e => setValue(e.target.value)}
-                                    placeholder="e.g. Simple Myopia"
-                                    className="w-full text-xs rounded border border-indigo-200 px-2 py-1.5 focus:border-indigo-500 focus:outline-none"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={value}
+                                        onChange={e => handleSearch(e.target.value)}
+                                        onFocus={() => {
+                                            if (value) handleSearch(value);
+                                        }}
+                                        placeholder="Type to search..."
+                                        className="w-full text-xs rounded border border-indigo-200 pl-2 pr-7 py-1.5 focus:border-indigo-500 focus:outline-none"
+                                        autoFocus={addingNew || editingIndex !== null}
+                                    />
+                                    {isSearching ? (
+                                        <Loader2 className="absolute right-2 top-2 h-3.5 w-3.5 animate-spin text-indigo-400" />
+                                    ) : (
+                                        <Search className="absolute right-2 top-2 h-3.5 w-3.5 text-slate-400" />
+                                    )}
+
+                                    {showSuggestions && searchResults.length > 0 && (
+                                        <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                                            {searchResults.map((diag) => (
+                                                <button
+                                                    key={diag.id}
+                                                    type="button"
+                                                    onClick={() => selectDiagnosis(diag)}
+                                                    className="w-full px-3 py-2 text-left text-xs hover:bg-indigo-50 border-b border-slate-100 last:border-0"
+                                                >
+                                                    <p className="font-medium text-slate-900">{diag.diagnosis_name}</p>
+                                                    {diag.diagnosis_code && (
+                                                        <p className="text-[10px] text-slate-500">Code: {diag.diagnosis_code}</p>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {/* Overlay to close suggestions */}
+                                    {showSuggestions && (
+                                        <div
+                                            className="fixed inset-0 z-40 bg-transparent"
+                                            onClick={() => setShowSuggestions(false)}
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center justify-between">

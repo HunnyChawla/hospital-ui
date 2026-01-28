@@ -52,6 +52,7 @@ import { patientsApi } from "@/services/patientsApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import type { PlannedSurgery } from "@/types";
 import { usersApi } from "@/services/usersApi";
+import { diagnosesApi } from "@/services/diagnosesApi";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -492,12 +493,23 @@ export function PrescriptionFormSection({
                 return;
             }
 
-            if (!doctorId) return;
-
             setSearchingDiagnoses(true);
             try {
-                const results = await quickPresetsApi.getDiagnoses(doctorId, diagnosisSearchQuery);
-                setDiagnosisSearchResults(results || []);
+                // Use diagnosesApi to search for diagnoses (GET /diagnoses)
+                const response = await diagnosesApi.list({
+                    search: diagnosisSearchQuery,
+                    page_size: 10
+                });
+
+                // Map to the format expected by the UI
+                const results = response.items.map(d => ({
+                    id: d.id,
+                    label: d.diagnosis_name,
+                    value: d.diagnosis_name,
+                    category: d.category || 'other'
+                }));
+
+                setDiagnosisSearchResults(results);
             } catch (error) {
                 console.error("Diagnosis search error:", error);
             } finally {
@@ -507,7 +519,7 @@ export function PrescriptionFormSection({
 
         const debounce = setTimeout(searchQuery, 300);
         return () => clearTimeout(debounce);
-    }, [diagnosisSearchQuery, doctorId]);
+    }, [diagnosisSearchQuery]);
 
     // Handle diagnosis toggle
     const handleDiagnosisToggle = (value: string) => {
