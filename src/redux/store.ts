@@ -17,6 +17,7 @@ import doctorPanelReducer from "./doctorPanelSlice";
 import optometristPanelReducer from "./optometristPanelSlice";
 import optometryDataReducer from "./optometryDataSlice";
 import permissionsReducer from "./permissionsSlice";
+import diagnosesReducer from "./diagnosesSlice";
 
 export const store = configureStore({
   reducer: {
@@ -38,6 +39,7 @@ export const store = configureStore({
     optometristPanel: optometristPanelReducer,
     optometryData: optometryDataReducer,
     permissions: permissionsReducer,
+    diagnoses: diagnosesReducer,
   },
 });
 
