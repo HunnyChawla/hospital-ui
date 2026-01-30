@@ -240,222 +240,227 @@ export function AppointmentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 text-sm">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Patient Selection Section */}
       {showDropdownSearch && (
-        <div ref={searchRef} className="col-span-2 space-y-1">
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1">
-              <User className="h-4 w-4" />
+        <div ref={searchRef} className="space-y-1.5">
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+              <User className="h-4 w-4 text-sky-600" />
               Patient <span className="text-rose-500">*</span>
             </span>
             <div className="relative">
               <div className="relative flex items-center">
-                <Search className="absolute left-3 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3.5 h-4.5 w-4.5 text-slate-400" />
                 <input
                   type="text"
                   value={dropdownSearchTerm}
                   onChange={(e) => {
-                    setDropdownSearchTerm(e.target.value);
-                    setShowDropdown(true);
+                    const value = e.target.value;
+                    setDropdownSearchTerm(value);
+                    // Clear selected patient if user is typing a different value
+                    if (selectedPatientData && value !== selectedPatientData.name) {
+                      setSelectedPatientData(null);
+                      setPatientId("");
+                    }
+                    if (value.trim().length >= 2) {
+                      setShowDropdown(true);
+                    } else {
+                      setShowDropdown(false);
+                    }
                   }}
                   onFocus={() => {
-                    if (dropdownResults.length > 0) {
+                    if (dropdownResults.length > 0 || dropdownSearchTerm.trim().length >= 2) {
                       setShowDropdown(true);
                     }
                   }}
-                  placeholder="Search patient by name, mobile, or Health ID"
-                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 outline-none focus:border-sky-400"
+                  placeholder="Search by name, mobile, or Health ID..."
+                  className="w-full rounded-lg border border-slate-200 bg-white pl-11 pr-12 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenPatientModal) {
+                      onOpenPatientModal();
+                    }
+                  }}
+                  className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700 hover:shadow-sm"
+                  title="Add New Patient"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
               </div>
               {showDropdown && (dropdownResults.length > 0 || isSearching) && (
-                <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl max-h-60 overflow-y-auto">
+                <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-xl max-h-56 overflow-y-auto">
                   {isSearching ? (
-                    <div className="p-3 text-center text-sm text-slate-500">Searching...</div>
+                    <div className="p-4 text-center">
+                      <div className="inline-flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-sky-500 border-t-transparent"></div>
+                        <span className="text-sm text-slate-600">Searching patients...</span>
+                      </div>
+                    </div>
                   ) : dropdownResults.length > 0 ? (
                     dropdownResults.map((patient) => (
                       <button
                         key={patient.id}
                         type="button"
                         onClick={() => handlePatientSelect(patient)}
-                        className="w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-sky-50"
+                        className="w-full border-b border-slate-100 px-3 py-2.5 text-left transition hover:bg-sky-50 last:border-b-0"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                             <User className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-slate-900">{patient.name}</p>
+                            <p className="font-semibold text-slate-900 text-sm truncate">{patient.name}</p>
                             <div className="mt-0.5 flex flex-col gap-0.5">
-                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
                                 <span>{patient.mobile}</span>
-                                <span>•</span>
+                                <span className="text-slate-300">•</span>
                                 <span>{patient.healthId}</span>
-                                <span>•</span>
-                                <span>{patient.age} years, {patient.gender}</span>
+                                <span className="text-slate-300">•</span>
+                                <span>{patient.age}y, {patient.gender}</span>
                               </div>
-                              {(patient.address || patient.city) && (
-                                <div className="text-xs text-slate-400 truncate">
-                                  {[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
                       </button>
                     ))
                   ) : (
-                    <div className="p-3 text-center text-sm text-slate-500">No patients found</div>
+                    <div className="p-4 text-center text-sm text-slate-500">No patients found</div>
                   )}
                 </div>
               )}
             </div>
-            {patientId && (
-              <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
-                <p className="text-xs text-sky-700">
-                  Selected: {(selectedPatientData && selectedPatientData.id === patientId)
-                    ? selectedPatientData.name
-                    : patients.find((p) => p.id === patientId)?.name || "Patient"}
-                </p>
+            {(patientId || defaultPatientId) && (
+              <div className="mt-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {(selectedPatientData && selectedPatientData.id === (patientId || defaultPatientId))
+                        ? selectedPatientData.name
+                        : patients.find((p) => p.id === (patientId || defaultPatientId))?.name || "Patient"}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
+                      {(() => {
+                        const p = (selectedPatientData && selectedPatientData.id === (patientId || defaultPatientId))
+                          ? selectedPatientData
+                          : patients.find((p) => p.id === (patientId || defaultPatientId));
+                        if (!p) return null;
+                        return (
+                          <>
+                            <span>{p.healthId}</span>
+                            <span>•</span>
+                            <span>{p.mobile}</span>
+                            <span>•</span>
+                            <span>{p.age}y, {p.gender}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </label>
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenPatientModal) {
-                  onOpenPatientModal();
-                }
-              }}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:text-sky-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add new patient
-            </button>
-          </div>
         </div>
       )}
 
-      {!hidePatientSearch && !showDropdownSearch && (
-        <>
-          <div className="col-span-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-slate-500" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search patient by name, mobile, or Health ID"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-              />
-            </div>
-            <div className="text-xs text-slate-600">
-              {filteredPatients.length} match{filteredPatients.length === 1 ? "" : "es"}
-            </div>
-          </div>
-
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1">
+      {hidePatientSearch && (patientId || defaultPatientId) && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
               <User className="h-4 w-4" />
-              Patient <span className="text-rose-500">*</span>
-            </span>
-            <select
-              value={patientId}
-              onChange={(e) => setPatientId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-              required
-            >
-              <option value="">Select patient</option>
-              {filteredPatients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} • {p.healthId} • {p.mobile}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      )}
-
-      {hidePatientSearch && (
-        <div className="col-span-2">
-          {(patientId || defaultPatientId) ? (
-            <div className="rounded-xl border border-slate-200 bg-sky-50 p-3">
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-sky-600" />
-                <span className="font-semibold text-slate-900">
-                  {(selectedPatientData && selectedPatientData.id === (patientId || defaultPatientId))
-                    ? selectedPatientData.name
-                    : patients.find((p) => p.id === (patientId || defaultPatientId))?.name || "Patient selected"}
-                </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900">
+                {(selectedPatientData && selectedPatientData.id === (patientId || defaultPatientId))
+                  ? selectedPatientData.name
+                  : patients.find((p) => p.id === (patientId || defaultPatientId))?.name || "Patient"}
+              </p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
+                {(() => {
+                  const p = (selectedPatientData && selectedPatientData.id === (patientId || defaultPatientId))
+                    ? selectedPatientData
+                    : patients.find((p) => p.id === (patientId || defaultPatientId));
+                  if (!p) return null;
+                  return (
+                    <>
+                      <span>{p.healthId}</span>
+                      <span>•</span>
+                      <span>{p.mobile}</span>
+                    </>
+                  );
+                })()}
               </div>
             </div>
-          ) : (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <div className="flex items-center gap-2 text-sm text-amber-700">
-                <User className="h-4 w-4" />
-                <span>Please select a patient from the global search above to create an appointment</span>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
-      <label className="space-y-1">
-        <span className="text-slate-600 flex items-center gap-1">
-          <Stethoscope className="h-4 w-4" />
-          Doctor <span className="text-rose-500">*</span>
-        </span>
-        <select
-          value={doctorId}
-          onChange={(e) => setDoctorId(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          disabled={doctorsLoading || doctors.length === 0}
-          required
-        >
-          <option value="">Select doctor</option>
-          {doctorsLoading ? (
-            <option>Loading doctors...</option>
-          ) : doctors.length === 0 ? (
-            <option>No doctors available</option>
-          ) : (
-            doctors.map((doc) => {
-              const doctorName = doc.name || `Dr. ${doc.specialization}`;
-              return (
-                <option key={doc.id} value={doc.id}>
-                  {doctorName} - {doc.specialization}
-                </option>
-              );
-            })
-          )}
-        </select>
-      </label>
+      {/* Doctor & Date Section */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <Stethoscope className="h-4 w-4 text-teal-600" />
+            Doctor <span className="text-rose-500">*</span>
+          </span>
+          <select
+            value={doctorId}
+            onChange={(e) => setDoctorId(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
+            disabled={doctorsLoading || doctors.length === 0}
+            required
+          >
+            <option value="">Select doctor</option>
+            {doctorsLoading ? (
+              <option>Loading doctors...</option>
+            ) : doctors.length === 0 ? (
+              <option>No doctors available</option>
+            ) : (
+              doctors.map((doc) => {
+                const doctorName = doc.name || `Dr. ${doc.specialization}`;
+                return (
+                  <option key={doc.id} value={doc.id}>
+                    {doctorName} - {doc.specialization}
+                  </option>
+                );
+              })
+            )}
+          </select>
+        </label>
 
-      <label className="space-y-1">
-        <span className="text-slate-600 flex items-center gap-1">
-          <Calendar className="h-4 w-4" />
-          Appointment Date <span className="text-rose-500">*</span>
-        </span>
-        <input
-          type="date"
-          value={appointmentDate}
-          onChange={(e) => setAppointmentDate(e.target.value)}
-          min={getTodayDateLocal()}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          required
-        />
-      </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <Calendar className="h-4 w-4 text-indigo-600" />
+            Appointment Date <span className="text-rose-500">*</span>
+          </span>
+          <input
+            type="date"
+            value={appointmentDate}
+            onChange={(e) => setAppointmentDate(e.target.value)}
+            min={getTodayDateLocal()}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            required
+          />
+        </label>
+      </div>
 
-      <label className="col-span-2 space-y-1">
-        <span className="text-slate-600">Notes</span>
+      <label className="space-y-1.5 block">
+        <span className="text-sm font-medium text-slate-700">Notes</span>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          placeholder="Additional notes (optional)"
+          rows={3}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+          placeholder="Add any specific instructions or requirements..."
         />
       </label>
 
-      <div className="col-span-2 flex justify-end gap-3">
+      <div className="flex justify-end gap-3 pt-2">
         <button
           type="button"
           onClick={() => {
@@ -464,14 +469,15 @@ export function AppointmentForm({
             setNotes("");
             setSearchTerm("");
             setDropdownSearchTerm("");
+            setSelectedPatientData(null);
           }}
-          className="rounded-xl border border-slate-200 px-4 py-2 text-slate-600 transition hover:border-slate-300"
+          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
         >
-          Reset
+          Reset Form
         </button>
         <button
           type="submit"
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm hover:shadow"
+          className="rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md active:scale-[0.98]"
         >
           Create Appointment
         </button>
