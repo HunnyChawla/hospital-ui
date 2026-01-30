@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { DiagnosesPanel } from "@/components/master-data/DiagnosesPanel";
+import { AdvicesPanel } from "@/components/master-data/AdvicesPanel";
 
-type Tab = "diagnoses";
+type Tab = "diagnoses" | "advices";
 
 export default function MasterDataPage() {
     const [activeTab, setActiveTab] = useState<Tab>("diagnoses");
@@ -23,8 +24,8 @@ export default function MasterDataPage() {
                     <button
                         onClick={() => setActiveTab("diagnoses")}
                         className={`px-4 py-2 text-sm font-semibold transition-colors relative ${activeTab === "diagnoses"
-                                ? "text-sky-600"
-                                : "text-slate-600 hover:text-slate-900"
+                            ? "text-sky-600"
+                            : "text-slate-600 hover:text-slate-900"
                             }`}
                     >
                         Diagnoses
@@ -32,21 +33,25 @@ export default function MasterDataPage() {
                             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
                         )}
                     </button>
-                    {/* Future tabs can be added here, for example:
-          <button
-            onClick={() => setActiveTab("medicines")}
-            className={...}
-          >
-            Medicines
-          </button>
-          */}
+                    <button
+                        onClick={() => setActiveTab("advices")}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors relative ${activeTab === "advices"
+                            ? "text-sky-600"
+                            : "text-slate-600 hover:text-slate-900"
+                            }`}
+                    >
+                        Advices
+                        {activeTab === "advices" && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
+                        )}
+                    </button>
                 </div>
             </div>
 
             {/* Tab Content */}
             <div>
                 {activeTab === "diagnoses" && <DiagnosesPanel />}
-                {/* Future tab panels will go here */}
+                {activeTab === "advices" && <AdvicesPanel />}
             </div>
         </div>
     );

@@ -574,14 +574,24 @@ export function PrescriptionFormSection({
 
 
     const handleAddMedicine = (medicine?: any) => {
+        console.log("Selected medicine from search:", medicine);
+
+        // Prioritize default_ fields from the Medicine type (API response)
+        // If those are missing or null, fall back to direct fields (e.g. if passed from a different source)
+        // Also fallback to strength for dosage if available
+        const dosage = medicine?.default_dosage || medicine?.dosage || medicine?.strength || "";
+        const frequency = medicine?.default_frequency || medicine?.frequency || "";
+        const duration = medicine?.default_duration || medicine?.duration || "";
+        const instructions = medicine?.default_instructions || medicine?.instructions || "";
+
         appendMedicine({
             medicine_id: medicine?.id || medicine?.medicine_id || "",
             medicine_name: medicine?.name || medicine?.medicine_name || "",
             generic_name: medicine?.generic_name || "",
-            dosage: medicine?.dosage || medicine?.default_dosage || "",
-            frequency: medicine?.frequency || medicine?.default_frequency || "",
-            duration: medicine?.duration || medicine?.default_duration || "",
-            instructions: medicine?.instructions || medicine?.default_instructions || "",
+            dosage,
+            frequency,
+            duration,
+            instructions,
         });
         setMedicineSearchQuery("");
         setMedicineSearchResults([]);
@@ -1207,8 +1217,8 @@ export function PrescriptionFormSection({
                                                             onClick={() => handleAddMedicine(medicine)}
                                                             className="cursor-pointer px-4 py-3 hover:bg-purple-50 active:bg-purple-100 transition-colors border-b border-slate-100 last:border-0 group"
                                                         >
-                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-purple-700 transition-colors">{medicine.medicine_name}</div>
-                                                            <div className="text-xs text-slate-500 mt-1">{medicine.generic_name} • {medicine.default_dosage}</div>
+                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-purple-700 transition-colors">{medicine.name || medicine.medicine_name}</div>
+                                                            <div className="text-xs text-slate-500 mt-1">{medicine.generic_name} • {medicine.default_dosage || medicine.strength}</div>
                                                         </li>
                                                     ))}
                                                 </ul>
