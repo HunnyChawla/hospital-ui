@@ -194,7 +194,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   }, [isDragging, handleMouseMove, handleTouchMove, handleEnd]);
 
   return (
-    <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0">
+    <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0 scrollbar-hide">
       {/* Stats Section - Horizontal 4-column layout at top */}
       {statsVisible && (
         <OptometristCollapsibleStatsSection

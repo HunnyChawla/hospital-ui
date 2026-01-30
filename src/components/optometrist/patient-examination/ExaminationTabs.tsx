@@ -283,7 +283,7 @@ export function ExaminationTabs({
     <div
       ref={containerRef}
       className={clsx(
-        "flex h-full min-h-0 flex-col",
+        "flex h-full min-h-0 flex-col scrollbar-hide",
         "flex h-full min-h-0 flex-col"
       )}
     >

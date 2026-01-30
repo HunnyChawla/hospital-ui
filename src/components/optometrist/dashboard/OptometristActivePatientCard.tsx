@@ -70,7 +70,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500 scrollbar-hide">
       <div className="border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-4 py-3 sm:px-6 sm:py-4 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">

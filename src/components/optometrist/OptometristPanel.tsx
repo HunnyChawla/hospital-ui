@@ -475,8 +475,8 @@ export function OptometristPanel() {
   return (
     <ExaminationViewProvider>
       <FullscreenContainerProvider containerRef={containerRef as React.RefObject<HTMLDivElement>}>
-        <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900">
-          <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4">
+        <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900 scrollbar-hide">
+          <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4 scrollbar-hide">
             {/* Header */}
             <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
               <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">

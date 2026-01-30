@@ -4,7 +4,7 @@ import { OptometristPanel } from "@/components/optometrist/OptometristPanel";
 
 export default function OptometristPanelPage() {
   return (
-    <div>
+    <div className="scrollbar-hide">
       <OptometristPanel />
     </div>
   );
