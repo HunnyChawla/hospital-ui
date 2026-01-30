@@ -31,4 +31,52 @@ export const optometristMappingsApi = {
     );
     return response.data;
   },
+
+  /**
+   * Get list of optometrists associated with a doctor
+   * GET /opd/mappings/doctor/{doctor_id}
+   */
+  async getDoctorMappings(
+    doctorId: string,
+    tenantId?: string
+  ): Promise<OptometristDoctorMapping[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<OptometristDoctorMapping[]>(
+      `/opd/mappings/doctor/${doctorId}`,
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Create a new optometrist-doctor mapping
+   * POST /opd/mappings
+   */
+  async createMapping(
+    mapping: { optometrist_id: string; doctor_id: string },
+    tenantId?: string
+  ): Promise<OptometristDoctorMapping> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<OptometristDoctorMapping>(
+      "/opd/mappings",
+      mapping,
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete an optometrist-doctor mapping
+   * DELETE /opd/mappings/{mapping_id}
+   */
+  async deleteMapping(
+    mappingId: string,
+    tenantId?: string
+  ): Promise<void> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    await apiClient.delete(`/opd/mappings/${mappingId}`, { params });
+  },
 };
