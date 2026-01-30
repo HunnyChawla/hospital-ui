@@ -81,14 +81,6 @@ const colorMap: Record<MedicineColor, string> = {
     rose: "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300",
 };
 
-const disabledColorMap: Record<MedicineColor, string> = {
-    sky: "bg-slate-100 text-slate-400 border-slate-200",
-    purple: "bg-slate-100 text-slate-400 border-slate-200",
-    emerald: "bg-slate-100 text-slate-400 border-slate-200",
-    amber: "bg-slate-100 text-slate-400 border-slate-200",
-    rose: "bg-slate-100 text-slate-400 border-slate-200",
-};
-
 export function MedicineQuickChips({
     options,
     addedIds = [],
@@ -109,15 +101,14 @@ export function MedicineQuickChips({
                         className={clsx(
                             "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-150",
                             isAdded
-                                ? "cursor-not-allowed opacity-60"
-                                : "hover:scale-105 active:scale-95",
-                            isAdded ? disabledColorMap[option.color] : colorMap[option.color]
+                                ? "bg-sky-500 border-sky-600 text-white shadow-md shadow-sky-500/20 cursor-default"
+                                : clsx("hover:scale-105 active:scale-95", colorMap[option.color])
                         )}
                     >
-                        <Icon className="h-3.5 w-3.5" />
+                        <Icon className={clsx("h-3.5 w-3.5", isAdded ? "text-white" : "")} />
                         {option.label}
                         {isAdded ? (
-                            <Check className="h-3 w-3" />
+                            <Check className="h-3 w-3 text-white" />
                         ) : (
                             <Plus className="h-3 w-3 opacity-60" />
                         )}
@@ -233,13 +224,13 @@ export function AdviceQuickChips({
                         className={clsx(
                             "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all duration-150",
                             isAdded
-                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                ? "bg-sky-500 border-sky-600 text-white shadow-md shadow-sky-500/20 cursor-default"
                                 : colorClass
                         )}
                     >
                         {option.label}
                         {isAdded ? (
-                            <Check className="h-3 w-3" />
+                            <Check className="h-3 w-3 text-white" />
                         ) : (
                             <Plus className="h-3 w-3 opacity-60" />
                         )}
@@ -336,13 +327,13 @@ export function LabTestQuickChips({
                         className={clsx(
                             "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all duration-150",
                             isAdded
-                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                ? "bg-sky-500 border-sky-600 text-white shadow-md shadow-sky-500/20 cursor-default"
                                 : colorClass
                         )}
                     >
                         {option.label}
                         {isAdded ? (
-                            <Check className="h-3 w-3" />
+                            <Check className="h-3 w-3 text-white" />
                         ) : (
                             <Plus className="h-3 w-3 opacity-60" />
                         )}

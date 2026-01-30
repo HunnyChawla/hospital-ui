@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { History, FileText, ChevronRight, Loader2, Pill, Clock, User, Globe, Pencil, Trash2, Play, AlertCircle } from "lucide-react";
-import { patientOptometryHistoryApi } from "@/services/patientOptometryHistoryApi";
+import { opdVisitsApi, type Visit } from "@/services/opdVisitsApi";
 import {
     prescriptionTemplatesApi,
     type PrescriptionTemplateListItem,
@@ -17,6 +17,7 @@ interface HistoryTemplateSectionProps {
     doctorId: string;
     onSelectTemplate?: (template: PrescriptionTemplate) => void;
     onEditTemplate?: (template: PrescriptionTemplate) => void;
+    onViewHistory?: (visitId: string) => void;
 }
 
 export function HistoryTemplateSection({
@@ -25,9 +26,10 @@ export function HistoryTemplateSection({
     doctorId,
     onSelectTemplate,
     onEditTemplate,
+    onViewHistory,
 }: HistoryTemplateSectionProps) {
-    const [activeTab, setActiveTab] = useState<"history" | "templates">("templates");
-    const [historyEvents, setHistoryEvents] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<"history" | "templates">("history");
+    const [historyVisits, setHistoryVisits] = useState<Visit[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Templates state
@@ -39,18 +41,24 @@ export function HistoryTemplateSection({
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    // Fetch patient history
+    // Fetch patient visits
     useEffect(() => {
         if (patientId && activeTab === "history") {
             setLoadingHistory(true);
-            patientOptometryHistoryApi
-                .getTimeline(patientId, { limit: 10 })
+            opdVisitsApi
+                .list({
+                    patient_id: patientId,
+                    sort_by: "created_at",
+                    sort_order: "desc",
+                    page_size: 50
+                })
                 .then((data) => {
-                    setHistoryEvents(data.events || []);
+                    // Filter out current visit if needed, or show all
+                    setHistoryVisits(data.items || []);
                 })
                 .catch((error) => {
                     handleError(error, {
-                        defaultMessage: "Failed to load history",
+                        defaultMessage: "Failed to load visit history",
                         showToast: false,
                         logError: true,
                     });
@@ -276,26 +284,44 @@ export function HistoryTemplateSection({
                             <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
                             </div>
-                        ) : historyEvents.length === 0 ? (
+                        ) : historyVisits.length === 0 ? (
                             <div className="text-center py-6 px-2">
                                 <History className="h-8 w-8 text-slate-300 mx-auto mb-2" />
                                 <p className="text-xs text-slate-500">No previous visits</p>
                             </div>
                         ) : (
-                            historyEvents.map((event) => (
+                            historyVisits.map((v) => (
                                 <button
-                                    key={event.event_id}
-                                    className="w-full text-left p-2 rounded-lg border border-slate-100 hover:border-sky-200 hover:bg-sky-50 transition"
+                                    key={v.id}
+                                    onClick={() => onViewHistory?.(v.id)}
+                                    className={`w-full text-left p-2 rounded-lg border transition ${v.id === visitId
+                                        ? "border-sky-300 bg-sky-50"
+                                        : "border-slate-100 hover:border-sky-200 hover:bg-sky-50/50"
+                                        }`}
                                 >
                                     <div className="flex items-center justify-between">
-                                        <p className="text-xs font-medium text-slate-700 truncate">
-                                            {event.title || "Visit"}
+                                        <p className="text-xs font-bold text-slate-800 truncate">
+                                            {v.visit_number}
                                         </p>
-                                        <ChevronRight className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                                        <div className="flex items-center gap-1.5">
+                                            {v.id === visitId && (
+                                                <span className="px-1 py-0.5 bg-sky-100 text-sky-600 rounded text-[8px] font-bold uppercase">Current</span>
+                                            )}
+                                            <ChevronRight className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-slate-400 mt-0.5">
-                                        {new Date(event.timestamp).toLocaleDateString()}
-                                    </p>
+                                    <div className="flex items-center justify-between mt-1">
+                                        <p className="text-[10px] text-slate-500">
+                                            {new Date(v.created_at).toLocaleDateString("en-IN", {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric"
+                                            })}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400">
+                                            {v.visit_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                                        </p>
+                                    </div>
                                 </button>
                             ))
                         )}

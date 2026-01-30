@@ -18,6 +18,7 @@ import { DilationTimer } from "./DilationTimer";
 import { PrescriptionFormSection } from "./PrescriptionFormSection";
 import { HistoryTemplateSection } from "./HistoryTemplateSection";
 import { ExaminationSummarySection } from "./ExaminationSummarySection";
+import { HistoryPrescriptionModal } from "./HistoryPrescriptionModal";
 import { prescriptionDataApi, PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { handleError } from "@/utils/errorHandler";
 import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
@@ -59,6 +60,7 @@ export function DoctorPrescriptionModal({
     // Template selection state
     const [selectedTemplate, setSelectedTemplate] = useState<PrescriptionTemplate | null>(null);
     const [templateToEdit, setTemplateToEdit] = useState<PrescriptionTemplate | null>(null);
+    const [selectedHistoryVisitId, setSelectedHistoryVisitId] = useState<string | null>(null);
 
     // Resizable Layout State
     // Default: Left 15%, Right 32% (Reduced by 20% from 40% -> 0.4 * 0.8 = 0.32)
@@ -251,7 +253,7 @@ export function DoctorPrescriptionModal({
     return createPortal(
         <div className="fixed inset-0 z-[100] flex flex-col bg-slate-50">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm z-10">
+            <div className="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm z-30">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         {logoDataUrl && (
@@ -343,6 +345,7 @@ export function DoctorPrescriptionModal({
                                 doctorId={doctorId}
                                 onSelectTemplate={handleSelectTemplate}
                                 onEditTemplate={handleEditTemplate}
+                                onViewHistory={(id) => setSelectedHistoryVisitId(id)}
                             />
                         </div>
                     </div>
@@ -428,6 +431,14 @@ export function DoctorPrescriptionModal({
                     </div>
                 )}
             </div>
+            {selectedHistoryVisitId && (
+                <HistoryPrescriptionModal
+                    isOpen={!!selectedHistoryVisitId}
+                    onClose={() => setSelectedHistoryVisitId(null)}
+                    visitId={selectedHistoryVisitId}
+                    patientId={patientId}
+                />
+            )}
         </div>,
         portalTarget
     );
