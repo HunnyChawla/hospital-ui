@@ -58,18 +58,21 @@ const sizes = {
     button: "h-7 w-7 text-sm",
     input: "h-8 text-sm px-2",
     preset: "px-2 py-1 text-xs",
+    presetWidth: "w-10",
   },
   md: {
     container: "p-3",
     button: "h-9 w-9 text-base",
     input: "h-10 text-base px-3",
     preset: "px-3 py-1.5 text-sm",
+    presetWidth: "w-14",
   },
   lg: {
     container: "p-4",
     button: "h-11 w-11 text-lg",
     input: "h-12 text-lg px-4",
     preset: "px-4 py-2 text-sm",
+    presetWidth: "w-16",
   },
 };
 
@@ -290,23 +293,85 @@ export function NumericStepper({
 
         {/* Preset Buttons */}
         {showPresets && presets.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {presets.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => handlePresetClick(preset)}
-                disabled={disabled}
-                className={clsx(
-                  "rounded-md border font-medium transition",
-                  sizeClasses.preset,
-                  value === preset ? colors.presetActive : colors.preset,
-                  "disabled:opacity-40 disabled:cursor-not-allowed"
-                )}
-              >
-                {step >= 1 ? preset : (preset >= 0 ? `+${preset}` : preset)}
-              </button>
-            ))}
+          <div className="mt-3">
+            {(() => {
+              const negativePresets = presets.filter((p) => p < 0);
+              const positivePresets = presets.filter((p) => p >= 0);
+              const hasBoth = negativePresets.length > 0 && positivePresets.length > 0;
+
+              if (hasBoth) {
+                return (
+                  <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
+                    {/* Negative Presets */}
+                    <div className="flex flex-wrap content-start justify-end gap-1">
+                      {negativePresets.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handlePresetClick(preset)}
+                          disabled={disabled}
+                          className={clsx(
+                            "flex items-center justify-center rounded-md border font-medium transition",
+                            sizeClasses.preset,
+                            sizeClasses.presetWidth,
+                            value === preset ? colors.presetActive : colors.preset,
+                            "disabled:opacity-40 disabled:cursor-not-allowed"
+                          )}
+                        >
+                          {step >= 1 ? preset : (preset >= 0 ? `+${preset}` : preset)}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Vertical Divider */}
+                    <div className="w-px self-stretch bg-slate-200" />
+
+                    {/* Positive Presets */}
+                    <div className="flex flex-wrap content-start justify-start gap-1">
+                      {positivePresets.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handlePresetClick(preset)}
+                          disabled={disabled}
+                          className={clsx(
+                            "flex items-center justify-center rounded-md border font-medium transition",
+                            sizeClasses.preset,
+                            sizeClasses.presetWidth,
+                            value === preset ? colors.presetActive : colors.preset,
+                            "disabled:opacity-40 disabled:cursor-not-allowed"
+                          )}
+                        >
+                          {step >= 1 ? preset : (preset >= 0 ? `+${preset}` : preset)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex flex-wrap gap-1">
+                  {presets.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handlePresetClick(preset)}
+                      disabled={disabled}
+                      className={clsx(
+                        "flex items-center justify-center rounded-md border font-medium transition",
+                        sizeClasses.preset,
+                        sizeClasses.presetWidth,
+                        value === preset ? colors.presetActive : colors.preset,
+                        "disabled:opacity-40 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      {step >= 1 ? preset : (preset >= 0 ? `+${preset}` : preset)}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
