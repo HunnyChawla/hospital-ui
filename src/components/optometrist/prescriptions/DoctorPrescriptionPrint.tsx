@@ -231,40 +231,84 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                 {(prescription.items?.length > 0) && (
                     <div className="grid grid-cols-[150px_1fr] gap-2 mb-4">
                         <div className="font-semibold text-slate-700">Glasses Rx</div>
-                        <table className="w-full text-xs border-collapse border border-slate-300">
-                            <thead>
-                                <tr className="bg-slate-100">
-                                    <th className="border border-slate-300 p-1 w-12">Eye</th>
-                                    <th className="border border-slate-300 p-1">Sph</th>
-                                    <th className="border border-slate-300 p-1">Cyl</th>
-                                    <th className="border border-slate-300 p-1">Axis</th>
-                                    <th className="border border-slate-300 p-1">Add</th>
-                                    <th className="border border-slate-300 p-1">VA</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
-                                    <tr key={`od-${idx}`}>
-                                        <td className="border border-slate-300 p-1 font-bold text-center">Right</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.sphere)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.cylinder)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.axis)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.add_power)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.visual_acuity)}</td>
+                        <div className="space-y-2">
+                            <table className="w-full text-xs border-collapse border border-slate-300">
+                                <thead>
+                                    <tr className="bg-slate-100">
+                                        <th className="border border-slate-300 p-1 w-12">Eye</th>
+                                        <th className="border border-slate-300 p-1">Sph</th>
+                                        <th className="border border-slate-300 p-1">Cyl</th>
+                                        <th className="border border-slate-300 p-1">Axis</th>
+                                        <th className="border border-slate-300 p-1">Add</th>
+                                        <th className="border border-slate-300 p-1">VA</th>
                                     </tr>
-                                ))}
-                                {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
-                                    <tr key={`os-${idx}`}>
-                                        <td className="border border-slate-300 p-1 font-bold text-center">Left</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.sphere)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.cylinder)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.axis)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.add_power)}</td>
-                                        <td className="border border-slate-300 p-1 text-center">{formatVal(item.visual_acuity)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
+                                        <tr key={`od-${idx}`}>
+                                            <td className="border border-slate-300 p-1 font-bold text-center">Right</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.sphere)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.cylinder)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.axis)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.add_power)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.visual_acuity)}</td>
+                                        </tr>
+                                    ))}
+                                    {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
+                                        <tr key={`os-${idx}`}>
+                                            <td className="border border-slate-300 p-1 font-bold text-center">Left</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.sphere)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.cylinder)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.axis)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.add_power)}</td>
+                                            <td className="border border-slate-300 p-1 text-center">{formatVal(item.visual_acuity)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {/* PD Move to Glasses Rx context */}
+                            {(prescription.pupillary_distance || visitData?.ar_data?.pupillary_distance) && (
+                                <div className="flex gap-2 text-xs">
+                                    <span className="text-slate-500 font-semibold">Pupillary Distance (PD):</span>
+                                    <span className="font-medium">{prescription.pupillary_distance || visitData?.ar_data?.pupillary_distance} mm</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Optical Specifications */}
+                {(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (
+                    <div className="grid grid-cols-[150px_1fr] gap-2 mb-4">
+                        <div className="font-semibold text-slate-700">Optical Specs</div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                            {prescription.vision_type && (
+                                <div className="flex gap-1">
+                                    <span className="text-slate-500 whitespace-nowrap">Vision:</span>
+                                    <span className="font-medium uppercase truncate">{prescription.vision_type}</span>
+                                </div>
+                            )}
+                            {prescription.lens_type && (
+                                <div className="flex gap-1">
+                                    <span className="text-slate-500 whitespace-nowrap">Lens:</span>
+                                    <span className="font-medium uppercase truncate">{prescription.lens_type}</span>
+                                </div>
+                            )}
+                            {prescription.lens_material && (
+                                <div className="flex gap-1">
+                                    <span className="text-slate-500 whitespace-nowrap">Material:</span>
+                                    <span className="font-medium uppercase truncate">{prescription.lens_material}</span>
+                                </div>
+                            )}
+                            {prescription.coatings && prescription.coatings.length > 0 && (
+                                <div className="flex gap-1">
+                                    <span className="text-slate-500 whitespace-nowrap">Coatings:</span>
+                                    <span className="font-medium uppercase truncate" title={prescription.coatings.join(", ")}>
+                                        {prescription.coatings.join(", ")}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 

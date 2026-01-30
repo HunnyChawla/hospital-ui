@@ -180,7 +180,13 @@ export function PrescriptionFormSection({
     const [testSearchResults, setTestSearchResults] = useState<any[]>([]);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
     const [shouldPrint, setShouldPrint] = useState(false);
-    const [printWithHeader, setPrintWithHeader] = useState(true);
+    const [printWithHeader, setPrintWithHeader] = useState(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("prescription_print_with_header");
+            return saved !== null ? JSON.parse(saved) : true;
+        }
+        return true;
+    });
     const [showOpticalDetails, setShowOpticalDetails] = useState(false);
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
@@ -1943,7 +1949,11 @@ export function PrescriptionFormSection({
                                         <input
                                             type="checkbox"
                                             checked={printWithHeader}
-                                            onChange={(e) => setPrintWithHeader(e.target.checked)}
+                                            onChange={(e) => {
+                                                const val = e.target.checked;
+                                                setPrintWithHeader(val);
+                                                localStorage.setItem("prescription_print_with_header", JSON.stringify(val));
+                                            }}
                                             className="h-5 w-5 rounded-lg border-2 border-slate-300 text-sky-600 focus:ring-4 focus:ring-sky-500/20 focus:ring-offset-0 transition-all cursor-pointer"
                                         />
                                     </div>
