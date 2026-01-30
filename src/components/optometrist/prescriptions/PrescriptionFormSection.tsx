@@ -54,6 +54,7 @@ import type { PlannedSurgery } from "@/types";
 import { usersApi } from "@/services/usersApi";
 import { diagnosesApi } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
+import { labTestsApi } from "@/services/labTestsApi";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -171,6 +172,10 @@ export function PrescriptionFormSection({
     const [adviceSearchQuery, setAdviceSearchQuery] = useState("");
     const [searchingAdvices, setSearchingAdvices] = useState(false);
     const [adviceSearchResults, setAdviceSearchResults] = useState<any[]>([]);
+
+    const [testSearchQuery, setTestSearchQuery] = useState("");
+    const [searchingTests, setSearchingTests] = useState(false);
+    const [testSearchResults, setTestSearchResults] = useState<any[]>([]);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
     const [shouldPrint, setShouldPrint] = useState(false);
     const [printWithHeader, setPrintWithHeader] = useState(true);
@@ -562,6 +567,42 @@ export function PrescriptionFormSection({
         return () => clearTimeout(debounce);
     }, [adviceSearchQuery]);
 
+    // Search lab tests
+    useEffect(() => {
+        const searchQuery = async () => {
+            if (!testSearchQuery || testSearchQuery.trim().length < 2) {
+                setTestSearchResults([]);
+                return;
+            }
+
+            setSearchingTests(true);
+            try {
+                const response = await labTestsApi.list({
+                    search: testSearchQuery,
+                    page_size: 10,
+                    is_active: true
+                });
+
+                const results = response.items.map(t => ({
+                    id: t.id,
+                    label: t.test_name,
+                    value: t.test_name,
+                    category: t.category,
+                    code: t.test_code
+                }));
+
+                setTestSearchResults(results);
+            } catch (error) {
+                console.error("Test search error:", error);
+            } finally {
+                setSearchingTests(false);
+            }
+        };
+
+        const debounce = setTimeout(searchQuery, 300);
+        return () => clearTimeout(debounce);
+    }, [testSearchQuery]);
+
     // Handle diagnosis toggle
     const handleDiagnosisToggle = (value: string) => {
         setSelectedDiagnoses(prev => {
@@ -653,6 +694,17 @@ export function PrescriptionFormSection({
         setAdviceSearchQuery("");
         setAdviceSearchResults([]);
         toast.success(`Added ${advice.label}`);
+    };
+
+    const handleAddTestFromSearch = (test: any) => {
+        appendAdvice({
+            advice_type: "Lab Test",
+            description: test.value,
+            notes: ""
+        });
+        setTestSearchQuery("");
+        setTestSearchResults([]);
+        toast.success(`Added ${test.label}`);
     };
 
     const handleToggleCoating = (coating: string) => {
@@ -1450,6 +1502,49 @@ export function PrescriptionFormSection({
                                                             {advice.category && (
                                                                 <div className="text-xs text-slate-500 mt-1 capitalize">{advice.category}</div>
                                                             )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="relative group/search mb-3">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
+                                            {searchingTests ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <Stethoscope className="h-5 w-5" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={testSearchQuery}
+                                            onChange={(e) => setTestSearchQuery(e.target.value)}
+                                            placeholder="Search lab tests..."
+                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
+                                        />
+                                        {testSearchQuery.length >= 2 && !searchingTests && testSearchResults.length === 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
+                                                <p className="text-sm text-slate-500">No lab tests found matching "{testSearchQuery}"</p>
+                                            </div>
+                                        )}
+                                        {testSearchResults.length > 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
+                                                <ul className="max-h-60 overflow-y-auto py-1">
+                                                    {testSearchResults.map((test) => (
+                                                        <li
+                                                            key={test.id || test.value}
+                                                            onClick={() => handleAddTestFromSearch(test)}
+                                                            className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                        >
+                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{test.label}</div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-xs font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{test.code}</span>
+                                                                {test.category && (
+                                                                    <span className="text-xs text-slate-500 capitalize">{test.category}</span>
+                                                                )}
+                                                            </div>
                                                         </li>
                                                     ))}
                                                 </ul>
