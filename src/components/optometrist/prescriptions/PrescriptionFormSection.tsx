@@ -53,6 +53,7 @@ import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import type { PlannedSurgery } from "@/types";
 import { usersApi } from "@/services/usersApi";
 import { diagnosesApi } from "@/services/diagnosesApi";
+import { advicesApi } from "@/services/advicesApi";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -166,6 +167,10 @@ export function PrescriptionFormSection({
     const [diagnosisSearchQuery, setDiagnosisSearchQuery] = useState("");
     const [searchingDiagnoses, setSearchingDiagnoses] = useState(false);
     const [diagnosisSearchResults, setDiagnosisSearchResults] = useState<any[]>([]);
+
+    const [adviceSearchQuery, setAdviceSearchQuery] = useState("");
+    const [searchingAdvices, setSearchingAdvices] = useState(false);
+    const [adviceSearchResults, setAdviceSearchResults] = useState<any[]>([]);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
     const [shouldPrint, setShouldPrint] = useState(false);
     const [printWithHeader, setPrintWithHeader] = useState(true);
@@ -521,6 +526,42 @@ export function PrescriptionFormSection({
         return () => clearTimeout(debounce);
     }, [diagnosisSearchQuery]);
 
+    // Search advices
+    useEffect(() => {
+        const searchQuery = async () => {
+            if (!adviceSearchQuery || adviceSearchQuery.trim().length < 2) {
+                setAdviceSearchResults([]);
+                return;
+            }
+
+            setSearchingAdvices(true);
+            try {
+                // Use advicesApi to search
+                const response = await advicesApi.list({
+                    search: adviceSearchQuery,
+                    page_size: 10
+                });
+
+                // Map to format expected by UI
+                const results = response.items.map(a => ({
+                    id: a.id,
+                    label: a.advice_name,
+                    value: a.advice_name,
+                    category: a.category || 'General'
+                }));
+
+                setAdviceSearchResults(results);
+            } catch (error) {
+                console.error("Advice search error:", error);
+            } finally {
+                setSearchingAdvices(false);
+            }
+        };
+
+        const debounce = setTimeout(searchQuery, 300);
+        return () => clearTimeout(debounce);
+    }, [adviceSearchQuery]);
+
     // Handle diagnosis toggle
     const handleDiagnosisToggle = (value: string) => {
         setSelectedDiagnoses(prev => {
@@ -601,6 +642,17 @@ export function PrescriptionFormSection({
         handleDiagnosisToggle(diagnosis.value);
         setDiagnosisSearchQuery("");
         setDiagnosisSearchResults([]);
+    };
+
+    const handleAddAdviceFromSearch = (advice: any) => {
+        appendAdvice({
+            advice_type: advice.category || "General",
+            description: advice.value,
+            notes: ""
+        });
+        setAdviceSearchQuery("");
+        setAdviceSearchResults([]);
+        toast.success(`Added ${advice.label}`);
     };
 
     const handleToggleCoating = (coating: string) => {
@@ -1364,6 +1416,47 @@ export function PrescriptionFormSection({
                                 {/* Advice Section */}
                                 <div>
                                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Advice & Tests</label>
+
+                                    <div className="relative group/search mb-3">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
+                                            {searchingAdvices ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <CheckCircle className="h-5 w-5" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={adviceSearchQuery}
+                                            onChange={(e) => setAdviceSearchQuery(e.target.value)}
+                                            placeholder="Search advice..."
+                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
+                                        />
+                                        {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
+                                                <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
+                                            </div>
+                                        )}
+                                        {adviceSearchResults.length > 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
+                                                <ul className="max-h-60 overflow-y-auto py-1">
+                                                    {adviceSearchResults.map((advice) => (
+                                                        <li
+                                                            key={advice.id || advice.value}
+                                                            onClick={() => handleAddAdviceFromSearch(advice)}
+                                                            className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                        >
+                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{advice.label}</div>
+                                                            {advice.category && (
+                                                                <div className="text-xs text-slate-500 mt-1 capitalize">{advice.category}</div>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <AdviceQuickChips
                                         options={QUICK_ADVICE}
                                         addedIds={addedAdviceIds}
