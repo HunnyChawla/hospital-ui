@@ -32,6 +32,7 @@ interface OptometristActivePatientCardProps {
   isDoctor?: boolean;
   optometristId?: string;
   doctorId?: string;
+  doctorName?: string;
   isCompleted?: boolean;
 }
 
@@ -47,6 +48,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   isDoctor = false,
   optometristId,
   doctorId,
+  doctorName,
   isCompleted = false,
 }) => {
   const { viewMode, setViewMode } = useExaminationViewPreference();
@@ -143,6 +145,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
                 visitId={visitId || ""}
                 optometristId={optometristId || ""}
                 doctorId={doctorId || ""}
+                doctorName={doctorName}
                 isCompleted={isCompleted}
               />
             ) : (

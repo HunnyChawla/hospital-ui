@@ -680,6 +680,7 @@ export function OptometristPanel() {
                 isDoctor={isDoctor}
                 optometristId={isDoctor ? optometristIdForVisit : userId || ""}
                 doctorId={selectedDoctor?.doctor_id || ""}
+                doctorName={selectedDoctor?.doctor_name}
               >
                 {/* Tab content will be rendered inside layout */}
                 {selectedPatientId && (

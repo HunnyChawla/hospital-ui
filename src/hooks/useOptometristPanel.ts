@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchTodayOptometrySchedule,
@@ -40,17 +40,35 @@ export const useOptometristPanel = () => {
   const [mappingsLoading, setMappingsLoading] = useState(false);
   const [mappingsError, setMappingsError] = useState<string | null>(null);
 
+  // Optometrist panel state
+  const {
+    selectedPatientId,
+    activeTab,
+    todaySchedule,
+    todayStats,
+    loading,
+    error,
+  } = useAppSelector((state) => state.optometristPanel);
+  const { list: doctorsList } = useAppSelector((state) => state.doctors);
+
   // Get selected doctor from mappings - defaults to first active or first doctor
   // For doctors, we create a synthetic mapping if mappings are empty
-  const selectedDoctor = userRole === "doctor" && userId
-    ? {
-      doctor_id: selectedDoctorId || "", // Removed fallback to userId
-      doctor_name: "Me",
-      is_active: true
-    } as OptometristDoctorMapping
-    : selectedDoctorId
-      ? doctorMappings.find(m => m.doctor_id === selectedDoctorId) || doctorMappings[0] || null
-      : doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
+  const selectedDoctor = useMemo(() => {
+    if (userRole === "doctor" && userId) {
+      const myDoctor = doctorsList.find(d => d.user_id === userId);
+      return {
+        doctor_id: selectedDoctorId || myDoctor?.id || "",
+        doctor_name: myDoctor?.user_name || "Me",
+        is_active: true
+      } as OptometristDoctorMapping;
+    }
+
+    if (selectedDoctorId) {
+      return doctorMappings.find(m => m.doctor_id === selectedDoctorId) || doctorMappings[0] || null;
+    }
+
+    return doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
+  }, [userRole, userId, selectedDoctorId, doctorMappings, doctorsList]);
 
   // Auto-select first doctor when mappings load
   useEffect(() => {
@@ -66,18 +84,6 @@ export const useOptometristPanel = () => {
   const handleSetSelectedDoctor = useCallback((doctorId: string) => {
     setSelectedDoctorId(doctorId);
   }, []);
-
-  // Optometrist panel state
-  const {
-    selectedPatientId,
-    activeTab,
-    todaySchedule,
-    todayStats,
-    loading,
-    error,
-  } = useAppSelector((state) => state.optometristPanel);
-
-  const { list: doctorsList } = useAppSelector((state) => state.doctors);
 
   // Verify user is optometrist and fetch mappings
   useEffect(() => {

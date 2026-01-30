@@ -56,6 +56,7 @@ interface OptometristPanelVerticalLayoutProps {
   isDoctor?: boolean;
   optometristId?: string;
   doctorId?: string;
+  doctorName?: string;
 }
 
 const STORAGE_KEY = "optometry-queue-sidebar-width";
@@ -88,6 +89,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   isDoctor,
   optometristId,
   doctorId,
+  doctorName,
 }) => {
   const [isStatsExpanded, setIsStatsExpanded] = useState(true);
   const [isQueueExpanded, setIsQueueExpanded] = useState(true);
@@ -221,6 +223,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             isDoctor={isDoctor}
             optometristId={optometristId}
             doctorId={doctorId}
+            doctorName={doctorName}
             isCompleted={isCompleted}
           >
             {children}

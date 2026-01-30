@@ -175,6 +175,8 @@ export interface PrescriptionDataResponse {
     created_by: string;
     updated_by: string | null;
   }> | null;
+  address?: string | null;
+  checked_in_at?: string | null;
 }
 
 export const prescriptionDataApi = {
