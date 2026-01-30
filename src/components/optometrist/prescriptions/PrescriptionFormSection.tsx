@@ -159,9 +159,9 @@ export function PrescriptionFormSection({
     const [medicineSearchQuery, setMedicineSearchQuery] = useState("");
     const [medicineSearchResults, setMedicineSearchResults] = useState<any[]>([]);
 
-    // Dynamic presets state - only from API
     const [diagnosesOptions, setDiagnosesOptions] = useState<any[]>([]);
     const [medicinesOptions, setMedicinesOptions] = useState<any[]>([]);
+    const [advicesOptions, setAdvicesOptions] = useState<any[]>([]);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
 
     const [searchingMedicines, setSearchingMedicines] = useState(false);
@@ -342,14 +342,8 @@ export function PrescriptionFormSection({
                         advice_items: existing.advice_items || [],
                     });
 
-                    // Track added advice
-                    if (existing.advice_items) {
-                        const ids = existing.advice_items.map((a: AdviceItem) => {
-                            const match = QUICK_ADVICE.find(qa => qa.advice.description === a.description);
-                            return match?.id;
-                        }).filter(Boolean) as string[];
-                        setAddedAdviceIds(ids);
-                    }
+                    // Track added advice - will be handled by sync effect
+                    // if (existing.advice_items) { ... }
 
                 }
             } catch (err) {
@@ -388,6 +382,21 @@ export function PrescriptionFormSection({
         }
     }, [medicinesOptions, medicineFields]);
 
+    // Sync added advice IDs when advice options or fields change
+    useEffect(() => {
+        if (advicesOptions.length > 0 && adviceFields.length > 0) {
+            const advIds = adviceFields.map((field: any) => {
+                const match = advicesOptions.find(opt =>
+                    opt.value === field.description
+                );
+                return match?.id;
+            }).filter(Boolean) as string[];
+            setAddedAdviceIds(advIds);
+        } else if (adviceFields.length === 0) {
+            setAddedAdviceIds([]);
+        }
+    }, [advicesOptions, adviceFields]);
+
     // Custom remove medicine handler that also updates tracking
     const handleRemoveMedicine = (index: number) => {
         const medicine = medicineFields[index];
@@ -402,6 +411,18 @@ export function PrescriptionFormSection({
         removeMedicine(index);
     };
 
+    // Custom remove advice handler
+    const handleRemoveAdvice = (index: number) => {
+        const advice = adviceFields[index];
+        const matchingPreset = advicesOptions.find(opt =>
+            opt.value === advice.description
+        );
+        if (matchingPreset) {
+            setAddedAdviceIds(prev => prev.filter(id => id !== matchingPreset.id));
+        }
+        removeAdvice(index);
+    };
+
     const selectedCoatings = watch("coatings");
     const currentDiagnosis = watch("diagnosis");
 
@@ -410,9 +431,10 @@ export function PrescriptionFormSection({
         if (doctorId) {
             const loadData = async () => {
                 try {
-                    const [dx, meds, docProfile] = await Promise.all([
+                    const [dx, meds, advs, docProfile] = await Promise.all([
                         quickPresetsApi.getDiagnoses(doctorId),
                         quickPresetsApi.getMedicines(doctorId),
+                        quickPresetsApi.getAdvices(doctorId),
                         doctorsApi.getById(doctorId)
                     ]);
 
@@ -443,11 +465,19 @@ export function PrescriptionFormSection({
                     } else {
                         setMedicinesOptions([]);
                     }
+
+                    if (advs && advs.length > 0) {
+                        setAdvicesOptions(advs);
+                    } else {
+                        setAdvicesOptions([]);
+                    }
+
                 } catch (error) {
                     console.error("Failed to load doctor data", error);
-                    // Set empty arrays on error - no mock data fallback
+                    // Set empty arrays on error
                     setDiagnosesOptions([]);
                     setMedicinesOptions([]);
+                    setAdvicesOptions([]);
                 }
             };
             loadData();
@@ -646,9 +676,13 @@ export function PrescriptionFormSection({
     // Handle quick advice add
     const handleQuickAdviceAdd = (id: string) => {
         if (addedAdviceIds.includes(id)) return;
-        const template = QUICK_ADVICE.find(a => a.id === id);
+        const template = advicesOptions.find(a => a.id === id);
         if (template) {
-            appendAdvice(template.advice);
+            appendAdvice({
+                advice_type: template.category,
+                description: template.value,
+                notes: ""
+            });
             setAddedAdviceIds(prev => [...prev, id]);
             toast.success(`Added ${template.label}`);
         }
@@ -1462,52 +1496,24 @@ export function PrescriptionFormSection({
                                             <p className="text-xs text-slate-600 font-medium mt-0.5">Define care plan, advice, and procedures</p>
                                         </div>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettingsModal(true)}
+                                        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white hover:text-emerald-600 border-2 border-transparent hover:border-emerald-200 transition-all shadow-sm hover:shadow"
+                                        title="Configure Presets"
+                                    >
+                                        <Settings className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Settings</span>
+                                    </button>
                                 </div>
                             </div>
                             <div className="p-6 space-y-5">
-                                {/* Advice Section */}
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Advice & Tests</label>
-
-                                    <div className="relative group/search mb-3">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
-                                            {searchingAdvices ? (
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                            ) : (
-                                                <CheckCircle className="h-5 w-5" />
-                                            )}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={adviceSearchQuery}
-                                            onChange={(e) => setAdviceSearchQuery(e.target.value)}
-                                            placeholder="Search advice..."
-                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
-                                        />
-                                        {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
-                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                                <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
-                                            </div>
-                                        )}
-                                        {adviceSearchResults.length > 0 && (
-                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
-                                                <ul className="max-h-60 overflow-y-auto py-1">
-                                                    {adviceSearchResults.map((advice) => (
-                                                        <li
-                                                            key={advice.id || advice.value}
-                                                            onClick={() => handleAddAdviceFromSearch(advice)}
-                                                            className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
-                                                        >
-                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{advice.label}</div>
-                                                            {advice.category && (
-                                                                <div className="text-xs text-slate-500 mt-1 capitalize">{advice.category}</div>
-                                                            )}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
+                                {/* Lab Tests Section */}
+                                <div className="mb-6">
+                                    <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                        <Stethoscope className="h-4 w-4 text-emerald-600" />
+                                        Lab Tests & Investigations
+                                    </h4>
 
                                     <div className="relative group/search mb-3">
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
@@ -1552,41 +1558,127 @@ export function PrescriptionFormSection({
                                         )}
                                     </div>
 
-                                    <AdviceQuickChips
-                                        options={QUICK_ADVICE}
-                                        addedIds={addedAdviceIds}
-                                        onAdd={handleQuickAdviceAdd}
-                                        className="mb-3"
-                                    />
+                                    {/* Added Tests List */}
+                                    {adviceFields.some(field => field.advice_type === "Lab Test") && (
+                                        <div className="space-y-2 mt-3">
+                                            {adviceFields.map((field, index) => {
+                                                if (field.advice_type !== "Lab Test") return null;
+                                                return (
+                                                    <div key={field.id} className="flex items-center gap-2 group/advice">
+                                                        <div className="flex-1">
+                                                            <input
+                                                                {...register(`advice_items.${index}.description`)}
+                                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveAdvice(index)}
+                                                            className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="h-px bg-slate-100 my-6" />
+
+                                {/* Advice Section */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-2">
+                                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                            General Advice
+                                        </h4>
+                                    </div>
+
+                                    <div className="relative group/search mb-3">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
+                                            {searchingAdvices ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <CheckCircle className="h-5 w-5" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={adviceSearchQuery}
+                                            onChange={(e) => setAdviceSearchQuery(e.target.value)}
+                                            placeholder="Search advice..."
+                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
+                                        />
+                                        {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
+                                                <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
+                                            </div>
+                                        )}
+                                        {adviceSearchResults.length > 0 && (
+                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
+                                                <ul className="max-h-60 overflow-y-auto py-1">
+                                                    {adviceSearchResults.map((advice) => (
+                                                        <li
+                                                            key={advice.id || advice.value}
+                                                            onClick={() => handleAddAdviceFromSearch(advice)}
+                                                            className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                        >
+                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{advice.label}</div>
+                                                            {advice.category && (
+                                                                <div className="text-xs text-slate-500 mt-1 capitalize">{advice.category}</div>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {advicesOptions.length > 0 ? (
+                                        <AdviceQuickChips
+                                            options={advicesOptions}
+                                            addedIds={addedAdviceIds}
+                                            onAdd={handleQuickAdviceAdd}
+                                            className="mb-3"
+                                        />
+                                    ) : (
+                                        <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200 mb-3">
+                                            <p className="text-xs text-slate-500">No quick advice presets configured.</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSettingsModal(true)}
+                                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
+                                            >
+                                                Configure in Settings
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {/* Added Advice List */}
-                                    {adviceFields.length > 0 && (
+                                    {adviceFields.some(field => field.advice_type !== "Lab Test") && (
                                         <div className="space-y-2 mt-3">
-                                            {adviceFields.map((field, index) => (
-                                                <div key={field.id} className="flex items-center gap-2 group/advice">
-                                                    <div className="flex-1">
-                                                        <input
-                                                            {...register(`advice_items.${index}.description`)}
-                                                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                                                        />
+                                            {adviceFields.map((field, index) => {
+                                                if (field.advice_type === "Lab Test") return null;
+                                                return (
+                                                    <div key={field.id} className="flex items-center gap-2 group/advice">
+                                                        <div className="flex-1">
+                                                            <input
+                                                                {...register(`advice_items.${index}.description`)}
+                                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveAdvice(index)}
+                                                            className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            removeAdvice(index);
-                                                            // Also remove from tracked IDs
-                                                            const description = adviceFields[index]?.description;
-                                                            const match = QUICK_ADVICE.find(qa => qa.advice.description === description);
-                                                            if (match) {
-                                                                setAddedAdviceIds(prev => prev.filter(id => id !== match.id));
-                                                            }
-                                                        }}
-                                                        className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

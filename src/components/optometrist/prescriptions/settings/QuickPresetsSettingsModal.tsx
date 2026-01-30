@@ -6,11 +6,13 @@ import { toast } from "sonner";
 import {
     quickPresetsApi,
     type QuickDiagnosis,
-    type QuickMedicine
+    type QuickMedicine,
+    type QuickAdvice
 } from "@/services/quickPresetsApi";
 import { DiagnosisPresetList } from "./DiagnosisPresetList";
 import { MedicinePresetList } from "./MedicinePresetList";
-import { QUICK_DIAGNOSES, QUICK_MEDICINES } from "../prescriptionQuickActions";
+import { AdvicePresetList } from "./AdvicePresetList";
+import { QUICK_DIAGNOSES, QUICK_MEDICINES, QUICK_ADVICE } from "../prescriptionQuickActions";
 
 interface QuickPresetsSettingsModalProps {
     isOpen: boolean;
@@ -25,17 +27,19 @@ export function QuickPresetsSettingsModal({
     doctorId,
     onSaved,
 }: QuickPresetsSettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<"diagnoses" | "medicines">("diagnoses");
+    const [activeTab, setActiveTab] = useState<"diagnoses" | "medicines" | "advices">("diagnoses");
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Data state
     const [diagnoses, setDiagnoses] = useState<QuickDiagnosis[]>([]);
     const [medicines, setMedicines] = useState<QuickMedicine[]>([]);
+    const [advices, setAdvices] = useState<QuickAdvice[]>([]);
 
     // Tracking dirty state to enable save button
     const [originalDiagnoses, setOriginalDiagnoses] = useState<string>("");
     const [originalMedicines, setOriginalMedicines] = useState<string>("");
+    const [originalAdvices, setOriginalAdvices] = useState<string>("");
 
     // Fetch data when modal opens
     useEffect(() => {
@@ -47,22 +51,20 @@ export function QuickPresetsSettingsModal({
     const fetchPresets = async () => {
         setLoading(true);
         try {
-            const [fetchedDiagnoses, fetchedMedicines] = await Promise.all([
+            const [fetchedDiagnoses, fetchedMedicines, fetchedAdvices] = await Promise.all([
                 quickPresetsApi.getDiagnoses(doctorId),
-                quickPresetsApi.getMedicines(doctorId)
+                quickPresetsApi.getMedicines(doctorId),
+                quickPresetsApi.getAdvices(doctorId)
             ]);
-
-            // If empty, we can optionally seed with defaults OR just show empty states.
-            // For better UX, let's allow "Reset to Defaults" button instead of auto-seeding
-            // But if completely empty, maybe seed with defaults for first time?
-            // Let's stick to what API returns.
 
             setDiagnoses(fetchedDiagnoses);
             setMedicines(fetchedMedicines);
+            setAdvices(fetchedAdvices);
 
             // Store stringified versions for dirty checking
             setOriginalDiagnoses(JSON.stringify(fetchedDiagnoses));
             setOriginalMedicines(JSON.stringify(fetchedMedicines));
+            setOriginalAdvices(JSON.stringify(fetchedAdvices));
 
         } catch (error) {
             console.error("Failed to load presets", error);
@@ -75,10 +77,75 @@ export function QuickPresetsSettingsModal({
     const handleSave = async () => {
         setSaving(true);
         try {
-            await Promise.all([
-                quickPresetsApi.updateDiagnoses(doctorId, diagnoses),
-                quickPresetsApi.updateMedicines(doctorId, medicines)
-            ]);
+            const promises: Promise<any>[] = [];
+
+            // Helper to process list changes
+            const processChanges = <T extends { id?: string }>(
+                currentList: T[],
+                originalListStr: string,
+                createFn: (doctorId: string, item: T) => Promise<T>,
+                updateFn: (doctorId: string, id: string, item: T) => Promise<T>,
+                deleteFn: (doctorId: string, id: string) => Promise<void>
+            ) => {
+                const originalList: T[] = JSON.parse(originalListStr || "[]");
+
+                // Identify Deletions: Items in original but not in current (by ID)
+                // Note: Items without ID in original shouldn't exist ideally, but safe to ignore
+                const currentIds = new Set(currentList.map(item => item.id).filter(Boolean));
+                const toDelete = originalList.filter(item => item.id && !currentIds.has(item.id));
+
+                toDelete.forEach(item => {
+                    if (item.id) promises.push(deleteFn(doctorId, item.id));
+                });
+
+                // Identify Creations and Updates
+                currentList.forEach(item => {
+                    // Check if it's a temp ID (starts with "new-") or undefined
+                    const isNew = !item.id || item.id.startsWith("new-");
+
+                    if (isNew) {
+                        // Create: ensure we send object without the temp ID if possible, or API handles it
+                        // For clean API calls, we might want to strip 'id' if it's "new-..." or just let backend handle it
+                        const { id, ...payload } = item;
+                        promises.push(createFn(doctorId, payload as T));
+                    } else {
+                        // Update: Check if it actually changed
+                        const originalItem = originalList.find(o => o.id === item.id);
+                        if (originalItem && JSON.stringify(originalItem) !== JSON.stringify(item)) {
+                            promises.push(updateFn(doctorId, item.id!, item));
+                        }
+                    }
+                });
+            };
+
+            // Process Diagnoses
+            processChanges(
+                diagnoses,
+                originalDiagnoses,
+                quickPresetsApi.createDiagnosis,
+                quickPresetsApi.updateDiagnosis,
+                quickPresetsApi.deleteDiagnosis
+            );
+
+            // Process Medicines
+            processChanges(
+                medicines,
+                originalMedicines,
+                quickPresetsApi.createMedicine,
+                quickPresetsApi.updateMedicine,
+                quickPresetsApi.deleteMedicine
+            );
+
+            // Process Advices
+            processChanges(
+                advices,
+                originalAdvices,
+                quickPresetsApi.createAdvice,
+                quickPresetsApi.updateAdvice,
+                quickPresetsApi.deleteAdvice
+            );
+
+            await Promise.all(promises);
 
             toast.success("Presets updated successfully");
             onSaved?.(); // Refresh parent
@@ -103,7 +170,7 @@ export function QuickPresetsSettingsModal({
                 category: d.category as any
             }));
             setDiagnoses(defaultDx);
-        } else {
+        } else if (activeTab === "medicines") {
             const defaultMeds: QuickMedicine[] = QUICK_MEDICINES.map(m => ({
                 label: m.label,
                 icon: m.icon as any,
@@ -116,6 +183,13 @@ export function QuickPresetsSettingsModal({
                 instructions: m.medicine.instructions
             }));
             setMedicines(defaultMeds);
+        } else {
+            const defaultAdv: QuickAdvice[] = QUICK_ADVICE.map(a => ({
+                label: a.label,
+                value: a.value,
+                category: a.category,
+            }));
+            setAdvices(defaultAdv);
         }
     };
 
@@ -123,13 +197,14 @@ export function QuickPresetsSettingsModal({
 
     // Check if both might be dirty? Actually save button saves ALL tabs.
     const isAnyDirty = (JSON.stringify(diagnoses) !== originalDiagnoses) ||
-        (JSON.stringify(medicines) !== originalMedicines);
+        (JSON.stringify(medicines) !== originalMedicines) ||
+        (JSON.stringify(advices) !== originalAdvices);
 
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -172,6 +247,15 @@ export function QuickPresetsSettingsModal({
                         >
                             Medicines
                         </button>
+                        <button
+                            onClick={() => setActiveTab("advices")}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "advices"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                : "text-slate-600 hover:bg-slate-200"
+                                }`}
+                        >
+                            Advices
+                        </button>
                     </div>
 
                     {/* Content Area */}
@@ -184,7 +268,8 @@ export function QuickPresetsSettingsModal({
                             <div className="max-w-3xl mx-auto">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-bold text-slate-800">
-                                        {activeTab === "diagnoses" ? "Diagnosis Chips" : "Medicine Templates"}
+                                        {activeTab === "diagnoses" ? "Diagnosis Chips" :
+                                            activeTab === "medicines" ? "Medicine Templates" : "Advice Chips"}
                                     </h3>
                                     <button
                                         onClick={handleResetDefaults}
@@ -200,10 +285,15 @@ export function QuickPresetsSettingsModal({
                                         items={diagnoses}
                                         onChange={setDiagnoses}
                                     />
-                                ) : (
+                                ) : activeTab === "medicines" ? (
                                     <MedicinePresetList
                                         items={medicines}
                                         onChange={setMedicines}
+                                    />
+                                ) : (
+                                    <AdvicePresetList
+                                        items={advices}
+                                        onChange={setAdvices}
                                     />
                                 )}
                             </div>

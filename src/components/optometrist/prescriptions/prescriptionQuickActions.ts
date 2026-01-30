@@ -121,70 +121,46 @@ export const QUICK_FOLLOWUPS: QuickFollowupOption[] = [
 export interface QuickAdviceTemplate {
     id: string;
     label: string;
-    category: "test" | "lifestyle" | "referral";
-    advice: Omit<AdviceItem, "id">;
+    value: string;
+    category: "General" | "Post-Op" | "Pre-Op" | "Infection" | "Allergy";
 }
 
 export const QUICK_ADVICE: QuickAdviceTemplate[] = [
     {
         id: "fundus",
         label: "Fundus Exam",
-        category: "test",
-        advice: {
-            advice_type: "Investigation",
-            description: "Dilated Fundus Examination",
-            notes: "After dilation",
-        },
+        value: "Dilated Fundus Examination",
+        category: "General",
     },
     {
         id: "oct",
         label: "OCT",
-        category: "test",
-        advice: {
-            advice_type: "Investigation",
-            description: "OCT Macula + RNFL",
-            notes: "",
-        },
+        value: "OCT Macula + RNFL",
+        category: "General",
     },
     {
         id: "visual_field",
         label: "Visual Field",
-        category: "test",
-        advice: {
-            advice_type: "Investigation",
-            description: "Automated Perimetry (Visual Field Test)",
-            notes: "",
-        },
+        value: "Automated Perimetry (Visual Field Test)",
+        category: "General",
     },
     {
         id: "blood_sugar",
         label: "Blood Sugar",
-        category: "test",
-        advice: {
-            advice_type: "Lab Test",
-            description: "Fasting Blood Sugar / HbA1c",
-            notes: "For diabetic screening",
-        },
+        value: "Fasting Blood Sugar / HbA1c",
+        category: "General",
     },
     {
         id: "screen_time",
         label: "Screen Time",
-        category: "lifestyle",
-        advice: {
-            advice_type: "Lifestyle",
-            description: "Reduce screen time, follow 20-20-20 rule",
-            notes: "Every 20 mins, look 20 feet away for 20 seconds",
-        },
+        value: "Reduce screen time, follow 20-20-20 rule",
+        category: "General",
     },
     {
         id: "glasses_wear",
         label: "Wear Glasses",
-        category: "lifestyle",
-        advice: {
-            advice_type: "Advice",
-            description: "Wear prescribed glasses regularly",
-            notes: "For distance/near as prescribed",
-        },
+        value: "Wear prescribed glasses regularly",
+        category: "General", // "General" is the safest fallback for "lifestyle" items if not strictly mapped
     },
 ];
 
