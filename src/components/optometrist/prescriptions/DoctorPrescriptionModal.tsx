@@ -336,7 +336,7 @@ export function DoctorPrescriptionModal({
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto">
+                        <div className="flex-1 overflow-y-auto scrollbar-hide">
                             <HistoryTemplateSection
                                 patientId={patientId}
                                 visitId={visitId}
@@ -359,7 +359,7 @@ export function DoctorPrescriptionModal({
                 )}
 
                 {/* MIDDLE PANEL: Main Form */}
-                <div className="flex-1 overflow-y-auto bg-white min-w-[400px]">
+                <div className="flex-1 overflow-y-auto bg-white min-w-[400px] scrollbar-hide">
                     <PrescriptionFormSection
                         patientId={patientId}
                         visitId={visitId}
@@ -402,7 +402,7 @@ export function DoctorPrescriptionModal({
                             </button>
                             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider pr-1">Exam Summary</span>
                         </div>
-                        <div className="flex-1 overflow-y-auto">
+                        <div className="flex-1 overflow-y-auto scrollbar-hide">
                             {loadingSummary ? (
                                 <div className="flex items-center justify-center h-full">
                                     <div className="text-center">
