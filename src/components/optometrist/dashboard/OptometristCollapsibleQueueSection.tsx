@@ -409,23 +409,25 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                     </>
                                   )}
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onAction(patient.visit_id, "mark_no_show");
-                                  }}
-                                  disabled={updatingVisitId === patient.visit_id}
-                                  className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-all hover:from-rose-600 hover:to-red-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                                >
-                                  {updatingVisitId === patient.visit_id ? (
-                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                  ) : (
-                                    <>
-                                      <AlertTriangle className="h-3.5 w-3.5" />
-                                      No Show
-                                    </>
-                                  )}
-                                </button>
+                                {index === 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAction(patient.visit_id, "mark_no_show");
+                                    }}
+                                    disabled={updatingVisitId === patient.visit_id}
+                                    className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-all hover:from-rose-600 hover:to-red-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                  >
+                                    {updatingVisitId === patient.visit_id ? (
+                                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    ) : (
+                                      <>
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        No Show
+                                      </>
+                                    )}
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -499,7 +501,6 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onSelectPatient(patient.patient_id);
                                   onAction(patient.visit_id, "pick_doctor");
                                 }}
                                 disabled={updatingVisitId === patient.visit_id}
@@ -557,8 +558,8 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               </>
                             )}
 
-                            {/* No Show Button - Show for both statuses */}
-                            {(patient.status === "doctor_assigned" || patient.status === "awaiting_doctor") && (
+                            {/* No Show Button - Show for both statuses, but only for first in queue */}
+                            {(patient.status === "doctor_assigned" || patient.status === "awaiting_doctor") && index === 0 && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
