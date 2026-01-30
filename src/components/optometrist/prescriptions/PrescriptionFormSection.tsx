@@ -1995,16 +1995,7 @@ export function PrescriptionFormSection({
                                     </button>
                                 ) : (
                                     <>
-                                        {savedPrescription && (
-                                            <button
-                                                type="button"
-                                                onClick={handlePrintClick}
-                                                className="flex items-center gap-2 px-5 py-3 border-2 border-slate-300 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all text-sm shadow-md hover:shadow-lg"
-                                            >
-                                                <Printer className="h-4 w-4" />
-                                                Print
-                                            </button>
-                                        )}
+
 
                                         <button
                                             type="button"
