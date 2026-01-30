@@ -288,3 +288,67 @@ export function SelectedDiagnoses({
         </div>
     );
 }
+
+// ====================
+// Lab Test Quick Select
+// ====================
+
+interface LabTestQuickOption {
+    id: string;
+    label: string;
+    category: string;
+}
+
+interface LabTestQuickChipsProps {
+    options: readonly LabTestQuickOption[];
+    addedIds: string[];
+    onAdd: (id: string) => void;
+    className?: string;
+}
+
+const labCategoryColorMap: Record<string, string> = {
+    "Hematology": "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+    "Biochemistry": "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
+    "Microbiology": "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
+    "Pathology": "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+    "Serology": "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
+    "Other": "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
+};
+
+export function LabTestQuickChips({
+    options,
+    addedIds,
+    onAdd,
+    className,
+}: LabTestQuickChipsProps) {
+    return (
+        <div className={clsx("flex flex-wrap gap-1.5", className)}>
+            {options.map((option) => {
+                const isAdded = addedIds.includes(option.id);
+                const colorClass = labCategoryColorMap[option.category] || labCategoryColorMap.Other;
+
+                return (
+                    <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => onAdd(option.id)}
+                        disabled={isAdded}
+                        className={clsx(
+                            "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all duration-150",
+                            isAdded
+                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                : colorClass
+                        )}
+                    >
+                        {option.label}
+                        {isAdded ? (
+                            <Check className="h-3 w-3" />
+                        ) : (
+                            <Plus className="h-3 w-3 opacity-60" />
+                        )}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}

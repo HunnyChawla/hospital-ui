@@ -34,6 +34,7 @@ import {
     MedicineQuickChips,
     FollowupQuickChips,
     AdviceQuickChips,
+    LabTestQuickChips,
     SelectedDiagnoses,
 } from "./QuickSelectChips";
 import {
@@ -162,6 +163,7 @@ export function PrescriptionFormSection({
     const [diagnosesOptions, setDiagnosesOptions] = useState<any[]>([]);
     const [medicinesOptions, setMedicinesOptions] = useState<any[]>([]);
     const [advicesOptions, setAdvicesOptions] = useState<any[]>([]);
+    const [labTestsOptions, setLabTestsOptions] = useState<any[]>([]);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
 
     const [searchingMedicines, setSearchingMedicines] = useState(false);
@@ -184,6 +186,7 @@ export function PrescriptionFormSection({
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
     const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
     const [addedAdviceIds, setAddedAdviceIds] = useState<string[]>([]);
+    const [addedLabTestIds, setAddedLabTestIds] = useState<string[]>([]);
     const [addedMedicineIds, setAddedMedicineIds] = useState<string[]>([]);
     const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
     const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
@@ -381,7 +384,6 @@ export function PrescriptionFormSection({
             setAddedMedicineIds([]);
         }
     }, [medicinesOptions, medicineFields]);
-
     // Sync added advice IDs when advice options or fields change
     useEffect(() => {
         if (advicesOptions.length > 0 && adviceFields.length > 0) {
@@ -396,6 +398,23 @@ export function PrescriptionFormSection({
             setAddedAdviceIds([]);
         }
     }, [advicesOptions, adviceFields]);
+
+    // Sync added lab test IDs
+    useEffect(() => {
+        if (labTestsOptions.length > 0 && adviceFields.length > 0) {
+            const labIds = adviceFields
+                .filter(field => field.advice_type === "Lab Test")
+                .map((field: any) => {
+                    const match = labTestsOptions.find(opt =>
+                        opt.value === field.description
+                    );
+                    return match?.id;
+                }).filter(Boolean) as string[];
+            setAddedLabTestIds(labIds);
+        } else if (adviceFields.length === 0) {
+            setAddedLabTestIds([]);
+        }
+    }, [labTestsOptions, adviceFields]);
 
     // Custom remove medicine handler that also updates tracking
     const handleRemoveMedicine = (index: number) => {
@@ -431,10 +450,11 @@ export function PrescriptionFormSection({
         if (doctorId) {
             const loadData = async () => {
                 try {
-                    const [dx, meds, advs, docProfile] = await Promise.all([
+                    const [dx, meds, advs, labTests, docProfile] = await Promise.all([
                         quickPresetsApi.getDiagnoses(doctorId),
                         quickPresetsApi.getMedicines(doctorId),
                         quickPresetsApi.getAdvices(doctorId),
+                        quickPresetsApi.getLabTests(doctorId),
                         doctorsApi.getById(doctorId)
                     ]);
 
@@ -472,12 +492,19 @@ export function PrescriptionFormSection({
                         setAdvicesOptions([]);
                     }
 
+                    if (labTests && labTests.length > 0) {
+                        setLabTestsOptions(labTests);
+                    } else {
+                        setLabTestsOptions([]);
+                    }
+
                 } catch (error) {
                     console.error("Failed to load doctor data", error);
                     // Set empty arrays on error
                     setDiagnosesOptions([]);
                     setMedicinesOptions([]);
                     setAdvicesOptions([]);
+                    setLabTestsOptions([]);
                 }
             };
             loadData();
@@ -684,6 +711,21 @@ export function PrescriptionFormSection({
                 notes: ""
             });
             setAddedAdviceIds(prev => [...prev, id]);
+            toast.success(`Added ${template.label}`);
+        }
+    };
+
+    // Handle quick lab test add
+    const handleQuickLabTestAdd = (id: string) => {
+        if (addedLabTestIds.includes(id)) return;
+        const template = labTestsOptions.find(l => l.id === id);
+        if (template) {
+            appendAdvice({
+                advice_type: "Lab Test",
+                description: template.value,
+                notes: ""
+            });
+            setAddedLabTestIds(prev => [...prev, id]);
             toast.success(`Added ${template.label}`);
         }
     };
@@ -1558,6 +1600,33 @@ export function PrescriptionFormSection({
                                         )}
                                     </div>
 
+                                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner mb-6">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                                                <Sparkles className="h-3.5 w-3.5 text-white" />
+                                            </div>
+                                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Selection</p>
+                                        </div>
+                                        {labTestsOptions.length > 0 ? (
+                                            <LabTestQuickChips
+                                                options={labTestsOptions}
+                                                addedIds={addedLabTestIds}
+                                                onAdd={handleQuickLabTestAdd}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
+                                                <p className="text-xs text-slate-500">No lab test presets configured.</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowSettingsModal(true)}
+                                                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
+                                                >
+                                                    Configure in Settings
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {/* Added Tests List */}
                                     {adviceFields.some(field => field.advice_type === "Lab Test") && (
                                         <div className="space-y-2 mt-3">
@@ -1636,25 +1705,32 @@ export function PrescriptionFormSection({
                                         )}
                                     </div>
 
-                                    {advicesOptions.length > 0 ? (
-                                        <AdviceQuickChips
-                                            options={advicesOptions}
-                                            addedIds={addedAdviceIds}
-                                            onAdd={handleQuickAdviceAdd}
-                                            className="mb-3"
-                                        />
-                                    ) : (
-                                        <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200 mb-3">
-                                            <p className="text-xs text-slate-500">No quick advice presets configured.</p>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowSettingsModal(true)}
-                                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
-                                            >
-                                                Configure in Settings
-                                            </button>
+                                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                                                <Sparkles className="h-3.5 w-3.5 text-white" />
+                                            </div>
+                                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Selection</p>
                                         </div>
-                                    )}
+                                        {advicesOptions.length > 0 ? (
+                                            <AdviceQuickChips
+                                                options={advicesOptions}
+                                                addedIds={addedAdviceIds}
+                                                onAdd={handleQuickAdviceAdd}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
+                                                <p className="text-xs text-slate-500">No advice presets configured.</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowSettingsModal(true)}
+                                                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
+                                                >
+                                                    Configure in Settings
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* Added Advice List */}
                                     {adviceFields.some(field => field.advice_type !== "Lab Test") && (
@@ -2042,9 +2118,11 @@ export function PrescriptionFormSection({
                                 // Reload presets from API - no mock data fallback
                                 const reloadPresets = async () => {
                                     try {
-                                        const [dx, meds] = await Promise.all([
+                                        const [dx, meds, advs, labTests] = await Promise.all([
                                             quickPresetsApi.getDiagnoses(doctorId),
-                                            quickPresetsApi.getMedicines(doctorId)
+                                            quickPresetsApi.getMedicines(doctorId),
+                                            quickPresetsApi.getAdvices(doctorId),
+                                            quickPresetsApi.getLabTests(doctorId)
                                         ]);
 
                                         // Only set if API returns data
@@ -2069,11 +2147,25 @@ export function PrescriptionFormSection({
                                         } else {
                                             setMedicinesOptions([]);
                                         }
+
+                                        if (advs && advs.length > 0) {
+                                            setAdvicesOptions(advs);
+                                        } else {
+                                            setAdvicesOptions([]);
+                                        }
+
+                                        if (labTests && labTests.length > 0) {
+                                            setLabTestsOptions(labTests);
+                                        } else {
+                                            setLabTestsOptions([]);
+                                        }
                                     } catch (e) {
                                         console.error(e);
                                         // Set empty arrays on error
                                         setDiagnosesOptions([]);
                                         setMedicinesOptions([]);
+                                        setAdvicesOptions([]);
+                                        setLabTestsOptions([]);
                                     }
                                 };
                                 reloadPresets();

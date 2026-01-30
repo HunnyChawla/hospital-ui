@@ -7,11 +7,13 @@ import {
     quickPresetsApi,
     type QuickDiagnosis,
     type QuickMedicine,
-    type QuickAdvice
+    type QuickAdvice,
+    type QuickLabTest
 } from "@/services/quickPresetsApi";
 import { DiagnosisPresetList } from "./DiagnosisPresetList";
 import { MedicinePresetList } from "./MedicinePresetList";
 import { AdvicePresetList } from "./AdvicePresetList";
+import { LabTestPresetList } from "./LabTestPresetList";
 import { QUICK_DIAGNOSES, QUICK_MEDICINES, QUICK_ADVICE } from "../prescriptionQuickActions";
 
 interface QuickPresetsSettingsModalProps {
@@ -27,7 +29,7 @@ export function QuickPresetsSettingsModal({
     doctorId,
     onSaved,
 }: QuickPresetsSettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<"diagnoses" | "medicines" | "advices">("diagnoses");
+    const [activeTab, setActiveTab] = useState<"diagnoses" | "medicines" | "advices" | "lab-tests">("diagnoses");
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -35,11 +37,13 @@ export function QuickPresetsSettingsModal({
     const [diagnoses, setDiagnoses] = useState<QuickDiagnosis[]>([]);
     const [medicines, setMedicines] = useState<QuickMedicine[]>([]);
     const [advices, setAdvices] = useState<QuickAdvice[]>([]);
+    const [labTests, setLabTests] = useState<QuickLabTest[]>([]);
 
     // Tracking dirty state to enable save button
     const [originalDiagnoses, setOriginalDiagnoses] = useState<string>("");
     const [originalMedicines, setOriginalMedicines] = useState<string>("");
     const [originalAdvices, setOriginalAdvices] = useState<string>("");
+    const [originalLabTests, setOriginalLabTests] = useState<string>("");
 
     // Fetch data when modal opens
     useEffect(() => {
@@ -51,20 +55,23 @@ export function QuickPresetsSettingsModal({
     const fetchPresets = async () => {
         setLoading(true);
         try {
-            const [fetchedDiagnoses, fetchedMedicines, fetchedAdvices] = await Promise.all([
+            const [fetchedDiagnoses, fetchedMedicines, fetchedAdvices, fetchedLabTests] = await Promise.all([
                 quickPresetsApi.getDiagnoses(doctorId),
                 quickPresetsApi.getMedicines(doctorId),
-                quickPresetsApi.getAdvices(doctorId)
+                quickPresetsApi.getAdvices(doctorId),
+                quickPresetsApi.getLabTests(doctorId)
             ]);
 
             setDiagnoses(fetchedDiagnoses);
             setMedicines(fetchedMedicines);
             setAdvices(fetchedAdvices);
+            setLabTests(fetchedLabTests);
 
             // Store stringified versions for dirty checking
             setOriginalDiagnoses(JSON.stringify(fetchedDiagnoses));
             setOriginalMedicines(JSON.stringify(fetchedMedicines));
             setOriginalAdvices(JSON.stringify(fetchedAdvices));
+            setOriginalLabTests(JSON.stringify(fetchedLabTests));
 
         } catch (error) {
             console.error("Failed to load presets", error);
@@ -145,6 +152,15 @@ export function QuickPresetsSettingsModal({
                 quickPresetsApi.deleteAdvice
             );
 
+            // Process Lab Tests
+            processChanges(
+                labTests,
+                originalLabTests,
+                quickPresetsApi.createLabTest,
+                quickPresetsApi.updateLabTest,
+                quickPresetsApi.deleteLabTest
+            );
+
             await Promise.all(promises);
 
             toast.success("Presets updated successfully");
@@ -183,13 +199,15 @@ export function QuickPresetsSettingsModal({
                 instructions: m.medicine.instructions
             }));
             setMedicines(defaultMeds);
-        } else {
+        } else if (activeTab === "advices") {
             const defaultAdv: QuickAdvice[] = QUICK_ADVICE.map(a => ({
                 label: a.label,
                 value: a.value,
                 category: a.category,
             }));
             setAdvices(defaultAdv);
+        } else if (activeTab === "lab-tests") {
+            setLabTests([]); // No default lab tests for now
         }
     };
 
@@ -198,7 +216,8 @@ export function QuickPresetsSettingsModal({
     // Check if both might be dirty? Actually save button saves ALL tabs.
     const isAnyDirty = (JSON.stringify(diagnoses) !== originalDiagnoses) ||
         (JSON.stringify(medicines) !== originalMedicines) ||
-        (JSON.stringify(advices) !== originalAdvices);
+        (JSON.stringify(advices) !== originalAdvices) ||
+        (JSON.stringify(labTests) !== originalLabTests);
 
 
     if (!isOpen) return null;
@@ -256,6 +275,15 @@ export function QuickPresetsSettingsModal({
                         >
                             Advices
                         </button>
+                        <button
+                            onClick={() => setActiveTab("lab-tests")}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "lab-tests"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                : "text-slate-600 hover:bg-slate-200"
+                                }`}
+                        >
+                            Lab Tests
+                        </button>
                     </div>
 
                     {/* Content Area */}
@@ -269,7 +297,8 @@ export function QuickPresetsSettingsModal({
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-bold text-slate-800">
                                         {activeTab === "diagnoses" ? "Diagnosis Chips" :
-                                            activeTab === "medicines" ? "Medicine Templates" : "Advice Chips"}
+                                            activeTab === "medicines" ? "Medicine Templates" :
+                                                activeTab === "lab-tests" ? "Lab Test Chips" : "Advice Chips"}
                                     </h3>
                                     <button
                                         onClick={handleResetDefaults}
@@ -290,10 +319,15 @@ export function QuickPresetsSettingsModal({
                                         items={medicines}
                                         onChange={setMedicines}
                                     />
-                                ) : (
+                                ) : activeTab === "advices" ? (
                                     <AdvicePresetList
                                         items={advices}
                                         onChange={setAdvices}
+                                    />
+                                ) : (
+                                    <LabTestPresetList
+                                        items={labTests}
+                                        onChange={setLabTests}
                                     />
                                 )}
                             </div>

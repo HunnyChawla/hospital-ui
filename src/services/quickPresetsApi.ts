@@ -32,7 +32,15 @@ export interface QuickAdvice {
     position?: number;
 }
 
-export type PresetType = 'diagnoses' | 'medicines' | 'advices';
+export interface QuickLabTest {
+    id?: string;
+    label: string;
+    value: string;
+    category: "Hematology" | "Biochemistry" | "Microbiology" | "Pathology" | "Serology" | "Other";
+    position?: number;
+}
+
+export type PresetType = 'diagnoses' | 'medicines' | 'advices' | 'lab-tests';
 
 export interface UpdateQuickDiagnosesRequest {
     items: QuickDiagnosis[];
@@ -139,5 +147,38 @@ export const quickPresetsApi = {
 
     deleteAdvice: async (doctorId: string, id: string): Promise<void> => {
         await apiClient.delete(`/doctors/${doctorId}/quick-presets/group/advices/${id}`);
+    },
+
+    // Lab Tests
+    getLabTests: async (doctorId: string, search?: string): Promise<QuickLabTest[]> => {
+        try {
+            const response = await apiClient.get<QuickLabTest[]>(`/doctors/${doctorId}/quick-presets/group/lab-tests`, {
+                params: { search }
+            });
+            return response.data;
+        } catch (error: any) {
+            if (error.response?.status === 404) return [];
+            console.warn("Failed to fetch lab test presets, falling back to defaults", error);
+            return [];
+        }
+    },
+
+    updateLabTests: async (doctorId: string, items: QuickLabTest[]): Promise<QuickLabTest[]> => {
+        const response = await apiClient.put<QuickLabTest[]>(`/doctors/${doctorId}/quick-presets/group/lab-tests`, { items });
+        return response.data;
+    },
+
+    createLabTest: async (doctorId: string, item: QuickLabTest): Promise<QuickLabTest> => {
+        const response = await apiClient.post<QuickLabTest>(`/doctors/${doctorId}/quick-presets/group/lab-tests`, item);
+        return response.data;
+    },
+
+    updateLabTest: async (doctorId: string, id: string, item: QuickLabTest): Promise<QuickLabTest> => {
+        const response = await apiClient.put<QuickLabTest>(`/doctors/${doctorId}/quick-presets/group/lab-tests/${id}`, item);
+        return response.data;
+    },
+
+    deleteLabTest: async (doctorId: string, id: string): Promise<void> => {
+        await apiClient.delete(`/doctors/${doctorId}/quick-presets/group/lab-tests/${id}`);
     },
 };
