@@ -24,6 +24,7 @@ import {
   CalendarDays,
   Shield,
   Monitor,
+  Link as LinkIcon,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -61,6 +62,7 @@ const iconMap: Record<string, LucideIcon> = {
   LayoutList,
   Radio,
   Monitor,
+  Link: LinkIcon,
 };
 
 // Loading skeleton for navigation items
@@ -137,6 +139,14 @@ export function Sidebar() {
       }
     }
 
+    // Admin & Platform Owner screens
+    const adminScreens = ["/optometrist-mappings"];
+    if (userRole === "admin" || userRole === "platform_owner") {
+      if (!items.find((i) => i.href === "/optometrist-mappings")) {
+        items.push({ label: "Optometrist Mappings", href: "/optometrist-mappings", icon: LinkIcon });
+      }
+    }
+
     return items;
   }, [screenDetails, initialized, loading, userRole]);
 
@@ -209,6 +219,8 @@ export function Sidebar() {
               "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
               active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
             );
+
+            if (!item.href) return null;
 
             return (
               <Link
@@ -291,6 +303,8 @@ export function Sidebar() {
                   ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
                   : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
               );
+
+              if (!item.href) return null;
 
               return (
                 <Tooltip key={item.href} content={item.label} side="right">
