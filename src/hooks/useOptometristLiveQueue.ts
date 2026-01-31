@@ -26,8 +26,22 @@ export type OptometristQueuePatient = {
 
 type QueuePatient = OptometristQueuePatient;
 
-function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
-  if (!data) return [];
+// Returns null for heartbeat/keep-alive messages that should be ignored
+// Returns QueuePatient[] for actual queue data
+function mapSSEDataToQueuePatients(data: any): QueuePatient[] | null {
+  // Check for heartbeat/keep-alive messages first
+  // These should be ignored and not affect the current patient list
+  if (!data || data === null || data === undefined) return null;
+
+  // Check for explicit heartbeat messages
+  if (data.type === 'heartbeat' || data.type === 'ping' || data.type === 'keepalive') {
+    return null;
+  }
+
+  // Check for empty objects (common heartbeat format)
+  if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0) {
+    return null;
+  }
 
   if (Array.isArray(data)) {
     return data.map((item) => ({
@@ -156,7 +170,8 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] {
     ];
   }
 
-  return [];
+  // Data exists but is unrecognized format - treat as heartbeat/ignored
+  return null;
 }
 
 function areQueuePatientsEqual(prev: QueuePatient[], next: QueuePatient[]): boolean {
@@ -218,43 +233,20 @@ export function useOptometristLiveQueue({
   const handleMessage = useCallback((data: any) => {
     const newPatients = mapSSEDataToQueuePatients(data);
 
+    // Ignore heartbeat/keep-alive messages (null return)
+    // This preserves the current patient list
+    if (newPatients === null) {
+      return;
+    }
+
     setQueuePatients((prev) => {
-      if (newPatients.length === 1 && newPatients[0].visit_id) {
-        const existingIndex = prev.findIndex(
-          (p) => p.visit_id === newPatients[0].visit_id
-        );
-        if (existingIndex >= 0) {
-          const existing = prev[existingIndex];
-          const updated = newPatients[0];
-          if (
-            existing.patient_id === updated.patient_id &&
-            existing.patient_name === updated.patient_name &&
-            existing.token_number === updated.token_number &&
-            existing.status === updated.status &&
-            existing.visit_type === updated.visit_type &&
-            existing.checked_in_at === updated.checked_in_at
-          ) {
-            return prev;
-          }
-          const updatedArray = [...prev];
-          updatedArray[existingIndex] = updated;
-          return updatedArray;
-        } else {
-          const existsByVisitId = prev.some(
-            (p) => p.visit_id === newPatients[0].visit_id
-          );
-          if (existsByVisitId) {
-            return prev;
-          }
-          return [...prev, newPatients[0]];
-        }
-      } else if (newPatients.length > 0) {
-        if (areQueuePatientsEqual(prev, newPatients)) {
-          return prev;
-        }
-        return newPatients;
+      // Treat incoming SSE data as final - replace existing queue entirely
+      // Whether it's 0, 1, or multiple records, it's the complete source of truth
+      if (areQueuePatientsEqual(prev, newPatients)) {
+        // Only skip update if the data is exactly the same to avoid unnecessary re-renders
+        return prev;
       }
-      return prev;
+      return newPatients;
     });
   }, []);
 
