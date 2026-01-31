@@ -6,9 +6,10 @@ import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
-import { fetchMyPermissions } from "@/redux/permissionsSlice";
+import { fetchMyPermissions, hydratePermissions } from "@/redux/permissionsSlice";
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
+import { store } from "@/redux/store";
 import { TopBar } from "@/components/layout/TopBar";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 
@@ -139,10 +140,8 @@ export default function DashboardLayout({
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Restore session on mount
-    const checkAuth = async () => {
-      await dispatch(restoreSession());
-
+    // Domain data fetching on mount
+    const fetchData = async () => {
       // Fetch user details only if not already loaded
       if (typeof window !== "undefined" && !userDetails) {
         const userId = localStorage.getItem("user_id");
@@ -166,14 +165,9 @@ export default function DashboardLayout({
         dispatch(fetchBeds());
       }
 
-      // Fetch permissions if not already initialized
-      if (!permissions.initialized && !permissions.loading) {
-        dispatch(fetchMyPermissions());
-      }
-
       setIsCheckingAuth(false);
     };
-    checkAuth();
+    fetchData();
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -36,6 +36,26 @@ type PermissionsState = {
   initialized: boolean;
 };
 
+const PERMISSIONS_STORAGE_KEY = "user_permissions";
+
+const getStoredPermissions = (): UserPermissions | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    console.log("Reading permissions from localStorage...");
+    const stored = localStorage.getItem(PERMISSIONS_STORAGE_KEY);
+    if (!stored) {
+      console.log("No permissions found in localStorage.");
+      return null;
+    }
+    const parsed = JSON.parse(stored);
+    console.log("Successfully retrieved and parsed permissions from localStorage.");
+    return parsed;
+  } catch (err) {
+    console.error("Failed to parse stored permissions", err);
+    return null;
+  }
+};
+
 const initialState: PermissionsState = {
   userPermissions: null,
   allowedScreens: [],
@@ -156,12 +176,30 @@ const permissionsSlice = createSlice({
       state.screenDetails = [];
       state.initialized = false;
       state.error = null;
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(PERMISSIONS_STORAGE_KEY);
+      }
     },
     clearError(state) {
       state.error = null;
     },
     clearSelectedUserPermissions(state) {
       state.selectedUserPermissions = null;
+    },
+    hydratePermissions(state) {
+      if (typeof window !== "undefined") {
+        console.log("Hydrating permissions state...");
+        const stored = getStoredPermissions();
+        if (stored) {
+          state.userPermissions = stored;
+          state.allowedScreens = Array.isArray(stored.allowed_screens) ? stored.allowed_screens : [];
+          state.screenDetails = Array.isArray(stored.screen_details) ? stored.screen_details : [];
+          state.initialized = true;
+          console.log(`Hydration complete: Loaded ${state.screenDetails.length} menu items from localStorage.`);
+        } else {
+          console.log("Hydration skipped: No data found in storage.");
+        }
+      }
     },
   },
   extraReducers: (builder) => {
@@ -183,6 +221,11 @@ const permissionsSlice = createSlice({
           : [];
         state.initialized = true;
         state.error = null;
+
+        // Save to localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem(PERMISSIONS_STORAGE_KEY, JSON.stringify(action.payload));
+        }
       })
       .addCase(fetchMyPermissions.rejected, (state, action) => {
         state.loading = false;
@@ -303,6 +346,10 @@ const permissionsSlice = createSlice({
   },
 });
 
-export const { clearPermissions, clearError, clearSelectedUserPermissions } =
-  permissionsSlice.actions;
+export const {
+  clearPermissions,
+  clearError,
+  clearSelectedUserPermissions,
+  hydratePermissions,
+} = permissionsSlice.actions;
 export default permissionsSlice.reducer;

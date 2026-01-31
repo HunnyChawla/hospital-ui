@@ -68,16 +68,16 @@ import {
 // Inline License utility functions to avoid Turbopack HMR issues
 function getDaysUntilExpiry(expiryDate: string | null): number | null {
   if (!expiryDate) return null;
-  
+
   const expiry = new Date(expiryDate);
   const today = new Date();
-  
+
   today.setHours(0, 0, 0, 0);
   expiry.setHours(0, 0, 0, 0);
-  
+
   const diffTime = expiry.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return diffDays;
 }
 
@@ -95,10 +95,10 @@ function isExpired(expiryDate: string | null): boolean {
 
 function getExpiryMessage(expiryDate: string | null): string | null {
   if (!expiryDate) return null;
-  
+
   const daysUntil = getDaysUntilExpiry(expiryDate);
   if (daysUntil === null) return null;
-  
+
   if (daysUntil < 0) {
     return `License expired ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago`;
   } else if (daysUntil === 0) {
@@ -116,26 +116,26 @@ function getExpiryMessage(expiryDate: string | null): string | null {
 function LicenseExpiryAlert() {
   const { tenant } = useTenant();
   const [dismissed, setDismissed] = useState(false);
-  
+
   if (!tenant?.license_valid_till || dismissed) {
     return null;
   }
-  
+
   const daysUntil = getDaysUntilExpiry(tenant.license_valid_till);
   const expired = isExpired(tenant.license_valid_till);
   const expiringSoon = isExpiringSoon(tenant.license_valid_till);
-  
+
   if (!expired && !expiringSoon) {
     return null;
   }
-  
+
   const message = getExpiryMessage(tenant.license_valid_till);
   const expiryDate = formatDate(tenant.license_valid_till);
   const isUrgent = expired || (daysUntil !== null && daysUntil <= 3);
   const bgColor = isUrgent ? "bg-rose-50 border-rose-200" : "bg-amber-50 border-amber-200";
   const textColor = isUrgent ? "text-rose-800" : "text-amber-800";
   const iconColor = isUrgent ? "text-rose-600" : "text-amber-600";
-  
+
   return (
     <div className={`mx-3 mb-2 rounded-xl border ${bgColor} p-3 shadow-sm`}>
       <div className="flex items-start gap-3">
@@ -183,7 +183,7 @@ function BillingSection() {
           </div>
         }
       >
-        <BillingManagement 
+        <BillingManagement
           renderSearchInHeader={setSearchBox}
           renderFilterInHeader={setFilterBox}
           statusFilter={statusFilter}
@@ -237,10 +237,7 @@ export default function Home() {
   const hasLoadedInitialDataRef = useRef(false);
 
   useEffect(() => {
-    // Restore session on mount
-    dispatch(restoreSession());
-
-    // Note: User details are fetched by the dashboard layout
+    // Note: session and permissions are handled by LayoutWrapper
 
     // Fetch tenant data if not already loaded
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -278,7 +275,7 @@ export default function Home() {
       const today = new Date();
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(today.getFullYear() - 1);
-      
+
       const revenueData = await analyticsApi.revenue({
         start_date: oneYearAgo.toISOString().split("T")[0],
         end_date: today.toISOString().split("T")[0],
@@ -490,314 +487,314 @@ export default function Home() {
 
   return (
     <main className="min-h-screen px-3 py-3 lg:px-6">
-        <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
-        <LicenseExpiryAlert />
+      <TopBar onPatientSelect={(patientId) => setSelectedPatientId(patientId)} />
+      <LicenseExpiryAlert />
 
-        {/* Dashboard Section - Only show dashboard content */}
+      {/* Dashboard Section - Only show dashboard content */}
+      <div className="grid gap-3">
         <div className="grid gap-3">
-          <div className="grid gap-3">
-            <div className="flex justify-end">
+          <div className="flex justify-end">
+            <button
+              onClick={() => refreshDashboard()}
+              disabled={dashboardRefreshing}
+              className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 disabled:opacity-50"
+              aria-label="Refresh dashboard"
+              title={dashboardRefreshing ? "Refreshing..." : "Refresh dashboard"}
+            >
+              <RefreshCw className={`h-4 w-4 ${dashboardRefreshing ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <EnhancedStatCard
+              label="Total patients"
+              value={patients.length}
+              hint="Registered patients"
+              icon={HeartPulse}
+              tone="sky"
+              insights={appointmentInsights ? [
+                {
+                  label: "Appointments today",
+                  value: appointmentInsights.today,
+                  trend: appointmentInsights.today > 0 ? "up" : "neutral",
+                },
+                {
+                  label: "Completed",
+                  value: appointmentInsights.completed,
+                  trend: appointmentInsights.completed > 0 ? "up" : "neutral",
+                },
+              ] : undefined}
+              loading={insightsLoading}
+            />
+            <EnhancedStatCard
+              label="Active admissions"
+              value={activeAdmissions}
+              hint={`${admittedCount} total admissions`}
+              icon={BedDouble}
+              tone="emerald"
+              insights={bedOccupancy ? [
+                {
+                  label: "Beds occupied",
+                  value: `${bedOccupancy.occupied}/${bedOccupancy.total}`,
+                  trend: bedOccupancy.occupancy > 80 ? "up" : bedOccupancy.occupancy < 50 ? "down" : "neutral",
+                },
+                {
+                  label: "Occupancy rate",
+                  value: `${bedOccupancy.occupancy}%`,
+                  trend: bedOccupancy.occupancy > 80 ? "up" : "neutral",
+                },
+              ] : undefined}
+              loading={insightsLoading}
+            />
+            <EnhancedStatCard
+              label="Pending billing"
+              value={currency(totalPending)}
+              hint="Outstanding invoices"
+              icon={Coins}
+              tone="amber"
+              insights={[
+                {
+                  label: "Total collected",
+                  value: currency(totalCollected),
+                  trend: totalCollected > 0 ? "up" : "neutral",
+                },
+              ]}
+              loading={false}
+            />
+            <DailyRevenueCard data={dailyRevenue} loading={insightsLoading} />
+          </div>
+
+          {/* Quick Actions - Enhanced for Hospital Staff */}
+          <div className="card p-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {/* Patient Management */}
               <button
-                onClick={() => refreshDashboard()}
-                disabled={dashboardRefreshing}
-                className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 disabled:opacity-50"
-                aria-label="Refresh dashboard"
-                title={dashboardRefreshing ? "Refreshing..." : "Refresh dashboard"}
+                onClick={() => {
+                  router.push("/patients?action=add");
+                }}
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
               >
-                <RefreshCw className={`h-4 w-4 ${dashboardRefreshing ? "animate-spin" : ""}`} />
+                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-transform group-hover:scale-110 group-hover:bg-sky-200">
+                  <HeartPulse className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">Add Patient</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Register new</p>
+              </button>
+
+              {/* Appointment Booking */}
+              <button
+                onClick={() => {
+                  router.push("/opd?action=appointment&tab=appointments");
+                }}
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
+              >
+                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
+                  <CalendarPlus className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">Book Appointment</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Schedule visit</p>
+              </button>
+
+              {/* OPD Visit */}
+              <button
+                onClick={() => {
+                  router.push("/opd?action=opd&tab=opd");
+                }}
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
+              >
+                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 group-hover:bg-blue-200">
+                  <Stethoscope className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">OPD Visit</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Walk-in patient</p>
+              </button>
+
+              {/* Lab Booking */}
+              <button
+                onClick={() => {
+                  router.push("/lab-bookings?action=add");
+                }}
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
+              >
+                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition-transform group-hover:scale-110 group-hover:bg-purple-200">
+                  <Beaker className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">Lab Booking</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Test request</p>
+              </button>
+
+              {/* Billing */}
+              <button
+                onClick={() => {
+                  router.push("/billing");
+                }}
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
+              >
+                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 transition-transform group-hover:scale-110 group-hover:bg-amber-200">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">Billing</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Invoices & payments</p>
+              </button>
+
+              {/* Admissions */}
+              <button
+                onClick={() => {
+                  router.push("/admissions?action=add&tab=admissions");
+                }}
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
+              >
+                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
+                  <BedDouble className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">Admit Patient</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">IPD admission</p>
               </button>
             </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <EnhancedStatCard
-                label="Total patients"
-                value={patients.length}
-                hint="Registered patients"
-                icon={HeartPulse}
-                tone="sky"
-                insights={appointmentInsights ? [
-                  {
-                    label: "Appointments today",
-                    value: appointmentInsights.today,
-                    trend: appointmentInsights.today > 0 ? "up" : "neutral",
-                  },
-                  {
-                    label: "Completed",
-                    value: appointmentInsights.completed,
-                    trend: appointmentInsights.completed > 0 ? "up" : "neutral",
-                  },
-                ] : undefined}
-                loading={insightsLoading}
+
+            {/* Additional Quick Links */}
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
+              <button
+                onClick={() => {
+                  router.push("/queue");
+                }}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+              >
+                <LayoutList className="h-4 w-4" />
+                <span>View Queue</span>
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/patients");
+                }}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+              >
+                <Users2 className="h-4 w-4" />
+                <span>All Patients</span>
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/analytics");
+                }}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span>Analytics</span>
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/labs");
+                }}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+              >
+                <Beaker className="h-4 w-4" />
+                <span>Lab Catalog</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+            <div className="card p-3 xl:col-span-2">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-slate-900">Recent admissions</p>
+                <span className="text-xs text-slate-500">Latest 5</span>
+              </div>
+              <RecentAdmissionsList
+                admissions={recentAdmissions}
+                onAdmissionClick={(admissionId) => {
+                  setSelectedAdmissionId(admissionId);
+                  setShowAdmissionDetailModal(true);
+                }}
+                onViewAll={() => {
+                  router.push("/admissions?tab=admissions");
+                }}
               />
-              <EnhancedStatCard
-                label="Active admissions"
-                value={activeAdmissions}
-                hint={`${admittedCount} total admissions`}
-                icon={BedDouble}
-                tone="emerald"
-                insights={bedOccupancy ? [
-                  {
-                    label: "Beds occupied",
-                    value: `${bedOccupancy.occupied}/${bedOccupancy.total}`,
-                    trend: bedOccupancy.occupancy > 80 ? "up" : bedOccupancy.occupancy < 50 ? "down" : "neutral",
-                  },
-                  {
-                    label: "Occupancy rate",
-                    value: `${bedOccupancy.occupancy}%`,
-                    trend: bedOccupancy.occupancy > 80 ? "up" : "neutral",
-                  },
-                ] : undefined}
-                loading={insightsLoading}
-              />
-              <EnhancedStatCard
-                label="Pending billing"
-                value={currency(totalPending)}
-                hint="Outstanding invoices"
-                icon={Coins}
-                tone="amber"
-                insights={[
-                  {
-                    label: "Total collected",
-                    value: currency(totalCollected),
-                    trend: totalCollected > 0 ? "up" : "neutral",
-                  },
-                ]}
-                loading={false}
-              />
-              <DailyRevenueCard data={dailyRevenue} loading={insightsLoading} />
             </div>
 
-            {/* Quick Actions - Enhanced for Hospital Staff */}
             <div className="card p-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                {/* Patient Management */}
-                <button
-                  onClick={() => {
-                    router.push("/patients?action=add");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-transform group-hover:scale-110 group-hover:bg-sky-200">
-                    <HeartPulse className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Add Patient</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Register new</p>
-                </button>
-
-                {/* Appointment Booking */}
-                <button
-                  onClick={() => {
-                    router.push("/opd?action=appointment&tab=appointments");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
-                    <CalendarPlus className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Book Appointment</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Schedule visit</p>
-                </button>
-
-                {/* OPD Visit */}
-                <button
-                  onClick={() => {
-                    router.push("/opd?action=opd&tab=opd");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 group-hover:bg-blue-200">
-                    <Stethoscope className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">OPD Visit</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Walk-in patient</p>
-                </button>
-
-                {/* Lab Booking */}
-                <button
-                  onClick={() => {
-                    router.push("/lab-bookings?action=add");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition-transform group-hover:scale-110 group-hover:bg-purple-200">
-                    <Beaker className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Lab Booking</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Test request</p>
-                </button>
-
-                {/* Billing */}
-                <button
-                  onClick={() => {
-                    router.push("/billing");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 transition-transform group-hover:scale-110 group-hover:bg-amber-200">
-                    <CreditCard className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Billing</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Invoices & payments</p>
-                </button>
-
-                {/* Admissions */}
-                <button
-                  onClick={() => {
-                    router.push("/admissions?action=add&tab=admissions");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
-                    <BedDouble className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Admit Patient</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">IPD admission</p>
-                </button>
-              </div>
-
-              {/* Additional Quick Links */}
-              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
-                <button
-                  onClick={() => {
-                    router.push("/queue");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <LayoutList className="h-4 w-4" />
-                  <span>View Queue</span>
-                </button>
-                <button
-                  onClick={() => {
-                    router.push("/patients");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <Users2 className="h-4 w-4" />
-                  <span>All Patients</span>
-                </button>
-                <button
-                  onClick={() => {
-                    router.push("/analytics");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Analytics</span>
-                </button>
-                <button
-                  onClick={() => {
-                    router.push("/labs");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <Beaker className="h-4 w-4" />
-                  <span>Lab Catalog</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-              <div className="card p-3 xl:col-span-2">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-slate-900">Recent admissions</p>
-                  <span className="text-xs text-slate-500">Latest 5</span>
-                </div>
-                <RecentAdmissionsList
-                  admissions={recentAdmissions}
-                  onAdmissionClick={(admissionId) => {
-                    setSelectedAdmissionId(admissionId);
-                    setShowAdmissionDetailModal(true);
-                  }}
-                  onViewAll={() => {
-                    router.push("/admissions?tab=admissions");
-                  }}
-                />
-              </div>
-
-              <div className="card p-3">
-                <DashboardBillingList
-                  statusFilter={dashboardBillingFilter}
-                  onStatusFilterChange={setDashboardBillingFilter}
-                />
-              </div>
+              <DashboardBillingList
+                statusFilter={dashboardBillingFilter}
+                onStatusFilterChange={setDashboardBillingFilter}
+              />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* All other sections have been moved to route-based pages */}
+      {/* All other sections have been moved to route-based pages */}
 
-        {selectedPatientId && (
-          <PatientDetailView
-            patientId={selectedPatientId}
-            onClose={() => setSelectedPatientId(null)}
-          />
-        )}
+      {selectedPatientId && (
+        <PatientDetailView
+          patientId={selectedPatientId}
+          onClose={() => setSelectedPatientId(null)}
+        />
+      )}
 
-        <PatientFormModal
-          isOpen={showPatientModal}
+      <PatientFormModal
+        isOpen={showPatientModal}
+        onClose={() => {
+          setShowPatientModal(false);
+          setEditingPatient(null);
+        }}
+        defaultValues={editingPatient ?? undefined}
+      />
+
+      <DoctorFormModal
+        isOpen={showDoctorModal}
+        onClose={() => {
+          setShowDoctorModal(false);
+          setEditingDoctor(null);
+        }}
+        defaultValues={editingDoctor ?? undefined}
+      />
+
+      <ConsultationFeeFormModal
+        isOpen={showConsultationFeeModal}
+        onClose={() => {
+          setShowConsultationFeeModal(false);
+          setSelectedDoctorForFees(null);
+        }}
+        doctorId={selectedDoctorForFees?.id || ""}
+      />
+
+      <AppointmentFormModal
+        isOpen={showAppointmentModal}
+        onClose={() => setShowAppointmentModal(false)}
+      />
+
+      <OpdFormModal
+        isOpen={showOpdModal}
+        onClose={() => setShowOpdModal(false)}
+      />
+
+      <LabBookingFormModal
+        isOpen={showLabBookingModal}
+        onClose={() => setShowLabBookingModal(false)}
+      />
+
+      <AdmissionFormModal
+        isOpen={showAdmissionModal}
+        onClose={() => setShowAdmissionModal(false)}
+      />
+
+      {selectedAdmissionId && (
+        <AdmissionDetailModal
+          isOpen={showAdmissionDetailModal}
           onClose={() => {
-            setShowPatientModal(false);
-            setEditingPatient(null);
+            setShowAdmissionDetailModal(false);
+            setSelectedAdmissionId(null);
           }}
-          defaultValues={editingPatient ?? undefined}
+          admissionId={selectedAdmissionId}
         />
+      )}
 
-        <DoctorFormModal
-          isOpen={showDoctorModal}
-          onClose={() => {
-            setShowDoctorModal(false);
-            setEditingDoctor(null);
-          }}
-          defaultValues={editingDoctor ?? undefined}
-        />
-
-        <ConsultationFeeFormModal
-          isOpen={showConsultationFeeModal}
-          onClose={() => {
-            setShowConsultationFeeModal(false);
-            setSelectedDoctorForFees(null);
-          }}
-          doctorId={selectedDoctorForFees?.id || ""}
-        />
-
-        <AppointmentFormModal
-          isOpen={showAppointmentModal}
-          onClose={() => setShowAppointmentModal(false)}
-        />
-
-        <OpdFormModal
-          isOpen={showOpdModal}
-          onClose={() => setShowOpdModal(false)}
-        />
-
-        <LabBookingFormModal
-          isOpen={showLabBookingModal}
-          onClose={() => setShowLabBookingModal(false)}
-        />
-
-        <AdmissionFormModal
-          isOpen={showAdmissionModal}
-          onClose={() => setShowAdmissionModal(false)}
-        />
-
-        {selectedAdmissionId && (
-          <AdmissionDetailModal
-            isOpen={showAdmissionDetailModal}
-            onClose={() => {
-              setShowAdmissionDetailModal(false);
-              setSelectedAdmissionId(null);
-            }}
-            admissionId={selectedAdmissionId}
-          />
-        )}
-
-        <UserFormModal
-          isOpen={showUserModal}
-          onClose={() => {
-            setShowUserModal(false);
-            setEditingUser(null);
-          }}
-          defaultValues={editingUser ?? undefined}
-        />
+      <UserFormModal
+        isOpen={showUserModal}
+        onClose={() => {
+          setShowUserModal(false);
+          setEditingUser(null);
+        }}
+        defaultValues={editingUser ?? undefined}
+      />
     </main>
   );
 }
