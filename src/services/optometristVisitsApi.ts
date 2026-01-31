@@ -126,21 +126,17 @@ export const optometristVisitsApi = {
 
   /**
    * Mark patient as NO SHOW
-   * PATCH /opd/visits/{visit_id}/status?new_status=no_show
+   * POST /opd/eye-hospital/visits/{visit_id}/mark-no-show
    */
   async markNoShow(
     visitId: string,
     tenantId?: string
   ): Promise<OptometristVisitResponse> {
-    const effectiveTenantId = getTenantIdForApi(tenantId);
-    const params: Record<string, string> = { new_status: "no_show" };
-    if (effectiveTenantId) {
-      params.tenant_id = effectiveTenantId;
-    }
-    const response = await apiClient.patch<OptometristVisitResponse>(
-      `/opd/visits/${visitId}/status`,
+    const params = getTenantIdForApi(tenantId);
+    const response = await apiClient.post<OptometristVisitResponse>(
+      `/opd/eye-hospital/visits/${visitId}/mark-no-show`,
       {},
-      { params }
+      params ? { params: { tenant_id: params } } : undefined
     );
     return response.data;
   },

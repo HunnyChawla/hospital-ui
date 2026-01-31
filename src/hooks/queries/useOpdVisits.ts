@@ -88,10 +88,16 @@ export function useUpdateOpdVisitStatus() {
       visitId: string;
       newStatus: VisitStatus;
     }) => {
+      const apiTenantId = isPlatformOwner ? tenantId ?? undefined : undefined;
+
+      if (newStatus === "no_show") {
+        return await opdVisitsApi.markNoShow(visitId, apiTenantId);
+      }
+
       return await opdVisitsApi.updateStatus(
         visitId,
         newStatus,
-        isPlatformOwner ? tenantId ?? undefined : undefined
+        apiTenantId
       );
     },
     onMutate: async ({ visitId, newStatus }) => {

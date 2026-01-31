@@ -473,17 +473,17 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onSelectPatient(patient.patient_id);
-                                  onAction(patient.visit_id, "pick");
+                                  onAction(patient.visit_id, "unpick");
                                 }}
                                 disabled={updatingVisitId === patient.visit_id}
-                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-slate-500 to-slate-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-slate-500/30 transition-all hover:from-slate-600 hover:to-slate-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                               >
                                 {updatingVisitId === patient.visit_id ? (
                                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                 ) : (
                                   <>
-                                    <RotateCcw className="h-3.5 w-3.5" />
-                                    Recall Patient
+                                    <X className="h-3.5 w-3.5" />
+                                    Return to Queue
                                   </>
                                 )}
                               </button>
@@ -703,23 +703,23 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                               </div>
                             )}
 
-                            {/* Allow starting consultation from NO SHOW tab */}
+                            {/* Allow returning to queue from NO SHOW tab */}
                             {patient.status === "no_show" && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onSelectPatient(patient.patient_id);
-                                  onAction(patient.visit_id, "start_consultation");
+                                  onAction(patient.visit_id, "unpick_doctor");
                                 }}
                                 disabled={updatingVisitId === patient.visit_id}
-                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-slate-500 to-slate-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-slate-500/30 transition-all hover:from-slate-600 hover:to-slate-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                               >
                                 {updatingVisitId === patient.visit_id ? (
                                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                 ) : (
                                   <>
-                                    <RotateCcw className="h-3.5 w-3.5" />
-                                    Recall Patient
+                                    <X className="h-3.5 w-3.5" />
+                                    Return to Queue
                                   </>
                                 )}
                               </button>

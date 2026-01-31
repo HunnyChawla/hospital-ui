@@ -128,7 +128,14 @@ export const opdVisitsApi = {
   },
 
   async markNoShow(visitId: string, tenantId?: string): Promise<Visit> {
-    return this.updateStatus(visitId, "no_show", tenantId);
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params = effectiveTenantId ? { params: { tenant_id: effectiveTenantId } } : undefined;
+    const response = await apiClient.post<Visit>(
+      `/opd/eye-hospital/visits/${visitId}/mark-no-show`,
+      {},
+      params
+    );
+    return response.data;
   },
 
   async completeAndAdvance(

@@ -12,6 +12,7 @@ import { OptometristPanelVerticalLayout } from "./dashboard/OptometristPanelVert
 import { ExaminationTabs } from "./patient-examination/ExaminationTabs";
 import { patientsApi } from "@/services/patientsApi";
 import { optometristVisitsApi } from "@/services/optometristVisitsApi";
+import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { usersApi } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getTenantIdForApi } from "@/utils/auth";
@@ -326,8 +327,16 @@ export function OptometristPanel() {
           break;
 
         case "unpick":
-          await optometristVisitsApi.unpickOptometrist(visitId, apiTenantId);
-          toast.success("Patient unpicked successfully");
+          const patientToUnpick = queuePatients.find(p => p.visit_id === visitId);
+          if (patientToUnpick?.status === "no_show") {
+            await opdVisitsApi.updateStatus(visitId, "awaiting_optometrist", apiTenantId);
+            toast.success("Patient returned to queue");
+          } else {
+            await optometristVisitsApi.unpickOptometrist(visitId, apiTenantId);
+            toast.success("Patient unpicked successfully");
+          }
+          // Switch to pending view
+          setQueueFilter("pending");
           break;
 
         case "start_investigation":
@@ -356,8 +365,16 @@ export function OptometristPanel() {
 
         case "unpick_doctor":
           if (!isDoctor) throw new Error("Only doctors can unpick patients");
-          await optometristVisitsApi.unpickDoctor(visitId, apiTenantId);
-          toast.success("Patient returned to queue");
+          const patientToUnpickDoc = queuePatients.find(p => p.visit_id === visitId);
+          if (patientToUnpickDoc?.status === "no_show") {
+            await opdVisitsApi.updateStatus(visitId, "awaiting_doctor", apiTenantId);
+            toast.success("Patient returned to queue");
+          } else {
+            await optometristVisitsApi.unpickDoctor(visitId, apiTenantId);
+            toast.success("Patient returned to queue");
+          }
+          // Switch to pending view
+          setQueueFilter("pending");
           break;
 
         case "mark_no_show":
@@ -414,7 +431,7 @@ export function OptometristPanel() {
     } finally {
       setUpdatingVisitId(null);
     }
-  }, [refreshSchedule, currentUserId, tenantId]);
+  }, [refreshSchedule, currentUserId, tenantId, queuePatients, isDoctor, selectedDoctor, selectPatient]);
 
   // Find current visit ID when patient selected from live queue
   useEffect(() => {
