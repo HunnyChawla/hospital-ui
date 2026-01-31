@@ -129,12 +129,12 @@ export function OptometristPanel() {
   }, [currentVisitId, isDoctor]);
 
   // Use live queue with SSE - calling both but only one connects based on role
-  const { queuePatients: optometristQueue, connectionStatus: optStatus } = useOptometristLiveQueue({
+  const { queuePatients: optometristQueue, connectionStatus: optStatus, reconnect: optReconnect } = useOptometristLiveQueue({
     doctorId: !isDoctor ? selectedDoctor?.doctor_id || null : null,
     autoConnect: !isDoctor,
   });
 
-  const { queuePatients: doctorQueue, connectionStatus: docStatus } = useDoctorLiveQueue({
+  const { queuePatients: doctorQueue, connectionStatus: docStatus, reconnect: docReconnect } = useDoctorLiveQueue({
     doctorId: isDoctor ? selectedDoctor?.doctor_id || null : null,
     autoConnect: isDoctor,
   });
@@ -142,6 +142,16 @@ export function OptometristPanel() {
   // Select appropriate queue data
   const queuePatients = isDoctor ? doctorQueue : optometristQueue;
   const connectionStatus = isDoctor ? docStatus : optStatus;
+
+  // Manual refresh handler that refreshes both REST data and SSE connection
+  const handleRefresh = useCallback(() => {
+    refreshSchedule();
+    if (isDoctor) {
+      docReconnect();
+    } else {
+      optReconnect();
+    }
+  }, [isDoctor, docReconnect, optReconnect, refreshSchedule]);
 
   // Use optometry data hook
   const {
@@ -543,7 +553,7 @@ export function OptometristPanel() {
               </div>
 
               <button
-                onClick={refreshSchedule}
+                onClick={handleRefresh}
                 className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
                 title="Refresh schedule"
               >

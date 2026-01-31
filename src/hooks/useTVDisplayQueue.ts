@@ -93,7 +93,12 @@ function arePatientsEqual(prev: TVQueuePatient[], next: TVQueuePatient[]): boole
             p.token_number === n.token_number &&
             p.status === n.status &&
             p.visit_id === n.visit_id &&
-            p.visit_type === n.visit_type
+            p.visit_type === n.visit_type &&
+            p.checked_in_at === n.checked_in_at &&
+            p.optometrist_cabin === n.optometrist_cabin &&
+            p.doctor_cabin === n.doctor_cabin &&
+            p.optometrist_id === n.optometrist_id &&
+            p.optometrist_assigned_at === n.optometrist_assigned_at
         );
     });
 }

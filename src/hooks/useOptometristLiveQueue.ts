@@ -185,7 +185,12 @@ function areQueuePatientsEqual(prev: QueuePatient[], next: QueuePatient[]): bool
       p.status === n.status &&
       p.visit_id === n.visit_id &&
       p.visit_type === n.visit_type &&
-      p.checked_in_at === n.checked_in_at
+      p.checked_in_at === n.checked_in_at &&
+      p.is_revisit === n.is_revisit &&
+      p.optometrist_id === n.optometrist_id &&
+      p.dilation_started_at === n.dilation_started_at &&
+      p.dilation_duration_minutes === n.dilation_duration_minutes &&
+      p.dilation_completed_at === n.dilation_completed_at
     );
   });
 }
