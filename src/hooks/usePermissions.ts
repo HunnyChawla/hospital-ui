@@ -19,10 +19,24 @@ export function usePermissions() {
    */
   const hasAccess = useMemo(() => {
     return (screenPath: string): boolean => {
-      if (!initialized) return false;
+      if (!initialized) return true; // Assume true while loading to avoid flickering
+
       // Platform owner has access to all screens
       if (userRole === "platform_owner") return true;
-      return allowedScreens.includes(screenPath);
+
+      // Normalize path: take only the pathname part
+      const normalizedPath = screenPath.split("?")[0].split("#")[0];
+
+      // Exact match
+      if (allowedScreens.includes(normalizedPath)) return true;
+
+      // Check for nested routes: if the current path starts with an allowed screen path
+      // Example: If /patients is allowed, /patients/add should also be allowed
+      const isSubPathAllowed = allowedScreens.some(path =>
+        path !== "/" && normalizedPath.startsWith(path + "/")
+      );
+
+      return isSubPathAllowed;
     };
   }, [allowedScreens, initialized, userRole]);
 
@@ -43,6 +57,7 @@ export function usePermissions() {
   return {
     allowedScreens,
     screenDetails,
+    userPermissions,
     userRole,
     hasAccess,
     isAdmin,
