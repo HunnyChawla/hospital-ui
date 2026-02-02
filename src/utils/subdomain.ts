@@ -1,3 +1,5 @@
+import { DOMAIN_URL } from "./env";
+
 /**
  * Extract subdomain from the current URL
  * 
@@ -14,7 +16,7 @@ export function extractSubdomain(): string | null {
   }
 
   const hostname = window.location.hostname;
-  const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL;
+  const domainUrl = DOMAIN_URL;
 
   // Handle IP addresses (no subdomain)
   if (hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
@@ -40,12 +42,12 @@ export function extractSubdomain(): string | null {
   if (domainUrl) {
     // Remove protocol if present and get just the domain
     const baseDomain = domainUrl.replace(/^https?:\/\//, "").split("/")[0].trim();
-    
+
     // Check if hostname ends with base domain
     if (hostname.endsWith(baseDomain)) {
       // Extract subdomain (everything before the base domain)
       const subdomain = hostname.replace(`.${baseDomain}`, "");
-      
+
       // If subdomain is same as base domain or hostname, no subdomain exists
       if (subdomain && subdomain !== baseDomain && subdomain !== hostname) {
         return subdomain;
@@ -61,6 +63,6 @@ export function extractSubdomain(): string | null {
   if (parts.length >= 3) {
     return parts[0];
   }
-  
+
   return null;
 }

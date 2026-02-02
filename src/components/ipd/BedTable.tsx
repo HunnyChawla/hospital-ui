@@ -151,15 +151,14 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
 
   return (
     <div className="space-y-4 -mt-2">
-      {/* Bed Type Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
+      {/* Bed Type Tabs - scrollable on mobile */}
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
         <button
           onClick={() => setSelectedBedType("all")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition whitespace-nowrap ${
-            selectedBedType === "all"
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition whitespace-nowrap ${selectedBedType === "all"
               ? "border-sky-500 text-sky-700"
               : "border-transparent text-slate-600 hover:text-slate-900"
-          }`}
+            }`}
         >
           <BedDouble className="h-4 w-4" />
           All Beds
@@ -168,11 +167,10 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
           <button
             key={bedType}
             onClick={() => setSelectedBedType(bedType)}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition whitespace-nowrap ${
-              selectedBedType === bedType
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition whitespace-nowrap ${selectedBedType === bedType
                 ? "border-sky-500 text-sky-700"
                 : "border-transparent text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
             <BedDouble className="h-4 w-4" />
             {getBedTypeLabel(bedType)}
@@ -180,8 +178,9 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <label className="space-y-1">
+      {/* Filters - stack on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <label className="space-y-1 w-full sm:w-auto">
           <span className="text-slate-600 text-sm">Filter by Ward</span>
           <select
             value={selectedWardId}
@@ -198,44 +197,98 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
         </label>
         <div className="space-y-1">
           <span className="text-slate-600 text-sm">Availability</span>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+          <div className="flex items-center gap-1 sm:gap-2 rounded-xl border border-slate-200 bg-white p-1 overflow-x-auto">
             <button
               onClick={() => setAvailabilityFilter("all")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                availabilityFilter === "all"
+              className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${availabilityFilter === "all"
                   ? "bg-sky-500 text-white"
                   : "text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setAvailabilityFilter("available")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                availabilityFilter === "available"
+              className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${availabilityFilter === "available"
                   ? "bg-emerald-500 text-white"
                   : "text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Available
+              <span className="hidden xs:inline">Available</span>
             </button>
             <button
               onClick={() => setAvailabilityFilter("occupied")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                availabilityFilter === "occupied"
+              className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${availabilityFilter === "occupied"
                   ? "bg-rose-500 text-white"
                   : "text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <XCircle className="h-3.5 w-3.5" />
-              Occupied
+              <span className="hidden xs:inline">Occupied</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3">
+        {beds.length === 0 ? (
+          <div className="rounded-xl border border-slate-100 bg-white p-6 text-center text-slate-500 shadow-sm">
+            No beds found
+          </div>
+        ) : (
+          beds.map((bed) => (
+            <div key={bed.id} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BedDouble className="h-4 w-4 text-sky-600 shrink-0" />
+                    <span className="font-semibold text-slate-900">{bed.bed_number}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-sm mb-2">
+                    <span className="text-slate-500">{getWardName(bed)}</span>
+                    <span className="pill bg-sky-50 text-sky-700 px-2 py-0.5 text-xs font-normal">
+                      {bed.bed_type}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-slate-700 font-medium">₹{parseFloat(bed.daily_rate).toFixed(2)}/day</span>
+                    <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(bed.status)}`}>
+                      {bed.status}
+                    </span>
+                    {bed.status === "occupied" && (bed.occupied_by_patient_name || bed.occupied_by_patient_mobile) && (
+                      <div className="flex items-center gap-1 text-xs text-sky-600">
+                        <Users2 className="h-3.5 w-3.5" />
+                        <span>{bed.occupied_by_patient_name || "Patient"}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => onEditClick?.(bed)}
+                    className="flex items-center justify-center rounded-lg bg-sky-500 p-2 text-white"
+                    title="Edit"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(bed.id)}
+                    className="flex items-center justify-center rounded-lg bg-rose-500 p-2 text-white"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
         <table className="min-w-full divide-y divide-slate-100 text-sm">
           <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
             <tr>
@@ -350,8 +403,8 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="text-sm text-slate-600">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+          <div className="text-sm text-slate-600 text-center sm:text-left">
             Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
             <span className="font-semibold text-slate-900">
               {Math.min(currentPage * pageSize, total)}
@@ -362,10 +415,10 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 sm:px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -383,11 +436,10 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      currentPage === pageNum
+                    className={`min-w-[2rem] sm:min-w-[2.5rem] rounded-lg px-2 sm:px-3 py-1.5 text-sm font-medium transition ${currentPage === pageNum
                         ? "bg-sky-500 text-white"
                         : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>
@@ -397,9 +449,9 @@ export function BedTable({ wardId, onEditClick }: BedTableProps) {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 sm:px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

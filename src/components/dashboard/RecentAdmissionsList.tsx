@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Admission } from "@/services/admissionsApi";
 import { formatDate } from "@/utils/format";
-import { BedDouble, User, Calendar, Stethoscope, Eye, ArrowRightLeft, Clock } from "lucide-react";
+import { BedDouble, Calendar, Stethoscope, Eye, Clock } from "lucide-react";
 
 interface RecentAdmissionsListProps {
   admissions: Admission[];

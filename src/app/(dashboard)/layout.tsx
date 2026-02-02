@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { restoreSession, fetchUserDetails } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
+import { fetchMyPermissions, hydratePermissions } from "@/redux/permissionsSlice";
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
+import { store } from "@/redux/store";
 import { TopBar } from "@/components/layout/TopBar";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Shield, Home as HomeIcon } from "lucide-react";
 
 /**
  * LicenseExpiryAlert Component
@@ -127,6 +131,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const dispatch = useAppDispatch();
   const { isAuthenticated, userDetails } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
@@ -136,11 +141,47 @@ export default function DashboardLayout({
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Restore session on mount
-    const checkAuth = async () => {
-      await dispatch(restoreSession());
+  // Permission-based route protection
+  const {
+    hasAccess,
+    initialized: permissionsInitialized,
+    loading: permissionsLoading,
+    userRole,
+    allowedScreens,
+    userPermissions
+  } = usePermissions();
 
+  const isAuthorized = useMemo(() => {
+    if (!permissionsInitialized || permissionsLoading || !isAuthenticated) return true;
+
+    // Check doctor panel access based on specialization (logic from Sidebar.tsx)
+    if (userRole === "doctor") {
+      const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+      const currentDoctor = doctors.list?.find((d) => d.user_id === userId);
+      const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
+
+      if (pathname.startsWith("/optometrist-panel") && !isOphthalmologist) return false;
+      if (pathname.startsWith("/doctor-panel") && isOphthalmologist) return false;
+    }
+
+    return hasAccess(pathname);
+  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors]);
+
+  // Handle redirection to default screen if root (/) is not the intended start page
+  useEffect(() => {
+    if (permissionsInitialized && !permissionsLoading && isAuthenticated && pathname === "/") {
+      const defaultScreen = userPermissions?.default_screen;
+
+      // If root is not in allowed screens but they have a default screen, go there
+      if (defaultScreen && !allowedScreens.includes("/") && defaultScreen !== "/") {
+        router.push(defaultScreen);
+      }
+    }
+  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userPermissions, allowedScreens, router]);
+
+  useEffect(() => {
+    // Domain data fetching on mount
+    const fetchData = async () => {
       // Fetch user details only if not already loaded
       if (typeof window !== "undefined" && !userDetails) {
         const userId = localStorage.getItem("user_id");
@@ -166,7 +207,7 @@ export default function DashboardLayout({
 
       setIsCheckingAuth(false);
     };
-    checkAuth();
+    fetchData();
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -200,7 +241,36 @@ export default function DashboardLayout({
         setSelectedPatientId(patientId);
       }} />
       <LicenseExpiryAlert />
-      {children}
+
+      {isAuthorized ? (
+        children
+      ) : (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-rose-100 p-6 rounded-full mb-6 ring-8 ring-rose-50">
+            <Shield className="h-16 w-16 text-rose-600" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Access Denied</h1>
+          <p className="text-slate-600 max-w-md mb-8">
+            You do not have permission to access the <span className="font-semibold text-slate-900">"{pathname}"</span> screen.
+            Please contact your administrator if you believe this is an error.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => router.push(userPermissions?.default_screen || "/")}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-sky-500 text-white font-semibold rounded-xl hover:bg-sky-600 transition shadow-lg shadow-sky-100"
+            >
+              <HomeIcon className="h-4 w-4" />
+              {userPermissions?.default_screen && userPermissions.default_screen !== "/" ? "Go to Main Screen" : "Go to Dashboard"}
+            </button>
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Patient Detail Modal - Opens when patient selected from global search */}
       {selectedPatientId && (

@@ -16,7 +16,8 @@ COPY package.json package-lock.json* ./
 
 # Install all dependencies including devDependencies (needed for TypeScript build)
 # Don't set NODE_ENV=production yet, as it would skip devDependencies
-RUN npm ci
+# Use BuildKit cache mount to persist npm cache between builds
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source code (including .env.production if it exists)
 COPY . .
@@ -41,8 +42,19 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy static files from builder stage
 COPY --from=builder /app/out /usr/share/nginx/html
 
+# Copy entrypoint script
+COPY entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Healthcheck to verify nginx is serving content
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+
 # Expose port 80
 EXPOSE 80
+
+# Set entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

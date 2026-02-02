@@ -8,6 +8,7 @@ import {
   Home,
   LayoutList,
   Users2,
+  Users,
   Stethoscope,
   FlaskConical,
   BarChart3,
@@ -17,72 +18,152 @@ import {
   ChevronLeft,
   ChevronRight,
   Radio,
+  Eye,
+  MonitorPlay,
+  Building2,
+  CalendarDays,
+  Shield,
+  Monitor,
+  Link as LinkIcon,
+  LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
-import { FEATURES } from "@/lib/feature-flags";
 import { Tooltip } from "@/components/common/Tooltip";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { fetchDoctors } from "@/redux/doctorsSlice";
+import { usePermissions } from "@/hooks/usePermissions";
 
-// Navigation items with both legacy hash and new route paths
-const navItems = [
-  { label: "Dashboard", legacyHref: "#dashboard", newRoute: "/", icon: Home, featureFlag: "NEW_DASHBOARD" },
-  { label: "Analytics", legacyHref: "#analytics", newRoute: "/analytics", icon: BarChart3, featureFlag: "NEW_ANALYTICS" },
-  { label: "Patients", legacyHref: "#patients", newRoute: "/patients", icon: Users2, featureFlag: "NEW_PATIENTS" },
-  { label: "Appointments/OPD", legacyHref: "#opd", newRoute: "/opd", icon: Activity, featureFlag: "NEW_OPD" },
-  { label: "Queue", legacyHref: "#queue", newRoute: "/queue", icon: LayoutList, featureFlag: "NEW_QUEUE" },
-  { label: "Live Queue", legacyHref: "#queue-live", newRoute: "/queue/live", icon: Radio, featureFlag: "NEW_QUEUE" },
-  { label: "IPD", legacyHref: "#admissions", newRoute: "/admissions", icon: BedDouble, featureFlag: "NEW_ADMISSIONS" },
-  { label: "Lab Bookings", legacyHref: "#lab-bookings", newRoute: "/lab-bookings", icon: FlaskConical, featureFlag: "NEW_LAB_BOOKINGS" },
-  { label: "Lab Reports", legacyHref: "#lab-technician", newRoute: "/lab-technician", icon: FlaskConical, roles: ["lab_technician", "admin"], featureFlag: "NEW_LAB_TECHNICIAN" },
-  { label: "Lab Test Catalog", legacyHref: "#labs", newRoute: "/labs", icon: Beaker, featureFlag: "NEW_LABS" },
-  { label: "Service Master", legacyHref: "#services", newRoute: "/services", icon: Package, featureFlag: "NEW_SERVICES" },
-  { label: "Billing", legacyHref: "#billing", newRoute: "/billing", icon: CreditCard, featureFlag: "NEW_BILLING" },
-  { label: "MRD Documents", legacyHref: "#mrd", newRoute: "/mrd", icon: FileText, featureFlag: "NEW_MRD" },
-  { label: "Doctors", legacyHref: "#doctors", newRoute: "/doctors", icon: Stethoscope, featureFlag: "NEW_DOCTORS" },
-  { label: "My Panel", legacyHref: "#doctor-panel", newRoute: "/doctor-panel", icon: Stethoscope, roles: ["doctor"], featureFlag: "NEW_DOCTOR_PANEL" },
-  { label: "Staff", legacyHref: "#users", newRoute: "/users", icon: UserCog, featureFlag: "NEW_USERS" },
-];
+// Icon mapping from string names to Lucide components
+const iconMap: Record<string, LucideIcon> = {
+  Home,
+  BarChart3,
+  Users2,
+  Users,
+  Activity,
+  MonitorPlay,
+  BedDouble,
+  FlaskConical,
+  Beaker,
+  Package,
+  CalendarDays,
+  CreditCard,
+  FileText,
+  Stethoscope,
+  Eye,
+  UserCog,
+  Building2,
+  Shield,
+  LayoutList,
+  Radio,
+  Monitor,
+  Link: LinkIcon,
+};
+
+// Loading skeleton for navigation items
+const NavLoadingSkeleton = () => (
+  <div className="space-y-1">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div
+        key={i}
+        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 animate-pulse"
+      >
+        <div className="h-5 w-5 rounded bg-slate-200" />
+        <div className="h-4 w-24 rounded bg-slate-200" />
+      </div>
+    ))}
+  </div>
+);
+
+// Loading skeleton for collapsed sidebar
+const NavLoadingSkeletonCollapsed = () => (
+  <div className="space-y-0.5">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div
+        key={i}
+        className="flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl animate-pulse"
+      >
+        <div className="h-4 w-4 sm:h-5 sm:w-5 rounded bg-slate-200" />
+      </div>
+    ))}
+  </div>
+);
 
 export function Sidebar() {
-  const [hash, setHash] = useState<string>("#dashboard");
-  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const { hospitalName } = useTenant();
   const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar, toggleDesktopSidebar } = useSidebar();
+  const dispatch = useAppDispatch();
+  const doctors = useAppSelector((state) => state.doctors.list);
+  const { screenDetails, userRole, initialized, loading } = usePermissions();
 
   useEffect(() => {
-    const updateHash = () => {
-      const newHash = window.location.hash || "#dashboard";
-      setHash(newHash);
-    };
-    updateHash();
-    window.addEventListener("hashchange", updateHash);
+    if (userRole === "doctor" && doctors.length === 0) {
+      dispatch(fetchDoctors());
+    }
+  }, [userRole, doctors.length, dispatch]);
 
-    // Get user role from localStorage
-    if (typeof window !== "undefined") {
-      const role = localStorage.getItem("role");
-      setUserRole(role);
+  // Build navigation items from permissions
+  const navItems = useMemo(() => {
+    // If permissions not loaded, return empty array (skeleton will be shown)
+    if (!initialized || loading || screenDetails.length === 0) {
+      return [];
     }
 
-    return () => window.removeEventListener("hashchange", updateHash);
-  }, []);
+    // Map screen details to nav items with icon components
+    let items = screenDetails.map((screen) => ({
+      label: screen.label,
+      href: screen.path,
+      icon: iconMap[screen.icon] || Home,
+    }));
 
-  const isRoleAllowed = (item: typeof navItems[0]): boolean => {
-    if (!item.roles) return true; // No role restriction
-    if (!userRole) return false;
-    return item.roles.includes(userRole);
-  };
+    // Platform Owner only screens
+    const platformOwnerScreens = ["/screens", "/tenants"];
 
-  // Check if feature flag is enabled for a given nav item
-  const isNewRouteEnabled = (item: typeof navItems[0]): boolean => {
-    if (!item.featureFlag) return false;
-    return FEATURES[item.featureFlag as keyof typeof FEATURES] === true;
-  };
+    if (userRole !== "platform_owner") {
+      items = items.filter((i) => !platformOwnerScreens.includes(i.href));
+    }
+
+    // Add Platform Owner screens if not present
+    if (userRole === "platform_owner") {
+      if (!items.find((i) => i.href === "/screens")) {
+        items.push({ label: "Screens", href: "/screens", icon: Monitor });
+      }
+      if (!items.find((i) => i.href === "/tenants")) {
+        items.push({ label: "Tenants", href: "/tenants", icon: Building2 });
+      }
+    }
+
+    // Admin & Platform Owner screens
+    const adminScreens = ["/optometrist-mappings"];
+    if (userRole === "admin" || userRole === "platform_owner") {
+      if (!items.find((i) => i.href === "/optometrist-mappings")) {
+        items.push({ label: "Optometrist Mappings", href: "/optometrist-mappings", icon: LinkIcon });
+      }
+    }
+
+    return items;
+  }, [screenDetails, initialized, loading, userRole]);
+
+  // Filter for ophthalmologist vs regular doctor panel
+  const filteredNavItems = useMemo(() => {
+    if (userRole !== "doctor") return navItems;
+
+    const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+    const currentDoctor = doctors.find((d) => d.user_id === userId);
+    const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
+
+    return navItems.filter((item) => {
+      if (item.href === "/optometrist-panel") return isOphthalmologist;
+      if (item.href === "/doctor-panel") return !isOphthalmologist;
+      return true;
+    });
+  }, [navItems, userRole, doctors]);
 
   // Handle navigation click - close mobile drawer if on mobile
   const handleNavClick = () => {
@@ -94,7 +175,7 @@ export function Sidebar() {
   // Render navigation content (shared between desktop and mobile)
   const renderSidebarContent = (showCollapseButton: boolean = false) => (
     <>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-shrink-0 items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
             <Image
@@ -125,31 +206,26 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="space-y-1">
-        {navItems.map((item) => {
-          if (!isRoleAllowed(item)) return null;
+      <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide min-h-0">
+        {(!initialized || loading) ? (
+          <NavLoadingSkeleton />
+        ) : (
+          filteredNavItems.map((item) => {
+            const Icon = item.icon;
+            const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+            const active = normalizedPathname === item.href;
 
-          const Icon = item.icon;
-          const useNewRoute = isNewRouteEnabled(item);
+            const baseClassName = clsx(
+              "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
+              active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
+            );
 
-          // For new routes: check pathname match (handle trailing slashes)
-          // For legacy routes: check hash match
-          const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-          const active = useNewRoute
-            ? normalizedPathname === item.newRoute
-            : hash === item.legacyHref || (hash === "" && item.legacyHref === "#dashboard");
+            if (!item.href) return null;
 
-          const baseClassName = clsx(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
-            active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
-          );
-
-          // Render Next.js Link for new routes, button for legacy hash routing
-          if (useNewRoute) {
             return (
               <Link
-                key={item.label}
-                href={item.newRoute}
+                key={item.href}
+                href={item.href}
                 className={baseClassName}
                 onClick={handleNavClick}
               >
@@ -157,28 +233,11 @@ export function Sidebar() {
                 <span>{item.label}</span>
               </Link>
             );
-          } else {
-            return (
-              <button
-                key={item.label}
-                onClick={() => {
-                  if (window.location.hash !== item.legacyHref) {
-                    window.location.hash = item.legacyHref;
-                  }
-                  setHash(item.legacyHref);
-                  handleNavClick();
-                }}
-                className={baseClassName}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </button>
-            );
-          }
-        })}
+          })
+        )}
       </nav>
 
-      <div className="mt-auto rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 p-[1px] shadow-lg">
+      <div className="mt-auto flex-shrink-0 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 p-[1px] shadow-lg">
         <div className="rounded-[11px] bg-white px-4 py-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
             Live
@@ -195,9 +254,6 @@ export function Sidebar() {
 
   // Render collapsed sidebar with icons only
   const renderCollapsedIcons = () => {
-    // Get filtered nav items (same logic as expanded)
-    const filteredNavItems = navItems.filter(isRoleAllowed);
-
     return (
       <>
         {/* Expand Button */}
@@ -230,53 +286,39 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Icons - Scrollable with dynamic sizing */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto min-h-0">
-          {filteredNavItems.map((item) => {
-            const Icon = item.icon;
-            const useNewRoute = isNewRouteEnabled(item);
+        <nav className="flex-1 space-y-0.5 overflow-y-auto scrollbar-hide min-h-0">
+          {(!initialized || loading) ? (
+            <NavLoadingSkeletonCollapsed />
+          ) : (
+            filteredNavItems.map((item) => {
+              const Icon = item.icon;
+              const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
+                ? pathname.slice(0, -1)
+                : pathname;
+              const active = normalizedPathname === item.href;
 
-            // Active state logic (same as expanded)
-            const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
-              ? pathname.slice(0, -1)
-              : pathname;
-            const active = useNewRoute
-              ? normalizedPathname === item.newRoute
-              : hash === item.legacyHref || (hash === "" && item.legacyHref === "#dashboard");
+              const iconButtonClass = clsx(
+                "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all",
+                active
+                  ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
+                  : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
+              );
 
-            const iconButtonClass = clsx(
-              "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all",
-              active
-                ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
-                : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
-            );
+              if (!item.href) return null;
 
-            return (
-              <Tooltip key={item.label} content={item.label} side="right">
-                {useNewRoute ? (
+              return (
+                <Tooltip key={item.href} content={item.label} side="right">
                   <Link
-                    href={item.newRoute}
+                    href={item.href}
                     className={iconButtonClass}
                     onClick={handleNavClick}
                   >
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Link>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (window.location.hash !== item.legacyHref) {
-                        window.location.hash = item.legacyHref;
-                      }
-                      setHash(item.legacyHref);
-                      handleNavClick();
-                    }}
-                    className={iconButtonClass}
-                  >
-                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </button>
-                )}
-              </Tooltip>
-            );
-          })}
+                </Tooltip>
+              );
+            })
+          )}
         </nav>
 
         {/* Status Icon at Bottom */}
@@ -297,7 +339,7 @@ export function Sidebar() {
     <>
       {/* Desktop Sidebar - Always visible, width changes based on isDesktopCollapsed */}
       <aside className={clsx(
-        "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-visible",
+        "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-hidden",
         isDesktopCollapsed ? "w-16 px-2 py-8" : "w-64 px-6 py-8"
       )}>
         {isDesktopCollapsed ? renderCollapsedIcons() : renderSidebarContent(true)}
@@ -306,7 +348,7 @@ export function Sidebar() {
       {/* Mobile Drawer - Slides in from left */}
       <aside
         className={clsx(
-          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700",
+          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 overflow-hidden",
           "transition-transform duration-300 ease-in-out lg:hidden",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}

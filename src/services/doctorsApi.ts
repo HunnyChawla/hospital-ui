@@ -11,6 +11,10 @@ export interface Doctor {
   qualification: string | null;
   registration_number: string | null;
   consultation_fee?: string | null;
+  signature?: string | null;
+  opd_revisit_validity_days?: number | null;
+  surgery_revisit_validity_days?: number | null;
+  max_free_revisits?: number | null;
   created_at: string;
   updated_at: string;
   created_by?: string | null;
@@ -29,6 +33,10 @@ export interface CreateDoctorRequest {
   qualification?: string;
   registration_number?: string;
   consultation_fee?: number;
+  signature?: string;
+  opd_revisit_validity_days?: number;
+  surgery_revisit_validity_days?: number;
+  max_free_revisits?: number;
 }
 
 export interface UpdateDoctorRequest {
@@ -36,6 +44,10 @@ export interface UpdateDoctorRequest {
   qualification?: string;
   registration_number?: string;
   consultation_fee?: number;
+  signature?: string;
+  opd_revisit_validity_days?: number;
+  surgery_revisit_validity_days?: number;
+  max_free_revisits?: number;
 }
 
 export interface ConsultationFee {
@@ -67,6 +79,7 @@ export interface ConsultationFeeCalculation {
   shift: "morning" | "evening" | "night" | "emergency";
   is_emergency: boolean;
   patient_type_used: "old" | "new";
+  is_revisit?: boolean;
 }
 
 export const doctorsApi = {
@@ -114,7 +127,7 @@ export const doctorsApi = {
 
   async calculateConsultationFee(doctorId: string, patientId: string, isEmergency: boolean = false, tenantId?: string, signal?: AbortSignal): Promise<ConsultationFeeCalculation> {
     const apiTenantId = getTenantIdForApi(tenantId);
-    const params: any = { 
+    const params: any = {
       patient_id: patientId,
       is_emergency: isEmergency.toString(),
       ...(apiTenantId ? { tenant_id: apiTenantId } : {})

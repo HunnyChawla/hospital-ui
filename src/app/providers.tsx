@@ -14,6 +14,26 @@ import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { isPlatformOwner } from "@/utils/auth";
+import { useAppSelector } from "@/redux/hooks";
+import { ForceChangePasswordModal } from "@/components/password/ForceChangePasswordModal";
+
+/**
+ * Global Password Change Modal
+ * Renders at the provider level to ensure it shows immediately after login
+ * without waiting for dashboard's auth check
+ */
+function GlobalPasswordChangeModal() {
+  const { isAuthenticated, mustChangePassword } = useAppSelector((s) => s.auth);
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/login" || pathname === "/login/";
+
+  // Only show if user is authenticated, must change password, and not on login page
+  if (!isAuthenticated || !mustChangePassword || isLoginPage) {
+    return null;
+  }
+
+  return <ForceChangePasswordModal isOpen={true} />;
+}
 
 export default function Providers({
   children,
@@ -65,6 +85,8 @@ export default function Providers({
                   <ReactQueryDevtools initialIsOpen={false} />
                 </LayoutWrapper>
               )}
+              {/* Global Force Change Password Modal - renders immediately after auth */}
+              <GlobalPasswordChangeModal />
             </div>
           </SidebarProvider>
         </QueryClientProvider>
@@ -72,4 +94,3 @@ export default function Providers({
     </ReduxProvider>
   );
 }
-

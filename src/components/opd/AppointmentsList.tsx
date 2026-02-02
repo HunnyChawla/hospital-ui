@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/redux/hooks";
-import { useAppointmentsByDoctor } from "@/hooks/queries/useAppointments";
+import { useAppointmentsByDoctor, appointmentKeys } from "@/hooks/queries/useAppointments";
 import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
+import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -73,22 +73,22 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   // Validate date range (max 3 months)
   const validateDateRange = useCallback((start: string, end: string): string => {
     if (!start || !end) return "";
-    
+
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
-    
+
     if (endDateObj < startDateObj) {
       return "End date must be after or equal to start date";
     }
-    
+
     // Calculate difference in months
-    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
-                      (endDateObj.getMonth() - startDateObj.getMonth());
-    
+    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 +
+      (endDateObj.getMonth() - startDateObj.getMonth());
+
     if (monthsDiff > 3) {
       return "Date range cannot exceed 3 months";
     }
-    
+
     return "";
   }, []);
 
@@ -131,15 +131,55 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
     setPage(1);
   }, [selectedDoctorId, startDate, endDate]);
 
+  // Listen for appointment:created event to refresh the list
+  useEffect(() => {
+    const handleAppointmentCreated = () => {
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    };
+
+    window.addEventListener("appointment:created", handleAppointmentCreated);
+    return () => {
+      window.removeEventListener("appointment:created", handleAppointmentCreated);
+    };
+  }, [queryClient]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
+      // Completion statuses
       case "completed":
+      case "consultation_completed":
         return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      // Cancelled/no-show
       case "cancelled":
-      case "no_show":
         return <XCircle className="h-3 w-3 text-rose-500" />;
+      case "no_show":
+        return <User className="h-3 w-3 text-slate-500" />;
+      // Check-in statuses
       case "checked_in":
+      case "checked_in_opd":
         return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
+      // Optometrist statuses
+      case "awaiting_optometrist":
+        return <ClockIcon className="h-3 w-3 text-purple-500" />;
+      case "optometrist_assigned":
+        return <User className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_in_progress":
+        return <Play className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_completed":
+        return <CheckCircle className="h-3 w-3 text-purple-500" />;
+      // Doctor statuses
+      case "awaiting_doctor":
+        return <ClockIcon className="h-3 w-3 text-amber-500" />;
+      case "doctor_assigned":
+        return <Stethoscope className="h-3 w-3 text-amber-500" />;
+      case "in_consultation":
+      case "consultation_in_progress":
+        return <Play className="h-3 w-3 text-amber-500" />;
+      // Dilation statuses
+      case "dilation_in_progress":
+        return <ClockIcon className="h-3 w-3 text-indigo-500" />;
+      case "dilation_completed":
+        return <CheckCircle className="h-3 w-3 text-indigo-500" />;
       default:
         return <ClockIcon className="h-3 w-3 text-amber-500" />;
     }
@@ -147,13 +187,38 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      // Completion statuses - green
       case "completed":
+      case "consultation_completed":
         return "bg-emerald-50 text-emerald-700";
+      // Cancelled - red
       case "cancelled":
-      case "no_show":
         return "bg-rose-50 text-rose-700";
+      // No show - gray
+      case "no_show":
+        return "bg-slate-50 text-slate-700";
+      // Check-in statuses - sky blue
       case "checked_in":
+      case "checked_in_opd":
         return "bg-sky-50 text-sky-700";
+      // Optometrist statuses - purple
+      case "awaiting_optometrist":
+      case "optometrist_assigned":
+      case "optometrist_investigation_in_progress":
+      case "optometrist_investigation_completed":
+        return "bg-purple-50 text-purple-700";
+      // Doctor waiting/assigned - amber/orange
+      case "awaiting_doctor":
+      case "doctor_assigned":
+        return "bg-amber-50 text-amber-700";
+      // In consultation - orange
+      case "in_consultation":
+      case "consultation_in_progress":
+        return "bg-orange-50 text-orange-700";
+      // Dilation statuses - indigo
+      case "dilation_in_progress":
+      case "dilation_completed":
+        return "bg-indigo-50 text-indigo-700";
       default:
         return "bg-amber-50 text-amber-700";
     }
@@ -174,6 +239,8 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   const handleAfterCreated = (visitId: string) => {
     // Invalidate OPD visits query to refresh the OPD tab
     queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
+    // Invalidate appointments query to refresh the list and hide the + button
+    queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
   };
 
   const handleExportPDF = useCallback(async () => {
@@ -182,12 +249,12 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
       toast.error("Please select a doctor");
       return;
     }
-    
+
     if (!startDate || !endDate) {
       toast.error("Please select date range");
       return;
     }
-    
+
     if (dateRangeError) {
       toast.error(dateRangeError);
       return;
@@ -208,7 +275,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
       // Get all appointments from response
       const allAppointments = response.items || [];
-      
+
       if (allAppointments.length === 0) {
         toast.error("No appointments found to export");
         setExporting(false);
@@ -253,10 +320,10 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
           // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
           const pxToMm = 0.264583;
           const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
-          
+
           let logoWidthMm = img.width * pxToMm;
           let logoHeightMm = img.height * pxToMm;
-          
+
           // Scale down if too large
           if (logoHeightMm > maxHeightMm) {
             const scale = maxHeightMm / logoHeightMm;
@@ -266,7 +333,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
           // Center the logo horizontally
           const logoX = centerX - (logoWidthMm / 2);
-          
+
           // Detect image format from data URL
           let imageFormat: string = 'PNG';
           if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
@@ -274,7 +341,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
           } else if (logoDataUrl.startsWith('data:image/png')) {
             imageFormat = 'PNG';
           }
-          
+
           // Add logo to PDF
           doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
           yPos += logoHeightMm + 5; // Add space after logo
@@ -296,18 +363,18 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(55, 65, 81); // slate-700
-        
+
         if (address) {
           doc.text(address, centerX, yPos, { align: "center" });
           yPos += 5;
         }
-        
+
         // Contact info
         const contactParts: string[] = [];
         if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
         if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
         if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
-        
+
         if (contactParts.length > 0) {
           doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
           yPos += 6;
@@ -328,7 +395,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
-      
+
       // Add border line similar to PrintHeader
       doc.setLineWidth(0.5);
       doc.setDrawColor(30, 41, 59); // slate-800
@@ -342,7 +409,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.text(doctorName, 14, yPos + 4);
-      
+
       // Date Range on the right
       const dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
       doc.setFont("helvetica", "normal");
@@ -351,9 +418,9 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.text(dateRangeText, pageWidth - 14, yPos + 4, { align: "right" });
-      
+
       yPos += 8;
-      
+
       // Export date and total
       doc.setFont("helvetica", "normal");
       doc.setTextColor(71, 85, 105);
@@ -366,7 +433,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
         // Format status
         const statusStr = apt.status || "";
         const formattedStatus = statusStr.charAt(0).toUpperCase() + statusStr.slice(1).replace(/_/g, " ");
-        
+
         return [
           formatDate(apt.appointment_date), // Date as first column
           apt.token_number.toString(),
@@ -409,7 +476,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
       // Save PDF
       doc.save(filename);
-      
+
       toast.success(`Exported ${allAppointments.length} appointments successfully`);
     } catch (error: any) {
       console.error("Failed to export appointments:", error);
@@ -422,8 +489,8 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-3">
-        <div className="grid grid-cols-3 gap-3 flex-1">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 flex-1">
           <label className="space-y-1">
             <span className="text-slate-600 flex items-center gap-1">
               <Stethoscope className="h-4 w-4" />
@@ -461,7 +528,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
             />
           </label>
 
-          <label className="space-y-1">
+          <label className="space-y-1 sm:col-span-2 lg:col-span-1">
             <span className="text-slate-600 flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               End Date
@@ -476,11 +543,11 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
             />
           </label>
         </div>
-        
+
         <button
           onClick={handleExportPDF}
           disabled={!selectedDoctorId || !startDate || !endDate || !!dateRangeError || exporting}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 lg:w-auto"
           title="Export all appointments to PDF"
         >
           {exporting ? (
@@ -517,22 +584,22 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
         </div>
       ) : (
         <>
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {appointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="relative rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+                className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
                       #{appointment.token_number}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-slate-900">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900 truncate">
                         {appointment.patient_name || `Patient ${appointment.patient_id.slice(0, 8)}...`}
                       </p>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         {appointment.patient_mobile && (
                           <span>{appointment.patient_mobile}</span>
                         )}
@@ -542,47 +609,46 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                       </div>
                     </div>
                   </div>
-                  <div className="absolute left-1/2 -translate-x-1/2">
-                    <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(appointment.status)}`}>
-                      {getStatusIcon(appointment.status)}
-                      <span className="capitalize">{appointment.status.replace("_", " ")}</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
-                      <button
-                        onClick={() => openCreateModal(appointment)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Create OPD"
-                      >
-                        <Plus className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
-                      </button>
-                    )}
-                  </div>
+                  {appointment.notes && (
+                    <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
+                      {appointment.notes}
+                    </div>
+                  )}
                 </div>
-                {appointment.notes && (
-                  <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
-                    {appointment.notes}
-                  </div>
-                )}
+
+                <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3">
+                  <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(appointment.status)}`}>
+                    {getStatusIcon(appointment.status)}
+                    <span className="capitalize">{appointment.status.replace("_", " ")}</span>
+                  </span>
+                  {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
+                    <button
+                      onClick={() => openCreateModal(appointment)}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                      style={{ width: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="Create OPD"
+                    >
+                      <Plus className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+            <div className="flex flex-col items-center gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-between">
               <div className="text-sm text-slate-500">
                 Page {page} of {totalPages} {total > 0 && `(${total} total)`}
               </div>
@@ -593,14 +659,14 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                   className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Previous
+                  <span className="hidden sm:inline">Previous</span>
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  <span className="hidden sm:inline">Next</span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>

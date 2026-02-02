@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu } from "lucide-react";
+import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu, Key } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -14,6 +14,7 @@ import { usersApi } from "@/services/usersApi";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
+import { ChangePasswordModal } from "@/components/password/ChangePasswordModal";
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;
@@ -34,6 +35,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const { user, userDetails } = useAppSelector((s) => s.auth);
   const { hospitalName, tenant } = useTenant();
   const { toggleMobileSidebar, isMobile } = useSidebar();
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -127,7 +129,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const runSearch = () => {
     if (term.trim()) {
       dispatch(searchPatients(term));
-      window.location.hash = "#patients";
+      router.push("/patients");
       setShowDropdown(false);
     }
   };
@@ -178,7 +180,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   })() : null;
 
   return (
-    <header className="sticky top-0 z-20 mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+    <header className="sticky top-0 z-20 mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-2 shadow-sm sm:gap-3 sm:px-4 sm:py-2.5">
       {/* Hamburger Menu Button - Mobile only */}
       {isMobile && (
         <button
@@ -191,8 +193,8 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
         </button>
       )}
 
-      <div ref={searchRef} className="relative flex flex-1 items-center">
-        <div className="relative flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-all focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+      <div ref={searchRef} className="relative flex min-w-0 flex-1 items-center">
+        <div className="relative flex w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 sm:gap-2 sm:px-3 sm:py-2">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />
           <input
             value={term}
@@ -213,8 +215,8 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                 setShowDropdown(false);
               }
             }}
-            placeholder="Search patients by name, health ID, or mobile..."
-            className="flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            placeholder="Search patients..."
+            className="flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 min-w-0"
           />
           {hasSearched && !isSearching && searchResults.length === 0 && term.trim().length >= 2 && (
             <button
@@ -223,18 +225,19 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                 setShowDropdown(false);
                 setTerm("");
               }}
-              className="flex items-center gap-1.5 rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-600"
+              className="flex shrink-0 items-center gap-1 rounded-md bg-sky-500 px-2 py-1 text-xs font-semibold text-white transition hover:bg-sky-600 sm:gap-1.5 sm:px-3 sm:py-1.5"
             >
-              <Plus className="h-3.5 w-3.5" />
-              Add
+              <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Add</span>
             </button>
           )}
           {term.trim().length >= 2 && (
             <button
               onClick={runSearch}
-              className="rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-600"
+              className="shrink-0 rounded-md bg-sky-500 px-2 py-1 text-xs font-semibold text-white transition hover:bg-sky-600 sm:px-3 sm:py-1.5"
             >
-              Search
+              <Search className="h-3.5 w-3.5 sm:hidden" />
+              <span className="hidden sm:inline">Search</span>
             </button>
           )}
         </div>
@@ -263,15 +266,22 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 truncate">{patient.name}</p>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
-                          <span>{patient.mobile}</span>
-                          <span>•</span>
-                          <span className="truncate">{patient.healthId}</span>
-                          {patient.age && (
-                            <>
-                              <span>•</span>
-                              <span>{patient.age} years</span>
-                            </>
+                        <div className="mt-0.5 flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span>{patient.mobile}</span>
+                            <span>•</span>
+                            <span className="truncate">{patient.healthId}</span>
+                            {patient.age && (
+                              <>
+                                <span>•</span>
+                                <span>{patient.age} years</span>
+                              </>
+                            )}
+                          </div>
+                          {(patient.address || patient.city) && (
+                            <div className="text-xs text-slate-400 truncate">
+                              {[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -294,22 +304,22 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
             ) : null}
           </div>
         )}
-        
+
         {/* Patient Form Modal */}
         <PatientFormModal
           isOpen={showPatientModal}
           onClose={() => setShowPatientModal(false)}
         />
       </div>
-      
+
       {/* Profile Section with Dropdown */}
       <div ref={profileRef} className="relative">
         <button
           onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-slate-300 hover:bg-slate-50"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 transition hover:border-slate-300 hover:bg-slate-50 sm:gap-2 sm:px-3 sm:py-2"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-500 text-white">
-            <UserCircle2 className="h-5 w-5" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-white sm:h-8 sm:w-8">
+            <UserCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div className="hidden text-left sm:block">
             <p className="text-xs font-semibold text-slate-900 truncate">
@@ -335,6 +345,16 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
               )}
             </div>
             <button
+              onClick={() => {
+                setShowChangePasswordModal(true);
+                setShowProfileDropdown(false);
+              }}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
+            >
+              <Key className="h-4 w-4" />
+              Change Password
+            </button>
+            <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-rose-50 hover:text-rose-600"
             >
@@ -344,6 +364,12 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
           </div>
         )}
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+      />
     </header>
   );
 }

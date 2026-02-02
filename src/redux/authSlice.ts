@@ -2,6 +2,8 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authApi, LoginRequest, LoginResponse } from "@/services/authApi";
 import { usersApi } from "@/services/usersApi";
 import { fetchTenant, clearTenant } from "./tenantSlice";
+import { fetchMyPermissions, clearPermissions } from "./permissionsSlice";
+import { UserPermissions } from "@/types";
 
 type AuthState = {
   user: LoginResponse | null;
@@ -13,6 +15,7 @@ type AuthState = {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
 };
 
 const initialState: AuthState = {
@@ -22,6 +25,7 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isAuthenticated: false,
+  mustChangePassword: false,
 };
 
 // Fetch user details (full name, email, etc.)
@@ -49,11 +53,26 @@ export const login = createAsyncThunk(
         localStorage.setItem("tenant_id", tenantId);
         localStorage.setItem("role", response.role);
 
-        // Fetch tenant data and user details after successful login
+        // Store must_change_password flag if set
+        if (response.must_change_password) {
+          localStorage.setItem("must_change_password", "true");
+        } else {
+          localStorage.removeItem("must_change_password");
+        }
+
+        // Fetch tenant data and user details (fire and forget - not critical for navigation)
         dispatch(fetchTenant(tenantId));
         dispatch(fetchUserDetails(response.user_id));
+
+        // Await permissions fetch - needed to determine where to navigate after login
+        const permissionsResult = await dispatch(fetchMyPermissions());
+
+        return {
+          ...response,
+          permissions: permissionsResult.payload as UserPermissions | undefined,
+        };
       }
-      return response;
+      return { ...response, permissions: undefined };
     } catch (error: any) {
       // Preserve the error structure for proper error handling
       return rejectWithValue(error);
@@ -64,17 +83,19 @@ export const login = createAsyncThunk(
 export const logout = createAsyncThunk("auth/logout", async (_, { dispatch }) => {
   // Call logout API
   await authApi.logout();
-  
+
   // Clear local storage
   if (typeof window !== "undefined") {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user_id");
     localStorage.removeItem("tenant_id");
     localStorage.removeItem("role");
+    localStorage.removeItem("must_change_password");
   }
-  
-  // Clear tenant data
+
+  // Clear tenant data and permissions
   dispatch(clearTenant());
+  dispatch(clearPermissions());
 });
 
 const authSlice = createSlice({
@@ -84,6 +105,13 @@ const authSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+    clearMustChangePassword(state) {
+      state.mustChangePassword = false;
+      // Also clear from localStorage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("must_change_password");
+      }
+    },
     // Note: restoreSession doesn't fetch user details - that's done by a separate effect
     restoreSession(state) {
       if (typeof window !== "undefined") {
@@ -91,10 +119,12 @@ const authSlice = createSlice({
         const user_id = localStorage.getItem("user_id");
         const tenant_id = localStorage.getItem("tenant_id");
         const role = localStorage.getItem("role");
+        const mustChangePassword = localStorage.getItem("must_change_password") === "true";
 
         if (token && user_id && tenant_id && role) {
           state.token = token;
           state.isAuthenticated = true;
+          state.mustChangePassword = mustChangePassword;
           state.user = {
             token: { access_token: token, token_type: "bearer" },
             user_id,
@@ -117,6 +147,7 @@ const authSlice = createSlice({
         state.token = action.payload.token.access_token;
         state.isAuthenticated = true;
         state.error = null;
+        state.mustChangePassword = action.payload.must_change_password || false;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -140,10 +171,11 @@ const authSlice = createSlice({
         state.token = null;
         state.isAuthenticated = false;
         state.error = null;
+        state.mustChangePassword = false;
       });
   },
 });
 
-export const { clearError, restoreSession } = authSlice.actions;
+export const { clearError, restoreSession, clearMustChangePassword } = authSlice.actions;
 export default authSlice.reducer;
 

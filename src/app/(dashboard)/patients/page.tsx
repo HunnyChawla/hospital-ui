@@ -47,17 +47,17 @@ export default function PatientsPage() {
 
   return (
     <div className="grid gap-3">
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Patients</p>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h1 className="text-lg font-semibold text-slate-900">Patients</h1>
+            <p className="mt-1 text-sm text-slate-500">
               Manage patient records and information
             </p>
           </div>
           <button
             onClick={handleAddPatient}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md sm:w-auto"
           >
             <Activity className="h-4 w-4" />
             Add Patient

@@ -12,6 +12,10 @@ export type Patient = {
   wardType?: "ICU" | "General" | "Private";
   bedNumber?: string;
   admissionDate?: string;
+  address?: string; // Street address
+  city?: string;
+  state?: string;
+  pincode?: string;
 };
 
 export type Admission = {
@@ -213,5 +217,536 @@ export type DoctorStats = {
   todayPending: number;
   todayInProgress: number;
   todayCompleted: number;
+};
+
+// ============================================
+// OPTOMETRY PANEL TYPES
+// ============================================
+
+// My Panel (Optometrist) - Schedule & Stats
+export type OptometristScheduleSlot = {
+  time: string;
+  type: "appointment" | "walk_in" | "emergency";
+  visit_id: string;
+  patient_id: string;
+  patient_name: string;
+  patient_uhid: string | null;
+  status: string;
+  duration_minutes: number;
+  token_number?: string | number;
+};
+
+export type OptometristSchedule = {
+  date: string;
+  total_appointments: number;
+  total_opd_visits: number;
+  slots: OptometristScheduleSlot[];
+};
+
+export type OptometristStats = {
+  todayTotal: number;
+  todayPending: number;
+  todayInProgress: number;
+  todayCompleted: number;
+  todayNoShow: number;
+};
+
+// Refraction Records
+export type RefractionRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string;
+  eye: "OD" | "OS";
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  visual_acuity_uncorrected: string;
+  visual_acuity_corrected: string;
+  add_power: number | null;
+  pupillary_distance: number | null;
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// IOP (Intraocular Pressure) Records
+export type IOPRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string | null;
+  eye: "OD" | "OS";
+  pressure: number;
+  measurement_method: string;
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+export type IOPTrend = {
+  date: string;
+  od_pressure: number | null;
+  os_pressure: number | null;
+};
+
+// AR (Auto-Refraction) Data Records
+export type ARDataRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string;
+  eye: "OD" | "OS";
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  visual_acuity: string | null;
+  pupillary_distance: number | null;
+  notes: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// Complaints Records
+export type ComplaintRecord = {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  visit_id: string;
+  complaint: string;
+  severity: "mild" | "moderate" | "severe" | null;
+  duration: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+// Medical History (Legacy - keeping for backward compatibility)
+export type MedicalHistoryRecord = {
+  id: string;
+  patient_id: string;
+  diabetes: boolean;
+  hypertension: boolean;
+  heart_disease: boolean;
+  thyroid_disorder: boolean;
+  asthma: boolean;
+  tuberculosis: boolean;
+  kidney_disease: boolean;
+  liver_disease: boolean;
+  cancer: boolean;
+  hiv_aids: boolean;
+  other_conditions: string | null;
+  current_medications: string | null;
+  family_history: string | null;
+  lifestyle_notes: string | null;
+  updated_by: string | null;
+  created_by: string | null;
+  updated_at: string;
+  created_at: string;
+  tenant_id: string;
+};
+
+// Optometry Medical Condition (New API - one record per condition)
+export type MedicalConditionRecord = {
+  id: string;
+  patient_id: string;
+  optometrist_id: string;
+  visit_id: string | null;
+  condition_name: string; // e.g., "diabetes", "hypertension", etc.
+  status?: boolean; // true if patient has this condition
+  duration: string | null; // "less_than_1", "1_to_5", "5_to_10", "more_than_10"
+  on_medication: boolean | null; // true if on medication
+  is_controlled: boolean | null; // true if well controlled
+  remarks: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+  created_by?: string;
+  updated_by?: string;
+};
+
+// Ophthalmic Surgery History
+export type OphthalmicSurgeryRecord = {
+  id: string;
+  patient_id: string;
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
+  surgery_date: string;
+  hospital_name: string | null;
+  surgeon_name: string | null;
+  complications: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+};
+
+// Drug Allergies
+export type DrugAllergyRecord = {
+  id: string;
+  patient_id: string;
+  drug_name: string;
+  reaction: string;
+  severity: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
+};
+
+// Optometry Prescriptions
+export type OptometryPrescriptionItem = {
+  id?: string;
+  eye: "OD" | "OS";
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  add_power: number | null;
+  visual_acuity: string | null;
+  prism: string | null;
+  lens_type: string | null;
+  created_at?: string;
+};
+
+// Medicine Item for Doctor Prescriptions
+export type MedicineItem = {
+  id?: string;
+  prescription_id?: string;
+  medicine_id?: string;
+  medicine_name: string;
+  generic_name?: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+  created_at?: string;
+};
+
+// Advice Item for Doctor Prescriptions
+export type AdviceItem = {
+  id?: string;
+  prescription_id?: string;
+  advice_type: string;
+  description: string;
+  notes?: string;
+  created_at?: string;
+};
+
+export type OptometryPrescription = {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  patient_name: string;
+  optometrist_id: string;
+  optometrist_name: string;
+  visit_id: string;
+  doctor_id?: string;
+  doctor_name?: string;
+  prescription_number: string;
+  status: "draft" | "finalized";
+  diagnosis: string | null;
+  notes: string | null;
+  items: OptometryPrescriptionItem[];
+  pupillary_distance: number | null;
+  frame_fitting_notes: string | null;
+  // New doctor prescription fields
+  followup_date?: string | null;
+  plan_of_action?: string | null;
+  remarks?: string | null;
+  lens_type?: string | null;
+  vision_type?: string | null;
+  lens_material?: string | null;
+  coatings?: string[] | null;
+  medicine_items?: MedicineItem[];
+  advice_items?: AdviceItem[];
+  finalized_at: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+};
+
+// Patient Optometry History
+export type PatientOptometryEvent = {
+  event_type: "visit" | "refraction" | "iop" | "prescription" | "ar_data";
+  event_id: string;
+  timestamp: string;
+  title: string;
+  description: string | null;
+  optometrist_name: string | null;
+  visit_id: string | null;
+  metadata: any;
+};
+
+
+export type PatientOptometryTimeline = {
+  patient_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  events: PatientOptometryEvent[];
+  total_events: number;
+};
+
+// ============================================
+// SURGERY TYPES
+// ============================================
+
+export type Surgery = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type CreateSurgeryRequest = {
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  is_active?: boolean;
+};
+
+export type UpdateSurgeryRequest = {
+  name?: string | null;
+  description?: string | null;
+  category?: string | null;
+  is_active?: boolean | null;
+};
+
+// ============================================
+// PLANNED SURGERY TYPES
+// ============================================
+
+export type PlannedSurgeryStatus = "scheduled" | "completed" | "cancelled";
+
+export type PlannedSurgery = {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  patient_name?: string | null;
+  surgery_id: string;
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
+  planned_date: string;
+  planned_time: string | null;
+  surgeon_id: string;
+  surgeon_name: string | null;
+  hospital_name: string | null;
+  notes: string | null;
+  status: PlannedSurgeryStatus;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type CreatePlannedSurgeryRequest = {
+  patient_id: string;
+  surgery_id: string;
+  surgery_name: string;
+  eye: "OD" | "OS" | "OU";
+  planned_date: string;
+  planned_time?: string | null;
+  surgeon_id: string;
+  hospital_name?: string | null;
+  notes?: string | null;
+};
+
+export type UpdatePlannedSurgeryRequest = {
+  surgery_id?: string;
+  surgery_name?: string;
+  eye?: "OD" | "OS" | "OU";
+  planned_date?: string;
+  planned_time?: string | null;
+  hospital_name?: string | null;
+  notes?: string | null;
+  status?: PlannedSurgeryStatus;
+};
+
+// ============================================
+// VISION TYPES
+// ============================================
+
+export interface VisionRecord {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  optometrist_id?: string;
+  visit_id: string;
+
+  // Right Eye (OD)
+  od_ucva_distance?: string | null;
+  od_ph_va?: string | null;
+  od_va_with_current_specs?: string | null;
+  od_bcva_distance?: string | null;
+  od_near_ucva?: string | null;
+  od_near_with_current_specs?: string | null;
+  od_near_bcva?: string | null;
+
+  // Left Eye (OS)
+  os_ucva_distance?: string | null;
+  os_ph_va?: string | null;
+  os_va_with_current_specs?: string | null;
+  os_bcva_distance?: string | null;
+  os_near_ucva?: string | null;
+  os_near_with_current_specs?: string | null;
+  os_near_bcva?: string | null;
+
+  notes?: string | null;
+
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface CreateVisionRequest {
+  patient_id: string;
+  optometrist_id: string;
+  visit_id: string;
+
+  // Right Eye (OD)
+  od_ucva_distance?: string | null;
+  od_ph_va?: string | null;
+  od_va_with_current_specs?: string | null;
+  od_bcva_distance?: string | null;
+  od_near_ucva?: string | null;
+  od_near_with_current_specs?: string | null;
+  od_near_bcva?: string | null;
+
+  // Left Eye (OS)
+  os_ucva_distance?: string | null;
+  os_ph_va?: string | null;
+  os_va_with_current_specs?: string | null;
+  os_bcva_distance?: string | null;
+  os_near_ucva?: string | null;
+  os_near_with_current_specs?: string | null;
+  os_near_bcva?: string | null;
+
+  notes?: string | null;
+}
+
+export type VisionResponse = VisionRecord;
+
+// ============================================
+// CURRENT SPECS TYPES
+// ============================================
+
+export type LensType = "SINGLE" | "BIFOCAL" | "PROGRESSIVE";
+export type SpecsUsage = "DISTANCE" | "NEAR" | "BOTH";
+export type MeasuredBy = "LENSOMETER" | "PATIENT_REPORTED" | "PRESCRIPTION";
+
+export interface CurrentSpecsRecord {
+  id: string;
+  tenant_id: string;
+  patient_id: string;
+  optometrist_id: string;
+  visit_id: string;
+
+  // Right Eye (OD)
+  od_sph?: string | null;
+  od_cyl?: string | null;
+  od_axis?: number | null;
+  od_add?: string | null;
+
+  // Left Eye (OS)
+  os_sph?: string | null;
+  os_cyl?: string | null;
+  os_axis?: number | null;
+  os_add?: string | null;
+
+  // Additional fields
+  lens_type?: LensType | null;
+  usage?: SpecsUsage | null;
+  measured_by?: MeasuredBy | null;
+  is_comfortable?: boolean | null;
+  remarks?: string | null;
+
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
+// ============================================
+// RBAC PERMISSION TYPES
+// ============================================
+
+export type UserRole =
+  | "admin"
+  | "doctor"
+  | "nurse"
+  | "receptionist"
+  | "optometrist"
+  | "lab_technician"
+  | "platform_owner";
+
+export type ScreenDetail = {
+  path: string;
+  label: string;
+  icon: string;
+};
+
+export type UserPermissions = {
+  role: UserRole;
+  allowed_screens: string[];
+  screen_details: ScreenDetail[];
+  default_screen?: string;
+};
+
+export type ScreenPermission = {
+  screen_path: string;
+  screen_label: string;
+  is_enabled: boolean;
+  is_default?: boolean;
+};
+
+export type RolePermissions = {
+  role: string;
+  permissions: ScreenPermission[];
+};
+
+export type UserSpecificPermissions = {
+  user_id: string;
+  user_name: string;
+  role: string;
+  role_screens: string[];
+  additional_screens: string[];
+  all_allowed_screens: string[];
+};
+
+export type UserPermissionSummary = {
+  user_id: string;
+  user_name: string;
+  role: string;
+  additional_screens_count: number;
+};
+
+export type AvailableScreen = {
+  path: string;
+  label: string;
+  icon: string;
+  category: "main" | "clinical" | "admin" | "reports";
+  description?: string;
 };
 

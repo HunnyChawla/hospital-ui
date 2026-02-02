@@ -22,6 +22,7 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
         full_name: defaultValues.full_name,
         role: defaultValues.role,
         status: defaultValues.status,
+        cabin: defaultValues.cabin || "",
         password: "", // Don't pre-fill password
       });
     } else {
@@ -32,6 +33,7 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
         full_name: "",
         role: "doctor",
         status: "active",
+        cabin: "",
       });
     }
   }, [defaultValues, reset]);
@@ -43,9 +45,13 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
         const updateData: UpdateUserRequest = {
           full_name: values.full_name,
           status: values.status,
+          cabin: values.cabin,
         };
         await usersApi.update(defaultValues.id, updateData);
         toast.success("User updated successfully");
+
+        // Dispatch custom event to refresh users list
+        window.dispatchEvent(new CustomEvent("user:created"));
       } else {
         // Create new user
         if (!values.password) {
@@ -58,14 +64,15 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
           full_name: values.full_name,
           role: values.role as UserRole,
           status: values.status as UserStatus,
+          cabin: values.cabin,
         };
         await usersApi.create(createData);
         toast.success("User created successfully");
-        
+
         // Dispatch custom event to refresh users list
         window.dispatchEvent(new CustomEvent("user:created"));
       }
-      
+
       onSuccess?.();
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
@@ -90,10 +97,20 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
         </label>
 
         <label className="space-y-1">
+          <span className="text-slate-600">Cabin</span>
+          <input
+            type="text"
+            {...register("cabin")}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            placeholder="Room 101"
+          />
+        </label>
+
+        <label className="space-y-1">
           <span className="text-slate-600">Email <span className="text-rose-500">*</span></span>
           <input
             type="email"
-            {...register("email", { 
+            {...register("email", {
               required: "Email is required",
               pattern: {
                 value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -114,7 +131,7 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
             <span className="text-slate-600">Password <span className="text-rose-500">*</span></span>
             <input
               type="password"
-              {...register("password", { 
+              {...register("password", {
                 required: !defaultValues ? "Password is required" : false,
                 minLength: {
                   value: 6,
@@ -141,6 +158,7 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
             <option value="doctor">Doctor</option>
             <option value="nurse">Nurse</option>
             <option value="receptionist">Receptionist</option>
+            <option value="optometrist">Optometrist</option>
           </select>
           {errors.role && (
             <p className="text-xs text-rose-500">{errors.role.message as string}</p>

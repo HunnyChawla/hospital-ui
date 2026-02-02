@@ -48,7 +48,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
               Voice Recording Not Supported
             </p>
             <p className="mt-1 text-sm text-rose-700">
-              Your browser doesn't support voice recording. Please use Google Chrome
+              Your browser doesn&apos;t support voice recording. Please use Google Chrome
               or Microsoft Edge for this feature.
             </p>
           </div>
@@ -63,11 +63,10 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={handleToggleRecording}
-            className={`group relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition ${
-              isRecording
+            className={`group relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition ${isRecording
                 ? "animate-pulse bg-rose-500 shadow-lg shadow-rose-500/50"
                 : "bg-sky-500 shadow-md hover:bg-sky-600 hover:shadow-lg"
-            }`}
+              }`}
           >
             {isRecording ? (
               <MicOff className="h-6 w-6 text-white" />

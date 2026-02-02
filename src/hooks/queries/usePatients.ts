@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { patientsApi, PatientSearchParams, CreatePatientRequest, UpdatePatientRequest } from '@/services/patientsApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
+import { createMutationErrorHandler } from '@/utils/errorHandler';
 
 /**
  * Query Keys Factory for Patients
@@ -108,8 +109,7 @@ export function useCreatePatient() {
       }
 
       // Show error toast
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to create patient';
-      toast.error(errorMessage);
+      createMutationErrorHandler('Failed to create patient')(err);
     },
     onSuccess: (data) => {
       // Show success toast
@@ -182,8 +182,7 @@ export function useUpdatePatient() {
       }
 
       // Show error toast
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update patient';
-      toast.error(errorMessage);
+      createMutationErrorHandler('Failed to update patient')(err);
     },
     onSuccess: () => {
       toast.success('Patient updated successfully');

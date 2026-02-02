@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Calendar, Search, User, Beaker, Plus, X } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
-import { currency } from "@/utils/format";
+import { currency, getTodayDateLocal } from "@/utils/format";
 
 interface LabBookingFormProps {
   defaultPatientId?: string;
@@ -53,7 +53,7 @@ export function LabBookingForm({
 
   // Set default date to today
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateLocal();
     setScheduledDate(today);
   }, []);
 
@@ -224,7 +224,7 @@ export function LabBookingForm({
       // Reset form
       setPatientId("");
       setDropdownSearchTerm("");
-      setScheduledDate(new Date().toISOString().split("T")[0]);
+      setScheduledDate(getTodayDateLocal());
       setPriority("routine");
       setNotes("");
       setPaymentMethod("cash");

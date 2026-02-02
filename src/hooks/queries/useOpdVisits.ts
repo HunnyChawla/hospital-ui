@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { opdVisitsApi, Visit, CreateVisitRequest, VisitStatus, OpdVisitsSearchParams } from '@/services/opdVisitsApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
+import { createMutationErrorHandler } from '@/utils/errorHandler';
 
 /**
  * Query Keys Factory for OPD Visits
@@ -63,10 +64,7 @@ export function useCreateOpdVisit() {
         isPlatformOwner ? tenantId ?? undefined : undefined
       );
     },
-    onError: (err) => {
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to create visit';
-      toast.error(errorMessage);
-    },
+    onError: createMutationErrorHandler('Failed to create visit'),
     onSuccess: (visit) => {
       toast.success(`OPD visit created #${visit.visit_number}`);
       // Invalidate and refetch immediately on success
@@ -90,10 +88,16 @@ export function useUpdateOpdVisitStatus() {
       visitId: string;
       newStatus: VisitStatus;
     }) => {
+      const apiTenantId = isPlatformOwner ? tenantId ?? undefined : undefined;
+
+      if (newStatus === "no_show") {
+        return await opdVisitsApi.markNoShow(visitId, apiTenantId);
+      }
+
       return await opdVisitsApi.updateStatus(
         visitId,
         newStatus,
-        isPlatformOwner ? tenantId ?? undefined : undefined
+        apiTenantId
       );
     },
     onMutate: async ({ visitId, newStatus }) => {
@@ -138,8 +142,7 @@ export function useUpdateOpdVisitStatus() {
         });
       }
 
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update visit status';
-      toast.error(errorMessage);
+      createMutationErrorHandler('Failed to update visit status')(err);
     },
     onSuccess: () => {
       toast.success('Visit status updated successfully');
@@ -177,9 +180,28 @@ export function useCompleteAndAdvance() {
         queryClient.invalidateQueries({ queryKey: opdVisitKeys.detail(data.next_visit_advanced.id) });
       }
     },
-    onError: (err) => {
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to complete visit';
-      toast.error(errorMessage);
+    onError: createMutationErrorHandler('Failed to complete visit'),
+  });
+}
+
+/**
+ * Complete dilation for a visit
+ */
+export function useCompleteDilation() {
+  const queryClient = useQueryClient();
+  const { tenantId, isPlatformOwner } = useTenantContext();
+
+  return useMutation({
+    mutationFn: async (visitId: string) => {
+      return await opdVisitsApi.completeDilation(
+        visitId,
+        isPlatformOwner ? tenantId ?? undefined : undefined
+      );
     },
+    onSuccess: () => {
+      toast.success('Dilation marked as completed');
+      queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
+    },
+    onError: createMutationErrorHandler('Failed to complete dilation'),
   });
 }

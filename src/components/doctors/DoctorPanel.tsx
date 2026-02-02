@@ -19,6 +19,7 @@ import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
+import { optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
@@ -99,7 +100,7 @@ export function DoctorPanel() {
       diagnosis: string | null;
       items: Array<{
         medicine_name: string;
-        medicine_generic_name?: string | null;
+        generic_name?: string | null;
         dosage: string | null;
         frequency: string | null;
         duration: string | null;
@@ -124,7 +125,7 @@ export function DoctorPanel() {
       if (todaySchedule && todaySchedule.slots) {
         const currentSlot = todaySchedule.slots.find(
           slot => slot.patient_id === selectedPatientId &&
-          (slot.status === "checked_in" || slot.status === "in_consultation")
+            (slot.status === "checked_in" || slot.status === "in_consultation")
         );
         setCurrentVisitId(currentSlot?.item_id);
       }
@@ -141,8 +142,8 @@ export function DoctorPanel() {
         const visitType = (slot.type === "emergency" || slot.visit_type === "emergency" || slot.is_emergency)
           ? "emergency"
           : slot.type === "appointment" || slot.visit_type === "appointment"
-          ? "appointment"
-          : "walk_in";
+            ? "appointment"
+            : "walk_in";
 
         return {
           patient_id: slot.patient_id,
@@ -243,6 +244,35 @@ export function DoctorPanel() {
     }
   };
 
+  const handlePickPatient = async (visitId: string) => {
+    if (!currentDoctor?.id) return;
+    setUpdatingVisitId(visitId);
+    try {
+      await optometristVisitsApi.pickDoctor(visitId, currentDoctor.id);
+      toast.success("Patient called successfully");
+      await refreshSchedule();
+    } catch (error: any) {
+      console.error("Failed to pick patient:", error);
+      toast.error(error?.response?.data?.detail || "Failed to call patient");
+    } finally {
+      setUpdatingVisitId(null);
+    }
+  };
+
+  const handleUnpickPatient = async (visitId: string) => {
+    setUpdatingVisitId(visitId);
+    try {
+      await optometristVisitsApi.unpickDoctor(visitId);
+      toast.success("Patient returned to queue");
+      await refreshSchedule();
+    } catch (error: any) {
+      console.error("Failed to unpick patient:", error);
+      toast.error(error?.response?.data?.detail || "Failed to return patient");
+    } finally {
+      setUpdatingVisitId(null);
+    }
+  };
+
   const handlePrintOpd = async () => {
     if (!currentVisitId || !selectedPatientId) {
       toast.error("No active visit to print");
@@ -274,7 +304,6 @@ export function DoctorPanel() {
             diagnosis: rxData.diagnosis,
             items: rxData.items.map(item => ({
               medicine_name: item.medicine_name,
-              generic_name: item.generic_name,
               dosage: item.dosage,
               frequency: item.frequency,
               duration: item.duration,
@@ -460,6 +489,8 @@ export function DoctorPanel() {
         onClearPatient={handleClearPatient}
         onTabChange={setActiveTab}
         onUpdateVisitStatus={handleUpdateVisitStatus}
+        onPickPatient={handlePickPatient}
+        onUnpickPatient={handleUnpickPatient}
         updatingVisitId={updatingVisitId}
         onCreatePrescription={() => setShowPrescriptionModal(true)}
         onPrintOpd={handlePrintOpd}

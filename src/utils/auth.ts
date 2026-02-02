@@ -15,8 +15,8 @@ export function isPlatformOwner(): boolean {
  * @returns tenant_id if user is PlatformOwner and tenantId is provided, undefined otherwise
  */
 export function getTenantIdForApi(tenantId?: string | null): string | undefined {
-  if (isPlatformOwner() && tenantId) {
-    return tenantId;
+  if (isPlatformOwner()) {
+    return tenantId || localStorage.getItem("tenant_id") || undefined;
   }
   return undefined;
 }

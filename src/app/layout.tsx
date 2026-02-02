@@ -50,6 +50,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="overflow-x-hidden">
+      <head>
+        <script src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/env-config.js`} defer />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-surface text-slate-900 overflow-x-hidden`}
         suppressHydrationWarning
