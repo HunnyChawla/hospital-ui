@@ -14,9 +14,9 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [addingNew, setAddingNew] = useState(false);
 
-    // Form state
     const [label, setLabel] = useState("");
     const [value, setValue] = useState("");
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [category, setCategory] = useState<QuickDiagnosis["category"]>("other");
 
     // Search state
@@ -52,6 +52,8 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
 
     const selectDiagnosis = (diagnosis: Diagnosis) => {
         setValue(diagnosis.diagnosis_name);
+        console.log("diagnosi id", diagnosis.id);
+        setSelectedId(diagnosis.id);
 
         // Auto-fill label if empty
         if (!label) {
@@ -75,6 +77,7 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
         const item = items[index];
         setLabel(item.label);
         setValue(item.value);
+        setSelectedId(item.id || null);
         setCategory(item.category);
         setEditingIndex(index);
         setAddingNew(false);
@@ -85,6 +88,7 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
     const startAdd = () => {
         setLabel("");
         setValue("");
+        setSelectedId(null);
         setCategory("other");
         setAddingNew(true);
         setEditingIndex(null);
@@ -101,9 +105,11 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
         if (!label.trim() || !value.trim()) return;
 
         const newItem: QuickDiagnosis = {
+            id: selectedId || undefined,
             label: label.trim(),
             value: value.trim(),
             category,
+            position: items.length,
         };
 
         if (addingNew) {

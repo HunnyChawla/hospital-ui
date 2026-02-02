@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import { Eye, Save, FileText, Printer, CheckCircle } from "lucide-react";
+import { Eye, Save, FileText, Printer, CheckCircle, Search, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import type { OptometryPrescription, RefractionRecord } from "@/types";
+import type { OptometryPrescription, RefractionRecord, PrescriptionSymptom } from "@/types";
+import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
+import { symptomsApi, DiagnosisSymptomMap } from "@/services/symptomsApi";
 import { handleError } from "@/utils/errorHandler";
 
 interface OptometryPrescriptionFormProps {
@@ -38,6 +40,7 @@ interface PrescriptionFormData {
   diagnosis: string;
   notes: string;
   frame_fitting_notes: string;
+  symptoms?: PrescriptionSymptom[];
 }
 
 export function OptometryPrescriptionForm({
@@ -61,6 +64,99 @@ export function OptometryPrescriptionForm({
     watch,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<PrescriptionFormData>();
+
+  const [selectedDiagnoses, setSelectedDiagnoses] = useState<Diagnosis[]>([]);
+  const [availableSymptoms, setAvailableSymptoms] = useState<Record<string, DiagnosisSymptomMap[]>>({});
+  const [selectedSymptoms, setSelectedSymptoms] = useState<PrescriptionSymptom[]>([]);
+  const [diagnosisSearch, setDiagnosisSearch] = useState("");
+  const [diagnosisResults, setDiagnosisResults] = useState<Diagnosis[]>([]);
+  const [isSearchingDiagnosis, setIsSearchingDiagnosis] = useState(false);
+  const [showDiagnosisSearch, setShowDiagnosisSearch] = useState(false);
+
+  // Search diagnoses
+  useEffect(() => {
+    const search = async () => {
+      if (!diagnosisSearch || diagnosisSearch.length < 2) {
+        setDiagnosisResults([]);
+        return;
+      }
+      setIsSearchingDiagnosis(true);
+      try {
+        const res = await diagnosesApi.list({ search: diagnosisSearch, page_size: 10, status: 'active' });
+        setDiagnosisResults(res.items);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsSearchingDiagnosis(false);
+      }
+    };
+    const timeout = setTimeout(search, 300);
+    return () => clearTimeout(timeout);
+  }, [diagnosisSearch]);
+
+  const addDiagnosis = async (diagnosis: Diagnosis) => {
+    // FORCE DEBUG
+    window.alert(`Diagnosis clicked: ${diagnosis.diagnosis_name}`);
+    console.log("addDiagnosis called with:", diagnosis);
+    if (selectedDiagnoses.find(d => d.id === diagnosis.id)) {
+      console.log("Diagnosis already selected");
+      setDiagnosisSearch("");
+      setShowDiagnosisSearch(false);
+      return;
+    }
+    const newSelected = [...selectedDiagnoses, diagnosis];
+    setSelectedDiagnoses(newSelected);
+
+    // Update the string field for compatibility
+    const currentString = watch("diagnosis");
+    const newString = currentString
+      ? `${currentString}, ${diagnosis.diagnosis_name}`
+      : diagnosis.diagnosis_name;
+    setValue("diagnosis", newString);
+
+    // Fetch symptoms
+    try {
+      console.log("Fetching symptoms for diagnosis ID:", diagnosis.id);
+      const symptoms = await symptomsApi.getSymptomsByDiagnosis(diagnosis.id);
+      console.log("Fetched symptoms response:", symptoms);
+      setAvailableSymptoms(prev => ({ ...prev, [diagnosis.id]: symptoms }));
+    } catch (err) {
+      console.error("Error fetching symptoms:", err);
+    }
+    setDiagnosisSearch("");
+    setShowDiagnosisSearch(false);
+  };
+
+  const removeDiagnosis = (id: string) => {
+    setSelectedDiagnoses(prev => prev.filter(d => d.id !== id));
+    // Note: We don't automatically remove from the string field because user might have edited it manually.
+    // But we could try to remove the name if it matches exactly.
+    // For now, we leave the string field as is or let user edit it.
+
+    // Remove associated symptoms?
+    // Maybe filtered out from view, but keep in state? 
+    // Better to remove them to avoid saving phantom symptoms.
+    setSelectedSymptoms(prev => prev.filter(s => s.diagnosis_id !== id));
+  };
+
+  const toggleSymptom = (symptom: DiagnosisSymptomMap, diagnosis: Diagnosis) => {
+    const existingIndex = selectedSymptoms.findIndex(s => s.diagnosis_id === diagnosis.id && s.symptom_id === symptom.symptom_id);
+    if (existingIndex >= 0) {
+      // Remove
+      setSelectedSymptoms(prev => prev.filter((_, i) => i !== existingIndex));
+    } else {
+      // Add
+      const newSymptom: PrescriptionSymptom = {
+        symptom_id: symptom.symptom_id,
+        symptom_name: symptom.symptom_name,
+        diagnosis_id: diagnosis.id,
+        diagnosis_name: diagnosis.diagnosis_name,
+        is_primary: symptom.is_key_symptom,
+        severity: "Moderate", // Default
+      };
+      setSelectedSymptoms(prev => [...prev, newSymptom]);
+    }
+  };
 
   // Auto-populate from latest refraction
   useEffect(() => {
@@ -103,10 +199,39 @@ export function OptometryPrescriptionForm({
       if (existingPrescription.pupillary_distance) {
         setValue("pupillary_distance", existingPrescription.pupillary_distance.toString());
       }
-      if (existingPrescription.diagnosis) setValue("diagnosis", existingPrescription.diagnosis);
+      if (existingPrescription.diagnosis) {
+        setValue("diagnosis", existingPrescription.diagnosis);
+        // Try to resolve diagnoses if not already resolved?
+        // This is complex without backend support to return diagnosis IDs in the prescription directly (unless included in symptoms)
+      }
       if (existingPrescription.notes) setValue("notes", existingPrescription.notes);
       if (existingPrescription.frame_fitting_notes) {
         setValue("frame_fitting_notes", existingPrescription.frame_fitting_notes);
+      }
+
+      if (existingPrescription.symptoms) {
+        setSelectedSymptoms(existingPrescription.symptoms);
+
+        // Reconstruct selected diagnoses from symptoms if possible
+        const diagnosisIds = Array.from(new Set(existingPrescription.symptoms.map(s => s.diagnosis_id).filter(Boolean))) as string[];
+        if (diagnosisIds.length > 0) {
+          // Fetch these diagnoses details to show in UI
+          diagnosisIds.forEach(async (id) => {
+            try {
+              // We need to fetch diagnosis details. api.getById
+              const d = await diagnosesApi.getById(id);
+              setSelectedDiagnoses(prev => {
+                if (prev.find(p => p.id === d.id)) return prev;
+                return [...prev, d];
+              });
+              // And fetch symptoms for them
+              const symptoms = await symptomsApi.getSymptomsByDiagnosis(id);
+              setAvailableSymptoms(prev => ({ ...prev, [id]: symptoms }));
+            } catch (e) {
+              console.error("Failed to load diagnosis details", e);
+            }
+          });
+        }
       }
 
       setStatus(existingPrescription.status);
@@ -146,6 +271,7 @@ export function OptometryPrescriptionForm({
           },
         ],
         pupillary_distance: data.pupillary_distance ? parseFloat(data.pupillary_distance) : null,
+        symptoms: selectedSymptoms,
         diagnosis: data.diagnosis || null,
         notes: data.notes || null,
         frame_fitting_notes: data.frame_fitting_notes || null,
@@ -412,19 +538,7 @@ export function OptometryPrescriptionForm({
               </select>
             </div>
 
-            {/* Diagnosis */}
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Diagnosis
-              </label>
-              <input
-                type="text"
-                disabled={status === "finalized"}
-                {...register("diagnosis")}
-                className="w-full rounded-lg border border-slate-300 px-4 py-2 disabled:bg-slate-100 disabled:cursor-not-allowed focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                placeholder="e.g., Myopia OU, Presbyopia"
-              />
-            </div>
+
 
             {/* Frame Fitting Notes */}
             <div className="md:col-span-2">
@@ -440,8 +554,124 @@ export function OptometryPrescriptionForm({
               />
             </div>
 
+            {/* Diagnosis Selection & Symptoms */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-slate-700">Diagnoses & Symptoms</label>
+                <button
+                  type="button"
+                  onClick={() => setShowDiagnosisSearch(!showDiagnosisSearch)}
+                  className="text-xs flex items-center gap-1 text-sky-600 hover:text-sky-700 font-medium"
+                >
+                  <Plus className="h-3 w-3" /> Add Diagnosis
+                </button>
+              </div>
+
+              {/* Manual Text Input (Legacy/Fallback) */}
+              <input
+                type="text"
+                disabled={status === "finalized"}
+                {...register("diagnosis")}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2 disabled:bg-slate-100 disabled:cursor-not-allowed focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                placeholder="Diagnoses (manual entry or select below)"
+              />
+
+              {/* Diagnosis Search Panel */}
+              {showDiagnosisSearch && (
+                <div className="relative z-[100] rounded-lg border border-slate-300 bg-white p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 ring-4 ring-sky-500/10">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      autoFocus
+                      type="text"
+                      value={diagnosisSearch}
+                      onChange={(e) => setDiagnosisSearch(e.target.value)}
+                      className="w-full rounded-md border border-slate-300 pl-9 pr-4 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      placeholder="Search diagnoses..."
+                    />
+                  </div>
+                  {isSearchingDiagnosis && (
+                    <div className="mt-2 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Searching...
+                    </div>
+                  )}
+                  {!isSearchingDiagnosis && diagnosisResults.length > 0 && (
+                    <ul className="mt-2 max-h-60 overflow-y-auto rounded-md border border-slate-100 divide-y divide-slate-100 bg-white shadow-sm">
+                      {diagnosisResults.map((d) => (
+                        <li key={d.id} className="block">
+                          <button
+                            type="button"
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-sky-50 transition-colors focus:bg-sky-50 focus:outline-none flex flex-col gap-0.5"
+                            onMouseDown={(e) => {
+                              console.log("onMouseDown on diagnosis:", d.diagnosis_name);
+                              // Prevent any other blur events
+                              addDiagnosis(d);
+                            }}
+                          >
+                            <span className="font-semibold text-slate-900">{d.diagnosis_name}</span>
+                            {d.diagnosis_code && <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1 rounded self-start">{d.diagnosis_code}</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!isSearchingDiagnosis && diagnosisSearch.length >= 2 && diagnosisResults.length === 0 && (
+                    <p className="mt-2 text-center text-xs text-slate-500">No diagnoses found.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Selected Diagnoses & Symptoms */}
+              {selectedDiagnoses.length > 0 && (
+                <div className="grid gap-4 rounded-lg border border-slate-100 bg-slate-50 p-4">
+                  {selectedDiagnoses.map(diagnosis => (
+                    <div key={diagnosis.id} className="space-y-2">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h4 className="font-semibold text-slate-800">{diagnosis.diagnosis_name}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeDiagnosis(diagnosis.id)}
+                          className="text-slate-400 hover:text-red-500"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="pl-2">
+                        <p className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Related Symptoms</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {availableSymptoms[diagnosis.id]?.map(symptom => {
+                            const isSelected = selectedSymptoms.some(s => s.diagnosis_id === diagnosis.id && s.symptom_id === symptom.symptom_id);
+                            return (
+                              <label
+                                key={symptom.id}
+                                className={`
+                                                        flex items-center gap-2 p-2 rounded border text-sm cursor-pointer transition-colors
+                                                        ${isSelected ? 'bg-sky-50 border-sky-200 text-sky-800' : 'bg-white border-slate-200 hover:border-sky-200'}
+                                                    `}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleSymptom(symptom, diagnosis)}
+                                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                />
+                                <span className="truncate" title={symptom.symptom_name}>{symptom.symptom_name}</span>
+                              </label>
+                            );
+                          })}
+                          {(!availableSymptoms[diagnosis.id] || availableSymptoms[diagnosis.id].length === 0) && (
+                            <p className="text-xs text-slate-400 italic">No linked symptoms found.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Notes */}
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 pt-2">
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Additional Notes
               </label>

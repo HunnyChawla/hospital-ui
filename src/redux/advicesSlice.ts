@@ -114,8 +114,12 @@ const advicesSlice = createSlice({
                 state.error = null;
             })
             .addCase(createAdvice.fulfilled, (state, action) => {
-                state.items.unshift(action.payload);
-                state.total += 1;
+                // Ensure uniqueness
+                const exists = state.items.some((item) => item.id === action.payload.id);
+                if (!exists) {
+                    state.items.unshift(action.payload);
+                    state.total += 1;
+                }
             })
             .addCase(createAdvice.rejected, (state, action) => {
                 state.error = action.error.message || "Failed to create advice";
@@ -157,8 +161,12 @@ const advicesSlice = createSlice({
             })
             .addCase(bulkCreateAdvices.fulfilled, (state, action) => {
                 state.loading = false;
-                state.items = [...action.payload, ...state.items];
-                state.total += action.payload.length;
+                // Ensure uniqueness when adding bulk items
+                const newItems = action.payload.filter(
+                    (newItem) => !state.items.some((item) => item.id === newItem.id)
+                );
+                state.items = [...newItems, ...state.items];
+                state.total += newItems.length;
             })
             .addCase(bulkCreateAdvices.rejected, (state, action) => {
                 state.loading = false;
