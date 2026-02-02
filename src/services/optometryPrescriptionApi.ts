@@ -1,6 +1,6 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
-import type { OptometryPrescription, OptometryPrescriptionItem, MedicineItem, AdviceItem } from "@/types";
+import type { OptometryPrescription, OptometryPrescriptionItem, MedicineItem, AdviceItem, PrescriptionSymptom } from "@/types";
 
 // Request types
 export interface CreateOptometryPrescriptionRequest {
@@ -23,6 +23,7 @@ export interface CreateOptometryPrescriptionRequest {
   coatings?: string[] | null;
   medicine_items?: MedicineItem[];
   advice_items?: AdviceItem[];
+  symptoms?: PrescriptionSymptom[];
 }
 
 export interface UpdateOptometryPrescriptionRequest {
@@ -40,6 +41,7 @@ export interface UpdateOptometryPrescriptionRequest {
   coatings?: string[] | null;
   medicine_items?: MedicineItem[];
   advice_items?: AdviceItem[];
+  symptoms?: PrescriptionSymptom[];
 }
 
 // Search/List params and response

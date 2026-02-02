@@ -446,6 +446,21 @@ export type AdviceItem = {
   created_at?: string;
 };
 
+// Symptom Item for Prescriptions
+export type PrescriptionSymptom = {
+  id?: string;
+  prescription_id?: string;
+  symptom_id: string;
+  symptom_name: string;
+  diagnosis_id?: string;
+  diagnosis_name?: string;
+  is_primary?: boolean;
+  severity?: string;
+  duration?: string;
+  notes?: string;
+  created_at?: string;
+};
+
 export type OptometryPrescription = {
   id: string;
   tenant_id: string;
@@ -478,6 +493,7 @@ export type OptometryPrescription = {
   updated_at: string;
   created_by?: string;
   updated_by?: string;
+  symptoms?: PrescriptionSymptom[];
 };
 
 // Patient Optometry History

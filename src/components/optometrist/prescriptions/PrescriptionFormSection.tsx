@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import clsx from "clsx";
 import { optometryPrescriptionApi } from "@/services/optometryPrescriptionApi";
+import { symptomsApi, DiagnosisSymptomMap } from "@/services/symptomsApi";
 import { prescriptionDataApi } from "@/services/prescriptionDataApi";
 import { doctorsApi } from "@/services/doctorsApi";
 import { medicinesApi } from "@/services/medicinesApi";
@@ -44,14 +45,14 @@ import {
 } from "./prescriptionQuickActions";
 import { SaveAsTemplateModal } from "./SaveAsTemplateModal";
 import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
-import type { MedicineItem, AdviceItem, OptometryPrescription, OptometryPrescriptionItem } from "@/types";
+import type { MedicineItem, AdviceItem, OptometryPrescription, OptometryPrescriptionItem, PrescriptionSymptom } from "@/types";
 import { QuickPresetsSettingsModal } from "./settings/QuickPresetsSettingsModal";
 import { PlannedSurgerySection } from "./PlannedSurgerySection";
 import { quickPresetsApi } from "@/services/quickPresetsApi";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { patientsApi } from "@/services/patientsApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
-import type { PlannedSurgery } from "@/types";
+import type { PlannedSurgery, Diagnosis } from "@/types";
 import { usersApi } from "@/services/usersApi";
 import { diagnosesApi } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
@@ -191,6 +192,9 @@ export function PrescriptionFormSection({
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
     const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
+    const [resolvedDiagnoses, setResolvedDiagnoses] = useState<Record<string, Diagnosis>>({});
+    const [availableSymptoms, setAvailableSymptoms] = useState<Record<string, DiagnosisSymptomMap[]>>({});
+    const [selectedSymptoms, setSelectedSymptoms] = useState<PrescriptionSymptom[]>([]);
     const [addedAdviceIds, setAddedAdviceIds] = useState<string[]>([]);
     const [addedLabTestIds, setAddedLabTestIds] = useState<string[]>([]);
     const [addedMedicineIds, setAddedMedicineIds] = useState<string[]>([]);
@@ -667,14 +671,66 @@ export function PrescriptionFormSection({
     }, [testSearchQuery]);
 
     // Handle diagnosis toggle
-    const handleDiagnosisToggle = (value: string) => {
+    const handleDiagnosisToggle = async (value: string) => {
+        const isAdding = !selectedDiagnoses.includes(value);
         setSelectedDiagnoses(prev => {
-            const newList = prev.includes(value)
-                ? prev.filter(d => d !== value)
-                : [...prev, value];
+            const newList = isAdding
+                ? [...prev, value]
+                : prev.filter(d => d !== value);
             // Update form value
             setValue("diagnosis", newList.join(", "));
             return newList;
+        });
+
+        if (isAdding) {
+            // If it's a chip/preset, we might not have the ID yet unless it's in the option
+            const option = diagnosesOptions.find(o => o.value === value);
+            if (option?.id) {
+                try {
+                    const symptoms = await symptomsApi.getSymptomsByDiagnosis(option.id);
+                    setAvailableSymptoms(prev => ({ ...prev, [option.id]: symptoms }));
+                    // Also store the mapping of name to id if needed for UI
+                } catch (err) {
+                    console.error("Failed to fetch symptoms for diagnosis:", value, err);
+                }
+            } else {
+                // Search for diagnosis to get ID
+                try {
+                    const res = await diagnosesApi.list({ search: value, page_size: 1 });
+                    if (res.items.length > 0) {
+                        const d = res.items[0];
+                        setResolvedDiagnoses(prev => ({ ...prev, [value]: d }));
+                        const symptoms = await symptomsApi.getSymptomsByDiagnosis(d.id);
+                        setAvailableSymptoms(prev => ({ ...prev, [d.id]: symptoms }));
+                    }
+                } catch (e) {
+                    console.error("Search failed for", value, e);
+                }
+            }
+        } else {
+            // Remove symptoms for this diagnosis
+            const diagId = diagnosesOptions.find(o => o.value === value)?.id || resolvedDiagnoses[value]?.id;
+            if (diagId) {
+                setSelectedSymptoms(prev => prev.filter(s => s.diagnosis_id !== diagId));
+            }
+        }
+    };
+
+    const toggleSymptom = (symptom: DiagnosisSymptomMap, diagnosisId: string, diagnosisName: string) => {
+        setSelectedSymptoms(prev => {
+            const existingIndex = prev.findIndex(s => s.diagnosis_id === diagnosisId && s.symptom_id === symptom.symptom_id);
+            if (existingIndex >= 0) {
+                return prev.filter((_, i) => i !== existingIndex);
+            } else {
+                return [...prev, {
+                    symptom_id: symptom.symptom_id,
+                    symptom_name: symptom.symptom_name,
+                    diagnosis_id: diagnosisId,
+                    diagnosis_name: diagnosisName,
+                    is_primary: symptom.is_key_symptom,
+                    severity: "Moderate"
+                }];
+            }
         });
     };
 
@@ -761,8 +817,17 @@ export function PrescriptionFormSection({
         setMedicineSearchResults([]);
     };
 
-    const handleAddDiagnosisFromSearch = (diagnosis: any) => {
+    const handleAddDiagnosisFromSearch = async (diagnosis: any) => {
         handleDiagnosisToggle(diagnosis.value);
+        if (diagnosis.id) {
+            setResolvedDiagnoses(prev => ({ ...prev, [diagnosis.value]: diagnosis }));
+            try {
+                const symptoms = await symptomsApi.getSymptomsByDiagnosis(diagnosis.id);
+                setAvailableSymptoms(prev => ({ ...prev, [diagnosis.id]: symptoms }));
+            } catch (err) {
+                console.error("Failed to fetch symptoms for diagnosis ID:", diagnosis.id, err);
+            }
+        }
         setDiagnosisSearchQuery("");
         setDiagnosisSearchResults([]);
     };
@@ -960,6 +1025,7 @@ export function PrescriptionFormSection({
                     coatings: selectedCoatings.length > 0 ? selectedCoatings : null,
                     medicine_items: sanitizedMedicines,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
+                    symptoms: selectedSymptoms.length > 0 ? selectedSymptoms : undefined,
                 });
             } else {
                 result = await optometryPrescriptionApi.create({
@@ -979,6 +1045,7 @@ export function PrescriptionFormSection({
                     coatings: selectedCoatings.length > 0 ? selectedCoatings : undefined,
                     medicine_items: sanitizedMedicines,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
+                    symptoms: selectedSymptoms.length > 0 ? selectedSymptoms : undefined,
                 });
             }
 
@@ -1322,10 +1389,44 @@ export function PrescriptionFormSection({
                                             <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-white text-[10px] font-black">{selectedDiagnoses.length}</span>
                                             Selected Conditions
                                         </p>
-                                        <SelectedDiagnoses
-                                            diagnoses={selectedDiagnoses}
-                                            onRemove={handleDiagnosisToggle}
-                                        />
+                                        <div className="space-y-4">
+                                            {selectedDiagnoses.map((diagName) => {
+                                                const diagId = diagnosesOptions.find(o => o.value === diagName)?.id || resolvedDiagnoses[diagName]?.id;
+                                                const symptoms = diagId ? availableSymptoms[diagId] : null;
+
+                                                return (
+                                                    <div key={diagName} className="space-y-2">
+                                                        <SelectedDiagnoses
+                                                            diagnoses={[diagName]}
+                                                            onRemove={handleDiagnosisToggle}
+                                                        />
+                                                        {symptoms && symptoms.length > 0 && (
+                                                            <div className="ml-4 pl-4 border-l-2 border-slate-200 py-1 flex flex-wrap gap-1.5 transition-all animate-in fade-in slide-in-from-left-2 duration-300">
+                                                                {symptoms.map((s) => {
+                                                                    const isSelected = selectedSymptoms.some(sel => sel.diagnosis_id === diagId && sel.symptom_id === s.symptom_id);
+                                                                    return (
+                                                                        <button
+                                                                            key={s.symptom_id}
+                                                                            type="button"
+                                                                            onClick={() => diagId && toggleSymptom(s, diagId, diagName)}
+                                                                            className={clsx(
+                                                                                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                                                                                isSelected
+                                                                                    ? "bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/20"
+                                                                                    : "bg-white text-slate-500 border border-slate-200 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50/50"
+                                                                            )}
+                                                                        >
+                                                                            {isSelected && <CheckCircle className="h-3 w-3" />}
+                                                                            {s.symptom_name}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
 

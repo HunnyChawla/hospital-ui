@@ -86,7 +86,6 @@ export function QuickPresetsSettingsModal({
         try {
             const promises: Promise<any>[] = [];
 
-            // Helper to process list changes
             const processChanges = <T extends { id?: string }>(
                 currentList: T[],
                 originalListStr: string,
@@ -97,7 +96,6 @@ export function QuickPresetsSettingsModal({
                 const originalList: T[] = JSON.parse(originalListStr || "[]");
 
                 // Identify Deletions: Items in original but not in current (by ID)
-                // Note: Items without ID in original shouldn't exist ideally, but safe to ignore
                 const currentIds = new Set(currentList.map(item => item.id).filter(Boolean));
                 const toDelete = originalList.filter(item => item.id && !currentIds.has(item.id));
 
@@ -106,20 +104,26 @@ export function QuickPresetsSettingsModal({
                 });
 
                 // Identify Creations and Updates
-                currentList.forEach(item => {
-                    // Check if it's a temp ID (starts with "new-") or undefined
-                    const isNew = !item.id || item.id.startsWith("new-");
+                currentList.forEach((item, index) => {
+                    // Check if it's already in the original list
+                    const originalItem = originalList.find(o => o.id === item.id);
+                    const isNew = !originalItem;
+
+                    // Always update position to current index
+                    const itemWithPosition = { ...item, position: index };
 
                     if (isNew) {
-                        // Create: ensure we send object without the temp ID if possible, or API handles it
-                        // For clean API calls, we might want to strip 'id' if it's "new-..." or just let backend handle it
-                        const { id, ...payload } = item;
+                        // For creations, strip any "new-" prefix if it was a frontend-only temp ID
+                        // but keep standard UUIDs (likely from a selected diagnosis)
+                        const payload = { ...itemWithPosition };
+                        if (payload.id?.startsWith("new-")) {
+                            delete payload.id;
+                        }
                         promises.push(createFn(doctorId, payload as T));
                     } else {
-                        // Update: Check if it actually changed
-                        const originalItem = originalList.find(o => o.id === item.id);
-                        if (originalItem && JSON.stringify(originalItem) !== JSON.stringify(item)) {
-                            promises.push(updateFn(doctorId, item.id!, item));
+                        // Update: Check if it actually changed (including position)
+                        if (JSON.stringify(originalItem) !== JSON.stringify(itemWithPosition)) {
+                            promises.push(updateFn(doctorId, item.id!, itemWithPosition));
                         }
                     }
                 });
