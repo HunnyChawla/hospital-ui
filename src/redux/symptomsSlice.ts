@@ -1,23 +1,23 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import {
-    diagnosesApi,
-    Diagnosis,
-    CreateDiagnosisRequest,
-    UpdateDiagnosisRequest,
-    DiagnosesSearchParams,
-} from "@/services/diagnosesApi";
+    symptomsApi,
+    Symptom,
+    CreateSymptomRequest,
+    UpdateSymptomRequest,
+    SymptomsSearchParams,
+} from "@/services/symptomsApi";
 
-interface DiagnosesState {
-    items: Diagnosis[];
+interface SymptomsState {
+    items: Symptom[];
     loading: boolean;
     error: string | null;
     total: number;
-    lastQuery: DiagnosesSearchParams | null;
+    lastQuery: SymptomsSearchParams | null;
     updatingId: string | null;
     deletingId: string | null;
 }
 
-const initialState: DiagnosesState = {
+const initialState: SymptomsState = {
     items: [],
     loading: false,
     error: null,
@@ -27,69 +27,69 @@ const initialState: DiagnosesState = {
     deletingId: null,
 };
 
-export const fetchDiagnoses = createAsyncThunk(
-    "diagnoses/fetchDiagnoses",
-    async (params: DiagnosesSearchParams) => {
-        const response = await diagnosesApi.list(params);
+export const fetchSymptoms = createAsyncThunk(
+    "symptoms/fetchSymptoms",
+    async (params: SymptomsSearchParams) => {
+        const response = await symptomsApi.list(params);
         return { response, params };
     }
 );
 
-export const createDiagnosis = createAsyncThunk(
-    "diagnoses/createDiagnosis",
+export const createSymptom = createAsyncThunk(
+    "symptoms/createSymptom",
     async ({
-        diagnosis,
+        symptom,
         isGlobal,
         tenantId,
     }: {
-        diagnosis: CreateDiagnosisRequest;
+        symptom: CreateSymptomRequest;
         isGlobal?: boolean;
         tenantId?: string;
     }) => {
-        return await diagnosesApi.create(diagnosis, isGlobal, tenantId);
+        return await symptomsApi.create(symptom, isGlobal, tenantId);
     }
 );
 
-export const updateDiagnosis = createAsyncThunk(
-    "diagnoses/updateDiagnosis",
+export const updateSymptom = createAsyncThunk(
+    "symptoms/updateSymptom",
     async ({
         id,
         updates,
         tenantId,
     }: {
         id: string;
-        updates: UpdateDiagnosisRequest;
+        updates: UpdateSymptomRequest;
         tenantId?: string;
     }) => {
-        return await diagnosesApi.update(id, updates, tenantId);
+        return await symptomsApi.update(id, updates, tenantId);
     }
 );
 
-export const deleteDiagnosis = createAsyncThunk(
-    "diagnoses/deleteDiagnosis",
+export const deleteSymptom = createAsyncThunk(
+    "symptoms/deleteSymptom",
     async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-        await diagnosesApi.delete(id, tenantId);
+        await symptomsApi.delete(id, tenantId);
         return id;
     }
 );
 
-export const bulkCreateDiagnoses = createAsyncThunk(
-    "diagnoses/bulkCreateDiagnoses",
+export const bulkCreateSymptoms = createAsyncThunk(
+    "symptoms/bulkCreateSymptoms",
     async ({
-        diagnoses,
+        symptoms,
         isGlobal,
         tenantId,
     }: {
-        diagnoses: CreateDiagnosisRequest[];
+        symptoms: CreateSymptomRequest[];
         isGlobal?: boolean;
         tenantId?: string;
     }) => {
-        return await diagnosesApi.bulkCreate(diagnoses, isGlobal, tenantId);
+        return await symptomsApi.bulkCreate(symptoms, isGlobal, tenantId);
     }
 );
 
-const diagnosesSlice = createSlice({
-    name: "diagnoses",
+const symptomsSlice = createSlice({
+    name: "symptoms",
     initialState,
     reducers: {
         clearError: (state) => {
@@ -98,26 +98,26 @@ const diagnosesSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // Fetch diagnoses
-            .addCase(fetchDiagnoses.pending, (state) => {
+            // Fetch symptoms
+            .addCase(fetchSymptoms.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(fetchDiagnoses.fulfilled, (state, action) => {
+            .addCase(fetchSymptoms.fulfilled, (state, action) => {
                 state.loading = false;
                 state.items = action.payload.response.items;
                 state.total = action.payload.response.total;
                 state.lastQuery = action.payload.params;
             })
-            .addCase(fetchDiagnoses.rejected, (state, action) => {
+            .addCase(fetchSymptoms.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.error.message || "Failed to fetch diagnoses";
+                state.error = action.error.message || "Failed to fetch symptoms";
             })
-            // Create diagnosis
-            .addCase(createDiagnosis.pending, (state) => {
+            // Create symptom
+            .addCase(createSymptom.pending, (state) => {
                 state.error = null;
             })
-            .addCase(createDiagnosis.fulfilled, (state, action) => {
+            .addCase(createSymptom.fulfilled, (state, action) => {
                 // Ensure uniqueness
                 const exists = state.items.some((item) => item.id === action.payload.id);
                 if (!exists) {
@@ -125,45 +125,45 @@ const diagnosesSlice = createSlice({
                     state.total += 1;
                 }
             })
-            .addCase(createDiagnosis.rejected, (state, action) => {
-                state.error = action.error.message || "Failed to create diagnosis";
+            .addCase(createSymptom.rejected, (state, action) => {
+                state.error = action.error.message || "Failed to create symptom";
             })
-            // Update diagnosis
-            .addCase(updateDiagnosis.pending, (state, action) => {
+            // Update symptom
+            .addCase(updateSymptom.pending, (state, action) => {
                 state.updatingId = action.meta.arg.id;
                 state.error = null;
             })
-            .addCase(updateDiagnosis.fulfilled, (state, action) => {
+            .addCase(updateSymptom.fulfilled, (state, action) => {
                 state.updatingId = null;
                 const index = state.items.findIndex((item) => item.id === action.payload.id);
                 if (index !== -1) {
                     state.items[index] = action.payload;
                 }
             })
-            .addCase(updateDiagnosis.rejected, (state, action) => {
+            .addCase(updateSymptom.rejected, (state, action) => {
                 state.updatingId = null;
-                state.error = action.error.message || "Failed to update diagnosis";
+                state.error = action.error.message || "Failed to update symptom";
             })
-            // Delete diagnosis
-            .addCase(deleteDiagnosis.pending, (state, action) => {
+            // Delete symptom
+            .addCase(deleteSymptom.pending, (state, action) => {
                 state.deletingId = action.meta.arg.id;
                 state.error = null;
             })
-            .addCase(deleteDiagnosis.fulfilled, (state, action) => {
+            .addCase(deleteSymptom.fulfilled, (state, action) => {
                 state.deletingId = null;
                 state.items = state.items.filter((item) => item.id !== action.payload);
                 state.total -= 1;
             })
-            .addCase(deleteDiagnosis.rejected, (state, action) => {
+            .addCase(deleteSymptom.rejected, (state, action) => {
                 state.deletingId = null;
-                state.error = action.error.message || "Failed to delete diagnosis";
+                state.error = action.error.message || "Failed to delete symptom";
             })
-            // Bulk create diagnoses
-            .addCase(bulkCreateDiagnoses.pending, (state) => {
+            // Bulk create symptoms
+            .addCase(bulkCreateSymptoms.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(bulkCreateDiagnoses.fulfilled, (state, action) => {
+            .addCase(bulkCreateSymptoms.fulfilled, (state, action) => {
                 state.loading = false;
                 // Ensure uniqueness when adding bulk items
                 const newItems = action.payload.filter(
@@ -172,12 +172,12 @@ const diagnosesSlice = createSlice({
                 state.items = [...newItems, ...state.items];
                 state.total += newItems.length;
             })
-            .addCase(bulkCreateDiagnoses.rejected, (state, action) => {
+            .addCase(bulkCreateSymptoms.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.error.message || "Failed to bulk create diagnoses";
+                state.error = action.error.message || "Failed to bulk create symptoms";
             });
     },
 });
 
-export const { clearError } = diagnosesSlice.actions;
-export default diagnosesSlice.reducer;
+export const { clearError } = symptomsSlice.actions;
+export default symptomsSlice.reducer;

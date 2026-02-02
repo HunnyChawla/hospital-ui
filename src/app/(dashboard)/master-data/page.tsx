@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { DiagnosesPanel } from "@/components/master-data/DiagnosesPanel";
+import { SymptomsPanel } from "@/components/master-data/SymptomsPanel";
 import { AdvicesPanel } from "@/components/master-data/AdvicesPanel";
 
-type Tab = "diagnoses" | "advices";
+type Tab = "diagnoses" | "symptoms" | "advices";
+
 
 export default function MasterDataPage() {
     const [activeTab, setActiveTab] = useState<Tab>("diagnoses");
@@ -34,6 +36,18 @@ export default function MasterDataPage() {
                         )}
                     </button>
                     <button
+                        onClick={() => setActiveTab("symptoms")}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors relative ${activeTab === "symptoms"
+                            ? "text-sky-600"
+                            : "text-slate-600 hover:text-slate-900"
+                            }`}
+                    >
+                        Symptoms
+                        {activeTab === "symptoms" && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab("advices")}
                         className={`px-4 py-2 text-sm font-semibold transition-colors relative ${activeTab === "advices"
                             ? "text-sky-600"
@@ -51,6 +65,7 @@ export default function MasterDataPage() {
             {/* Tab Content */}
             <div>
                 {activeTab === "diagnoses" && <DiagnosesPanel />}
+                {activeTab === "symptoms" && <SymptomsPanel />}
                 {activeTab === "advices" && <AdvicesPanel />}
             </div>
         </div>

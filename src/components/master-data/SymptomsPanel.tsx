@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { fetchDiagnoses, updateDiagnosis, deleteDiagnosis } from "@/redux/diagnosesSlice";
-import { DiagnosisForm } from "./DiagnosisForm";
-import { DiagnosisSymptomsLinkModal } from "./DiagnosisSymptomsLinkModal";
-import { BulkImportModal } from "./BulkImportModal";
+import { fetchSymptoms, updateSymptom, deleteSymptom } from "@/redux/symptomsSlice";
+import { SymptomForm } from "./SymptomForm";
+import { SymptomDiagnosesLinkModal } from "./SymptomDiagnosesLinkModal";
+import { SymptomBulkImportModal } from "./SymptomBulkImportModal";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -18,37 +18,38 @@ import {
     Search,
     ToggleLeft,
     ToggleRight,
-    Filter,
     Plus,
     Edit,
     Trash2,
-    Upload,
     Power,
     PowerOff,
     Building2,
+    Eye,
+    EyeOff,
     Link2,
+    Upload,
 } from "lucide-react";
-import { Diagnosis } from "@/services/diagnosesApi";
+import { Symptom } from "@/services/symptomsApi";
 import { isPlatformOwner } from "@/utils/auth";
 import { tenantsApi, Tenant } from "@/services/tenantsApi";
 
-const DEFAULT_QUERY = { page: 1, page_size: 20, status: "active" as const };
+const DEFAULT_QUERY = { page: 1, page_size: 20, is_active: true };
 
-export function DiagnosesPanel() {
+export function SymptomsPanel() {
     const dispatch = useAppDispatch();
     const { items, loading, total, lastQuery, updatingId, deletingId } = useAppSelector(
-        (s) => s.diagnoses
+        (s) => s.symptoms
     );
 
     const [search, setSearch] = useState("");
     const [onlyActive, setOnlyActive] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [showBulkImportModal, setShowBulkImportModal] = useState(false);
-    const [editingDiagnosis, setEditingDiagnosis] = useState<Diagnosis | null>(null);
+    const [editingSymptom, setEditingSymptom] = useState<Symptom | null>(null);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [selectedTenantId, setSelectedTenantId] = useState<string>("");
     const [deleteConfirmation, setDeleteConfirmation] = useState<{ id: string; name: string } | null>(null);
-    const [linkingDiagnosis, setLinkingDiagnosis] = useState<Diagnosis | null>(null);
+    const [linkingSymptom, setLinkingSymptom] = useState<Symptom | null>(null);
+    const [showBulkImportModal, setShowBulkImportModal] = useState(false);
 
     const isPlatformOwnerUser = isPlatformOwner();
 
@@ -69,17 +70,17 @@ export function DiagnosesPanel() {
     }, [loadTenants]);
 
     useEffect(() => {
-        dispatch(fetchDiagnoses({ ...DEFAULT_QUERY, tenant_id: selectedTenantId || undefined }));
+        dispatch(fetchSymptoms({ ...DEFAULT_QUERY, tenant_id: selectedTenantId || undefined }));
     }, [dispatch, selectedTenantId]);
 
     useEffect(() => {
         const handler = setTimeout(() => {
             dispatch(
-                fetchDiagnoses({
+                fetchSymptoms({
                     page: 1,
                     page_size: DEFAULT_QUERY.page_size,
                     search: search.trim() || undefined,
-                    status: onlyActive ? "active" : undefined,
+                    is_active: onlyActive ? true : undefined,
                     tenant_id: selectedTenantId || undefined,
                 })
             );
@@ -88,17 +89,12 @@ export function DiagnosesPanel() {
         return () => clearTimeout(handler);
     }, [search, onlyActive, selectedTenantId, dispatch]);
 
-    const categories = useMemo(
-        () => Array.from(new Set(items.map((d) => d.category).filter(Boolean))).sort(),
-        [items]
-    );
-
-    const handleToggleActive = async (id: string, currentStatus: string) => {
+    const handleToggleActive = async (id: string, currentStatus: boolean) => {
         try {
-            const newStatus = currentStatus === "active" ? "inactive" : "active";
-            await dispatch(updateDiagnosis({ id, updates: { status: newStatus }, tenantId: selectedTenantId || undefined })).unwrap();
-            toast.success(`Diagnosis ${newStatus === "active" ? "activated" : "deactivated"}`);
-            dispatch(fetchDiagnoses({ ...(lastQuery || DEFAULT_QUERY), tenant_id: selectedTenantId || undefined }));
+            const newStatus = !currentStatus;
+            await dispatch(updateSymptom({ id, updates: { is_active: newStatus }, tenantId: selectedTenantId || undefined })).unwrap();
+            toast.success(`Symptom ${newStatus ? "activated" : "deactivated"}`);
+            dispatch(fetchSymptoms({ ...(lastQuery || DEFAULT_QUERY), tenant_id: selectedTenantId || undefined }));
         } catch (error) {
             toast.error(getErrorMessage(error));
         }
@@ -112,9 +108,9 @@ export function DiagnosesPanel() {
         if (!deleteConfirmation) return;
 
         try {
-            await dispatch(deleteDiagnosis({ id: deleteConfirmation.id, tenantId: selectedTenantId || undefined })).unwrap();
-            toast.success("Diagnosis deleted successfully");
-            dispatch(fetchDiagnoses({ ...(lastQuery || DEFAULT_QUERY), tenant_id: selectedTenantId || undefined }));
+            await dispatch(deleteSymptom({ id: deleteConfirmation.id, tenantId: selectedTenantId || undefined })).unwrap();
+            toast.success("Symptom deleted successfully");
+            dispatch(fetchSymptoms({ ...(lastQuery || DEFAULT_QUERY), tenant_id: selectedTenantId || undefined }));
             setDeleteConfirmation(null);
         } catch (error) {
             toast.error(getErrorMessage(error));
@@ -122,38 +118,33 @@ export function DiagnosesPanel() {
     };
 
     const refresh = () => {
-        dispatch(fetchDiagnoses({ ...(lastQuery || DEFAULT_QUERY), tenant_id: selectedTenantId || undefined }));
+        dispatch(fetchSymptoms({ ...(lastQuery || DEFAULT_QUERY), tenant_id: selectedTenantId || undefined }));
     };
 
-    const handleDiagnosisCreated = () => {
+    const handleSymptomCreated = () => {
         refresh();
         setShowAddModal(false);
     };
 
-    const handleBulkImportSuccess = () => {
-        refresh();
-        setShowBulkImportModal(false);
-    };
-
     const handlePageChange = (page: number) => {
         dispatch(
-            fetchDiagnoses({
+            fetchSymptoms({
                 page,
                 page_size: lastQuery?.page_size || DEFAULT_QUERY.page_size,
                 search: search.trim() || undefined,
-                status: onlyActive ? "active" : undefined,
+                is_active: onlyActive ? true : undefined,
                 tenant_id: selectedTenantId || undefined,
             })
         );
     };
 
-    const handleEditClick = (diagnosis: Diagnosis) => {
-        setEditingDiagnosis(diagnosis);
+    const handleEditClick = (symptom: Symptom) => {
+        setEditingSymptom(symptom);
     };
 
     const handleEditSuccess = () => {
         refresh();
-        setEditingDiagnosis(null);
+        setEditingSymptom(null);
     };
 
     return (
@@ -161,9 +152,9 @@ export function DiagnosesPanel() {
             <div className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-semibold text-slate-900">Diagnosis Master</p>
+                        <p className="text-sm font-semibold text-slate-900">Symptom Master</p>
                         <p className="text-xs text-slate-500">
-                            Manage diagnosis codes, ICD mappings, and categories.
+                            Manage symptoms with eye-specific attributes and categories.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -177,7 +168,7 @@ export function DiagnosesPanel() {
                         {isPlatformOwnerUser && (
                             <button
                                 onClick={() => setShowBulkImportModal(true)}
-                                className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-sky-300"
+                                className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-100"
                             >
                                 <Upload className="h-4 w-4" />
                                 Bulk Import
@@ -188,7 +179,7 @@ export function DiagnosesPanel() {
                             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
                         >
                             <Plus className="h-4 w-4" />
-                            Add Diagnosis
+                            Add Symptom
                         </button>
                     </div>
                 </div>
@@ -226,7 +217,7 @@ export function DiagnosesPanel() {
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by name, code, description, category, or ICD codes"
+                            placeholder="Search by symptom name, category, or description"
                             className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400"
                         />
                     </div>
@@ -236,7 +227,7 @@ export function DiagnosesPanel() {
                     <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-slate-500" />
                         <p className="text-xs text-slate-600">
-                            {onlyActive ? "Showing active diagnoses" : "Showing all diagnoses"}
+                            {onlyActive ? "Showing active symptoms" : "Showing all symptoms"}
                         </p>
                     </div>
                     <button
@@ -259,11 +250,11 @@ export function DiagnosesPanel() {
 
                 <div className="overflow-hidden rounded-xl border border-slate-200">
                     <div className="grid grid-cols-8 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase text-slate-500">
-                        <div>Code</div>
                         <div className="col-span-2">Name</div>
                         <div>Category</div>
-                        <div>ICD-10</div>
-                        <div>ICD-11</div>
+                        <div>Eye Specific</div>
+                        <div>Applicable Eye</div>
+                        <div>Display Order</div>
                         <div className="text-center">Status</div>
                         <div className="text-right">Actions</div>
                     </div>
@@ -274,46 +265,58 @@ export function DiagnosesPanel() {
                         </div>
                     ) : items.length === 0 ? (
                         <div className="p-6 text-center text-sm text-slate-500">
-                            No diagnoses found. Add a new diagnosis to get started.
+                            No symptoms found. Add a new symptom to get started.
                         </div>
                     ) : (
                         <div className="divide-y divide-slate-100">
-                            {items.map((diagnosis) => (
+                            {items.map((symptom) => (
                                 <div
-                                    key={diagnosis.id}
+                                    key={symptom.id}
                                     className="grid grid-cols-8 items-center px-4 py-3 text-sm text-slate-800"
                                 >
-                                    <div className="font-semibold text-slate-900">{diagnosis.diagnosis_code}</div>
                                     <div className="col-span-2">
-                                        <p className="font-semibold text-slate-900">{diagnosis.diagnosis_name}</p>
-                                        {diagnosis.description && (
-                                            <p className="text-xs text-slate-500 line-clamp-1">{diagnosis.description}</p>
+                                        <p className="font-semibold text-slate-900">{symptom.symptom_name}</p>
+                                        {symptom.description && (
+                                            <p className="text-xs text-slate-500 line-clamp-1">{symptom.description}</p>
                                         )}
                                     </div>
-                                    <div className="text-slate-600">{diagnosis.category || "-"}</div>
-                                    <div className="text-slate-600">{diagnosis.icd_10_code || "-"}</div>
-                                    <div className="text-slate-600">{diagnosis.icd_11_code || "-"}</div>
+                                    <div className="text-slate-600">
+                                        <span className="pill bg-purple-50 text-purple-700">
+                                            {symptom.category}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-center">
+                                        {symptom.is_eye_specific ? (
+                                            <Eye className="h-4 w-4 text-sky-500" />
+                                        ) : (
+                                            <EyeOff className="h-4 w-4 text-slate-400" />
+                                        )}
+                                    </div>
+                                    <div className="text-slate-600">
+                                        {symptom.is_eye_specific ? symptom.applicable_eye : "-"}
+                                    </div>
+                                    <div className="text-slate-600">{symptom.display_order || "-"}</div>
                                     <div className="flex items-center justify-center">
                                         <span
-                                            className={`pill ${diagnosis.status === "active"
+                                            className={`pill ${symptom.is_active
                                                 ? "bg-emerald-50 text-emerald-700"
                                                 : "bg-amber-50 text-amber-700"
                                                 }`}
                                         >
-                                            {diagnosis.status === "active" ? "Active" : "Inactive"}
+                                            {symptom.is_active ? "Active" : "Inactive"}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-end gap-2">
                                         <button
-                                            onClick={() => handleToggleActive(diagnosis.id, diagnosis.status)}
-                                            disabled={updatingId === diagnosis.id}
-                                            className={`group relative flex items-center justify-center overflow-visible rounded-lg p-2 text-xs font-semibold text-white transition-all duration-300 ${diagnosis.status === "active"
+                                            onClick={() => handleToggleActive(symptom.id, symptom.is_active)}
+                                            disabled={updatingId === symptom.id}
+                                            className={`group relative flex items-center justify-center overflow-visible rounded-lg p-2 text-xs font-semibold text-white transition-all duration-300 ${symptom.is_active
                                                 ? "bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600"
                                                 : "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
                                                 } disabled:opacity-60`}
                                             style={{ width: "2rem", minWidth: "2rem" }}
                                             onMouseEnter={(e) => {
-                                                if (updatingId !== diagnosis.id) {
+                                                if (updatingId !== symptom.id) {
                                                     e.currentTarget.style.width = "auto";
                                                     e.currentTarget.style.minWidth = "auto";
                                                     e.currentTarget.style.paddingLeft = "0.75rem";
@@ -326,9 +329,9 @@ export function DiagnosesPanel() {
                                                 e.currentTarget.style.paddingLeft = "0.5rem";
                                                 e.currentTarget.style.paddingRight = "0.5rem";
                                             }}
-                                            title={diagnosis.status === "active" ? "Deactivate" : "Activate"}
+                                            title={symptom.is_active ? "Deactivate" : "Activate"}
                                         >
-                                            {diagnosis.status === "active" ? (
+                                            {symptom.is_active ? (
                                                 <>
                                                     <PowerOff className="h-4 w-4 shrink-0" />
                                                     <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline-block">
@@ -345,7 +348,7 @@ export function DiagnosesPanel() {
                                             )}
                                         </button>
                                         <button
-                                            onClick={() => setLinkingDiagnosis(diagnosis)}
+                                            onClick={() => setLinkingSymptom(symptom)}
                                             className="group relative flex items-center justify-center overflow-visible rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-purple-600 hover:to-pink-600"
                                             style={{ width: "2rem", minWidth: "2rem" }}
                                             onMouseEnter={(e) => {
@@ -360,15 +363,15 @@ export function DiagnosesPanel() {
                                                 e.currentTarget.style.paddingLeft = "0.5rem";
                                                 e.currentTarget.style.paddingRight = "0.5rem";
                                             }}
-                                            title="Link Symptoms"
+                                            title="Link Diagnoses"
                                         >
                                             <Link2 className="h-4 w-4 shrink-0" />
                                             <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline-block">
-                                                Link Symptoms
+                                                Link Diagnoses
                                             </span>
                                         </button>
                                         <button
-                                            onClick={() => handleEditClick(diagnosis)}
+                                            onClick={() => handleEditClick(symptom)}
                                             className="group relative flex items-center justify-center overflow-visible rounded-lg bg-gradient-to-r from-sky-500 to-blue-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-sky-600 hover:to-blue-600"
                                             style={{ width: "2rem", minWidth: "2rem" }}
                                             onMouseEnter={(e) => {
@@ -391,12 +394,12 @@ export function DiagnosesPanel() {
                                             </span>
                                         </button>
                                         <button
-                                            onClick={() => handleDeleteClick(diagnosis.id, diagnosis.diagnosis_name)}
-                                            disabled={deletingId === diagnosis.id}
+                                            onClick={() => handleDeleteClick(symptom.id, symptom.symptom_name)}
+                                            disabled={deletingId === symptom.id}
                                             className="group relative flex items-center justify-center overflow-visible rounded-lg bg-gradient-to-r from-rose-500 to-red-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-rose-600 hover:to-red-600 disabled:opacity-60"
                                             style={{ width: "2rem", minWidth: "2rem" }}
                                             onMouseEnter={(e) => {
-                                                if (deletingId !== diagnosis.id) {
+                                                if (deletingId !== symptom.id) {
                                                     e.currentTarget.style.width = "auto";
                                                     e.currentTarget.style.minWidth = "auto";
                                                     e.currentTarget.style.paddingLeft = "0.75rem";
@@ -433,52 +436,55 @@ export function DiagnosesPanel() {
                 </div>
             </div>
 
-            {/* Add Diagnosis Modal */}
+            {/* Add Symptom Modal */}
             <Modal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                title="Add Diagnosis"
+                title="Add Symptom"
                 size="md"
             >
-                <DiagnosisForm onCreated={handleDiagnosisCreated} tenantId={selectedTenantId || undefined} />
+                <SymptomForm onCreated={handleSymptomCreated} tenantId={selectedTenantId || undefined} />
             </Modal>
 
             <Modal
-                isOpen={!!editingDiagnosis}
-                onClose={() => setEditingDiagnosis(null)}
-                title="Edit Diagnosis"
+                isOpen={!!editingSymptom}
+                onClose={() => setEditingSymptom(null)}
+                title="Edit Symptom"
                 size="md"
             >
-                {editingDiagnosis && (
-                    <DiagnosisForm
+                {editingSymptom && (
+                    <SymptomForm
                         onCreated={handleEditSuccess}
                         tenantId={selectedTenantId || undefined}
-                        initialData={editingDiagnosis}
+                        initialData={editingSymptom}
                     />
                 )}
             </Modal>
 
-            {/* Bulk Import Modal - Platform Owner Only */}
-            {isPlatformOwnerUser && (
-                <BulkImportModal
-                    isOpen={showBulkImportModal}
-                    onClose={() => setShowBulkImportModal(false)}
-                    onSuccess={handleBulkImportSuccess}
+            {/* Link Diagnoses Modal */}
+            {linkingSymptom && (
+                <SymptomDiagnosesLinkModal
+                    isOpen={!!linkingSymptom}
+                    onClose={() => setLinkingSymptom(null)}
+                    symptom={linkingSymptom}
                     tenantId={selectedTenantId || undefined}
+                    onSuccess={() => {
+                        // Optionally refresh the symptoms list
+                        refresh();
+                    }}
                 />
             )}
 
-            {/* Link Symptoms Modal */}
-            {linkingDiagnosis && (
-                <DiagnosisSymptomsLinkModal
-                    isOpen={!!linkingDiagnosis}
-                    onClose={() => setLinkingDiagnosis(null)}
-                    diagnosis={linkingDiagnosis}
-                    tenantId={selectedTenantId || undefined}
+            {/* Bulk Import Modal */}
+            {showBulkImportModal && (
+                <SymptomBulkImportModal
+                    isOpen={showBulkImportModal}
+                    onClose={() => setShowBulkImportModal(false)}
                     onSuccess={() => {
-                        // Optionally refresh the diagnoses list
+                        setShowBulkImportModal(false);
                         refresh();
                     }}
+                    tenantId={selectedTenantId || undefined}
                 />
             )}
 
@@ -487,7 +493,7 @@ export function DiagnosesPanel() {
                 isOpen={!!deleteConfirmation}
                 onClose={() => setDeleteConfirmation(null)}
                 onConfirm={handleDeleteConfirm}
-                title="Delete Diagnosis"
+                title="Delete Symptom"
                 message={`Are you sure you want to delete "${deleteConfirmation?.name}"? This action cannot be undone.`}
                 confirmText="Delete"
                 cancelText="Cancel"

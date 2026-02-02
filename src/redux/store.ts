@@ -19,6 +19,8 @@ import optometryDataReducer from "./optometryDataSlice";
 import permissionsReducer from "./permissionsSlice";
 import diagnosesReducer from "./diagnosesSlice";
 import advicesReducer from "./advicesSlice";
+import symptomsReducer from "./symptomsSlice";
+
 
 export const store = configureStore({
   reducer: {
@@ -42,6 +44,7 @@ export const store = configureStore({
     permissions: permissionsReducer,
     diagnoses: diagnosesReducer,
     advices: advicesReducer,
+    symptoms: symptomsReducer,
   },
 });
 
