@@ -52,9 +52,9 @@ import { quickPresetsApi } from "@/services/quickPresetsApi";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { patientsApi } from "@/services/patientsApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
-import type { PlannedSurgery, Diagnosis } from "@/types";
+import { PlannedSurgery } from "@/types";
 import { usersApi } from "@/services/usersApi";
-import { diagnosesApi } from "@/services/diagnosesApi";
+import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
 import { labTestsApi } from "@/services/labTestsApi";
 
@@ -323,10 +323,39 @@ export function PrescriptionFormSection({
                     setSavedPrescription(existing);
 
                     // Parse existing diagnosis to chips
+                    let diagnosisNames: string[] = [];
                     if (existing.diagnosis) {
-                        const diagList = existing.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean);
-                        setSelectedDiagnoses(diagList);
+                        diagnosisNames = existing.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean);
+                        setSelectedDiagnoses(diagnosisNames);
                     }
+
+                    // Set symptoms directly from draft
+                    if (existing.symptoms && existing.symptoms.length > 0) {
+                        // Ensure symptoms are unique by ID just in case
+                        const uniqueSymptoms = Array.from(new Map(existing.symptoms.map(s => [s.symptom_id, s])).values());
+                        setSelectedSymptoms(uniqueSymptoms);
+                    }
+
+                    // Fetch available symptoms for UI display
+                    diagnosisNames.forEach(async (diagName) => {
+                        try {
+                            let diagId = diagnosesOptions.find(o => o.value === diagName)?.id;
+                            if (!diagId) {
+                                const searchRes = await diagnosesApi.list({ search: diagName, page_size: 1 });
+                                if (searchRes.items.length > 0) {
+                                    const d = searchRes.items[0];
+                                    diagId = d.id;
+                                    setResolvedDiagnoses(prev => ({ ...prev, [diagName]: d }));
+                                }
+                            }
+                            if (diagId) {
+                                const symptoms = await symptomsApi.getSymptomsByDiagnosis(diagId);
+                                setAvailableSymptoms(prev => ({ ...prev, [diagId]: symptoms }));
+                            }
+                        } catch (err) {
+                            console.error(`Failed to load symptoms for: ${diagName}`, err);
+                        }
+                    });
 
                     // Calculate selected followup days
                     if (existing.followup_date) {
@@ -354,10 +383,6 @@ export function PrescriptionFormSection({
                         medicine_items: existing.medicine_items || [],
                         advice_items: existing.advice_items || [],
                     });
-
-                    // Track added advice - will be handled by sync effect
-                    // if (existing.advice_items) { ... }
-
                 }
             } catch (err) {
                 console.error("Failed to fetch existing prescription", err);
@@ -718,17 +743,16 @@ export function PrescriptionFormSection({
 
     const toggleSymptom = (symptom: DiagnosisSymptomMap, diagnosisId: string, diagnosisName: string) => {
         setSelectedSymptoms(prev => {
-            const existingIndex = prev.findIndex(s => s.diagnosis_id === diagnosisId && s.symptom_id === symptom.symptom_id);
-            if (existingIndex >= 0) {
-                return prev.filter((_, i) => i !== existingIndex);
+            const isSelected = prev.some(s => s.symptom_id === symptom.symptom_id);
+            if (isSelected) {
+                // Remove the symptom globally
+                return prev.filter(s => s.symptom_id !== symptom.symptom_id);
             } else {
+                // Add the symptom
                 return [...prev, {
                     symptom_id: symptom.symptom_id,
                     symptom_name: symptom.symptom_name,
-                    diagnosis_id: diagnosisId,
-                    diagnosis_name: diagnosisName,
-                    is_primary: symptom.is_key_symptom,
-                    severity: "Moderate"
+                    applicable_eye: null // Default to null
                 }];
             }
         });
@@ -1025,7 +1049,11 @@ export function PrescriptionFormSection({
                     coatings: selectedCoatings.length > 0 ? selectedCoatings : null,
                     medicine_items: sanitizedMedicines,
                     advice_items: data.advice_items.length > 0 ? data.advice_items : undefined,
-                    symptoms: selectedSymptoms.length > 0 ? selectedSymptoms : undefined,
+                    symptoms: selectedSymptoms.length > 0 ? selectedSymptoms.map(s => ({
+                        symptom_id: s.symptom_id,
+                        symptom_name: s.symptom_name,
+                        applicable_eye: s.applicable_eye || null
+                    })) : undefined,
                 });
             } else {
                 result = await optometryPrescriptionApi.create({
@@ -1394,6 +1422,18 @@ export function PrescriptionFormSection({
                                                 const diagId = diagnosesOptions.find(o => o.value === diagName)?.id || resolvedDiagnoses[diagName]?.id;
                                                 const symptoms = diagId ? availableSymptoms[diagId] : null;
 
+                                                console.log("=== DIAGNOSIS RENDERING ===", {
+                                                    diagName,
+                                                    diagId,
+                                                    diagnosesOptionsHasIt: diagnosesOptions.find(o => o.value === diagName),
+                                                    resolvedDiagnosesHasIt: resolvedDiagnoses[diagName],
+                                                    symptomsCount: symptoms?.length,
+                                                    selectedSymptomsTotal: selectedSymptoms.length,
+                                                    selectedSymptomsForThisDiagnosis: selectedSymptoms.filter(s =>
+                                                        s.diagnosis_id === diagId || s.diagnosis_name === diagName
+                                                    )
+                                                });
+
                                                 return (
                                                     <div key={diagName} className="space-y-2">
                                                         <SelectedDiagnoses
@@ -1403,7 +1443,8 @@ export function PrescriptionFormSection({
                                                         {symptoms && symptoms.length > 0 && (
                                                             <div className="ml-4 pl-4 border-l-2 border-slate-200 py-1 flex flex-wrap gap-1.5 transition-all animate-in fade-in slide-in-from-left-2 duration-300">
                                                                 {symptoms.map((s) => {
-                                                                    const isSelected = selectedSymptoms.some(sel => sel.diagnosis_id === diagId && sel.symptom_id === s.symptom_id);
+                                                                    const isSelected = selectedSymptoms.some(sel => sel.symptom_id === s.symptom_id);
+
                                                                     return (
                                                                         <button
                                                                             key={s.symptom_id}
