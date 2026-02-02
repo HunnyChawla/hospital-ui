@@ -1,0 +1,26 @@
+import { apiClient } from "./api";
+import { getTenantIdForApi } from "@/utils/auth";
+import type { OptometristSchedule } from "@/types";
+
+export interface OptometryScheduleParams {
+  optometrist_id: string;
+  date: string; // YYYY-MM-DD
+  tenant_id?: string;
+}
+
+export const optometryScheduleApi = {
+  async getTodaySchedule(params: OptometryScheduleParams): Promise<OptometristSchedule> {
+    const queryParams = new URLSearchParams();
+    queryParams.append("doctor_id", params.optometrist_id); // Reuse doctor_id param for compatibility
+    queryParams.append("date", params.date);
+
+    const apiTenantId = getTenantIdForApi(params.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
+
+    const queryString = queryParams.toString();
+    const url = `/doctor-schedule?${queryString}`;
+
+    const response = await apiClient.get<OptometristSchedule>(url);
+    return response.data;
+  },
+};

@@ -1,7 +1,25 @@
 import { apiClient } from "./api";
+import { getTenantIdForApi } from "../utils/auth";
 
-export type VisitStatus = "checked_in" | "in_consultation" | "completed" | "cancelled";
-export type VisitType = "walk_in" | "appointment";
+export type VisitStatus =
+  | "checked_in"
+  | "in_consultation"
+  | "completed"
+  | "cancelled"
+  | "no_show"
+  // New detailed workflow statuses
+  | "checked_in_opd"
+  | "awaiting_optometrist"
+  | "optometrist_assigned"
+  | "optometrist_investigation_in_progress"
+  | "optometrist_investigation_completed"
+  | "awaiting_doctor"
+  | "doctor_assigned"
+  | "consultation_in_progress"
+  | "dilation_in_progress"
+  | "dilation_completed"
+  | "consultation_completed";
+export type VisitType = "walk_in" | "appointment" | "emergency";
 export type PaymentMethod = "cash" | "upi" | "card" | "cheque";
 
 export interface Visit {
@@ -25,6 +43,12 @@ export interface Visit {
   payment_id: string | null;
   created_at: string;
   updated_at: string;
+  optometrist_id?: string | null;
+  optometrist_name?: string | null;
+  optometrist_investigation_completed_at?: string | null;
+  dilation_started_at?: string | null;
+  dilation_duration_minutes?: number | null;
+  dilation_completed_at?: string | null;
 }
 
 export interface CreateVisitRequest {
@@ -37,6 +61,7 @@ export interface CreateVisitRequest {
   payment_method: PaymentMethod;
   payment_reference?: string | null;
   consultation_fee?: number | null;
+  consultation_fee_override?: number | null;
 }
 
 export type SortField = "token_number" | "visit_date" | "created_at" | "checked_in_at" | "visit_number" | "status" | "visit_type";
@@ -51,7 +76,9 @@ export interface OpdVisitsSearchParams {
   doctor_id?: string;
   status?: VisitStatus;
   visit_type?: VisitType;
-  visit_date?: string; // YYYY-MM-DD
+  visit_date?: string; // YYYY-MM-DD (kept for backward compatibility)
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string; // YYYY-MM-DD
   tenant_id?: string;
 }
 
@@ -77,7 +104,8 @@ export const opdVisitsApi = {
   },
 
   async getById(visitId: string, tenantId?: string): Promise<Visit> {
-    const params = tenantId ? { tenant_id: tenantId } : {};
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params = effectiveTenantId ? { tenant_id: effectiveTenantId } : {};
     const response = await apiClient.get<Visit>(`/opd/visits/${visitId}`, { params });
     return response.data;
   },
@@ -95,6 +123,17 @@ export const opdVisitsApi = {
       `/opd/visits/${visitId}/status`,
       {},
       { params }
+    );
+    return response.data;
+  },
+
+  async markNoShow(visitId: string, tenantId?: string): Promise<Visit> {
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params = effectiveTenantId ? { params: { tenant_id: effectiveTenantId } } : undefined;
+    const response = await apiClient.post<Visit>(
+      `/opd/eye-hospital/visits/${visitId}/mark-no-show`,
+      {},
+      params
     );
     return response.data;
   },
@@ -122,13 +161,32 @@ export const opdVisitsApi = {
     if (params?.doctor_id) queryParams.append("doctor_id", params.doctor_id);
     if (params?.status) queryParams.append("status", params.status);
     if (params?.visit_type) queryParams.append("visit_type", params.visit_type);
-    if (params?.visit_date) queryParams.append("visit_date", params.visit_date);
+
+    // Use start_date and end_date if provided, otherwise fall back to visit_date
+    if (params?.start_date && params?.end_date) {
+      queryParams.append("start_date", params.start_date);
+      queryParams.append("end_date", params.end_date);
+    } else if (params?.visit_date) {
+      queryParams.append("visit_date", params.visit_date);
+    }
+
     if (params?.tenant_id) queryParams.append("tenant_id", params.tenant_id);
-    
+
     const queryString = queryParams.toString();
     const url = `/opd/visits${queryString ? `?${queryString}` : ""}`;
-    
+
     const response = await apiClient.get<OpdVisitsSearchResponse>(url);
+    return response.data;
+  },
+
+  async completeDilation(visitId: string, tenantId?: string): Promise<Visit> {
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params = effectiveTenantId ? { tenant_id: effectiveTenantId } : {};
+    const response = await apiClient.post<Visit>(
+      `/opd/eye-hospital/visits/${visitId}/complete-dilation`,
+      {},
+      { params }
+    );
     return response.data;
   },
 };

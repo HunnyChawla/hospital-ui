@@ -7,15 +7,32 @@ export interface Service {
   name: string;
   description: string;
   category: string;
-  price: string; // String format, e.g. "350.00"
+  price: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
+export interface CreateServiceRequest {
+  name: string;
+  description?: string;
+  category: string;
+  price: number;
+  is_active?: boolean;
+}
+
+export interface UpdateServiceRequest {
+  name?: string;
+  description?: string;
+  category?: string;
+  price?: number;
+  is_active?: boolean;
+}
+
 export interface ServicesSearchParams {
   page?: number;
   page_size?: number;
+  category?: string;
   is_active?: boolean;
   search?: string;
   tenant_id?: string; // PlatformOwner only
@@ -30,10 +47,18 @@ export interface ServicesSearchResponse {
 }
 
 export const servicesApi = {
+  async create(service: CreateServiceRequest, tenantId?: string): Promise<Service> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<Service>("/services", service, { params });
+    return response.data;
+  },
+
   async list(params?: ServicesSearchParams): Promise<ServicesSearchResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
+    if (params?.category) queryParams.append("category", params.category);
     if (params?.is_active !== undefined) queryParams.append("is_active", params.is_active.toString());
     if (params?.search) queryParams.append("search", params.search);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
@@ -44,5 +69,25 @@ export const servicesApi = {
     
     const response = await apiClient.get<ServicesSearchResponse>(url);
     return response.data;
+  },
+
+  async getById(serviceId: string, tenantId?: string): Promise<Service> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<Service>(`/services/${serviceId}`, { params });
+    return response.data;
+  },
+
+  async update(serviceId: string, updates: UpdateServiceRequest, tenantId?: string): Promise<Service> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put<Service>(`/services/${serviceId}`, updates, { params });
+    return response.data;
+  },
+
+  async delete(serviceId: string, tenantId?: string): Promise<void> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    await apiClient.delete(`/services/${serviceId}`, { params });
   },
 };

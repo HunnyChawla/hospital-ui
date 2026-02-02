@@ -18,10 +18,12 @@ import { patientsApi } from "@/services/patientsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
+import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
+import { paymentsApi } from "@/services/paymentsApi";
 import {
   ArrowLeft,
   CreditCard,
@@ -94,7 +96,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [shouldPrintOpd, setShouldPrintOpd] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printOpdRef = useRef<HTMLDivElement>(null);
-  
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; paymentAmount?: number } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
@@ -120,7 +125,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   // Fetch lab bookings for the patient
   const fetchLabBookings = useCallback(async () => {
     if (!patientId) return;
-    
+
     setLabBookingsLoading(true);
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -149,7 +154,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   // Fetch appointments for the patient (for appointment tab)
   const fetchAppointments = useCallback(async () => {
     if (!patientId) return;
-    
+
     setAppointmentsLoading(true);
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -205,7 +210,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   // Fetch OPD visits for the patient (for OPD tab)
   const fetchOpdTabVisits = useCallback(async () => {
     if (!patientId) return;
-    
+
     setOpdTabVisitsLoading(true);
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -256,43 +261,122 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      // Completion statuses - green
       case "completed":
+      case "consultation_completed":
         return "bg-emerald-50 text-emerald-700";
-      case "in_consultation":
-        return "bg-sky-50 text-sky-700";
-      case "checked_in":
-        return "bg-amber-50 text-amber-700";
+      // Cancelled - red
       case "cancelled":
+        return "bg-rose-50 text-rose-700";
+      // No show - gray
+      case "no_show":
         return "bg-slate-50 text-slate-700";
+      // Check-in statuses - sky blue
+      case "checked_in":
+      case "checked_in_opd":
+        return "bg-sky-50 text-sky-700";
+      // Optometrist statuses - purple
+      case "awaiting_optometrist":
+      case "optometrist_assigned":
+      case "optometrist_investigation_in_progress":
+      case "optometrist_investigation_completed":
+        return "bg-purple-50 text-purple-700";
+      // Doctor waiting/assigned - amber/orange
+      case "awaiting_doctor":
+      case "doctor_assigned":
+        return "bg-amber-50 text-amber-700";
+      // In consultation - orange
+      case "in_consultation":
+      case "consultation_in_progress":
+        return "bg-orange-50 text-orange-700";
+      // Dilation statuses - indigo
+      case "dilation_in_progress":
+      case "dilation_completed":
+        return "bg-indigo-50 text-indigo-700";
       default:
-        return "bg-slate-50 text-slate-700";
+        return "bg-amber-50 text-amber-700";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      // Completion statuses
       case "completed":
-        return <CheckCircle2 className="h-3 w-3" />;
-      case "in_consultation":
-        return <Clock className="h-3 w-3" />;
-      case "checked_in":
-        return <Clock className="h-3 w-3" />;
+      case "consultation_completed":
+        return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      // Cancelled/no-show
       case "cancelled":
-        return <XCircle className="h-3 w-3" />;
+        return <XCircle className="h-3 w-3 text-rose-500" />;
+      case "no_show":
+        return <XCircle className="h-3 w-3 text-slate-500" />;
+      // Check-in statuses
+      case "checked_in":
+      case "checked_in_opd":
+        return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
+      // Optometrist statuses
+      case "awaiting_optometrist":
+        return <Clock className="h-3 w-3 text-purple-500" />;
+      case "optometrist_assigned":
+        return <Eye className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_in_progress":
+        return <Play className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_completed":
+        return <CheckCircle className="h-3 w-3 text-purple-500" />;
+      // Doctor statuses
+      case "awaiting_doctor":
+        return <Clock className="h-3 w-3 text-amber-500" />;
+      case "doctor_assigned":
+        return <Stethoscope className="h-3 w-3 text-amber-500" />;
+      case "in_consultation":
+      case "consultation_in_progress":
+        return <Play className="h-3 w-3 text-orange-500" />;
+      // Dilation statuses
+      case "dilation_in_progress":
+        return <Clock className="h-3 w-3 text-indigo-500" />;
+      case "dilation_completed":
+        return <CheckCircle className="h-3 w-3 text-indigo-500" />;
       default:
-        return <Clock className="h-3 w-3" />;
+        return <Clock className="h-3 w-3 text-amber-500" />;
     }
   };
 
   const getAppointmentStatusIcon = (status: string) => {
     switch (status) {
+      // Completion statuses
       case "completed":
+      case "consultation_completed":
         return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      // Cancelled/no-show
       case "cancelled":
-      case "no_show":
         return <XCircle className="h-3 w-3 text-rose-500" />;
+      case "no_show":
+        return <XCircle className="h-3 w-3 text-slate-500" />;
+      // Check-in statuses
       case "checked_in":
+      case "checked_in_opd":
         return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
+      // Optometrist statuses
+      case "awaiting_optometrist":
+        return <Clock className="h-3 w-3 text-purple-500" />;
+      case "optometrist_assigned":
+        return <Eye className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_in_progress":
+        return <Play className="h-3 w-3 text-purple-500" />;
+      case "optometrist_investigation_completed":
+        return <CheckCircle className="h-3 w-3 text-purple-500" />;
+      // Doctor statuses
+      case "awaiting_doctor":
+        return <Clock className="h-3 w-3 text-amber-500" />;
+      case "doctor_assigned":
+        return <Stethoscope className="h-3 w-3 text-amber-500" />;
+      case "in_consultation":
+      case "consultation_in_progress":
+        return <Play className="h-3 w-3 text-orange-500" />;
+      // Dilation statuses
+      case "dilation_in_progress":
+        return <Clock className="h-3 w-3 text-indigo-500" />;
+      case "dilation_completed":
+        return <CheckCircle className="h-3 w-3 text-indigo-500" />;
       default:
         return <Clock className="h-3 w-3 text-amber-500" />;
     }
@@ -300,13 +384,38 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const getAppointmentStatusColor = (status: string) => {
     switch (status) {
+      // Completion statuses - green
       case "completed":
+      case "consultation_completed":
         return "bg-emerald-50 text-emerald-700";
+      // Cancelled - red
       case "cancelled":
-      case "no_show":
         return "bg-rose-50 text-rose-700";
+      // No show - gray
+      case "no_show":
+        return "bg-slate-50 text-slate-700";
+      // Check-in statuses - sky blue
       case "checked_in":
+      case "checked_in_opd":
         return "bg-sky-50 text-sky-700";
+      // Optometrist statuses - purple
+      case "awaiting_optometrist":
+      case "optometrist_assigned":
+      case "optometrist_investigation_in_progress":
+      case "optometrist_investigation_completed":
+        return "bg-purple-50 text-purple-700";
+      // Doctor waiting/assigned - amber/orange
+      case "awaiting_doctor":
+      case "doctor_assigned":
+        return "bg-amber-50 text-amber-700";
+      // In consultation - orange
+      case "in_consultation":
+      case "consultation_in_progress":
+        return "bg-orange-50 text-orange-700";
+      // Dilation statuses - indigo
+      case "dilation_in_progress":
+      case "dilation_completed":
+        return "bg-indigo-50 text-indigo-700";
       default:
         return "bg-amber-50 text-amber-700";
     }
@@ -336,7 +445,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   // Fetch invoices for the patient
   const fetchInvoices = useCallback(async () => {
     if (!patientId) return;
-    
+
     setInvoicesLoading(true);
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
@@ -347,7 +456,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         status: invoiceStatusFilter,
         tenant_id: getTenantIdForApi(tenantId),
       });
-      
+
       setInvoices(response.items);
       setInvoicesTotalPages(response.total_pages);
     } catch (error) {
@@ -376,9 +485,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const invoice = await invoicesApi.getById(invoiceId, getTenantIdForApi(tenantId));
-      setPrintInvoiceData({ 
-        invoice, 
-        patientName: patient?.name || "Unknown", 
+      setPrintInvoiceData({
+        invoice,
+        patientName: patient?.name || "Unknown",
         patientMobile: patient?.mobile,
         tests: booking.tests,
         bookingNumber: booking.booking_number
@@ -393,9 +502,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   // Handle print invoice (for regular invoices)
   const handlePrintInvoice = async (invoice: Invoice) => {
     try {
-      setPrintInvoiceData({ 
-        invoice, 
-        patientName: patient?.name || "Unknown", 
+      setPrintInvoiceData({
+        invoice,
+        patientName: patient?.name || "Unknown",
         patientMobile: patient?.mobile
       });
       setShouldPrint(true);
@@ -448,19 +557,19 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       // Fetch full visit details
       const visit = await opdVisitsApi.getById(visitId, getTenantIdForApi(tenantId));
-      
+
       // Fetch patient details
       const patientData = await patientsApi.getById(visit.patient_id, getTenantIdForApi(tenantId));
-      
+
       // Set print data - this will trigger the useEffect to print
-      setPrintOpdSlipData({ 
-        visit, 
+      setPrintOpdSlipData({
+        visit,
         patient: {
           id: patientData.id,
           name: `${patientData.first_name} ${patientData.last_name || ""}`.trim(),
           mobile: patientData.mobile,
           healthId: patientData.abha_id || "",
-          age: patientData.date_of_birth 
+          age: patientData.date_of_birth
             ? Math.floor((new Date().getTime() - new Date(patientData.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
             : 0,
           gender: patientData.gender,
@@ -479,9 +588,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const invoice = await invoicesApi.getById(invoiceId, getTenantIdForApi(tenantId));
-      setPrintInvoiceData({ 
-        invoice, 
-        patientName: patient?.name || "Unknown", 
+      setPrintInvoiceData({
+        invoice,
+        patientName: patient?.name || "Unknown",
         patientMobile: patient?.mobile
       });
       setShouldPrint(true);
@@ -493,11 +602,52 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   // Handle update OPD visit status
   const handleUpdateOpdStatus = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed" | "cancelled") => {
+    // If cancelling, check if payment exists and show acknowledgment modal
+    if (newStatus === "cancelled") {
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const apiTenantId = getTenantIdForApi(tenantId);
+
+        // Fetch visit details to check for payment
+        const visit = await opdVisitsApi.getById(visitId, apiTenantId);
+
+        if (visit.payment_id) {
+          // Fetch payment details to get amount
+          let paymentAmount: number | undefined;
+          try {
+            const payment = await paymentsApi.getById(visit.payment_id, apiTenantId);
+            paymentAmount = payment.amount;
+          } catch (error) {
+            console.error("Failed to fetch payment details:", error);
+          }
+
+          // Show acknowledgment modal
+          setPendingCancellation({
+            visitId,
+            visitNumber: visit.visit_number,
+            paymentAmount,
+          });
+          setShowCancellationModal(true);
+          return;
+        }
+      } catch (error: any) {
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage || "Failed to fetch visit details");
+        return;
+      }
+    }
+
+    // Proceed with status update (non-cancellation or cancellation without payment)
+    await performOpdStatusUpdate(visitId, newStatus);
+  };
+
+  const performOpdStatusUpdate = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed" | "cancelled") => {
     try {
+      setCancelling(newStatus === "cancelled");
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       await opdVisitsApi.updateStatus(visitId, newStatus, getTenantIdForApi(tenantId));
       toast.success(`Visit status updated to ${newStatus.replace("_", " ")}`);
-      
+
       // Refresh visits list
       if (activeTab === "opd") {
         fetchOpdTabVisits();
@@ -505,7 +655,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage || "Failed to update visit status");
+    } finally {
+      setCancelling(false);
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
     }
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!pendingCancellation) return;
+    await performOpdStatusUpdate(pendingCancellation.visitId, "cancelled");
   };
 
   // Handle create OPD from appointment
@@ -526,7 +685,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
       await opdVisitsApi.create(visitRequest, getTenantIdForApi(tenantId));
       toast.success(`OPD visit created from appointment!`);
-      
+
       // Refresh appointments list
       if (activeTab === "appointment") {
         fetchAppointments();
@@ -629,11 +788,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition ${
-                    activeTab === tab.id
-                      ? "border-sky-500 text-sky-700"
-                      : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition ${activeTab === tab.id
+                    ? "border-sky-500 text-sky-700"
+                    : "border-transparent text-slate-600 hover:text-slate-900"
+                    }`}
                 >
                   <tab.icon className="h-4 w-4" />
                   {tab.label}
@@ -695,6 +853,18 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                       <Calendar className="h-3 w-3" />
                                       {formatDate(appointment.appointment_date)}
                                     </span>
+                                    {(() => {
+                                      const doctor = doctors.find((d) => d.id === appointment.doctor_id);
+                                      if (doctor) {
+                                        return (
+                                          <span className="flex items-center gap-1 text-sky-600">
+                                            <Stethoscope className="h-3 w-3" />
+                                            {doctor.name || `Dr. ${doctor.specialization}`}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                     {appointment.visit_id && (
                                       <span className="text-emerald-600">Visit Created</span>
                                     )}
@@ -829,6 +999,18 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                       {visit.visit_type.replace("_", " ")}
                                     </span>
                                   </div>
+                                  {(() => {
+                                    const doctor = doctors.find((d) => d.id === visit.doctor_id);
+                                    if (doctor) {
+                                      return (
+                                        <div className="mt-1 flex items-center gap-1 text-xs text-sky-600">
+                                          <Stethoscope className="h-3 w-3" />
+                                          {doctor.name || `Dr. ${doctor.specialization}`}
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   {visit.chief_complaint && (
                                     <p className="mt-1 text-xs text-slate-700">{visit.chief_complaint}</p>
                                   )}
@@ -1074,21 +1256,19 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
                       <button
                         onClick={() => setInvoiceStatusFilter("pending")}
-                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                          invoiceStatusFilter === "pending"
-                            ? "bg-amber-500 text-white shadow-sm"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                        }`}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${invoiceStatusFilter === "pending"
+                          ? "bg-amber-500 text-white shadow-sm"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                          }`}
                       >
                         Pending
                       </button>
                       <button
                         onClick={() => setInvoiceStatusFilter("paid")}
-                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                          invoiceStatusFilter === "paid"
-                            ? "bg-emerald-500 text-white shadow-sm"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                        }`}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${invoiceStatusFilter === "paid"
+                          ? "bg-emerald-500 text-white shadow-sm"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                          }`}
                       >
                         Paid
                       </button>
@@ -1108,23 +1288,22 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                       <div className="space-y-3">
                         {invoices.map((invoice) => (
                           <div
-                                  key={invoice.id}
-                                  className="relative rounded-xl border border-slate-200 bg-white p-4 pr-32 hover:border-sky-200 transition cursor-pointer"
-                                  onClick={() => handleInvoiceClick(invoice.id)}
-                                >
+                            key={invoice.id}
+                            className="relative rounded-xl border border-slate-200 bg-white p-4 pr-32 hover:border-sky-200 transition cursor-pointer"
+                            onClick={() => handleInvoiceClick(invoice.id)}
+                          >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <span
-                                    className={`pill px-3 py-1 text-xs font-normal capitalize ${
-                                      invoice.status === "paid"
-                                        ? "bg-emerald-50 text-emerald-700"
-                                        : invoice.status === "partial"
+                                    className={`pill px-3 py-1 text-xs font-normal capitalize ${invoice.status === "paid"
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : invoice.status === "partial"
                                         ? "bg-amber-50 text-amber-700"
                                         : invoice.status === "cancelled"
-                                        ? "bg-slate-50 text-slate-700"
-                                        : "bg-rose-50 text-rose-700"
-                                    }`}
+                                          ? "bg-slate-50 text-slate-700"
+                                          : "bg-rose-50 text-rose-700"
+                                      }`}
                                   >
                                     {invoice.status}
                                   </span>
@@ -1303,15 +1482,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                   </button>
                                 )}
                                 <span
-                                  className={`pill px-3 py-1 text-xs font-normal capitalize ${
-                                    booking.status === "completed"
-                                      ? "bg-emerald-50 text-emerald-700"
-                                      : booking.status === "in_progress" || booking.status === "sample_collected"
+                                  className={`pill px-3 py-1 text-xs font-normal capitalize ${booking.status === "completed"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : booking.status === "in_progress" || booking.status === "sample_collected"
                                       ? "bg-sky-50 text-sky-700"
                                       : booking.status === "scheduled"
-                                      ? "bg-amber-50 text-amber-700"
-                                      : "bg-slate-50 text-slate-700"
-                                  }`}
+                                        ? "bg-amber-50 text-amber-700"
+                                        : "bg-slate-50 text-slate-700"
+                                    }`}
                                 >
                                   {booking.status.replace("_", " ")}
                                 </span>
@@ -1420,15 +1598,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               <div>
                 <p className="text-xs text-slate-500">Status</p>
                 <span
-                  className={`pill px-2 py-0.5 text-xs font-normal capitalize inline-block mt-1 ${
-                    selectedInvoice.status === "paid"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : selectedInvoice.status === "partial"
+                  className={`pill px-2 py-0.5 text-xs font-normal capitalize inline-block mt-1 ${selectedInvoice.status === "paid"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : selectedInvoice.status === "partial"
                       ? "bg-amber-50 text-amber-700"
                       : selectedInvoice.status === "cancelled"
-                      ? "bg-slate-50 text-slate-700"
-                      : "bg-rose-50 text-rose-700"
-                  }`}
+                        ? "bg-slate-50 text-slate-700"
+                        : "bg-rose-50 text-rose-700"
+                    }`}
                 >
                   {selectedInvoice.status}
                 </span>
@@ -1548,6 +1725,20 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           </div>
         </div>
       )}
+
+      {/* Cancellation Refund Acknowledgment Modal */}
+      <CancellationRefundAcknowledgmentModal
+        isOpen={showCancellationModal}
+        onClose={() => {
+          setShowCancellationModal(false);
+          setPendingCancellation(null);
+        }}
+        onConfirm={handleConfirmCancellation}
+        type="opd"
+        itemNumber={pendingCancellation?.visitNumber}
+        amount={pendingCancellation?.paymentAmount}
+        loading={cancelling}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type UserRole = "admin" | "doctor" | "nurse" | "receptionist";
+export type UserRole = "admin" | "doctor" | "nurse" | "receptionist" | "optometrist";
 export type UserStatus = "active" | "inactive";
 
 export interface User {
@@ -11,6 +11,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   full_name: string;
+  cabin: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -22,11 +23,13 @@ export interface CreateUserRequest {
   full_name: string;
   role: UserRole;
   status: UserStatus;
+  cabin?: string;
 }
 
 export interface UpdateUserRequest {
   full_name?: string;
   status?: UserStatus;
+  cabin?: string;
 }
 
 export interface UsersSearchParams {
@@ -35,6 +38,7 @@ export interface UsersSearchParams {
   role?: UserRole;
   status?: UserStatus;
   tenant_id?: string;
+  search?: string;
 }
 
 export interface UsersSearchResponse {
@@ -59,12 +63,13 @@ export const usersApi = {
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.role) queryParams.append("role", params.role);
     if (params?.status) queryParams.append("status", params.status);
+    if (params?.search && params.search.trim()) queryParams.append("search", params.search.trim());
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
-    
+
     const queryString = queryParams.toString();
     const url = `/users${queryString ? `?${queryString}` : ""}`;
-    
+
     const response = await apiClient.get<UsersSearchResponse>(url);
     return response.data;
   },

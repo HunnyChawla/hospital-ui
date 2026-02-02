@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { admitPatient } from "@/redux/admissionsSlice";
 import { admissionsApi, CreateAdmissionRequest, AdmissionType } from "@/services/admissionsApi";
 import { wardsApi, Ward } from "@/services/wardsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
-import { doctorsApi } from "@/services/doctorsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, Clock, Search, User, Stethoscope, Plus, BedDouble, PlusCircle, Loader2, X } from "lucide-react";
+import { getTenantIdForApi } from "@/utils/auth";
+import { currency, getTodayDateLocal } from "@/utils/format";
+import { Calendar, Clock, Search, User, Stethoscope, Plus, BedDouble, PlusCircle, Loader2, X, CreditCard } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 
 interface AdmissionFormProps {
@@ -41,9 +42,14 @@ export function AdmissionForm({
   const [nextOfKinName, setNextOfKinName] = useState("");
   const [nextOfKinRelation, setNextOfKinRelation] = useState("");
   const [nextOfKinContact, setNextOfKinContact] = useState("");
+  const [enableAdvancePayment, setEnableAdvancePayment] = useState(false);
+  const [advancePaymentAmount, setAdvancePaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
 
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
+  // Use Redux centralized caches (fetched once in dashboard layout)
+  const doctors = useAppSelector((s) => s.doctors.list);
+  const wards = useAppSelector((s) => s.wards.list);
   const [beds, setBeds] = useState<Bed[]>([]);
   const [availableBeds, setAvailableBeds] = useState<Bed[]>([]);
   const [bedSearchTerm, setBedSearchTerm] = useState("");
@@ -67,37 +73,14 @@ export function AdmissionForm({
   const searchRef = useRef<HTMLDivElement>(null);
   const justSelectedRef = useRef(false);
 
+  // Auto-select first doctor if none selected
   useEffect(() => {
-    const fetchDoctorsList = async () => {
-      try {
-        const response = await doctorsApi.list();
-        setDoctors(response);
-        if (response.length > 0 && !doctorId) {
-          setDoctorId(response[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to fetch doctors:", error);
-      }
-    };
-    fetchDoctorsList();
-  }, [doctorId]);
+    if (doctors.length > 0 && !doctorId) {
+      setDoctorId(doctors[0].id);
+    }
+  }, [doctors, doctorId]);
 
-  useEffect(() => {
-    const fetchWards = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await wardsApi.list({
-          page: 1,
-          page_size: 100,
-          tenant_id: tenantId || undefined,
-        });
-        setWards(response.items);
-      } catch (error) {
-        console.error("Failed to fetch wards:", error);
-      }
-    };
-    fetchWards();
-  }, []);
+  // Note: fetchWards and fetchDoctors removed - now using Redux centralized caches fetched once in dashboard layout
 
   // Fetch beds when ward is selected
   const fetchBedsForWard = useCallback(async (page: number, append: boolean, searchTerm: string) => {
@@ -122,7 +105,7 @@ export function AdmissionForm({
         ward_id: wardId,
         status: "available",
         search: searchTerm.trim() || undefined,
-        tenant_id: tenantId || undefined,
+        tenant_id: getTenantIdForApi(tenantId),
       });
 
       if (append) {
@@ -226,7 +209,7 @@ export function AdmissionForm({
   }, [showBedDropdown]);
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateLocal();
     setAdmissionDate(today);
   }, []);
 
@@ -341,6 +324,22 @@ export function AdmissionForm({
       return;
     }
 
+    // Validate advance payment if enabled
+    if (enableAdvancePayment) {
+      if (!advancePaymentAmount || parseFloat(advancePaymentAmount) <= 0) {
+        toast.error("Please enter a valid advance payment amount");
+        return;
+      }
+      if (!paymentMethod) {
+        toast.error("Please select a payment method");
+        return;
+      }
+      if ((paymentMethod === "upi" || paymentMethod === "card") && !paymentReference.trim()) {
+        toast.error("Payment reference is required for UPI and Card payments");
+        return;
+      }
+    }
+
     try {
       const admissionData: CreateAdmissionRequest = {
         patient_id: patientId,
@@ -355,6 +354,9 @@ export function AdmissionForm({
         next_of_kin_name: nextOfKinName.trim() || null,
         next_of_kin_relation: nextOfKinRelation.trim() || null,
         next_of_kin_contact: nextOfKinContact.trim() || null,
+        advance_payment_amount: enableAdvancePayment && advancePaymentAmount ? parseFloat(advancePaymentAmount) : null,
+        payment_method: enableAdvancePayment && paymentMethod ? paymentMethod : null,
+        payment_reference: enableAdvancePayment && paymentReference.trim() ? paymentReference.trim() : null,
       };
 
       await dispatch(admitPatient(admissionData)).unwrap();
@@ -730,6 +732,91 @@ export function AdmissionForm({
           placeholder="Phone number"
         />
       </label>
+
+      {/* Advance Payment Section */}
+      <div className="md:col-span-2 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={enableAdvancePayment}
+            onChange={(e) => {
+              setEnableAdvancePayment(e.target.checked);
+              if (!e.target.checked) {
+                setAdvancePaymentAmount("");
+                setPaymentMethod("");
+                setPaymentReference("");
+              }
+            }}
+            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+          />
+          <span className="text-slate-700 flex items-center gap-1">
+            <CreditCard className="h-4 w-4" />
+            Collect Advance Payment (Optional)
+          </span>
+        </label>
+
+        {enableAdvancePayment && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-slate-600">
+                Advance Payment Amount <span className="text-rose-500">*</span>
+              </span>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={advancePaymentAmount}
+                onChange={(e) => setAdvancePaymentAmount(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                placeholder="0.00"
+                required={enableAdvancePayment}
+              />
+              {advancePaymentAmount && parseFloat(advancePaymentAmount) > 0 && (
+                <p className="text-xs text-slate-500">{currency(parseFloat(advancePaymentAmount))}</p>
+              )}
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-slate-600">
+                Payment Method <span className="text-rose-500">*</span>
+              </span>
+              <select
+                value={paymentMethod}
+                onChange={(e) => {
+                  setPaymentMethod(e.target.value);
+                  if (e.target.value !== "upi" && e.target.value !== "card") {
+                    setPaymentReference("");
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                required={enableAdvancePayment}
+              >
+                <option value="">Select payment method</option>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+                <option value="cheque">Cheque</option>
+              </select>
+            </label>
+
+            {(paymentMethod === "upi" || paymentMethod === "card") && (
+              <label className="md:col-span-2 space-y-1">
+                <span className="text-slate-600">
+                  Payment Reference <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                  placeholder={paymentMethod === "upi" ? "UPI transaction ID" : "Card transaction ID"}
+                  required={paymentMethod === "upi" || paymentMethod === "card"}
+                />
+              </label>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="md:col-span-2 flex justify-end gap-3">
         <button

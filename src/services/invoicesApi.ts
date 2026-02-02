@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled";
+export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled" | "refunded";
 
 export interface InvoiceLineItem {
   id?: string;
@@ -64,6 +64,8 @@ export interface InvoicesSearchParams {
   page_size?: number;
   patient_id?: string;
   status?: InvoiceStatus;
+  start_date?: string;
+  end_date?: string;
   tenant_id?: string; // PlatformOwner only
 }
 

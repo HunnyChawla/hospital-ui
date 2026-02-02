@@ -48,6 +48,105 @@ export interface LabTestsSearchResponse {
   total_pages: number;
 }
 
+export interface LabTestParameter {
+  id: string;
+  tenant_id: string;
+  test_code: string;
+  parameter_code: string;
+  parameter_name: string;
+  unit: string;
+  normal_min: number | null;
+  normal_max: number | null;
+  normal_text: string | null;
+  gender: string;
+  age_min: number;
+  age_max: number;
+  method: string | null;
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface CreateLabTestParameterRequest {
+  parameter_code: string;
+  parameter_name: string;
+  unit: string;
+  normal_min?: number;
+  normal_max?: number;
+  normal_text?: string;
+  gender: "ALL" | "M" | "F";
+  age_min?: number;
+  age_max?: number;
+  method?: string;
+  display_order: number;
+  is_active?: boolean;
+}
+
+export interface UpdateLabTestParameterRequest {
+  parameter_code?: string;
+  parameter_name?: string;
+  unit?: string;
+  normal_min?: number | null;
+  normal_max?: number | null;
+  normal_text?: string | null;
+  gender?: "ALL" | "M" | "F";
+  age_min?: number;
+  age_max?: number;
+  method?: string | null;
+  display_order?: number;
+  is_active?: boolean;
+}
+
+export interface LabTestPrice {
+  id: string;
+  lab_test_id: string;
+  test_code: string;
+  tenant_id: string;
+  price: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateLabTestPriceRequest {
+  price: number;
+}
+
+export interface LabTestResult {
+  id: string;
+  booking_item_id: string;
+  parameter_id: string;
+  parameter_name: string;
+  parameter_code: string;
+  unit: string;
+  result_value: string;
+  result_numeric: number | null;
+  is_abnormal: boolean;
+  normal_min: number | null;
+  normal_max: number | null;
+  normal_text: string | null;
+  notes: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LabTestResultsResponse {
+  booking_item_id: string;
+  lab_test_id: string;
+  test_code: string;
+  test_name: string;
+  results: LabTestResult[];
+}
+
+export interface PublishResultsRequest {
+  results: Array<{
+    parameter_id: string;
+    result_numeric?: number;
+    notes?: string;
+  }>;
+}
+
 export const labTestsApi = {
   async create(test: CreateLabTestRequest, tenantId?: string): Promise<LabTest> {
     const apiTenantId = getTenantIdForApi(tenantId);
@@ -85,6 +184,105 @@ export const labTestsApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.patch<LabTest>(`/lab-tests/${testId}`, updates, { params });
+    return response.data;
+  },
+
+  async getTestParameters(testCode: string, gender?: string, tenantId?: string): Promise<LabTestParameter[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params: Record<string, string> = {};
+    if (apiTenantId) params.tenant_id = apiTenantId;
+    if (gender) params.gender = gender;
+    const response = await apiClient.get<LabTestParameter[]>(`/lab-tests/${testCode}/parameters`, { params });
+    return response.data;
+  },
+
+  async createParameter(
+    testCode: string,
+    parameter: CreateLabTestParameterRequest,
+    tenantId?: string
+  ): Promise<LabTestParameter> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<LabTestParameter>(
+      `/lab-tests/${testCode}/parameters`,
+      parameter,
+      { params }
+    );
+    return response.data;
+  },
+
+  async updateParameter(
+    testCode: string,
+    parameterId: string,
+    updates: UpdateLabTestParameterRequest,
+    tenantId?: string
+  ): Promise<LabTestParameter> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.patch<LabTestParameter>(
+      `/lab-tests/${testCode}/parameters/${parameterId}`,
+      updates,
+      { params }
+    );
+    return response.data;
+  },
+
+  async deleteParameter(testCode: string, parameterId: string, tenantId?: string): Promise<void> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    await apiClient.delete(`/lab-tests/${testCode}/parameters/${parameterId}`, { params });
+  },
+
+  async getResults(
+    labBookingId: string,
+    bookingItemId: string,
+    tenantId?: string
+  ): Promise<LabTestResult[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<LabTestResultsResponse>(
+      `/lab-tests/bookings/${labBookingId}/items/${bookingItemId}/results`,
+      { params }
+    );
+    // Return the results array from the response
+    return response.data.results || [];
+  },
+
+  async publishResults(
+    labBookingId: string,
+    bookingItemId: string,
+    results: PublishResultsRequest,
+    tenantId?: string
+  ): Promise<LabTestResult[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<LabTestResult[]>(
+      `/lab-tests/bookings/${labBookingId}/items/${bookingItemId}/results`,
+      results,
+      { params }
+    );
+    return response.data;
+  },
+
+  async getTestPrice(testCode: string, tenantId?: string): Promise<LabTestPrice> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<LabTestPrice>(`/lab-tests/prices/${testCode}`, { params });
+    return response.data;
+  },
+
+  async updateTestPrice(
+    testCode: string,
+    updates: UpdateLabTestPriceRequest,
+    tenantId?: string
+  ): Promise<LabTestPrice> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.patch<LabTestPrice>(
+      `/lab-tests/prices/${testCode}`,
+      updates,
+      { params }
+    );
     return response.data;
   },
 };

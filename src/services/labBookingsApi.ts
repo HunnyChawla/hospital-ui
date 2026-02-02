@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
+import { LabResultsResponse } from "@/types";
 
 export type BookingStatus = "scheduled" | "sample_collected" | "in_progress" | "completed" | "cancelled";
 export type TestPriority = "routine" | "urgent" | "stat";
@@ -50,7 +51,9 @@ export interface LabBookingsSearchParams {
   page_size?: number;
   patient_id?: string;
   status?: BookingStatus;
-  scheduled_date?: string; // YYYY-MM-DD
+  scheduled_date?: string; // YYYY-MM-DD (kept for backward compatibility)
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string; // YYYY-MM-DD
   booking_number?: string;
   tenant_id?: string; // PlatformOwner only
 }
@@ -77,7 +80,15 @@ export const labBookingsApi = {
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
     if (params?.status) queryParams.append("status", params.status);
-    if (params?.scheduled_date) queryParams.append("scheduled_date", params.scheduled_date);
+    
+    // Use start_date and end_date if provided, otherwise fall back to scheduled_date
+    if (params?.start_date && params?.end_date) {
+      queryParams.append("start_date", params.start_date);
+      queryParams.append("end_date", params.end_date);
+    } else if (params?.scheduled_date) {
+      queryParams.append("scheduled_date", params.scheduled_date);
+    }
+    
     if (params?.booking_number) queryParams.append("booking_number", params.booking_number);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
@@ -109,6 +120,22 @@ export const labBookingsApi = {
     const response = await apiClient.patch<LabBooking>(
       `/lab-bookings/${bookingId}/status`,
       { status },
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get lab test results with normal ranges
+   */
+  async getResults(
+    bookingId: string,
+    tenantId?: string
+  ): Promise<LabResultsResponse> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<LabResultsResponse>(
+      `/lab-tests/bookings/${bookingId}/results`,
       { params }
     );
     return response.data;

@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchQueue, completeAndAdvanceVisit } from "@/redux/queueSlice";
-import { fetchDoctors } from "@/redux/doctorsSlice";
 import { SkeletonRow } from "../shared/SkeletonRow";
-import { ArrowRight, CheckCircle, Clock, UserCheck, CheckCircle2, Stethoscope, Users, Activity, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle, Clock, UserCheck, CheckCircle2, Stethoscope, Users, Activity, Sparkles, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { updateQueueStatus } from "@/redux/queueSlice";
@@ -15,13 +14,10 @@ type FilterTab = "all" | "pending" | "completed";
 export function QueueBoard() {
   const dispatch = useAppDispatch();
   const { entries, loading, doctorId } = useAppSelector((s) => s.queue);
+  // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const doctors = useAppSelector((s) => s.doctors.list);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
-
-  useEffect(() => {
-    dispatch(fetchDoctors());
-  }, [dispatch]);
 
   useEffect(() => {
     if (doctors.length > 0 && !selectedDoctorId) {
@@ -286,24 +282,29 @@ export function QueueBoard() {
             const statusStyles = getStatusStyles(entry.status);
             const StatusIcon = statusStyles.icon;
             const isNextToken = nextToken !== undefined && entry.token === nextToken && isWaiting;
+            const isEmergency = entry.visit_type === "emergency";
 
             return (
               <div
                 key={entry.visitId || entry.appointmentId || `entry-${index}`}
                 className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
-                  isNextToken
+                  isEmergency
+                    ? "border-rose-400 bg-gradient-to-br from-rose-50 via-red-50/50 to-white shadow-xl shadow-rose-500/30 ring-4 ring-rose-100/50 scale-[1.02]"
+                    : isNextToken
                     ? "border-sky-400 bg-gradient-to-br from-sky-50 via-teal-50/50 to-white shadow-xl shadow-sky-500/20 ring-4 ring-sky-100/50 scale-[1.02]"
                     : `${statusStyles.border} ${statusStyles.bg} shadow-md hover:shadow-xl hover:scale-[1.01] ${statusStyles.glow}`
                 }`}
               >
                 {/* Animated background glow */}
                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-                  isNextToken 
+                  isEmergency
+                    ? "bg-gradient-to-br from-rose-400/10 via-red-400/10 to-transparent"
+                    : isNextToken 
                     ? "bg-gradient-to-br from-sky-400/5 via-teal-400/5 to-transparent" 
                     : statusStyles.bg
                 }`} />
 
-                {/* Next Token Badge */}
+                {/* Next Token Badge - On top-right */}
                 {isNextToken && (
                   <div className="absolute right-2.5 top-2.5 z-10 animate-pulse">
                     <div className="flex items-center gap-1 rounded-full bg-gradient-to-r from-sky-500 to-teal-500 px-2.5 py-1 shadow-lg shadow-sky-500/30 ring-2 ring-white/50">
@@ -317,9 +318,18 @@ export function QueueBoard() {
                   {/* Header with Token */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className={`relative flex h-12 w-12 items-center justify-center rounded-xl ${statusStyles.badge} font-extrabold text-base transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
+                      <div className={`relative flex h-12 w-12 items-center justify-center rounded-xl ${
+                        isEmergency 
+                          ? "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/30"
+                          : statusStyles.badge
+                      } font-extrabold text-base transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
                         <span className="drop-shadow-sm">{entry.token}</span>
-                        {isNextToken && (
+                        {isEmergency && (
+                          <div className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-bold text-rose-600 shadow-lg">
+                            !
+                          </div>
+                        )}
+                        {isNextToken && !isEmergency && (
                           <div className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-bold text-sky-600 shadow-lg">
                             !
                           </div>
@@ -330,9 +340,20 @@ export function QueueBoard() {
                         <p className="mt-0.5 text-sm font-bold text-slate-900">#{entry.token}</p>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-1.5 rounded-xl px-2 py-0.5 ${statusStyles.badge} shadow-md`}>
-                      <StatusIcon className="h-3 w-3" />
-                      <span className="text-[11px] font-bold">{entry.status}</span>
+                    <div className="relative">
+                      <div className={`flex items-center gap-1.5 rounded-xl px-2 py-0.5 ${statusStyles.badge} shadow-md`}>
+                        <StatusIcon className="h-3 w-3" />
+                        <span className="text-[11px] font-bold">{entry.status}</span>
+                      </div>
+                      {/* Emergency Badge - Below status badge */}
+                      {isEmergency && (
+                        <div className="absolute right-0 top-full mt-1.5 z-10 animate-pulse">
+                          <div className="flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-2.5 py-1 shadow-lg shadow-rose-500/40 ring-2 ring-white/50">
+                            <AlertCircle className="h-2.5 w-2.5 text-white" />
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-white">Emergency</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

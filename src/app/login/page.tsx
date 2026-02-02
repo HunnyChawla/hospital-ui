@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { login, restoreSession } from "@/redux/authSlice";
+import { fetchTenant } from "@/redux/tenantSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { extractSubdomain } from "@/utils/subdomain";
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isAuthenticated, loading, error } = useAppSelector((s) => s.auth);
+  const tenant = useAppSelector((s) => s.tenant);
   
   const [formData, setFormData] = useState({
     email: "",
@@ -25,7 +27,13 @@ export default function LoginPage() {
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
-  }, [dispatch]);
+    
+    // Fetch tenant data if not already loaded
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    if (tenantId && (!tenant.tenant && !tenant.loading)) {
+      dispatch(fetchTenant(tenantId));
+    }
+  }, [dispatch, tenant]);
 
   useEffect(() => {
     // Detect subdomain on mount
@@ -56,9 +64,12 @@ export default function LoginPage() {
     }
 
     try {
-      await dispatch(login(formData)).unwrap();
+      const result = await dispatch(login(formData)).unwrap();
       toast.success("Login successful");
-      router.push("/");
+
+      // Navigate to the default screen from permissions, or fallback to dashboard
+      const defaultScreen = result.permissions?.default_screen || "/";
+      router.push(defaultScreen);
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);

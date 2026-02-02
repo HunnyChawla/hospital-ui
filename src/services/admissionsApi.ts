@@ -35,6 +35,8 @@ export interface Admission {
   discharge_instructions: string | null;
   final_diagnosis: string | null;
   invoice_id: string | null;
+  advance_invoice_id: string | null;
+  advance_payment_amount: number;
   payment_id: string | null;
   created_at: string;
   updated_at: string;
@@ -54,6 +56,9 @@ export interface CreateAdmissionRequest {
   next_of_kin_relation?: string | null;
   next_of_kin_contact?: string | null;
   visit_id?: string | null; // OPD visit ID
+  advance_payment_amount?: number | null;
+  payment_method?: string | null; // cash/upi/card/cheque
+  payment_reference?: string | null; // Required if payment_method is upi or card
 }
 
 export interface UpdateAdmissionRequest {
@@ -86,10 +91,12 @@ export interface TransferBedRequest {
 }
 
 export interface InitiateDischargeRequest {
-  tax_rate: number;
-  discount: number;
-  gst_number?: string | null;
   notes?: string | null;
+  discharge_date?: string | null; // YYYY-MM-DD
+  discharge_type?: DischargeType | null;
+  discharge_summary?: string | null;
+  discharge_instructions?: string | null;
+  final_diagnosis?: string | null;
 }
 
 export interface AmountDueCharge {
@@ -119,7 +126,9 @@ export interface AdmissionsSearchParams {
   ward_id?: string;
   bed_id?: string;
   status?: AdmissionStatus;
-  admission_date?: string; // YYYY-MM-DD
+  admission_date?: string; // YYYY-MM-DD (kept for backward compatibility)
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string; // YYYY-MM-DD
   tenant_id?: string;
 }
 
@@ -148,7 +157,15 @@ export const admissionsApi = {
     if (params?.ward_id) queryParams.append("ward_id", params.ward_id);
     if (params?.bed_id) queryParams.append("bed_id", params.bed_id);
     if (params?.status) queryParams.append("status", params.status);
-    if (params?.admission_date) queryParams.append("admission_date", params.admission_date);
+    
+    // Use start_date and end_date if provided, otherwise fall back to admission_date
+    if (params?.start_date && params?.end_date) {
+      queryParams.append("start_date", params.start_date);
+      queryParams.append("end_date", params.end_date);
+    } else if (params?.admission_date) {
+      queryParams.append("admission_date", params.admission_date);
+    }
+    
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAppSelector } from "@/redux/hooks";
 import { TransferBedRequest } from "@/services/admissionsApi";
 import { bedsApi, Bed } from "@/services/bedsApi";
-import { wardsApi, Ward } from "@/services/wardsApi";
 import { BedDouble } from "lucide-react";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface TransferBedFormProps {
   currentBedId: string;
@@ -16,27 +17,11 @@ export function TransferBedForm({ currentBedId, onSuccess, onSubmit }: TransferB
   const [newBedId, setNewBedId] = useState("");
   const [reason, setReason] = useState("");
   const [beds, setBeds] = useState<Bed[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
+  // Use Redux centralized wards cache (fetched once in dashboard layout)
+  const wards = useAppSelector((s) => s.wards.list);
   const [selectedWardId, setSelectedWardId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchWards = async () => {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const response = await wardsApi.list({
-          page: 1,
-          page_size: 100,
-          tenant_id: tenantId || undefined,
-        });
-        setWards(response.items);
-      } catch (error) {
-        console.error("Failed to fetch wards:", error);
-      }
-    };
-    fetchWards();
-  }, []);
 
   useEffect(() => {
     const fetchBeds = async () => {
@@ -53,7 +38,7 @@ export function TransferBedForm({ currentBedId, onSuccess, onSubmit }: TransferB
           page_size: 99,
           ward_id: selectedWardId,
           status: "available",
-          tenant_id: tenantId || undefined,
+          tenant_id: getTenantIdForApi(tenantId),
         });
         // Filter out the current bed
         const availableBeds = response.items.filter((bed) => bed.id !== currentBedId);

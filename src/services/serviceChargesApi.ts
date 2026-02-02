@@ -53,4 +53,15 @@ export const serviceChargesApi = {
     );
     return response.data;
   },
+
+  async cancel(chargeId: string, tenantId?: string): Promise<ServiceCharge> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.put<ServiceCharge>(
+      `/admission-charges/${chargeId}/cancel`,
+      {},
+      { params }
+    );
+    return response.data;
+  },
 };

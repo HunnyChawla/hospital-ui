@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -18,9 +18,29 @@ export const metadata: Metadata = {
   description:
     "Modern, fast, and intuitive hospital management portal built with Next.js.",
   icons: {
-    icon: "./cura-logo-v2.png",
-    apple: "./cura-logo-v2.png",
+    icon: "/cura-logo-v2.png",
+    apple: "/cura-logo-v2.png",
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CURA",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-title": "CURA",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#0ea5e9",
 };
 
 export default function RootLayout({
@@ -29,9 +49,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="overflow-x-hidden">
+      <head>
+        <script src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/env-config.js`} defer />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-surface text-slate-900`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-surface text-slate-900 overflow-x-hidden`}
         suppressHydrationWarning
       >
         <Providers>{children}</Providers>

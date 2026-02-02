@@ -6,7 +6,7 @@ import { CreateLabTestRequest } from "@/services/labTestsApi";
 import { createLabTest, fetchLabTests } from "@/redux/labTestsSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Beaker, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 type LabTestFormProps = {
   onCreated?: () => void;
@@ -60,12 +60,7 @@ export function LabTestForm({ onCreated }: LabTestFormProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2 text-slate-900">
-        <Beaker className="h-4 w-4 text-sky-600" />
-        <h3 className="text-sm font-semibold">Add Lab Test</h3>
-      </div>
-      <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3 text-sm">
+    <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3 text-sm p-1">
         <label className="space-y-1">
           <span className="text-slate-600">
             Test Code <span className="text-rose-500">*</span>
@@ -152,7 +147,6 @@ export function LabTestForm({ onCreated }: LabTestFormProps) {
           </button>
         </div>
       </form>
-    </div>
   );
 }
 

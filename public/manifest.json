@@ -1,0 +1,20 @@
+{
+  "name": "CURA - Hospital Management System",
+  "short_name": "CURA",
+  "description": "Modern, fast, and intuitive hospital management portal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/cura-logo-v2.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

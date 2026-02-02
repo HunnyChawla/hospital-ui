@@ -111,7 +111,17 @@ export const updatePatient = createAsyncThunk(
 
 export const getPatientById = createAsyncThunk(
   "patients/getById",
-  async (payload: { patientId: string; tenantId?: string }) => {
+  async (payload: { patientId: string; tenantId?: string }, { getState }) => {
+    // Check if patient is already in cache
+    const state = getState() as { patients: PatientsState };
+    const cachedPatient = state.patients.list.find((p) => p.id === payload.patientId);
+
+    if (cachedPatient) {
+      // Return cached patient without making API call
+      return cachedPatient;
+    }
+
+    // Patient not in cache, fetch from API
     const apiPatient = await patientsApi.getById(payload.patientId, payload.tenantId);
     return patientsApi.mapToPatients([apiPatient])[0];
   }

@@ -1,7 +1,9 @@
+import { toast } from "sonner";
+
 /**
  * Error response structure from API
  */
-interface ErrorDetail {
+export interface ErrorDetail {
   loc: (string | number)[];
   msg: string;
   type: string;
@@ -13,8 +15,37 @@ interface ErrorDetail {
   };
 }
 
-interface ApiErrorResponse {
+export interface ApiErrorResponse {
   detail: string | ErrorDetail[];
+}
+
+/**
+ * Options for error handling
+ */
+export interface HandleErrorOptions {
+  /**
+   * Custom default error message if error parsing fails
+   * @default "An error occurred. Please try again."
+   */
+  defaultMessage?: string;
+  /**
+   * Whether to show toast notification
+   * @default true
+   */
+  showToast?: boolean;
+  /**
+   * Custom toast duration in milliseconds
+   */
+  toastDuration?: number;
+  /**
+   * Whether to log error to console
+   * @default false
+   */
+  logError?: boolean;
+  /**
+   * Custom error handler callback
+   */
+  onError?: (error: any, message: string) => void;
 }
 
 /**
@@ -121,6 +152,128 @@ export function getErrorMessage(error: any): string {
   
   // Default fallback
   return "An error occurred. Please try again.";
+}
+
+/**
+ * Generic error handler that extracts error message and optionally shows toast
+ * This is the main utility function that should be used across all modules
+ * 
+ * @param error - The error object from catch block or React Query mutation
+ * @param options - Configuration options for error handling
+ * @returns The extracted error message
+ * 
+ * @example
+ * // In try-catch block
+ * try {
+ *   await someApiCall();
+ * } catch (error) {
+ *   handleError(error, { defaultMessage: "Failed to save data" });
+ * }
+ * 
+ * @example
+ * // In React Query mutation
+ * useMutation({
+ *   mutationFn: async (data) => await api.create(data),
+ *   onError: (error) => handleError(error, { defaultMessage: "Failed to create" }),
+ * })
+ */
+export function handleError(
+  error: any,
+  options: HandleErrorOptions = {}
+): string {
+  const {
+    defaultMessage = "An error occurred. Please try again.",
+    showToast = true,
+    toastDuration,
+    logError = false,
+    onError,
+  } = options;
+
+  const errorMessage = getErrorMessage(error) || defaultMessage;
+
+  // Log error if requested
+  if (logError) {
+    console.error("Error details:", {
+      error,
+      message: errorMessage,
+      response: error?.response,
+      data: error?.response?.data,
+    });
+  }
+
+  // Show toast notification
+  if (showToast) {
+    if (toastDuration) {
+      toast.error(errorMessage, { duration: toastDuration });
+    } else {
+      toast.error(errorMessage);
+    }
+  }
+
+  // Call custom error handler if provided
+  if (onError) {
+    onError(error, errorMessage);
+  }
+
+  return errorMessage;
+}
+
+/**
+ * Creates a React Query mutation error handler
+ * Use this as the onError callback in useMutation hooks
+ * 
+ * @param defaultMessage - Default error message if parsing fails
+ * @param options - Additional error handling options
+ * @returns Error handler function for React Query mutations
+ * 
+ * @example
+ * useMutation({
+ *   mutationFn: async (data) => await api.create(data),
+ *   onError: createMutationErrorHandler("Failed to create item"),
+ * })
+ */
+export function createMutationErrorHandler(
+  defaultMessage: string = "Operation failed",
+  options: Omit<HandleErrorOptions, "defaultMessage"> = {}
+) {
+  return (error: any) => {
+    handleError(error, {
+      defaultMessage,
+      ...options,
+    });
+  };
+}
+
+/**
+ * Wraps an async function with automatic error handling
+ * Catches errors, shows toast, and optionally re-throws
+ * 
+ * @param fn - Async function to wrap
+ * @param options - Error handling options
+ * @param rethrow - Whether to re-throw the error after handling
+ * @returns Wrapped function
+ * 
+ * @example
+ * const safeApiCall = withErrorHandling(
+ *   async () => await api.dangerousCall(),
+ *   { defaultMessage: "Failed to call API" }
+ * );
+ */
+export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
+  fn: T,
+  options: HandleErrorOptions = {},
+  rethrow: boolean = false
+): T {
+  return (async (...args: Parameters<T>) => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      handleError(error, options);
+      if (rethrow) {
+        throw error;
+      }
+    }
+  }) as T;
 }
 
 /**

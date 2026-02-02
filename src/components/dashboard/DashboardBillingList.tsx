@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi, Payment } from "@/services/paymentsApi";
+
 import { patientsApi } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate } from "@/utils/format";
@@ -10,7 +11,7 @@ import { CreditCard, Receipt, Printer, Clock } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { PaymentCollectionModal } from "../payments/PaymentCollectionModal";
 import { InvoicePrint } from "../invoices/InvoicePrint";
-import { PaymentReceiptPrint } from "../payments/PaymentReceiptPrint";
+import { InvoicePaymentReceiptPrint } from "../payments/InvoicePaymentReceiptPrint";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { useReactToPrint } from "react-to-print";
@@ -21,6 +22,7 @@ interface DashboardBillingListProps {
 }
 
 export function DashboardBillingList({ statusFilter, onStatusFilterChange }: DashboardBillingListProps) {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -29,10 +31,11 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
   // Print state
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
-  const [printPaymentData, setPrintPaymentData] = useState<{ payment: Payment; patientName: string; patientMobile?: string; invoiceNumber?: string } | null>(null);
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
+  const lastFetchedFilterRef = useRef<string | null>(null);
 
   const handlePrintInvoice = useReactToPrint({
     contentRef: printInvoiceRef,
@@ -41,7 +44,7 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
 
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentData ? `PaymentReceipt_${printPaymentData.payment.payment_number}` : "Payment Receipt",
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
   });
 
   const fetchInvoices = useCallback(async () => {
@@ -63,9 +66,15 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
     }
   }, [statusFilter]);
 
+  // Fetch invoices only when statusFilter actually changes
   useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+    // Only fetch if the filter has changed from the last fetch
+    if (lastFetchedFilterRef.current !== statusFilter) {
+      fetchInvoices();
+      lastFetchedFilterRef.current = statusFilter;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   useEffect(() => {
     if (printInvoiceData && shouldPrintInvoice && printInvoiceRef.current) {
@@ -102,17 +111,17 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
       // Fetch full invoice details with line items
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const fullInvoice = await invoicesApi.getById(invoice.id, getTenantIdForApi(tenantId));
-      
+
       // Use patient_name and patient_mobile from invoice if available, otherwise fetch
       let patientName = fullInvoice.patient_name || "Unknown";
       let patientMobile = fullInvoice.patient_mobile;
-      
+
       if (!fullInvoice.patient_name || !fullInvoice.patient_mobile) {
         const patient = await patientsApi.getById(fullInvoice.patient_id);
         patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
         patientMobile = patient.mobile;
       }
-      
+
       setPrintInvoiceData({
         invoice: fullInvoice,
         patientName,
@@ -126,37 +135,13 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
   };
 
   const handlePrintPaymentReceiptClick = async (invoice: Invoice) => {
-    if (!invoice.payment_id) {
-      toast.error("Payment ID not available for this invoice");
+    if (!invoice.id) {
+      toast.error("Invoice ID not available");
       return;
     }
 
     try {
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const apiTenantId = getTenantIdForApi(tenantId || undefined);
-      
-      // Fetch payment details directly using payment_id from invoice
-      const payment = await paymentsApi.getById(invoice.payment_id, apiTenantId);
-
-      // Get invoice number (we already have it from the invoice object)
-      const invoiceNumber = invoice.invoice_number;
-
-      // Get patient name and mobile (already available in invoice object)
-      let patientName = invoice.patient_name || "Unknown";
-      let patientMobile = invoice.patient_mobile;
-
-      if (!invoice.patient_name || !invoice.patient_mobile) {
-        const patient = await patientsApi.getById(invoice.patient_id);
-        patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
-        patientMobile = patient.mobile;
-      }
-
-      setPrintPaymentData({
-        payment,
-        patientName,
-        patientMobile,
-        invoiceNumber,
-      });
+      setPrintPaymentInvoiceId(invoice.id);
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
@@ -201,21 +186,19 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
             <button
               onClick={() => onStatusFilterChange("pending")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                statusFilter === "pending"
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${statusFilter === "pending"
                   ? "bg-amber-500 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              }`}
+                }`}
             >
               Pending
             </button>
             <button
               onClick={() => onStatusFilterChange("paid")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                statusFilter === "paid"
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${statusFilter === "paid"
                   ? "bg-emerald-500 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              }`}
+                }`}
             >
               Paid
             </button>
@@ -236,9 +219,8 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
             {invoices.map((invoice) => (
               <div
                 key={invoice.id}
-                className={`relative rounded-lg border border-slate-200 bg-white p-3 hover:border-sky-200 transition ${
-                  invoice.status === "pending" ? "pr-32" : "pr-24"
-                }`}
+                className={`relative rounded-lg border border-slate-200 bg-white p-3 hover:border-sky-200 transition ${invoice.status === "pending" ? "pr-32" : "pr-24"
+                  }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -303,7 +285,7 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
                         <span className="ml-1 hidden whitespace-nowrap group-hover:inline text-[10px]">Collect</span>
                       </button>
                     )}
-                    {invoice.status === "paid" && invoice.payment_id && (
+                    {invoice.status === "paid" && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -360,7 +342,7 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
         {invoices.length > 0 && (
           <button
             onClick={() => {
-              window.location.hash = "billing";
+              router.push("/billing");
             }}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
           >
@@ -394,15 +376,10 @@ export function DashboardBillingList({ statusFilter, onStatusFilterChange }: Das
       )}
 
       {/* Print Payment Receipt (Hidden) */}
-      {printPaymentData && (
+      {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <PaymentReceiptPrint
-              payment={printPaymentData.payment}
-              patientName={printPaymentData.patientName}
-              patientMobile={printPaymentData.patientMobile}
-              invoiceNumber={printPaymentData.invoiceNumber}
-            />
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
           </div>
         </div>
       )}
