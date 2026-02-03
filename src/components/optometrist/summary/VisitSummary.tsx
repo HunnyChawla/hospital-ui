@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Eye, Activity, Pill, AlertCircle, FileText, Gauge, Glasses } from "lucide-react";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { Footer } from "@/components/layout/Footer";
 
 // Dynamic layout component that balances content across columns
 function VisitSummaryLayout({
@@ -606,8 +607,13 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto p-6" style={{ maxHeight: "calc(90vh - 80px)" }}>
+        <div className="overflow-y-auto p-6" style={{ maxHeight: "calc(90vh - 140px)" }}>
           <VisitSummaryLayout data={data} formatDate={formatDate} formatDateTime={formatDateTime} />
+        </div>
+
+        {/* Branding Footer */}
+        <div className="flex-shrink-0">
+          <Footer noSidebar isFixed={false} />
         </div>
       </div>
     </div>

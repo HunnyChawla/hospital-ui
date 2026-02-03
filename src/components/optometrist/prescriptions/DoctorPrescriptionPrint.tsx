@@ -622,7 +622,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             Issued Date & Time : {formatDate(prescription.created_at)} {formatTime(prescription.created_at)}
                         </div>
                         <div className="text-[9px] text-slate-400 font-medium italic tracking-wider whitespace-nowrap">
-                            Powered by <span className="text-slate-500 font-bold not-italic">Technesian Cura</span> &bull; Visit <span className="text-sky-700/70 underline not-italic">www.technesian.com</span>
+                            Powered by <span className="text-slate-500 font-bold not-italic">Technesian Cura</span> &bull; <span className="text-slate-400">Revolutionizing Hospital Management</span> &bull; <span className="text-sky-700/70 not-italic">www.technesian.com</span>
                         </div>
                     </div>
                     {(!visibleSections || visibleSections.includes("Digital Signature") || visibleSections.includes("Signature Placeholder")) && (

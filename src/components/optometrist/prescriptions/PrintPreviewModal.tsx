@@ -6,6 +6,7 @@ import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import type { OptometryPrescription, PlannedSurgery } from "@/types";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { Footer } from "@/components/layout/Footer";
 
 const STORAGE_KEY = "prescription_print_preferences";
 
@@ -370,6 +371,11 @@ export function PrintPreviewModal({
                             <h1 className="text-[20vw] font-black text-slate-900 select-none">PREVIEW</h1>
                         </div>
                     </div>
+                </div>
+
+                {/* Branding Footer */}
+                <div className="flex-shrink-0 bg-white border-t border-slate-200">
+                    <Footer noSidebar isFixed={false} />
                 </div>
 
                 <style jsx global>{`
