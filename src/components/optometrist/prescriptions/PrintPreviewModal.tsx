@@ -32,6 +32,7 @@ export function PrintPreviewModal({
 }: PrintPreviewModalProps) {
     const [isFinalizing, setIsFinalizing] = useState(false);
     const allSections = [
+        "Header",
         "Presenting Complaint",
         "Symptoms",
         "Vision",
@@ -268,6 +269,7 @@ export function PrintPreviewModal({
                                                         {section === "Advice" && <Info className="h-3.5 w-3.5 text-slate-400" />}
                                                         {section === "Planned Surgery" && <Stethoscope className="h-3.5 w-3.5 text-slate-400" />}
                                                         {section === "FollowUp" && <Calendar className="h-3.5 w-3.5 text-slate-400" />}
+                                                        {section === "Header" && <Layout className="h-3.5 w-3.5 text-sky-500" />}
                                                         {section === "Digital Signature" && <FileText className="h-3.5 w-3.5 text-emerald-500" />}
                                                         {section === "Signature Placeholder" && <Layout className="h-3.5 w-3.5 text-slate-400" />}
                                                         <span className="text-xs font-semibold">{section}</span>
@@ -346,7 +348,7 @@ export function PrintPreviewModal({
                                             visitData={visitData}
                                             doctorSignature={doctorSignature}
                                             plannedSurgeries={plannedSurgeries}
-                                            showHeader={showHeader}
+                                            showHeader={visibleSections.includes("Header")}
                                             visibleSections={visibleSections}
                                         />
                                     </div>
