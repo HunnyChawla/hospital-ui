@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { X, Printer, Loader2, CheckCircle, FileText, Layout, ZoomIn, ZoomOut, RotateCcw, Monitor, Settings2, Columns, MessageSquare, Activity, Eye, Compass, Glasses, Layers, ClipboardCheck, Pill, FlaskConical, Info, Stethoscope, Calendar } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import type { OptometryPrescription, PlannedSurgery } from "@/types";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+
+const STORAGE_KEY = "prescription_print_preferences";
 
 interface PrintPreviewModalProps {
     isOpen: boolean;
@@ -47,6 +49,24 @@ export function PrintPreviewModal({
     ];
 
     const [visibleSections, setVisibleSections] = useState<string[]>(allSections);
+
+    // Load preferences from local storage on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    // Filter to ensure we only load sections that actually exist in the current version
+                    const validSections = parsed.filter(s => allSections.includes(s));
+                    setVisibleSections(validSections);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load print preferences:", e);
+        }
+    }, []);
+
     const [zoom, setZoom] = useState(0.9);
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -70,11 +90,20 @@ export function PrintPreviewModal({
     });
 
     const toggleSection = (section: string) => {
-        setVisibleSections(prev =>
-            prev.includes(section)
+        setVisibleSections(prev => {
+            const next = prev.includes(section)
                 ? prev.filter(s => s !== section)
-                : [...prev, section]
-        );
+                : [...prev, section];
+
+            // Save to local storage
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            } catch (e) {
+                console.error("Failed to save print preferences:", e);
+            }
+
+            return next;
+        });
     };
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.05, 1.5));
