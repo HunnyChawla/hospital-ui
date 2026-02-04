@@ -22,6 +22,7 @@ import { HistoryPrescriptionModal } from "./HistoryPrescriptionModal";
 import { prescriptionDataApi, PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { handleError } from "@/utils/errorHandler";
 import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
+import { Footer } from "@/components/layout/Footer";
 
 interface DoctorPrescriptionModalProps {
     isOpen: boolean;
@@ -439,6 +440,11 @@ export function DoctorPrescriptionModal({
                     patientId={patientId}
                 />
             )}
+
+            {/* Branding Footer */}
+            <div className="flex-shrink-0">
+                <Footer noSidebar isFixed={false} />
+            </div>
         </div>,
         portalTarget
     );

@@ -135,5 +135,12 @@ export const doctorsApi = {
     const response = await apiClient.get<ConsultationFeeCalculation>(`/doctors/${doctorId}/consultation-fees/calculate`, { params, signal });
     return response.data;
   },
+
+  async getSignature(doctorId: string, tenantId?: string): Promise<{ signature: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<{ signature: string }>(`/doctors/${doctorId}/signature`, { params });
+    return response.data;
+  },
 };
 

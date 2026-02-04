@@ -22,6 +22,7 @@ import type { OptometristActionType } from "./dashboard/OptometristCollapsibleQu
 import { ExaminationViewProvider } from "@/context/ExaminationViewContext";
 import { FullscreenContainerProvider } from "@/context/FullscreenContainerContext";
 import { TabVisibilitySettings } from "./TabVisibilitySettings";
+import { Footer } from "@/components/layout/Footer";
 
 export function OptometristPanel() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -749,6 +750,13 @@ export function OptometristPanel() {
           <div id="portal-root" className="fixed inset-0 pointer-events-none z-[99999]">
             <div id="headlessui-portal-root" />
           </div>
+
+          {/* Branding Footer for Fullscreen Mode */}
+          {isFullscreen && (
+            <div className="flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <Footer noSidebar isFixed={false} />
+            </div>
+          )}
         </div>
       </FullscreenContainerProvider>
     </ExaminationViewProvider>

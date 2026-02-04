@@ -11,6 +11,7 @@ import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
 import { store } from "@/redux/store";
 import { TopBar } from "@/components/layout/TopBar";
+import { Footer } from "@/components/layout/Footer";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Shield, Home as HomeIcon } from "lucide-react";
@@ -236,7 +237,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <main className="min-h-screen px-3 py-3 lg:px-6">
+    <main className="min-h-screen flex flex-col px-3 py-3 lg:px-6 pb-20">
       <TopBar onPatientSelect={(patientId) => {
         setSelectedPatientId(patientId);
       }} />
@@ -279,6 +280,8 @@ export default function DashboardLayout({
           onClose={() => setSelectedPatientId(null)}
         />
       )}
+
+      <Footer />
     </main>
   );
 }

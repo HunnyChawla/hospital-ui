@@ -25,6 +25,7 @@ import { OptometristQueuePanel } from "./OptometristQueuePanel";
 import { DoctorQueuePanel } from "./DoctorQueuePanel";
 import { SSEConnectionStatus } from "@/hooks/useSSE";
 import { playNotificationSound, announceText, isTTSSupported } from "@/utils/sound";
+import { Footer } from "@/components/layout/Footer";
 
 interface TVQueueSettings {
     showTopBar: boolean;
@@ -192,7 +193,7 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
 
     return (
         <div className={containerClass}>
-            <div className="flex h-full flex-col p-4 relative">
+            <div className={`flex h-full flex-col p-4 relative ${isFullScreen ? 'pb-16' : ''}`}>
                 {/* Settings Modal */}
                 {showSettings && (
                     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -522,6 +523,13 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                                         <span>Tiles</span>
                                     </button>
                                 </div>
+
+                                {/* Time Display in Header (Only when not in fullscreen) */}
+                                {!isFullScreen && (
+                                    <div className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-slate-100 rounded-lg border border-slate-200 text-slate-700 font-bold text-lg shadow-inner shadow-slate-200/50">
+                                        <CurrentTime />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-4">
@@ -594,6 +602,12 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                 {/* Floating controls when header is hidden */}
                 {!settings.showTopBar && (
                     <div className="absolute top-4 right-4 z-40 flex items-center gap-2">
+                        {/* Time Badge when header is hidden (Only when not in fullscreen) */}
+                        {!isFullScreen && (
+                            <div className="bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 shadow-xl font-bold text-slate-700 text-lg mr-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <CurrentTime />
+                            </div>
+                        )}
                         {onFullScreenToggle && (
                             <button
                                 onClick={onFullScreenToggle}
@@ -652,18 +666,17 @@ export function TVQueueDisplay({ isFullScreen = false, onFullScreenToggle }: TVQ
                     )}
                 </div>
 
-                {/* Footer - Current Time */}
-                <div className="flex-shrink-0 mt-4 text-center">
-                    <p className="text-sm text-slate-400">
-                        {selectedDoctor && (
-                            <span className="font-medium text-slate-600 mr-4">
-                                Dr. {selectedDoctor.user_name || selectedDoctor.name}
-                                {selectedDoctor.specialization && ` • ${selectedDoctor.specialization}`}
+                {/* Footer - Branding & Time (Only show in fullscreen as layout has its own footer) */}
+                {isFullScreen && (
+                    <div className="absolute bottom-0 left-0 right-0 z-40">
+                        <Footer noSidebar isFixed={false} className="bg-white/80 backdrop-blur-md" />
+                        <div className="absolute right-8 bottom-4 z-50">
+                            <span className="bg-slate-100 px-4 py-1.5 rounded-full text-slate-700 font-bold border border-slate-200 shadow-sm text-lg">
+                                <CurrentTime />
                             </span>
-                        )}
-                        <CurrentTime />
-                    </p>
-                </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

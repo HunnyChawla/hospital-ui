@@ -10,13 +10,14 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { extractSubdomain } from "@/utils/subdomain";
 import { Mail, Lock, Building2 } from "lucide-react";
 import Image from "next/image";
+import { Footer } from "@/components/layout/Footer";
 
 export default function LoginPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isAuthenticated, loading, error } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
-  
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -27,7 +28,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Restore session on mount
     dispatch(restoreSession());
-    
+
     // Fetch tenant data if not already loaded
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
     if (tenantId && (!tenant.tenant && !tenant.loading)) {
@@ -57,7 +58,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.email || !formData.password || !formData.hospital_id) {
       toast.error("Please fill all fields");
       return;
@@ -93,11 +94,11 @@ export default function LoginPage() {
           backgroundImage: `radial-gradient(circle at 2px 2px, rgb(14, 165, 233) 1px, transparent 0)`,
           backgroundSize: '40px 40px'
         }}></div>
-        
+
         {/* Floating decorative circles */}
         <div className="absolute top-20 left-20 w-32 h-32 bg-sky-200/20 rounded-full blur-2xl"></div>
         <div className="absolute bottom-20 right-20 w-40 h-40 bg-teal-200/20 rounded-full blur-2xl"></div>
-        
+
         <div className="max-w-lg w-full relative z-10">
           <div className="flex flex-col items-center justify-center space-y-6">
             <div className="transform hover:scale-105 transition-transform duration-300">
@@ -253,9 +254,7 @@ export default function LoginPage() {
             </div>
 
             {/* Footer */}
-            <p className="mt-8 text-center text-xs text-slate-500">
-              © {new Date().getFullYear()} Technesian PVT LTD. All rights reserved.
-            </p>
+            <Footer noSidebar />
           </div>
         </div>
       </div>
