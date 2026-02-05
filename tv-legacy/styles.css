@@ -1,0 +1,423 @@
+/* ================================================
+   TV Legacy Display - CSS Styles
+   Compatible with old browsers (no flexbox/grid)
+   ================================================ */
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    background-color: #f0f4f8;
+    color: #1e293b;
+}
+
+/* ================================================
+   LOGIN PAGE STYLES
+   ================================================ */
+
+#login-container {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+    background-color: #0284c7; /* Fallback */
+}
+
+#login-box {
+    width: 400px;
+    max-width: 90%;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+#logo-container {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+#logo {
+    width: 120px;
+    height: auto;
+    margin-bottom: 15px;
+}
+
+#logo-container h1 {
+    font-size: 24px;
+    color: #0284c7;
+    margin-bottom: 5px;
+}
+
+#logo-container p {
+    font-size: 14px;
+    color: #64748b;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: bold;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #1e293b;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #0284c7;
+    background-color: #ffffff;
+}
+
+#login-btn {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #0284c7;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#login-btn:hover {
+    background-color: #0369a1;
+}
+
+#login-btn:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+}
+
+#error-message {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+#footer-text {
+    text-align: center;
+    margin-top: 30px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* ================================================
+   DISPLAY PAGE STYLES
+   ================================================ */
+
+#display-container {
+    width: 100%;
+    height: 100%;
+    display: table;
+}
+
+/* Header */
+#header {
+    background-color: #ffffff;
+    padding: 15px 25px;
+    border-bottom: 2px solid #e2e8f0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+#title {
+    font-size: 28px;
+    color: #0f172a;
+    margin: 0;
+}
+
+#subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 5px 0 0 0;
+}
+
+#doctor-selector-container {
+    background-color: #f1f5f9;
+    padding: 10px 15px;
+    border-radius: 8px;
+}
+
+#doctor-selector-container label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #64748b;
+    margin-right: 10px;
+}
+
+#doctor-selector {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    background-color: #ffffff;
+    min-width: 200px;
+}
+
+/* Connection Status */
+#connection-status {
+    background-color: #f8fafc;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+#status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.status-connected {
+    background-color: #22c55e;
+}
+
+.status-connecting {
+    background-color: #f59e0b;
+}
+
+.status-error {
+    background-color: #ef4444;
+}
+
+#status-text {
+    font-size: 13px;
+    font-weight: bold;
+    color: #475569;
+    vertical-align: middle;
+}
+
+/* Clock */
+#clock {
+    font-size: 24px;
+    font-weight: bold;
+    color: #0f172a;
+    background-color: #f1f5f9;
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin-right: 15px;
+}
+
+#logout-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #64748b;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#logout-btn:hover {
+    background-color: #475569;
+}
+
+/* Main Content */
+#main-content {
+    height: calc(100% - 130px);
+    padding: 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Queue Panels */
+.queue-panel {
+    background-color: #ffffff;
+    border-radius: 12px;
+    height: 100%;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e2e8f0;
+}
+
+.panel-header {
+    padding: 20px 25px;
+    color: #ffffff;
+}
+
+.optometrist-header {
+    background-color: #0891b2;
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+}
+
+.doctor-header {
+    background-color: #7c3aed;
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+.panel-header h2 {
+    font-size: 22px;
+    margin: 0 0 10px 0;
+}
+
+.stats-row {
+    margin-top: 10px;
+}
+
+.stat-badge {
+    display: inline-block;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+/* Queue List */
+.queue-list {
+    padding: 15px;
+    height: calc(100% - 100px);
+    overflow-y: auto;
+}
+
+.empty-message {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 16px;
+    padding: 40px 20px;
+}
+
+/* Patient Card */
+.patient-card {
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin-bottom: 12px;
+}
+
+.patient-card.status-assigned {
+    background-color: #ecfdf5;
+    border-color: #86efac;
+}
+
+.patient-card.status-in-progress {
+    background-color: #fef3c7;
+    border-color: #fcd34d;
+}
+
+.patient-card.emergency {
+    background-color: #fef2f2;
+    border-color: #fca5a5;
+}
+
+.patient-card table {
+    width: 100%;
+}
+
+.token-number {
+    font-size: 28px;
+    font-weight: bold;
+    color: #0f172a;
+    background-color: #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 60px;
+}
+
+.patient-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e293b;
+}
+
+.patient-uhid {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.patient-status {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px 12px;
+    border-radius: 15px;
+    text-transform: uppercase;
+}
+
+.status-waiting {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-active {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.cabin-info {
+    font-size: 14px;
+    font-weight: bold;
+    color: #0f172a;
+    background-color: #e0f2fe;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+/* Footer */
+#display-footer {
+    background-color: #f1f5f9;
+    padding: 12px 25px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 13px;
+    color: #64748b;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+/* Scrollbar Styling (for modern browsers, gracefully ignored by old ones) */
+.queue-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.queue-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.queue-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+/* Animation for new patients (gracefully ignored by old browsers) */
+@keyframes highlight {
+    0% { background-color: #fef08a; }
+    100% { background-color: transparent; }
+}
+
+.patient-card.new-patient {
+    animation: highlight 2s ease-out;
+}

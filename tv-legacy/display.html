@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMS - Patient Queue Display</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="display-container">
+        <!-- Header -->
+        <div id="header">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td width="40%" align="left" valign="middle">
+                        <h1 id="title">Patient Queue Display</h1>
+                        <p id="subtitle">Real-time waiting area status</p>
+                    </td>
+                    <td width="30%" align="center" valign="middle">
+                        <div id="doctor-selector-container">
+                            <label for="doctor-selector">Select Doctor:</label>
+                            <select id="doctor-selector" onchange="handleDoctorChange()">
+                                <option value="">Loading doctors...</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td width="15%" align="center" valign="middle">
+                        <div id="connection-status">
+                            <span id="status-dot" class="status-connecting"></span>
+                            <span id="status-text">Connecting...</span>
+                        </div>
+                    </td>
+                    <td width="15%" align="right" valign="middle">
+                        <span id="clock">00:00:00</span>
+                        <button id="logout-btn" onclick="handleLogout()">Logout</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Main Content - Two Queue Panels -->
+        <div id="main-content">
+            <table cellpadding="10" cellspacing="0" border="0" width="100%" height="100%">
+                <tr>
+                    <!-- Optometrist Queue Panel -->
+                    <td width="50%" valign="top">
+                        <div id="optometrist-panel" class="queue-panel">
+                            <div class="panel-header optometrist-header">
+                                <h2>👁️ Eye Examination Queue</h2>
+                                <div class="stats-row">
+                                    <span class="stat-badge">Waiting: <span id="opt-waiting">0</span></span>
+                                    <span class="stat-badge">In Progress: <span id="opt-progress">0</span></span>
+                                </div>
+                            </div>
+                            <div id="optometrist-queue" class="queue-list">
+                                <p class="empty-message">No patients in queue</p>
+                            </div>
+                        </div>
+                    </td>
+                    
+                    <!-- Doctor Queue Panel -->
+                    <td width="50%" valign="top">
+                        <div id="doctor-panel" class="queue-panel">
+                            <div class="panel-header doctor-header">
+                                <h2>🩺 Consultation Queue</h2>
+                                <div class="stats-row">
+                                    <span class="stat-badge">Waiting: <span id="doc-waiting">0</span></span>
+                                    <span class="stat-badge">In Progress: <span id="doc-progress">0</span></span>
+                                </div>
+                            </div>
+                            <div id="doctor-queue" class="queue-list">
+                                <p class="empty-message">No patients in queue</p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Footer -->
+        <div id="display-footer">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td align="left">
+                        <span>© 2024 Hospital Management System</span>
+                    </td>
+                    <td align="right">
+                        <span>Last updated: <span id="last-update">--:--:--</span></span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Notification Sound -->
+    <audio id="notification-sound" preload="auto">
+        <source src="assets/notification.wav" type="audio/wav">
+        <source src="assets/notification.mp3" type="audio/mpeg">
+    </audio>
+    
+    <script src="app.js"></script>
+    <script>
+        // Initialize display on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDisplay);
+        } else {
+            initDisplay();
+        }
+    </script>
+</body>
+</html>
