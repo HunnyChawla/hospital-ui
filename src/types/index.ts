@@ -459,6 +459,7 @@ export type PrescriptionSymptom = {
   duration?: string;
   notes?: string;
   created_at?: string;
+  applicable_eye?: string | null;
 };
 
 export type OptometryPrescription = {

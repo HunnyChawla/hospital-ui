@@ -4,8 +4,30 @@ import { useEffect } from "react";
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
-    // Disable PWA/service worker in development mode
+    // In development, explicitly unregister any existing service workers
+    // and clear caches to prevent interference from previous production builds.
     if (process.env.NODE_ENV === "development") {
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister().then((success) => {
+              if (success) {
+                console.log("[Service Worker] Unregistered successfully in dev mode");
+                window.location.reload();
+              }
+            });
+          }
+        });
+
+        // Also clear caches
+        if ("caches" in window) {
+          caches.keys().then((names) => {
+            for (const name of names) {
+              caches.delete(name);
+            }
+          });
+        }
+      }
       return;
     }
 
@@ -20,7 +42,7 @@ export function ServiceWorkerRegistration() {
           .register("/sw.js", { scope: "/" })
           .then((registration) => {
             console.log("Service Worker registered:", registration);
-            
+
             // Check for updates periodically
             setInterval(() => {
               registration.update();
@@ -37,6 +59,7 @@ export function ServiceWorkerRegistration() {
         });
       }
     }
+
   }, []);
 
   return null;
