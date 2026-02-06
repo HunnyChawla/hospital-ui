@@ -15,7 +15,8 @@
     var CONFIG = {
         POLL_INTERVAL: 5000,  // Poll every 5 seconds
         CLOCK_INTERVAL: 1000, // Update clock every second
-        DEFAULT_API_URL: 'http://localhost:8080'
+        DEFAULT_API_URL: 'http://localhost:8080',  // Will be updated from /config endpoint
+        API_URL: null  // Will be set after loading config
     };
 
     // ================================================
@@ -47,7 +48,8 @@
     }
 
     function getApiUrl() {
-        return getItem('tv_api_url') || CONFIG.DEFAULT_API_URL;
+        // Use runtime config if available, otherwise fall back to localStorage or default
+        return CONFIG.API_URL || getItem('tv_api_url') || CONFIG.DEFAULT_API_URL;
     }
 
     function getAuthToken() {
@@ -130,6 +132,29 @@
     }
 
     // ================================================
+    // CONFIG LOADING
+    // ================================================
+
+    function loadConfig(callback) {
+        // Try to load config from /config endpoint
+        ajax({
+            method: 'GET',
+            url: '/config',
+            success: function (response) {
+                if (response && response.apiBaseUrl) {
+                    CONFIG.API_URL = response.apiBaseUrl;
+                    CONFIG.DEFAULT_API_URL = response.apiBaseUrl;
+                }
+                callback && callback();
+            },
+            error: function () {
+                // If config endpoint fails, use defaults
+                callback && callback();
+            }
+        });
+    }
+
+    // ================================================
     // LOGIN FUNCTIONS
     // ================================================
 
@@ -139,7 +164,7 @@
         var hospitalId = document.getElementById('hospital_id').value;
         var email = document.getElementById('email').value;
         var password = document.getElementById('password').value;
-        var apiUrl = document.getElementById('api_url').value || CONFIG.DEFAULT_API_URL;
+        var apiUrl = getApiUrl();
 
         var errorEl = document.getElementById('error-message');
         var btnText = document.getElementById('btn-text');
@@ -171,7 +196,6 @@
                 setItem('tv_user_id', response.user_id || '');
                 setItem('tv_tenant_id', response.tenant_id || '');
                 setItem('tv_role', response.role || '');
-                setItem('tv_api_url', apiUrl);
 
                 // Redirect to display page
                 window.location.href = 'display.html';
@@ -619,5 +643,12 @@
             clearInterval(clockInterval);
         }
     };
+
+    // ================================================
+    // INITIALIZATION
+    // ================================================
+
+    // Load config on page load
+    loadConfig();
 
 })();

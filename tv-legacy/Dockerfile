@@ -41,8 +41,9 @@ EXPOSE 5500
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost:5500/ || exit 1
 
-# Set environment variable for port (can be overridden)
+# Set environment variables (can be overridden)
 ENV PORT=5500
+ENV API_BASE_URL=http://localhost:8080
 
 # Start the server
 CMD ["node", "server.js"]

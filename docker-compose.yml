@@ -20,3 +20,14 @@ services:
     environment:
       - NODE_ENV=production
 
+  tv-legacy:
+    build:
+      context: ./tv-legacy
+      dockerfile: Dockerfile
+    container_name: tv-legacy-display
+    ports:
+      - "5500:5500"
+    restart: unless-stopped
+    environment:
+      - PORT=5500
+      - API_BASE_URL=http://localhost:8080 # Change this to your backend URL

@@ -11,6 +11,7 @@ var fs = require('fs');
 var path = require('path');
 
 var PORT = process.env.PORT || 5500;
+var API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8080';
 
 // MIME types for serving files
 var mimeTypes = {
@@ -35,6 +36,19 @@ var server = http.createServer(function (req, res) {
 
     // Parse URL
     var urlPath = req.url.split('?')[0];
+
+    // Handle config endpoint
+    if (urlPath === '/config') {
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache'
+        });
+        res.end(JSON.stringify({
+            apiBaseUrl: API_BASE_URL
+        }));
+        return;
+    }
 
     // Default to index.html
     if (urlPath === '/') {

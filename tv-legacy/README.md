@@ -33,6 +33,7 @@ The server will start on port 5500 by default. Access the application at:
 ### Environment Variables
 
 - `PORT` - Server port (default: 5500)
+- `API_BASE_URL` - Backend API URL (default: http://localhost:8080)
 
 ## Docker
 
@@ -69,7 +70,7 @@ docker run -d -p 5500:5500 --name tv-display <username>/tv-legacy-display:latest
 docker run -d -p 8080:5500 --name tv-display <username>/tv-legacy-display:latest
 
 # Run with environment variables
-docker run -d -p 5500:5500 -e PORT=5500 --name tv-display <username>/tv-legacy-display:latest
+docker run -d -p 5500:5500 -e PORT=5500 -e API_BASE_URL=http://your-backend:8080 --name tv-display <username>/tv-legacy-display:latest
 
 # Run with restart policy
 docker run -d -p 5500:5500 --restart=unless-stopped --name tv-display <username>/tv-legacy-display:latest
@@ -89,6 +90,7 @@ services:
       - "5500:5500"
     environment:
       - PORT=5500
+      - API_BASE_URL=http://your-backend:8080  # Configure your backend URL here
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5500/"]
