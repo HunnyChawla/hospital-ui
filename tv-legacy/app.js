@@ -249,12 +249,15 @@
             return;
         }
 
-        // Start clock
-        updateClock();
-        clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
+        // Load config first, then initialize display
+        loadConfig(function () {
+            // Start clock
+            updateClock();
+            clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
 
-        // Load doctors
-        loadDoctors();
+            // Load doctors
+            loadDoctors();
+        });
     };
 
     function updateClock() {
