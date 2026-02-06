@@ -19,4 +19,19 @@ services:
       - .env.production
     environment:
       - NODE_ENV=production
+      # Explicitly pass NEXT_PUBLIC_* variables to entrypoint.sh
+      # These override the defaults in entrypoint.sh and are injected at runtime
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+      - NEXT_PUBLIC_DOMAIN_URL=${NEXT_PUBLIC_DOMAIN_URL}
 
+  tv-legacy:
+    build:
+      context: ./tv-legacy
+      dockerfile: Dockerfile
+    container_name: tv-legacy-display
+    ports:
+      - "5500:5500"
+    restart: unless-stopped
+    environment:
+      - PORT=5500
+      - API_BASE_URL=http://localhost:8080 # Change this to your backend URL

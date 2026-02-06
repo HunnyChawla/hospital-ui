@@ -1,9 +1,7 @@
 import axios from "axios";
 import { apiClient } from "./api";
 
-import { API_BASE_URL } from "../utils/env";
-
-const BASE_URL = API_BASE_URL;
+import { getEnv } from "../utils/env";
 
 export interface LoginRequest {
   email: string;
@@ -24,8 +22,8 @@ export interface LoginResponse {
 
 export const authApi = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    // Ensure BASE_URL doesn't have trailing slash
-    const baseUrl = BASE_URL.replace(/\/$/, "");
+    // Get API URL at runtime to ensure window.__ENV is available
+    const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000").replace(/\/$/, "");
     const loginUrl = `${baseUrl}/auth/login`;
 
     const response = await axios.post<LoginResponse>(

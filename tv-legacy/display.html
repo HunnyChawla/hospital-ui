@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CURA - Queue Display</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="display-container">
+        <!-- Header -->
+        <div id="header">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td width="50%" align="left" valign="middle">
+                        <table cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td valign="middle">
+                                    <div id="header-logo">
+                                        <img src="cura-logo.png" alt="CURA Logo" onerror="this.src='login-logo.png'">
+                                    </div>
+                                </td>
+                                <td valign="middle" style="padding-left: 15px;">
+                                    <h1 id="title">Patient Queue Display</h1>
+                                    <p id="subtitle">Real-time waiting area status</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td width="30%" align="center" valign="middle">
+                        <div id="doctor-selector-container">
+                            <label for="doctor-selector">Select Doctor:</label>
+                            <select id="doctor-selector" onchange="handleDoctorChange()">
+                                <option value="">Loading doctors...</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td width="15%" align="center" valign="middle">
+                        <div id="connection-status">
+                            <span id="status-dot" class="status-connecting"></span>
+                            <span id="status-text">Connecting...</span>
+                        </div>
+                    </td>
+                    <td width="15%" align="right" valign="middle">
+                        <span id="clock">00:00:00</span>
+                        <button id="logout-btn" onclick="handleLogout()" title="Logout">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                                <line x1="12" y1="2" x2="12" y2="12"></line>
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Main Content - Two Queue Panels -->
+        <div id="main-content">
+            <table cellpadding="10" cellspacing="0" border="0" width="100%" height="100%">
+                <tr>
+                    <!-- Optometrist Queue Panel -->
+                    <td width="50%" valign="top">
+                        <div id="optometrist-panel" class="queue-panel">
+                            <div class="panel-header optometrist-header">
+                                <h2>👁️ Eye Examination Queue</h2>
+                                <div class="stats-row">
+                                    <span class="stat-badge">Waiting: <span id="opt-waiting">0</span></span>
+                                    <span class="stat-badge">In Progress: <span id="opt-progress">0</span></span>
+                                </div>
+                            </div>
+                            <div id="optometrist-queue" class="queue-list">
+                                <p class="empty-message">No patients in queue</p>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Doctor Queue Panel -->
+                    <td width="50%" valign="top">
+                        <div id="doctor-panel" class="queue-panel">
+                            <div class="panel-header doctor-header">
+                                <h2>🩺 Consultation Queue</h2>
+                                <div class="stats-row">
+                                    <span class="stat-badge">Waiting: <span id="doc-waiting">0</span></span>
+                                    <span class="stat-badge">In Progress: <span id="doc-progress">0</span></span>
+                                </div>
+                            </div>
+                            <div id="doctor-queue" class="queue-list">
+                                <p class="empty-message">No patients in queue</p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div id="display-footer">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td align="left" width="70%">
+                        <div class="settings-control">
+                            <label><input type="checkbox" id="toggle-header" onchange="toggleHeader(this.checked)"> Hide
+                                Header</label>
+                        </div>
+                        <span class="footer-brand"><strong>Technesian Cura</strong> <span class="separator">|</span>
+                            Revolutionizing Hospital Management <span class="separator">•</span> © <span
+                                class="current-year">2026</span> Technesian <span class="separator">•</span> <a
+                                href="https://www.technesian.com" target="_blank">www.technesian.com</a></span>
+                    </td>
+                    <td align="right" width="30%">
+                        <span>Last updated: <span id="last-update">--:--:--</span></span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Notification Sound -->
+    <audio id="notification-sound" preload="auto">
+        <source src="assets/notification.wav" type="audio/wav">
+        <source src="assets/notification.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="app.js"></script>
+    <script>
+        // Initialize display on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDisplay);
+        } else {
+            initDisplay();
+        }
+    </script>
+</body>
+
+</html>
