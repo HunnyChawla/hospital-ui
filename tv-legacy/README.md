@@ -1,0 +1,228 @@
+# TV Legacy Display
+
+A lightweight Node.js application for displaying patient queues on TV screens in hospitals. Built with vanilla HTML, CSS, and JavaScript to ensure compatibility with older browsers and legacy TV systems.
+
+## Features
+
+- **Legacy Browser Support**: Uses vanilla HTML/CSS/JS without modern dependencies
+- **Simple HTTP Server**: Lightweight Node.js server serving static files
+- **TV-Optimized UI**: Designed for display on television screens
+- **Patient Queue Display**: Shows real-time patient queue information
+- **Login System**: Secure authentication for TV displays
+- **Audio Notifications**: Sound alerts for queue updates
+
+## Quick Start
+
+### Running Locally
+
+```bash
+# Install dependencies (if any)
+npm install
+
+# Start the server
+npm start
+
+# Or use node directly
+node server.js
+```
+
+The server will start on port 5500 by default. Access the application at:
+- Login page: `http://localhost:5500/`
+- Display page: `http://localhost:5500/display.html`
+
+### Environment Variables
+
+- `PORT` - Server port (default: 5500)
+
+## Docker
+
+### Building the Docker Image
+
+```bash
+# Build for local use (single platform)
+./docker-build.sh build
+
+# Build and push to Docker Hub
+./docker-build.sh build-push --username=<your-dockerhub-username>
+
+# Build for multiple platforms
+./docker-build.sh build --platform=linux/amd64,linux/arm64
+```
+
+### Using the Pre-built Image
+
+```bash
+# Pull the image
+docker pull <username>/tv-legacy-display:latest
+
+# Run the container
+docker run -d -p 5500:5500 --name tv-display <username>/tv-legacy-display:latest
+
+# Access the application
+# Open browser to http://localhost:5500
+```
+
+### Docker Run Options
+
+```bash
+# Run with custom port mapping
+docker run -d -p 8080:5500 --name tv-display <username>/tv-legacy-display:latest
+
+# Run with environment variables
+docker run -d -p 5500:5500 -e PORT=5500 --name tv-display <username>/tv-legacy-display:latest
+
+# Run with restart policy
+docker run -d -p 5500:5500 --restart=unless-stopped --name tv-display <username>/tv-legacy-display:latest
+```
+
+### Docker Compose
+
+Create a `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  tv-display:
+    image: <username>/tv-legacy-display:latest
+    ports:
+      - "5500:5500"
+    environment:
+      - PORT=5500
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5500/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+```
+
+Run with:
+```bash
+docker-compose up -d
+```
+
+## Development
+
+### Project Structure
+
+```
+tv-legacy/
+├── server.js           # Node.js HTTP server
+├── index.html          # Login page
+├── display.html        # Patient queue display page
+├── app.js              # Client-side JavaScript
+├── styles.css          # Application styles
+├── assets/             # Static assets (images, sounds)
+├── package.json        # Project metadata
+├── Dockerfile          # Docker image definition
+├── .dockerignore       # Docker build exclusions
+├── docker-build.sh     # Docker build script
+├── push-to-dockerhub.sh # Docker push script
+└── README.md           # This file
+```
+
+### Building for Production
+
+The Docker image uses a multi-stage build process optimized for production:
+
+1. **Base**: Node.js 20 Alpine Linux (minimal footprint)
+2. **Security**: Runs as non-root user
+3. **Health Checks**: Automated container health monitoring
+4. **Multi-Platform**: Supports AMD64 and ARM64 architectures
+
+## Docker Build Scripts
+
+### docker-build.sh
+
+Comprehensive build script with multiple commands:
+
+```bash
+# Available commands
+./docker-build.sh build        # Build locally
+./docker-build.sh push         # Push to registry
+./docker-build.sh build-push   # Build and push
+./docker-build.sh tag          # Tag image
+./docker-build.sh clean        # Clean up
+
+# Options
+--username=USER     # Docker Hub username
+--tag=TAG          # Image tag
+--platform=PLAT    # Target platforms
+--cache=MODE       # Cache mode (registry/local/none)
+--ci               # CI mode (no prompts)
+--no-cache         # Disable caching
+--dry-run          # Show commands without executing
+```
+
+### push-to-dockerhub.sh
+
+Simplified push script:
+
+```bash
+# Quick push
+./push-to-dockerhub.sh
+
+# With custom parameters
+./push-to-dockerhub.sh <username> <image-name> <tag>
+
+# Multi-platform build
+./push-to-dockerhub.sh --multi-platform
+./push-to-dockerhub.sh --platform=linux/amd64,linux/arm64
+```
+
+### Environment Variables for Build
+
+```bash
+export DOCKERHUB_USERNAME=myuser
+export DOCKERHUB_IMAGE=tv-legacy-display
+export DOCKERHUB_TAG=v1.0.0
+export DOCKER_PLATFORMS=linux/amd64,linux/arm64
+export CACHE_MODE=registry
+
+./docker-build.sh build-push
+```
+
+## Troubleshooting
+
+### Container Won't Start
+
+Check the logs:
+```bash
+docker logs tv-display
+```
+
+Verify the container is running:
+```bash
+docker ps -a
+```
+
+### Health Check Failing
+
+Inspect the health status:
+```bash
+docker inspect --format='{{json .State.Health}}' tv-display
+```
+
+### Port Already in Use
+
+Use a different host port:
+```bash
+docker run -d -p 8080:5500 --name tv-display <username>/tv-legacy-display:latest
+```
+
+### Cannot Access from Other Devices
+
+Ensure Docker is binding to all interfaces (0.0.0.0):
+```bash
+docker run -d -p 0.0.0.0:5500:5500 --name tv-display <username>/tv-legacy-display:latest
+```
+
+## License
+
+ISC
+
+## Version
+
+1.0.0

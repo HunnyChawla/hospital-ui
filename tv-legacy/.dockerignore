@@ -1,0 +1,51 @@
+# Dependencies (will be installed fresh in container)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Documentation (not needed in runtime)
+README.md
+*.md
+!package.json
+
+# Docker files (not needed in the image)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker-build.sh
+push-to-dockerhub.sh
+
+# Logs
+logs/
+*.log
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
