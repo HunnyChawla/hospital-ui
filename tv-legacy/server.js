@@ -10,6 +10,33 @@ var http = require('http');
 var fs = require('fs');
 var path = require('path');
 
+// Load environment variables from .env file if it exists
+try {
+    var envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        var envContent = fs.readFileSync(envPath, 'utf8');
+        var lines = envContent.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (line && line.indexOf('#') !== 0 && line.indexOf('=') !== -1) {
+                var parts = line.split('=');
+                var key = parts[0].trim();
+                var value = parts.slice(1).join('=').trim();
+                // Remove quotes if present
+                if ((value.indexOf('"') === 0 && value.lastIndexOf('"') === value.length - 1) ||
+                    (value.indexOf("'") === 0 && value.lastIndexOf("'") === value.length - 1)) {
+                    value = value.substring(1, value.length - 1);
+                }
+                if (!process.env[key]) {
+                    process.env[key] = value;
+                }
+            }
+        }
+    }
+} catch (e) {
+    console.error('Error loading .env file:', e);
+}
+
 var PORT = process.env.PORT || 5500;
 var API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8080';
 
@@ -92,6 +119,7 @@ server.listen(PORT, function () {
     console.log('TV Legacy Display Server');
     console.log('========================================');
     console.log('Server running at: http://localhost:' + PORT);
+    console.log('API Base URL:      ' + API_BASE_URL);
     console.log('');
     console.log('Open your browser and navigate to:');
     console.log('  http://localhost:' + PORT);

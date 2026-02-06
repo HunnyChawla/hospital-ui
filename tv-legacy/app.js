@@ -39,6 +39,34 @@
         }
     }
 
+    function updateCurrentYear() {
+        var year = new Date().getFullYear();
+        var elements = document.getElementsByClassName('current-year');
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].innerHTML = year;
+        }
+    }
+
+    window.toggleHeader = function (hide) {
+        if (hide) {
+            document.body.className += ' header-hidden';
+        } else {
+            document.body.className = document.body.className.replace(' header-hidden', '');
+        }
+        setItem('tv_hide_header', hide ? 'true' : 'false');
+    };
+
+    function applyHeaderPreference() {
+        var hide = getItem('tv_hide_header') === 'true';
+        var checkbox = document.getElementById('toggle-header');
+        if (checkbox) {
+            checkbox.checked = hide;
+        }
+        if (hide) {
+            document.body.className += ' header-hidden';
+        }
+    }
+
     function removeItem(key) {
         try {
             localStorage.removeItem(key);
@@ -251,6 +279,12 @@
 
         // Load config first, then initialize display
         loadConfig(function () {
+            // Update year
+            updateCurrentYear();
+
+            // Apply header preference
+            applyHeaderPreference();
+
             // Start clock
             updateClock();
             clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
@@ -653,5 +687,6 @@
 
     // Load config on page load
     loadConfig();
+    updateCurrentYear();
 
 })();
