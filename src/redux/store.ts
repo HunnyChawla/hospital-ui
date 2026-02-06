@@ -20,6 +20,7 @@ import permissionsReducer from "./permissionsSlice";
 import diagnosesReducer from "./diagnosesSlice";
 import advicesReducer from "./advicesSlice";
 import symptomsReducer from "./symptomsSlice";
+import seedDataReducer from "./seedDataSlice";
 
 
 export const store = configureStore({
@@ -45,6 +46,7 @@ export const store = configureStore({
     diagnoses: diagnosesReducer,
     advices: advicesReducer,
     symptoms: symptomsReducer,
+    seedData: seedDataReducer,
   },
 });
 
