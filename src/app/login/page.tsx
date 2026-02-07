@@ -9,10 +9,11 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { extractSubdomain } from "@/utils/subdomain";
 import { Mail, Lock, Building2 } from "lucide-react";
+import { Suspense } from "react";
 import Image from "next/image";
 import { Footer } from "@/components/layout/Footer";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
@@ -274,4 +275,20 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+          <p className="text-slate-600 font-medium">Loading login...</p>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
 

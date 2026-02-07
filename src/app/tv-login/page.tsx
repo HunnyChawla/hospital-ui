@@ -7,9 +7,10 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { tvAuthApi, TVSessionInfo } from "@/services/tvAuthApi";
 import { toast } from "sonner";
 import { Loader2, Tv, CheckCircle, XCircle } from "lucide-react";
+import { Suspense } from "react";
 import Link from "next/link";
 
-export default function TVLoginPage() {
+function TVLoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const dispatch = useAppDispatch();
@@ -209,6 +210,18 @@ export default function TVLoginPage() {
     );
 }
 
+export default function TVLoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen items-center justify-center bg-slate-50">
+                <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+            </div>
+        }>
+            <TVLoginContent />
+        </Suspense>
+    );
+}
+
 function BuildingIcon({ className }: { className?: string }) {
     return (
         <svg
@@ -235,3 +248,4 @@ function BuildingIcon({ className }: { className?: string }) {
         </svg>
     );
 }
+
