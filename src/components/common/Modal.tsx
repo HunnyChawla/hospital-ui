@@ -10,9 +10,10 @@ interface ModalProps {
   title: React.ReactNode;
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "2xl" | "full";
+  closeOnOutsideClick?: boolean;
 }
 
-export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = "md", closeOnOutsideClick = true }: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
   const modalContent = (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      onClick={() => closeOnOutsideClick && onClose()}
     >
       <div
         className={`w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl`}

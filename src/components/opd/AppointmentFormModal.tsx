@@ -21,6 +21,7 @@ export function AppointmentFormModal({ isOpen, onClose, defaultPatientId }: Appo
         onClose={onClose}
         title="Create Appointment"
         size="lg"
+        closeOnOutsideClick={false}
       >
         <AppointmentForm
           defaultPatientId={defaultPatientId}

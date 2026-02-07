@@ -17,6 +17,7 @@ export function PatientFormModal({ isOpen, onClose, defaultValues }: PatientForm
       onClose={onClose}
       title={defaultValues ? "Edit Patient" : "Add New Patient"}
       size="lg"
+      closeOnOutsideClick={false}
     >
       <PatientForm
         defaultValues={defaultValues}
