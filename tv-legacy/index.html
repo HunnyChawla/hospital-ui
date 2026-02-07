@@ -48,6 +48,21 @@
                             </button>
                         </form>
 
+                        <div id="qr-login-container" style="display: none;">
+                            <p>Scan with <strong>Cura Mobile App</strong> to login</p>
+                            <div id="qr-placeholder">
+                                <img id="qr-code-img" src="" alt="Scan QR Code" style="display: none;">
+                                <div id="qr-loading">Generating Code...</div>
+                            </div>
+                            <div id="qr-timer"></div>
+                        </div>
+
+                        <div class="login-methods">
+                            <a href="#" id="toggle-method" onclick="toggleLoginMethod(); return false;">
+                                Switch to QR Code Login
+                            </a>
+                        </div>
+
                         <div id="footer-text">
                             <p><strong>Technesian Cura</strong> <span class="separator">|</span> Revolutionizing
                                 Hospital Management</p>

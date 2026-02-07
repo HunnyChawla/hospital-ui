@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { login, restoreSession } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
@@ -9,11 +9,13 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { extractSubdomain } from "@/utils/subdomain";
 import { Mail, Lock, Building2 } from "lucide-react";
+import { Suspense } from "react";
 import Image from "next/image";
 import { Footer } from "@/components/layout/Footer";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const { isAuthenticated, loading, error } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
@@ -52,9 +54,14 @@ export default function LoginPage() {
   useEffect(() => {
     // Redirect if already authenticated
     if (isAuthenticated) {
-      router.push("/");
+      const returnUrl = searchParams.get("returnUrl");
+      if (returnUrl) {
+        router.push(returnUrl);
+      } else {
+        router.push("/");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +74,13 @@ export default function LoginPage() {
     try {
       const result = await dispatch(login(formData)).unwrap();
       toast.success("Login successful");
+
+      // Check for returnUrl
+      const returnUrl = searchParams.get("returnUrl");
+      if (returnUrl) {
+        router.push(returnUrl);
+        return;
+      }
 
       // Navigate to the default screen from permissions, or fallback to dashboard
       const defaultScreen = result.permissions?.default_screen || "/";
@@ -261,4 +275,20 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+          <p className="text-slate-600 font-medium">Loading login...</p>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
 

@@ -178,6 +178,81 @@ body {
     color: #0284c7;
 }
 
+/* QR Login Styles */
+#qr-login-container {
+    padding: 10px 0;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+#qr-login-container p {
+    color: #334155;
+    margin-bottom: 20px;
+}
+
+#qr-placeholder {
+    width: 220px;
+    height: 220px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+#qr-code-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+#qr-loading {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+#qr-timer {
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ef4444; /* Red for urgency */
+    height: 20px;
+}
+
+.login-methods {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f5f9;
+}
+
+#toggle-method {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #f0f9ff;
+    color: #0284c7;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#toggle-method:hover {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    text-decoration: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* ================================================
    DISPLAY PAGE STYLES
    ================================================ */

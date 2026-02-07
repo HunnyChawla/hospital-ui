@@ -14,7 +14,17 @@ export const getEnv = (key: string, fallback: string = ""): string => {
     if (typeof window !== "undefined" && window.__ENV && window.__ENV[key]) {
         return window.__ENV[key]!;
     }
-    // @ts-ignore - process.env is replaced at build time
+
+    // Next.js requires literal process.env.VAR_NAME to inline variables for the browser.
+    // Dynamic lookups like process.env[key] will return undefined in the browser.
+    if (key === "NEXT_PUBLIC_API_BASE_URL") {
+        return process.env.NEXT_PUBLIC_API_BASE_URL || fallback;
+    }
+    if (key === "NEXT_PUBLIC_DOMAIN_URL") {
+        return process.env.NEXT_PUBLIC_DOMAIN_URL || fallback;
+    }
+
+    // @ts-ignore - process.env is replaced at build time (works on server-side)
     return process.env[key] || fallback;
 };
 

@@ -244,7 +244,14 @@ export default function DashboardLayout({
       <LicenseExpiryAlert />
 
       {isAuthorized ? (
-        children
+        <React.Suspense fallback={
+          <div className="flex flex-col items-center justify-center min-h-[40vh] py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
+            <p className="text-slate-500 font-medium">Loading screen...</p>
+          </div>
+        }>
+          {children}
+        </React.Suspense>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-rose-100 p-6 rounded-full mb-6 ring-8 ring-rose-50">
