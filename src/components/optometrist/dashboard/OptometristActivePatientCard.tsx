@@ -71,15 +71,15 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500 scrollbar-hide">
-      <div className="border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-4 py-3 sm:px-6 sm:py-4 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/30 sm:h-12 sm:w-12">
-              <Eye className="h-5 w-5 sm:h-6 sm:w-6" />
+      <div className="border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-3 py-2 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/30">
+              <Eye className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="truncate text-base font-bold text-slate-900 sm:text-lg">
+              <div className="flex items-center gap-1.5">
+                <h2 className="truncate text-sm font-bold text-slate-900 sm:text-base">
                   {patientName || "Patient Details"}
                 </h2>
                 {visitType && (
@@ -93,46 +93,46 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
                   </span>
                 )}
               </div>
-              <p className="truncate text-xs font-medium text-slate-600 sm:text-sm">
+              <p className="truncate text-xs font-medium text-slate-600">
                 {patientUhid || patientId}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-1.5">
             {/* View Mode Toggle Buttons */}
-            <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+            <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
               <button
                 onClick={() => setViewMode("tabs")}
-                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "tabs"
+                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all ${viewMode === "tabs"
                   ? "bg-sky-600 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100"
                   }`}
                 title="Tabs View"
               >
-                <LayoutGrid className="h-3.5 w-3.5" />
+                <LayoutGrid className="h-3 w-3" />
                 <span className="hidden sm:inline">Tabs</span>
               </button>
               <button
                 onClick={() => setViewMode("single")}
-                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "single"
+                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all ${viewMode === "single"
                   ? "bg-sky-600 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100"
                   }`}
                 title="Single View"
               >
-                <LayoutList className="h-3.5 w-3.5" />
+                <LayoutList className="h-3 w-3" />
                 <span className="hidden sm:inline">Single</span>
               </button>
               <button
                 onClick={() => setViewMode("compact")}
-                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all ${viewMode === "compact"
+                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all ${viewMode === "compact"
                   ? "bg-sky-600 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100"
                   }`}
                 title="Compact View"
               >
-                <LayoutDashboard className="h-3.5 w-3.5" />
+                <LayoutDashboard className="h-3 w-3" />
                 <span className="hidden sm:inline">Compact</span>
               </button>
             </div>
@@ -158,10 +158,10 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
             )}
             <button
               onClick={onClose}
-              className="group rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-all hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 hover:scale-105 active:scale-95"
+              className="group rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition-all hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 hover:scale-105 active:scale-95"
               title="Clear selection"
             >
-              <X className="h-5 w-5 transition-transform group-hover:rotate-90" />
+              <X className="h-4 w-4 transition-transform group-hover:rotate-90" />
             </button>
           </div>
         </div>

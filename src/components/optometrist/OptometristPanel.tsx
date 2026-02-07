@@ -504,12 +504,12 @@ export function OptometristPanel() {
     <ExaminationViewProvider>
       <FullscreenContainerProvider containerRef={containerRef as React.RefObject<HTMLDivElement>}>
         <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900 scrollbar-hide">
-          <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-3 px-3 sm:px-6 py-3 sm:py-4 scrollbar-hide">
+          <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-1.5 sm:space-y-2 px-2 sm:px-3 py-1.5 sm:py-2 scrollbar-hide">
             {/* Header */}
-            <div className="flex items-center justify-between py-2 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
-              <div className="min-w-0 flex-1 flex items-center gap-3 sm:gap-4">
-                <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
-                  <Eye className="h-5 w-5 text-white" />
+            <div className="flex items-center justify-between py-1 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
+              <div className="min-w-0 flex-1 flex items-center gap-2 sm:gap-3">
+                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
+                  <Eye className="h-4 w-4 text-white" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
@@ -545,25 +545,25 @@ export function OptometristPanel() {
                 {/* Live Queue Connection Status */}
                 <div className="flex items-center gap-2">
                   {connectionStatus === "connected" && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-3 py-1.5 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-2.5 py-1 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
                       <div className="relative">
-                        <Wifi className="h-3.5 w-3.5 text-white" />
+                        <Wifi className="h-3 w-3 text-white" />
                         <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
                       </div>
                       <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
                     </div>
                   )}
                   {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-400/30">
-                      <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-2.5 py-1 shadow-md shadow-amber-400/30">
+                      <Loader2 className="h-3 w-3 text-white animate-spin" />
                       <span className="text-xs font-semibold text-white hidden sm:inline">
                         {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
                       </span>
                     </div>
                   )}
                   {(connectionStatus === "error" || connectionStatus === "disconnected") && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 shadow-md shadow-rose-500/30">
-                      <WifiOff className="h-3.5 w-3.5 text-white" />
+                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-2.5 py-1 shadow-md shadow-rose-500/30">
+                      <WifiOff className="h-3 w-3 text-white" />
                       <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
                     </div>
                   )}
@@ -572,20 +572,20 @@ export function OptometristPanel() {
 
               <button
                 onClick={handleRefresh}
-                className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
+                className="group rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
                 title="Refresh schedule"
               >
-                <RefreshCw className={`h-4 w-4 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
+                <RefreshCw className={`h-3.5 w-3.5 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
               </button>
 
               {/* Settings Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                  className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
+                  className="group rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
                   title="View Settings"
                 >
-                  <Settings className={`h-4 w-4 transition-transform ${isSettingsOpen ? "rotate-90" : ""}`} />
+                  <Settings className={`h-3.5 w-3.5 transition-transform ${isSettingsOpen ? "rotate-90" : ""}`} />
                 </button>
 
                 {isSettingsOpen && (

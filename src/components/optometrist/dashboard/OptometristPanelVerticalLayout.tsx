@@ -62,7 +62,7 @@ interface OptometristPanelVerticalLayoutProps {
 const STORAGE_KEY = "optometry-queue-sidebar-width";
 const DEFAULT_QUEUE_WIDTH = 320; // pixels
 const MIN_QUEUE_WIDTH = 240;
-const MAX_QUEUE_WIDTH = 500;
+const MAX_QUEUE_WIDTH = 600; // Increased for better large screen utilization
 
 const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVerticalLayoutProps> = ({
   stats,
@@ -194,7 +194,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   }, [isDragging, handleMouseMove, handleTouchMove, handleEnd]);
 
   return (
-    <div className="flex flex-col space-y-3 sm:space-y-4 h-full min-h-0 scrollbar-hide">
+    <div className="flex flex-col space-y-1.5 sm:space-y-2 h-full min-h-0 scrollbar-hide">
       {/* Stats Section - Horizontal 4-column layout at top */}
       {statsVisible && (
         <OptometristCollapsibleStatsSection

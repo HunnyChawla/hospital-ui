@@ -389,23 +389,23 @@ export function ExaminationCompactView({
     const activeModalConfig = activeModal ? sections.find((s) => s.id === activeModal) : null;
 
     return (
-        <div className="space-y-4 pb-6">
+        <div className="space-y-3 pb-5">
             {/* Progress Header */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-4">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                            <span className="text-sm font-semibold text-slate-700">
-                                {completedCount} of {totalSections} sections complete
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-3">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            <span className="text-xs font-semibold text-slate-700">
+                                {completedCount} of {totalSections} complete
                             </span>
                         </div>
                     </div>
-                    <span className="text-sm font-bold text-sky-600">{progressPercent}%</span>
+                    <span className="text-xs font-bold text-sky-600">{progressPercent}%</span>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden mb-2">
                     <div
                         className="h-full bg-gradient-to-r from-sky-500 to-emerald-500 rounded-full transition-all duration-500 ease-out"
                         style={{ width: `${progressPercent}%` }}
@@ -413,7 +413,7 @@ export function ExaminationCompactView({
                 </div>
 
                 {/* Quick Navigation */}
-                <div className="flex flex-wrap gap-2 mt-3">
+                <div className="flex flex-wrap gap-2">
                     {sections.map((section) => {
                         // Skip if section is hidden
                         if (hiddenTabs.includes(section.id)) return null;

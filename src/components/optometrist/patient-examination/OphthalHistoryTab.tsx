@@ -286,26 +286,9 @@ export function OphthalHistoryTab({
 
   const leftContent = (
     <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full">
-      {/* Section Header */}
-      <div className="border-b border-slate-200/60 bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100 px-6 py-4 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 p-1.5 shadow-md shadow-sky-500/30">
-              <Plus className="h-4 w-4 text-white" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">
-              Add Eye Surgeries
-            </h3>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 space-y-5">
+      <div className="p-4 space-y-3">
         {/* Quick Select Surgeries */}
         <div>
-          <label className="mb-3 block text-sm font-semibold text-slate-700">
-            Common Eye Surgeries
-          </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {filteredSurgeries.map((surgery) => {
               const isActive = activeSurgery === surgery;
