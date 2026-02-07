@@ -44,12 +44,19 @@ function TVLoginContent() {
         setCode(codeParam);
         setHospital(hospitalParam);
 
+        // Debug: Log the current URL to see if port is preserved
+        console.log('[TV-Login] Current URL:', window.location.href);
+        console.log('[TV-Login] Origin:', window.location.origin);
+        console.log('[TV-Login] Host:', window.location.host);
+        console.log('[TV-Login] Port:', window.location.port);
+
         // Wait for restoration and auth loading
         if (isRestored && !authLoading) {
             if (!isAuthenticated) {
-                // Redirect to login with return URL
-                const returnUrl = `/tv-login?code=${codeParam}&hospital=${hospitalParam || ""}`;
-                router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+                // Redirect to login with return URL - use full URL to preserve port
+                const currentUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}${window.location.search}`;
+                console.log('[TV-Login] Redirecting to login with returnUrl:', currentUrl);
+                router.push(`/login?returnUrl=${encodeURIComponent(currentUrl)}`);
                 return;
             }
 

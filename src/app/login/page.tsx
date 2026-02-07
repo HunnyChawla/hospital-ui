@@ -55,7 +55,10 @@ function LoginForm() {
     // Redirect if already authenticated
     if (isAuthenticated) {
       const returnUrl = searchParams.get("returnUrl");
+      console.log('[Login] Authenticated, returnUrl:', returnUrl);
+      console.log('[Login] Current origin:', window.location.origin);
       if (returnUrl) {
+        console.log('[Login] Redirecting to returnUrl:', returnUrl);
         router.push(returnUrl);
       } else {
         router.push("/");
@@ -77,7 +80,9 @@ function LoginForm() {
 
       // Check for returnUrl
       const returnUrl = searchParams.get("returnUrl");
+      console.log('[Login] After login, returnUrl:', returnUrl);
       if (returnUrl) {
+        console.log('[Login] Redirecting to returnUrl after login:', returnUrl);
         router.push(returnUrl);
         return;
       }
