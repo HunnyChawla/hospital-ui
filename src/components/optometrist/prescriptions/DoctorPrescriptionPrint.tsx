@@ -497,9 +497,9 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 <div className={`${isCompact ? "space-y-1" : "space-y-2"}`}>
                                     {prescription.medicine_items.map((med, idx) => (
                                         <div key={idx} className={sectionFontClass}>
-                                            <div className="font-bold flex gap-2 leading-tight text-sky-900">
-                                                <span>{idx + 1}.</span>
-                                                <span>{med.medicine_name}</span>
+                                            <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap">
+                                                <span>{idx + 1}. {med.medicine_name}</span>
+                                                {med.generic_name && <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">({med.generic_name})</span>}
                                             </div>
                                             <div className="pl-5 text-[10px] text-slate-600">
                                                 {med.instructions && <span className="mr-2">({med.instructions})</span>}

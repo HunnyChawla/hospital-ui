@@ -149,12 +149,14 @@ export function OpdSlipPrint({
                         {index + 1}
                       </td>
                       <td className="border-b border-slate-200 px-2 py-1.5">
-                        <p className="font-semibold text-slate-900">{item.medicine_name}</p>
-                        {item.generic_name && (
-                          <p className="text-[10px] italic text-slate-600">
-                            ({item.generic_name})
-                          </p>
-                        )}
+                        <p className="font-semibold text-slate-900">
+                          {item.medicine_name}
+                          {item.generic_name && (
+                            <span className="ml-1.5 text-[10px] italic font-normal text-slate-500">
+                              ({item.generic_name})
+                            </span>
+                          )}
+                        </p>
                       </td>
                       <td className="border-b border-slate-200 px-2 py-1.5 text-slate-700">
                         {item.dosage || "-"}
