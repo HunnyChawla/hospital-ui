@@ -451,7 +451,7 @@ export function IOPTab({
                   onChange={(v) => setFormData((prev) => ({ ...prev, od_pressure: v }))}
                   step={1}
                   min={5}
-                  max={50}
+                  max={60}
                   presets={PRESSURE_PRESETS}
                   colorScheme="blue"
                   size="lg"
@@ -490,7 +490,7 @@ export function IOPTab({
                   onChange={(v) => setFormData((prev) => ({ ...prev, os_pressure: v }))}
                   step={1}
                   min={5}
-                  max={50}
+                  max={60}
                   presets={PRESSURE_PRESETS}
                   colorScheme="green"
                   size="lg"
