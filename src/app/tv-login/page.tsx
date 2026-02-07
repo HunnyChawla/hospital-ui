@@ -119,7 +119,7 @@ function TVLoginContent() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4" suppressHydrationWarning>
             <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-sky-500 to-teal-500 p-6 text-center text-white">

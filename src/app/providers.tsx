@@ -47,6 +47,7 @@ export default function Providers({
   // Tenant context from localStorage
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Get current pathname to conditionally render sidebar
   const pathname = usePathname();
@@ -59,6 +60,7 @@ export default function Providers({
       const storedTenantId = localStorage.getItem("tenant_id");
       setTenantId(storedTenantId);
       setPlatformOwner(isPlatformOwner());
+      setMounted(true);
     }
   }, []);
 

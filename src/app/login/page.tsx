@@ -97,7 +97,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen relative overflow-hidden">
+    <div className="flex min-h-screen relative overflow-hidden" suppressHydrationWarning>
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-sky-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
