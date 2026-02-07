@@ -10,10 +10,10 @@ import { createMutationErrorHandler } from '@/utils/errorHandler';
 export const appointmentKeys = {
   all: ['appointments'] as const,
   lists: () => [...appointmentKeys.all, 'list'] as const,
-  byDoctor: (doctorId: string, startDate: string, endDate: string) =>
-    [...appointmentKeys.lists(), 'doctor', doctorId, startDate, endDate] as const,
-  byPatient: (patientId: string) =>
-    [...appointmentKeys.lists(), 'patient', patientId] as const,
+  byDoctor: (doctorId: string, startDate: string, endDate: string, options?: any) =>
+    [...appointmentKeys.lists(), 'doctor', doctorId, startDate, endDate, options] as const,
+  byPatient: (patientId: string, options?: any) =>
+    [...appointmentKeys.lists(), 'patient', patientId, options] as const,
 };
 
 /**
@@ -32,7 +32,7 @@ export function useAppointmentsByDoctor(
   const { tenantId, isPlatformOwner } = useTenantContext();
 
   return useQuery({
-    queryKey: appointmentKeys.byDoctor(doctorId, startDate, endDate),
+    queryKey: appointmentKeys.byDoctor(doctorId, startDate, endDate, options),
     queryFn: async () => {
       return await appointmentsApi.getByDoctor(
         doctorId,
@@ -61,7 +61,7 @@ export function useAppointmentsByPatient(
   const { tenantId, isPlatformOwner } = useTenantContext();
 
   return useQuery({
-    queryKey: appointmentKeys.byPatient(patientId),
+    queryKey: appointmentKeys.byPatient(patientId, options),
     queryFn: async () => {
       return await appointmentsApi.getByPatient(
         patientId,

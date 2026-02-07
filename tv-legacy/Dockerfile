@@ -24,6 +24,7 @@ COPY server.js ./
 COPY *.html ./
 COPY *.css ./
 COPY *.js ./
+COPY *.png ./
 COPY assets/ ./assets/
 
 # Create a non-root user for security
