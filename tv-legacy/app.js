@@ -96,6 +96,14 @@
         setItem('tv_selected_doctor', id);
     }
 
+    function getHospitalId() {
+        return getItem('tv_hospital_id');
+    }
+
+    function setHospitalId(id) {
+        setItem('tv_hospital_id', id);
+    }
+
     // ================================================
     // AJAX HELPER (XMLHttpRequest for old browsers)
     // ================================================
@@ -190,6 +198,8 @@
         event.preventDefault();
 
         var hospitalId = document.getElementById('hospital_id').value;
+        setHospitalId(hospitalId); // Save hospital id for next time
+
         var email = document.getElementById('email').value;
         var password = document.getElementById('password').value;
         var apiUrl = getApiUrl();
@@ -284,6 +294,7 @@
                 hospitalIdInput.focus();
                 return;
             }
+            setHospitalId(hospitalId); // Save hospital id
 
             form.style.display = 'none';
             qrContainer.style.display = 'block';
@@ -758,7 +769,7 @@
         html += '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>';
         html += '<td width="80" valign="middle"><div class="token-number">' + tokenNumber + '</div></td>';
         html += '<td valign="middle" style="padding-left: 15px;">';
-        html += '<div class="patient-name">' + patientName + '</div>';
+        html += '<div class="patient-name"><strong>' + patientName + '</strong></div>';
         if (uhid) {
             html += '<div class="patient-uhid">UHID: ' + uhid + '</div>';
         }
@@ -832,8 +843,28 @@
     // INITIALIZATION
     // ================================================
 
+    window.initLogin = function () {
+        var hospitalIdInput = document.getElementById('hospital_id');
+        if (hospitalIdInput) {
+            var savedId = getHospitalId();
+            if (savedId) {
+                hospitalIdInput.value = savedId;
+            }
+
+            // Save on every change
+            hospitalIdInput.onchange = function () {
+                setHospitalId(this.value);
+            };
+            // Also on input for real-time update in case they don't trigger change
+            hospitalIdInput.oninput = function () {
+                setHospitalId(this.value);
+            };
+        }
+    };
+
     // Load config on page load
     loadConfig();
     updateCurrentYear();
+    initLogin();
 
 })();

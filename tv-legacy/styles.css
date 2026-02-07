@@ -221,7 +221,8 @@ body {
     margin-top: 15px;
     font-size: 14px;
     font-weight: bold;
-    color: #ef4444; /* Red for urgency */
+    color: #ef4444;
+    /* Red for urgency */
     height: 20px;
 }
 
@@ -249,8 +250,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ================================================
@@ -330,6 +338,7 @@ body {
     border-radius: 6px;
     background-color: #ffffff;
     min-width: 200px;
+    font-weight: bold;
 }
 
 /* Connection Status */
@@ -522,7 +531,7 @@ body {
 
 .patient-name {
     font-size: 18px;
-    font-weight: bold;
+    font-weight: 900;
     color: #1e293b;
 }
 
