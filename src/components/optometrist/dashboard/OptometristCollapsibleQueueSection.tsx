@@ -186,7 +186,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       {/* Toggle Button */}
       <button
         onClick={onToggle}
-        className="group flex w-full items-center justify-between px-4 py-3.5 text-left transition-all hover:bg-gradient-to-r hover:from-slate-50 hover:to-sky-50/30 flex-shrink-0 rounded-t-xl"
+        className="group flex w-full items-center justify-between px-3 py-2.5 text-left transition-all hover:bg-gradient-to-r hover:from-slate-50 hover:to-sky-50/30 flex-shrink-0 rounded-t-xl"
         title={isVisible ? "Collapse queue" : "Expand queue"}
       >
         <div className="flex items-center gap-2.5">
@@ -288,7 +288,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                         }
                       }
                     }}
-                    className={`p-4 cursor-pointer transition-all duration-200 border-b last:border-b-0 animate-in fade-in slide-in-from-right-2 ${isEmergency
+                    className={`p-2.5 cursor-pointer transition-all duration-200 border-b last:border-b-0 animate-in fade-in slide-in-from-right-2 ${isEmergency
                       ? isSelected
                         ? "bg-gradient-to-r from-red-50 via-rose-50 to-red-50/30 border-l-4 border-red-600 shadow-md border-b-red-200"
                         : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"

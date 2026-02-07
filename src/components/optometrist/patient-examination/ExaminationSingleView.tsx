@@ -279,24 +279,24 @@ export function ExaminationSingleView({
   };
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-8">
       {/* Sticky Header with Progress & Quick Jump */}
-      <div className="sticky top-0 z-40 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-4 mb-6">
+      <div className="sticky top-0 z-40 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-3 mb-3">
         {/* Progress Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              <span className="text-sm font-semibold text-slate-700">
-                {completedCount} of {totalSections} sections complete
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <span className="text-xs font-semibold text-slate-700">
+                {completedCount} of {totalSections} complete
               </span>
             </div>
           </div>
-          <span className="text-sm font-bold text-sky-600">{progressPercent}%</span>
+          <span className="text-xs font-bold text-sky-600">{progressPercent}%</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-4">
+        <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden mb-2">
           <div
             className="h-full bg-gradient-to-r from-sky-500 to-emerald-500 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
@@ -317,7 +317,7 @@ export function ExaminationSingleView({
               <a
                 key={section.id}
                 href={`#section-${section.id}`}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all shadow-sm ${isComplete
+                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all shadow-sm ${isComplete
                   ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
                   : isPartial
                     ? "bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200"
@@ -332,11 +332,11 @@ export function ExaminationSingleView({
                 }}
               >
                 {isComplete ? (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <CheckCircle2 className="h-3 w-3" />
                 ) : isPartial ? (
-                  <Circle className="h-3.5 w-3.5 fill-current" />
+                  <Circle className="h-3 w-3 fill-current" />
                 ) : (
-                  <section.icon className="h-3.5 w-3.5" />
+                  <section.icon className="h-3 w-3" />
                 )}
                 <span>{section.title}</span>
               </a>

@@ -203,7 +203,7 @@ export function ExaminationTabs({
 
 
         {/* Compact View Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-2 sm:p-4">
           <ExaminationCompactView
             patientId={patientId}
             visitId={visitId}
@@ -247,7 +247,7 @@ export function ExaminationTabs({
 
 
         {/* Single View Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-2 sm:p-4">
           <ExaminationSingleView
             patientId={patientId}
             visitId={visitId}
@@ -289,7 +289,7 @@ export function ExaminationTabs({
     >
       {/* Tab Navigation */}
       <div className="flex-shrink-0 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-sky-50/30 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-4">
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5 sm:px-3">
           {/* Left Scroll Button */}
           <button
             onClick={() => scrollTabs("left")}
@@ -339,7 +339,7 @@ export function ExaminationTabs({
                     onTabChange(tab.id as ActiveTab);
                   }}
                   className={clsx(
-                    "group flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-all duration-200 rounded-t-lg sm:px-4 sm:py-3 sm:text-sm whitespace-nowrap",
+                    "group flex items-center gap-2 border-b-2 px-2.5 py-2 text-xs font-semibold transition-all duration-200 rounded-t-lg sm:px-3 sm:py-2.5 sm:text-sm whitespace-nowrap",
                     isActive
                       ? "border-sky-600 bg-white text-sky-700 shadow-sm scale-105"
                       : "border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:border-slate-300 hover:scale-105"
@@ -388,7 +388,7 @@ export function ExaminationTabs({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-3 sm:p-6">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide bg-gradient-to-br from-slate-50/50 to-transparent p-2 sm:p-4">
         {activeTab === "complaints" && (
           <ComplaintsTab
             patientId={patientId}
