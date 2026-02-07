@@ -35,7 +35,9 @@ const getApiClient = () => {
             localStorage.removeItem("user_id");
             localStorage.removeItem("tenant_id");
             localStorage.removeItem("role");
-            window.location.href = "/login";
+            // Use window.location.replace with full URL to preserve port
+            const loginUrl = `${window.location.protocol}//${window.location.host}/login`;
+            window.location.replace(loginUrl);
           }
         }
         return Promise.reject(error);
