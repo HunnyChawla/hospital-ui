@@ -262,6 +262,153 @@
     };
 
     // ================================================
+    // QR LOGIN FUNCTIONS
+    // ================================================
+
+    var qrPollInterval = null;
+    var qrSessionCode = null;
+    var qrExpiryTime = null;
+    var qrTimerInterval = null;
+
+    window.toggleLoginMethod = function () {
+        var form = document.getElementById('login-form');
+        var qrContainer = document.getElementById('qr-login-container');
+        var toggleLink = document.getElementById('toggle-method');
+        var hospitalIdInput = document.getElementById('hospital_id');
+        var hospitalId = hospitalIdInput ? hospitalIdInput.value.trim() : '';
+
+        if (form.style.display !== 'none') {
+            // Switch to QR
+            if (!hospitalId) {
+                alert('Please enter Hospital ID first');
+                hospitalIdInput.focus();
+                return;
+            }
+
+            form.style.display = 'none';
+            qrContainer.style.display = 'block';
+            toggleLink.innerHTML = 'Switch to Password Login';
+            initQRLogin(hospitalId);
+        } else {
+            // Switch to Password
+            stopQRLogin();
+            qrContainer.style.display = 'none';
+            form.style.display = 'block';
+            toggleLink.innerHTML = 'Switch to QR Code Login';
+        }
+    };
+
+    function initQRLogin(hospitalId) {
+        var apiUrl = getApiUrl();
+        var imgEl = document.getElementById('qr-code-img');
+        var loadingEl = document.getElementById('qr-loading');
+        var timerEl = document.getElementById('qr-timer');
+
+        // Reset state
+        imgEl.style.display = 'none';
+        loadingEl.style.display = 'block';
+        timerEl.innerHTML = '';
+        qrSessionCode = null;
+
+        ajax({
+            method: 'POST',
+            url: apiUrl.replace(/\/$/, '') + '/auth/tv/session',
+            data: {
+                hospital_id: hospitalId
+            },
+            success: function (response) {
+                qrSessionCode = response.session_code;
+                qrExpiryTime = new Date(response.expires_at).getTime();
+
+                // Set image source
+                imgEl.src = response.qr_image_url;
+                imgEl.onload = function () {
+                    loadingEl.style.display = 'none';
+                    imgEl.style.display = 'inline-block';
+                };
+
+                // Start polling
+                startQRPolling();
+                startQRTimer();
+            },
+            error: function (response) {
+                loadingEl.innerHTML = 'Error generating QR code.<br>Please try again.';
+                console.error('QR Init Error:', response);
+            }
+        });
+    }
+
+    function stopQRLogin() {
+        if (qrPollInterval) clearInterval(qrPollInterval);
+        if (qrTimerInterval) clearInterval(qrTimerInterval);
+        qrPollInterval = null;
+        qrTimerInterval = null;
+    }
+
+    function startQRPolling() {
+        if (qrPollInterval) clearInterval(qrPollInterval);
+        qrPollInterval = setInterval(function () {
+            checkSessionStatus();
+        }, 3000); // Poll every 3 seconds
+    }
+
+    function checkSessionStatus() {
+        if (!qrSessionCode) return;
+
+        var apiUrl = getApiUrl();
+
+        ajax({
+            method: 'GET',
+            url: apiUrl.replace(/\/$/, '') + '/auth/tv/session/' + qrSessionCode + '/status',
+            success: function (response) {
+                if (response.status === 'authenticated') {
+                    // Login successful
+                    stopQRLogin();
+
+                    if (response.access_token) {
+                        setItem('tv_auth_token', response.access_token);
+                        setItem('tv_user_id', response.user_id || '');
+                        setItem('tv_tenant_id', response.tenant_id || '');
+                        setItem('tv_role', response.role || '');
+
+                        // Redirect
+                        window.location.href = 'display.html';
+                    }
+                } else if (response.status === 'expired') {
+                    stopQRLogin();
+                    document.getElementById('qr-timer').innerHTML = '<span style="color: red">Session expired. Please refresh.</span>';
+                }
+            },
+            error: function () {
+                // Ignore network errors during polling, just retry next time
+            }
+        });
+    }
+
+    function startQRTimer() {
+        if (qrTimerInterval) clearInterval(qrTimerInterval);
+
+        function updateTimer() {
+            var now = new Date().getTime();
+            var distance = qrExpiryTime - now;
+
+            if (distance < 0) {
+                clearInterval(qrTimerInterval);
+                document.getElementById('qr-timer').innerHTML = "EXPIRED";
+                return;
+            }
+
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById('qr-timer').innerHTML = "Expires in " + minutes + "m " + seconds + "s";
+        }
+
+        updateTimer();
+        qrTimerInterval = setInterval(updateTimer, 1000);
+    }
+
+    // ================================================
     // DISPLAY PAGE FUNCTIONS
     // ================================================
 
