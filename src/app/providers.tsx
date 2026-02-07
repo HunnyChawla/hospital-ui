@@ -25,7 +25,7 @@ import { ForceChangePasswordModal } from "@/components/password/ForceChangePassw
 function GlobalPasswordChangeModal() {
   const { isAuthenticated, mustChangePassword } = useAppSelector((s) => s.auth);
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login" || pathname === "/login/";
+  const isLoginPage = pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
 
   // Only show if user is authenticated, must change password, and not on login page
   if (!isAuthenticated || !mustChangePassword || isLoginPage) {
@@ -50,8 +50,8 @@ export default function Providers({
 
   // Get current pathname to conditionally render sidebar
   const pathname = usePathname();
-  // Handle both /login and /login/ paths
-  const isLoginPage = pathname === "/login" || pathname === "/login/";
+  // Handle both /login and /login/ paths, and /tv-login for standalone auth
+  const isLoginPage = pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
 
   useEffect(() => {
     // Read tenant_id and role from localStorage
