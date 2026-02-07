@@ -1636,15 +1636,15 @@ export function PrescriptionFormSection({
                                             </div>
 
                                             <div className="mb-4 pr-12">
-                                                <div className="flex items-center gap-2.5">
+                                                <div className="flex items-center gap-2.5 flex-wrap">
                                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xs font-black text-white shadow-md">
                                                         {index + 1}
                                                     </span>
                                                     <h4 className="font-bold text-slate-900 text-base">{field.medicine_name}</h4>
+                                                    {field.generic_name && (
+                                                        <span className="text-xs text-slate-500 font-medium italic">({field.generic_name})</span>
+                                                    )}
                                                 </div>
-                                                {field.generic_name && (
-                                                    <p className="ml-9 text-xs text-slate-500 mt-1 font-medium">{field.generic_name}</p>
-                                                )}
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

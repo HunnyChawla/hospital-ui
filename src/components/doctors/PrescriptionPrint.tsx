@@ -69,8 +69,13 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
             <div key={item.id || index} className="rounded border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="font-semibold text-slate-900">
+                  <p className="font-semibold text-slate-900 flex flex-wrap items-baseline gap-1.5">
                     {index + 1}. {item.medicine_name}
+                    {item.generic_name && (
+                      <span className="text-[10px] italic font-normal text-slate-500">
+                        ({item.generic_name})
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -106,12 +111,14 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
       </div>
 
       {/* Notes */}
-      {prescription.notes && (
-        <div className="mb-4">
-          <h3 className="mb-1 text-sm font-bold text-slate-900">Notes</h3>
-          <p className="text-sm text-slate-700">{prescription.notes}</p>
-        </div>
-      )}
+      {
+        prescription.notes && (
+          <div className="mb-4">
+            <h3 className="mb-1 text-sm font-bold text-slate-900">Notes</h3>
+            <p className="text-sm text-slate-700">{prescription.notes}</p>
+          </div>
+        )
+      }
 
       {/* Doctor Information */}
       <div className="mb-4 border-t border-slate-300 pt-4">
@@ -133,32 +140,33 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
       </div>
 
       {/* Status Badge */}
-      {prescription.status && (
-        <div className="mb-4 text-center">
-          <span
-            className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
-              prescription.status === "finalized"
+      {
+        prescription.status && (
+          <div className="mb-4 text-center">
+            <span
+              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${prescription.status === "finalized"
                 ? "bg-green-100 text-green-700"
                 : prescription.status === "dispensed"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {prescription.status.charAt(0).toUpperCase() + prescription.status.slice(1)}
-          </span>
-          {prescription.finalized_at && (
-            <p className="mt-1 text-[10px] text-slate-500">
-              Finalized on {formatDate(prescription.finalized_at)}
-            </p>
-          )}
-        </div>
-      )}
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-amber-100 text-amber-700"
+                }`}
+            >
+              {prescription.status.charAt(0).toUpperCase() + prescription.status.slice(1)}
+            </span>
+            {prescription.finalized_at && (
+              <p className="mt-1 text-[10px] text-slate-500">
+                Finalized on {formatDate(prescription.finalized_at)}
+              </p>
+            )}
+          </div>
+        )
+      }
 
       {/* Footer */}
       <div className="mt-4 border-t border-slate-300 pt-2 text-center text-[10px] text-slate-600">
         <p>This is a computer-generated prescription. Please follow the dosage instructions carefully.</p>
         <p className="mt-1">Generated on {new Date().toLocaleString("en-IN")}</p>
       </div>
-    </div>
+    </div >
   );
 }
