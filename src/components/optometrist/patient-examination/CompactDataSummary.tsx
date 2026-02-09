@@ -228,7 +228,8 @@ export function VisionSummary({ record }: { record: any }) {
                 <div>
                     <span className="font-medium text-blue-900">OD:</span>
                     <span className="ml-2 text-slate-600">
-                        UCVA {formatVA(record.od_ucva_distance)} → BCVA {formatVA(record.od_bcva_distance)}
+                        {formatVA(record.od_ucva_distance)}
+                        {record.od_ph_va && ` (PH: ${record.od_ph_va})`}
                     </span>
                 </div>
             </div>
@@ -238,7 +239,8 @@ export function VisionSummary({ record }: { record: any }) {
                 <div>
                     <span className="font-medium text-green-900">OS:</span>
                     <span className="ml-2 text-slate-600">
-                        UCVA {formatVA(record.os_ucva_distance)} → BCVA {formatVA(record.os_bcva_distance)}
+                        {formatVA(record.os_ucva_distance)}
+                        {record.os_ph_va && ` (PH: ${record.os_ph_va})`}
                     </span>
                 </div>
             </div>
@@ -348,8 +350,13 @@ export function RefractionSummary({ record }: { record: any }) {
     // Handle different record structures
     const odSphere = record.od?.sphere ?? record.od_sphere;
     const odCyl = record.od?.cylinder ?? record.od_cylinder;
+    const odDistBCVA = record.od?.distance_bcva ?? record.od_distance_bcva;
+    const odNearBCVA = record.od?.near_bcva ?? record.od_near_bcva;
+
     const osSphere = record.os?.sphere ?? record.os_sphere;
     const osCyl = record.os?.cylinder ?? record.os_cylinder;
+    const osDistBCVA = record.os?.distance_bcva ?? record.os_distance_bcva;
+    const osNearBCVA = record.os?.near_bcva ?? record.os_near_bcva;
 
     return (
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -357,18 +364,32 @@ export function RefractionSummary({ record }: { record: any }) {
                 <div className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
                 <div>
                     <span className="font-medium text-blue-900">OD:</span>
-                    <span className="ml-2 text-slate-600">
-                        Sph {formatValue(odSphere)} / Cyl {formatValue(odCyl)}
-                    </span>
+                    <div className="ml-2 space-y-0.5">
+                        <div className="text-slate-600">
+                            Sph {formatValue(odSphere)} / Cyl {formatValue(odCyl)}
+                        </div>
+                        {(odDistBCVA || odNearBCVA) && (
+                            <div className="text-[11px] text-teal-600 font-medium whitespace-nowrap">
+                                {odDistBCVA && `DB: ${odDistBCVA}`} {odNearBCVA && `NB: ${odNearBCVA}`}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
             <div className="flex items-center gap-3">
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500 flex-shrink-0" />
                 <div>
                     <span className="font-medium text-green-900">OS:</span>
-                    <span className="ml-2 text-slate-600">
-                        Sph {formatValue(osSphere)} / Cyl {formatValue(osCyl)}
-                    </span>
+                    <div className="ml-2 space-y-0.5">
+                        <div className="text-slate-600">
+                            Sph {formatValue(osSphere)} / Cyl {formatValue(osCyl)}
+                        </div>
+                        {(osDistBCVA || osNearBCVA) && (
+                            <div className="text-[11px] text-teal-600 font-medium whitespace-nowrap">
+                                {osDistBCVA && `DB: ${osDistBCVA}`} {osNearBCVA && `NB: ${osNearBCVA}`}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

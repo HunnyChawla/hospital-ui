@@ -280,7 +280,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.od_ucva_distance || visitData?.refraction?.od_visual_acuity_uncorrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_bcva_distance || visitData?.refraction?.od_visual_acuity_corrected)}
+                                                {formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.od_ph_va)}
@@ -289,7 +289,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.od_near_ucva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_near_bcva)}
+                                                {formatVal(visitData?.refraction?.od_near_bcva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.iop?.od_pressure)}
@@ -302,7 +302,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.os_ucva_distance || visitData?.refraction?.os_visual_acuity_uncorrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_bcva_distance || visitData?.refraction?.os_visual_acuity_corrected)}
+                                                {formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.os_ph_va)}
@@ -311,7 +311,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.os_near_ucva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_near_bcva)}
+                                                {formatVal(visitData?.refraction?.os_near_bcva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.iop?.os_pressure)}
@@ -349,6 +349,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>BCDVA</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>BCNVA</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -360,6 +362,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             {visitData?.refraction?.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
                                         </td>
                                         <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_distance_bcva)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_near_bcva)}</td>
                                     </tr>
                                     <tr>
                                         <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
@@ -369,6 +373,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             {visitData?.refraction?.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
                                         </td>
                                         <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_distance_bcva)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_near_bcva)}</td>
                                     </tr>
                                 </tbody>
                             </table>

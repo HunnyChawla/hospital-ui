@@ -260,6 +260,18 @@ function VisitSummaryLayout({
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.refraction.od_axis}°</span>
                 </div>
+                {data.refraction.od_distance_bcva && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Dist. BCVA:</span>
+                    <span className="font-medium">{data.refraction.od_distance_bcva}</span>
+                  </div>
+                )}
+                {data.refraction.od_near_bcva && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Near BCVA:</span>
+                    <span className="font-medium">{data.refraction.od_near_bcva}</span>
+                  </div>
+                )}
                 {data.refraction.od_add_power && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Add Power:</span>
@@ -283,6 +295,18 @@ function VisitSummaryLayout({
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.refraction.os_axis}°</span>
                 </div>
+                {data.refraction.os_distance_bcva && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Dist. BCVA:</span>
+                    <span className="font-medium">{data.refraction.os_distance_bcva}</span>
+                  </div>
+                )}
+                {data.refraction.os_near_bcva && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Near BCVA:</span>
+                    <span className="font-medium">{data.refraction.os_near_bcva}</span>
+                  </div>
+                )}
                 {data.refraction.os_add_power && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Add Power:</span>
@@ -366,12 +390,6 @@ function VisitSummaryLayout({
                         <span className="font-medium">{data.vision.od_va_with_current_specs}</span>
                       </div>
                     )}
-                    {data.vision.od_bcva_distance && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">BCVA:</span>
-                        <span className="font-medium">{data.vision.od_bcva_distance}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
                 <div>
@@ -387,12 +405,6 @@ function VisitSummaryLayout({
                       <div className="flex justify-between">
                         <span className="text-slate-600">With Specs:</span>
                         <span className="font-medium">{data.vision.od_near_with_current_specs}</span>
-                      </div>
-                    )}
-                    {data.vision.od_near_bcva && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">BCVA:</span>
-                        <span className="font-medium">{data.vision.od_near_bcva}</span>
                       </div>
                     )}
                   </div>
@@ -423,12 +435,6 @@ function VisitSummaryLayout({
                         <span className="font-medium">{data.vision.os_va_with_current_specs}</span>
                       </div>
                     )}
-                    {data.vision.os_bcva_distance && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">BCVA:</span>
-                        <span className="font-medium">{data.vision.os_bcva_distance}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
                 <div>
@@ -444,12 +450,6 @@ function VisitSummaryLayout({
                       <div className="flex justify-between">
                         <span className="text-slate-600">With Specs:</span>
                         <span className="font-medium">{data.vision.os_near_with_current_specs}</span>
-                      </div>
-                    )}
-                    {data.vision.os_near_bcva && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">BCVA:</span>
-                        <span className="font-medium">{data.vision.os_near_bcva}</span>
                       </div>
                     )}
                   </div>

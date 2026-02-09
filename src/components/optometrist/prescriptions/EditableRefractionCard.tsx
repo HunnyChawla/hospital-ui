@@ -173,6 +173,18 @@ export function EditableRefractionCard({
                 <span className="text-slate-600">Axis:</span>
                 <span className="font-medium">{data.od_axis ? `${data.od_axis}°` : "-"}</span>
               </div>
+              {data.od_distance_bcva && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Dist. BCVA:</span>
+                  <span className="font-medium">{data.od_distance_bcva}</span>
+                </div>
+              )}
+              {data.od_near_bcva && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Near BCVA:</span>
+                  <span className="font-medium">{data.od_near_bcva}</span>
+                </div>
+              )}
               {data.od_add_power && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Add:</span>
@@ -196,6 +208,18 @@ export function EditableRefractionCard({
                 <span className="text-slate-600">Axis:</span>
                 <span className="font-medium">{data.os_axis ? `${data.os_axis}°` : "-"}</span>
               </div>
+              {data.os_distance_bcva && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Dist. BCVA:</span>
+                  <span className="font-medium">{data.os_distance_bcva}</span>
+                </div>
+              )}
+              {data.os_near_bcva && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Near BCVA:</span>
+                  <span className="font-medium">{data.os_near_bcva}</span>
+                </div>
+              )}
               {data.os_add_power && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Add:</span>

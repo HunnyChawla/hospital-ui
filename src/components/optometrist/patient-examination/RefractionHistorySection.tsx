@@ -16,12 +16,16 @@ interface RefractionHistoryItem {
         cylinder: number | null;
         axis: number | null;
         add_power: number | null;
+        distance_bcva?: string | null;
+        near_bcva?: string | null;
     };
     os: {
         sphere: number | null;
         cylinder: number | null;
         axis: number | null;
         add_power: number | null;
+        distance_bcva?: string | null;
+        near_bcva?: string | null;
     };
     pupillary_distance: number | null;
     notes?: string | null;
@@ -78,12 +82,16 @@ export function RefractionHistorySection({
                 cylinder: hasNested ? toNumberOrNull(record.od.cylinder) : toNumberOrNull(record.od_cylinder),
                 axis: hasNested ? toNumberOrNull(record.od.axis) : toNumberOrNull(record.od_axis),
                 add_power: hasNested ? toNumberOrNull(record.od.add_power) : toNumberOrNull(record.od_add_power),
+                distance_bcva: hasNested ? record.od.distance_bcva : record.od_distance_bcva,
+                near_bcva: hasNested ? record.od.near_bcva : record.od_near_bcva,
             },
             os: {
                 sphere: hasNested ? toNumberOrNull(record.os.sphere) : toNumberOrNull(record.os_sphere),
                 cylinder: hasNested ? toNumberOrNull(record.os.cylinder) : toNumberOrNull(record.os_cylinder),
                 axis: hasNested ? toNumberOrNull(record.os.axis) : toNumberOrNull(record.os_axis),
                 add_power: hasNested ? toNumberOrNull(record.os.add_power) : toNumberOrNull(record.os_add_power),
+                distance_bcva: hasNested ? record.os.distance_bcva : record.os_distance_bcva,
+                near_bcva: hasNested ? record.os.near_bcva : record.os_near_bcva,
             },
             pupillary_distance: hasNested
                 ? toNumberOrNull(record.pupillary_distance)
@@ -256,7 +264,7 @@ export function RefractionHistorySection({
                                                     OD (Right)
                                                 </span>
                                             </div>
-                                            <div className="grid grid-cols-4 gap-1 text-center">
+                                            <div className="grid grid-cols-4 gap-1 text-center border-b border-blue-100 pb-2 mb-2">
                                                 <div>
                                                     <p className="text-[10px] uppercase text-slate-500">SPH</p>
                                                     <p className="text-sm font-bold text-slate-800">
@@ -282,6 +290,16 @@ export function RefractionHistorySection({
                                                     </p>
                                                 </div>
                                             </div>
+                                            <div className="grid grid-cols-2 gap-2 text-center">
+                                                <div>
+                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Dist BCVA</p>
+                                                    <p className="text-xs font-medium text-slate-700">{record.od.distance_bcva || "—"}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Near BCVA</p>
+                                                    <p className="text-xs font-medium text-slate-700">{record.od.near_bcva || "—"}</p>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* OS Column */}
@@ -292,7 +310,7 @@ export function RefractionHistorySection({
                                                     OS (Left)
                                                 </span>
                                             </div>
-                                            <div className="grid grid-cols-4 gap-1 text-center">
+                                            <div className="grid grid-cols-4 gap-1 text-center border-b border-green-100 pb-2 mb-2">
                                                 <div>
                                                     <p className="text-[10px] uppercase text-slate-500">SPH</p>
                                                     <p className="text-sm font-bold text-slate-800">
@@ -316,6 +334,16 @@ export function RefractionHistorySection({
                                                     <p className="text-sm font-bold text-slate-800">
                                                         {formatValue(record.os.add_power, "add")}
                                                     </p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-center">
+                                                <div>
+                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Dist BCVA</p>
+                                                    <p className="text-xs font-medium text-slate-700">{record.os.distance_bcva || "—"}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Near BCVA</p>
+                                                    <p className="text-xs font-medium text-slate-700">{record.os.near_bcva || "—"}</p>
                                                 </div>
                                             </div>
                                         </div>

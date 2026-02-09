@@ -166,12 +166,6 @@ export function EditableVisionCard({
                     <span className="font-medium">{data.od_va_with_current_specs}</span>
                   </div>
                 )}
-                {data.od_bcva_distance && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">BCVA:</span>
-                    <span className="font-medium">{data.od_bcva_distance}</span>
-                  </div>
-                )}
               </div>
               <p className="text-xs font-medium text-slate-600 border-b border-blue-200 pb-1 mt-2">Near Vision</p>
               <div className="space-y-1 text-sm">
@@ -185,12 +179,6 @@ export function EditableVisionCard({
                   <div className="flex justify-between">
                     <span className="text-slate-600">With Specs:</span>
                     <span className="font-medium">{data.od_near_with_current_specs}</span>
-                  </div>
-                )}
-                {data.od_near_bcva && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">BCVA:</span>
-                    <span className="font-medium">{data.od_near_bcva}</span>
                   </div>
                 )}
               </div>
@@ -221,12 +209,6 @@ export function EditableVisionCard({
                     <span className="font-medium">{data.os_va_with_current_specs}</span>
                   </div>
                 )}
-                {data.os_bcva_distance && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">BCVA:</span>
-                    <span className="font-medium">{data.os_bcva_distance}</span>
-                  </div>
-                )}
               </div>
               <p className="text-xs font-medium text-slate-600 border-b border-green-200 pb-1 mt-2">Near Vision</p>
               <div className="space-y-1 text-sm">
@@ -240,12 +222,6 @@ export function EditableVisionCard({
                   <div className="flex justify-between">
                     <span className="text-slate-600">With Specs:</span>
                     <span className="font-medium">{data.os_near_with_current_specs}</span>
-                  </div>
-                )}
-                {data.os_near_bcva && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">BCVA:</span>
-                    <span className="font-medium">{data.os_near_bcva}</span>
                   </div>
                 )}
               </div>
