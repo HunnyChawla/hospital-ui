@@ -349,8 +349,6 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>BCDVA</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>BCNVA</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -362,8 +360,6 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             {visitData?.refraction?.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
                                         </td>
                                         <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_distance_bcva)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_near_bcva)}</td>
                                     </tr>
                                     <tr>
                                         <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
@@ -373,8 +369,6 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             {visitData?.refraction?.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
                                         </td>
                                         <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_distance_bcva)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_near_bcva)}</td>
                                     </tr>
                                 </tbody>
                             </table>
