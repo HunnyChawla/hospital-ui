@@ -29,19 +29,15 @@ interface VisionFormValues {
     od_ucva_distance: string;
     od_ph_va: string;
     od_va_with_current_specs: string;
-    od_bcva_distance: string;
     od_near_ucva: string;
     od_near_with_current_specs: string;
-    od_near_bcva: string;
 
     // Left Eye (OS)
     os_ucva_distance: string;
     os_ph_va: string;
     os_va_with_current_specs: string;
-    os_bcva_distance: string;
     os_near_ucva: string;
     os_near_with_current_specs: string;
-    os_near_bcva: string;
 
     notes: string;
 }
@@ -50,17 +46,13 @@ const initialFormData: VisionFormValues = {
     od_ucva_distance: "",
     od_ph_va: "",
     od_va_with_current_specs: "",
-    od_bcva_distance: "",
     od_near_ucva: "",
     od_near_with_current_specs: "",
-    od_near_bcva: "",
     os_ucva_distance: "",
     os_ph_va: "",
     os_va_with_current_specs: "",
-    os_bcva_distance: "",
     os_near_ucva: "",
     os_near_with_current_specs: "",
-    os_near_bcva: "",
     notes: "",
 };
 
@@ -105,17 +97,13 @@ export function VisionTab({
             setValue("od_ucva_distance", currentVisitRecord.od_ucva_distance || "");
             setValue("od_ph_va", currentVisitRecord.od_ph_va || "");
             setValue("od_va_with_current_specs", currentVisitRecord.od_va_with_current_specs || "");
-            setValue("od_bcva_distance", currentVisitRecord.od_bcva_distance || "");
             setValue("od_near_ucva", currentVisitRecord.od_near_ucva || "");
             setValue("od_near_with_current_specs", currentVisitRecord.od_near_with_current_specs || "");
-            setValue("od_near_bcva", currentVisitRecord.od_near_bcva || "");
             setValue("os_ucva_distance", currentVisitRecord.os_ucva_distance || "");
             setValue("os_ph_va", currentVisitRecord.os_ph_va || "");
             setValue("os_va_with_current_specs", currentVisitRecord.os_va_with_current_specs || "");
-            setValue("os_bcva_distance", currentVisitRecord.os_bcva_distance || "");
             setValue("os_near_ucva", currentVisitRecord.os_near_ucva || "");
             setValue("os_near_with_current_specs", currentVisitRecord.os_near_with_current_specs || "");
-            setValue("os_near_bcva", currentVisitRecord.os_near_bcva || "");
             setValue("notes", currentVisitRecord.notes || "");
         } else {
             reset(initialFormData);
@@ -130,10 +118,8 @@ export function VisionTab({
         setValue("os_ucva_distance", formValues.od_ucva_distance);
         setValue("os_ph_va", formValues.od_ph_va);
         setValue("os_va_with_current_specs", formValues.od_va_with_current_specs);
-        setValue("os_bcva_distance", formValues.od_bcva_distance);
         setValue("os_near_ucva", formValues.od_near_ucva);
         setValue("os_near_with_current_specs", formValues.od_near_with_current_specs);
-        setValue("os_near_bcva", formValues.od_near_bcva);
         toast.success("Copied OD values to OS");
     };
 
@@ -285,7 +271,7 @@ export function VisionTab({
                                 {/* Distance Vision */}
                                 <div>
                                     <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Distance</p>
-                                    <div className="grid grid-cols-4 gap-2 text-center">
+                                    <div className="grid grid-cols-3 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCVA</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_ucva_distance)}</p>
@@ -298,16 +284,12 @@ export function VisionTab({
                                             <p className="text-xs text-slate-500">W/Specs</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_va_with_current_specs)}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-xs text-slate-500">BCVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_bcva_distance)}</p>
-                                        </div>
                                     </div>
                                 </div>
                                 {/* Near Vision */}
                                 <div className="border-t border-blue-200 pt-2">
                                     <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Near</p>
-                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="grid grid-cols-2 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCNVA</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_near_ucva)}</p>
@@ -315,10 +297,6 @@ export function VisionTab({
                                         <div>
                                             <p className="text-xs text-slate-500">W/Specs</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_near_with_current_specs)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-slate-500">BCNVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.od_near_bcva)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -335,7 +313,7 @@ export function VisionTab({
                                 {/* Distance Vision */}
                                 <div>
                                     <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Distance</p>
-                                    <div className="grid grid-cols-4 gap-2 text-center">
+                                    <div className="grid grid-cols-3 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCVA</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_ucva_distance)}</p>
@@ -348,16 +326,12 @@ export function VisionTab({
                                             <p className="text-xs text-slate-500">W/Specs</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_va_with_current_specs)}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-xs text-slate-500">BCVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_bcva_distance)}</p>
-                                        </div>
                                     </div>
                                 </div>
                                 {/* Near Vision */}
                                 <div className="border-t border-green-200 pt-2">
                                     <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Near</p>
-                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="grid grid-cols-2 gap-2 text-center">
                                         <div>
                                             <p className="text-xs text-slate-500">UCNVA</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_near_ucva)}</p>
@@ -365,10 +339,6 @@ export function VisionTab({
                                         <div>
                                             <p className="text-xs text-slate-500">W/Specs</p>
                                             <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_near_with_current_specs)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-slate-500">BCNVA</p>
-                                            <p className="text-lg font-bold text-slate-900">{formatVA(currentVisitRecord.os_near_bcva)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -451,13 +421,6 @@ export function VisionTab({
                                             colorScheme="blue"
                                             mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
-                                        <VASelector
-                                            label="BCVA (Best Corrected)"
-                                            value={formValues.od_bcva_distance || null}
-                                            onChange={(v) => setValue("od_bcva_distance", v)}
-                                            colorScheme="blue"
-                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
-                                        />
                                     </div>
 
                                     {/* OS Distance */}
@@ -484,13 +447,6 @@ export function VisionTab({
                                             label="With Current Specs"
                                             value={formValues.os_va_with_current_specs || null}
                                             onChange={(v) => setValue("os_va_with_current_specs", v)}
-                                            colorScheme="green"
-                                            mode={settings.useFullQuickSelect ? "full" : "standard"}
-                                        />
-                                        <VASelector
-                                            label="BCVA (Best Corrected)"
-                                            value={formValues.os_bcva_distance || null}
-                                            onChange={(v) => setValue("os_bcva_distance", v)}
                                             colorScheme="green"
                                             mode={settings.useFullQuickSelect ? "full" : "standard"}
                                         />
@@ -522,12 +478,6 @@ export function VisionTab({
                                             onChange={(v) => setValue("od_near_with_current_specs", v)}
                                             colorScheme="blue"
                                         />
-                                        <NearVAQuickSelect
-                                            label="BCNVA (Best Corrected Near)"
-                                            value={formValues.od_near_bcva}
-                                            onChange={(v) => setValue("od_near_bcva", v)}
-                                            colorScheme="blue"
-                                        />
                                     </div>
 
                                     {/* OS Near */}
@@ -546,12 +496,6 @@ export function VisionTab({
                                             label="Near with Current Specs"
                                             value={formValues.os_near_with_current_specs}
                                             onChange={(v) => setValue("os_near_with_current_specs", v)}
-                                            colorScheme="green"
-                                        />
-                                        <NearVAQuickSelect
-                                            label="BCNVA (Best Corrected Near)"
-                                            value={formValues.os_near_bcva}
-                                            onChange={(v) => setValue("os_near_bcva", v)}
                                             colorScheme="green"
                                         />
                                     </div>
