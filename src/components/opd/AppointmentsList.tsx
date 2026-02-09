@@ -27,7 +27,19 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
-  const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId || "");
+  const [selectedDoctorId, setSelectedDoctorId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return doctorId || localStorage.getItem("last_selected_doctor_id") || "";
+    }
+    return doctorId || "";
+  });
+
+  // Save selected doctor to local storage
+  useEffect(() => {
+    if (selectedDoctorId && typeof window !== "undefined") {
+      localStorage.setItem("last_selected_doctor_id", selectedDoctorId);
+    }
+  }, [selectedDoctorId]);
 
   // Date range state - default to today
   const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
@@ -64,7 +76,7 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   }, [appointmentDate]);
 
   useEffect(() => {
-    // Set default doctor when doctors are loaded
+    // Set default doctor when doctors are loaded IF nothing is selected yet
     if (doctors.length > 0 && !selectedDoctorId) {
       setSelectedDoctorId(doctors[0].id);
     }
