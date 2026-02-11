@@ -60,8 +60,10 @@ export function getQueueCounts(patients: QueuePatient[]): Record<QueueFilter, nu
   return counts;
 }
 
+
+
 export function getStatusColor(status: string): string {
-  switch (status.toLowerCase()) {
+  switch ((status || "").toLowerCase()) {
     case "scheduled":
       return "bg-slate-100 text-slate-700 border-slate-300";
     case "waiting":

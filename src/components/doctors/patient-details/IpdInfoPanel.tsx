@@ -44,7 +44,7 @@ export const IpdInfoPanel: React.FC<IpdInfoPanelProps> = ({
     );
   }
 
-  if (!admission || admission.status.toLowerCase() !== "admitted") {
+  if (!admission || (admission.status || "").toLowerCase() !== "admitted") {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
         <BedDouble className="mx-auto h-16 w-16 text-slate-300" />

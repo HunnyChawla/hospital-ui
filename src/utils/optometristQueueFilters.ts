@@ -98,7 +98,7 @@ export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): 
 }
 
 export function getStatusColor(status: string): string {
-  switch (status.toLowerCase()) {
+  switch ((status || "").toLowerCase()) {
     // Pending statuses
     case "awaiting_optometrist":
       return "bg-amber-100 text-amber-700 border-amber-300";
@@ -145,7 +145,7 @@ export function getStatusColor(status: string): string {
 }
 
 export function getStatusLabel(status: string): string {
-  switch (status.toLowerCase()) {
+  switch ((status || "").toLowerCase()) {
     case "awaiting_optometrist":
       return "Awaiting Optometrist";
     case "optometrist_assigned":

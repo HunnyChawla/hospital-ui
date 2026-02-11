@@ -22,21 +22,25 @@ export const fetchTenant = createAsyncThunk(
       // Fetch tenant data
       const tenantData = await tenantsApi.getById(tenantId);
 
-      // Fetch logo and convert to data URL
+      // Fetch logo only if tenant has one, and convert to data URL
       let logoDataUrl: string | null = null;
-      try {
-        const logoBlob = await tenantsApi.getLogo(tenantId);
-        logoDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve(reader.result as string);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(logoBlob);
-        });
-      } catch (logoErr) {
-        // Silently fail - logo is optional
-        console.error("Failed to fetch logo:", logoErr);
+      if (tenantData.logo) {
+        try {
+          const logoBlob = await tenantsApi.getLogo(tenantId);
+          logoDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              resolve(reader.result as string);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(logoBlob);
+          });
+        } catch (logoErr: any) {
+          // If 404, it means logo file is missing despite the database record
+          if (logoErr.response?.status !== 404) {
+            console.error("Failed to fetch logo:", logoErr);
+          }
+        }
       }
 
       return { tenant: tenantData, logoDataUrl };
