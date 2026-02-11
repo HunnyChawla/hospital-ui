@@ -121,14 +121,16 @@ export function VASelector({
   );
 
   const handleSelect = (optValue: string) => {
-    onChange(optValue);
+    const newValue = value === optValue ? "" : optValue;
+    onChange(newValue);
     setIsOpen(false);
     setSearchTerm("");
   };
 
   const handleQuickSelect = (optValue: string) => {
     if (disabled) return;
-    onChange(optValue);
+    const newValue = value === optValue ? "" : optValue;
+    onChange(newValue);
   };
 
   const selectedOption = vaOptions.find((opt) => opt.value === value);

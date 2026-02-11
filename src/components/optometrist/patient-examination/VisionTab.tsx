@@ -201,7 +201,10 @@ export function VisionTab({
                         <button
                             key={opt}
                             type="button"
-                            onClick={() => onChange(opt)}
+                            onClick={() => {
+                                const newValue = value === opt ? "" : opt;
+                                onChange(newValue);
+                            }}
                             className={clsx(
                                 "rounded-md border px-2 py-1 text-xs font-medium transition",
                                 value === opt ? c.quickSelectActive : c.quickSelect

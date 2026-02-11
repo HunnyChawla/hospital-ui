@@ -860,7 +860,10 @@ export function RefractionTab({
                       <button
                         key={opt}
                         type="button"
-                        onClick={() => updateField("od", "near_bcva", opt)}
+                        onClick={() => {
+                          const newValue = formData.od.near_bcva === opt ? "" : opt;
+                          updateField("od", "near_bcva", newValue);
+                        }}
                         className={clsx(
                           "rounded-md border px-2 py-1 text-xs font-medium transition",
                           formData.od.near_bcva === opt
@@ -883,7 +886,10 @@ export function RefractionTab({
                       <button
                         key={opt}
                         type="button"
-                        onClick={() => updateField("os", "near_bcva", opt)}
+                        onClick={() => {
+                          const newValue = formData.os.near_bcva === opt ? "" : opt;
+                          updateField("os", "near_bcva", newValue);
+                        }}
                         className={clsx(
                           "rounded-md border px-2 py-1 text-xs font-medium transition",
                           formData.os.near_bcva === opt

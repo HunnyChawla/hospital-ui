@@ -186,7 +186,8 @@ export function NumericStepper({
 
   const handlePresetClick = (presetValue: number) => {
     if (disabled) return;
-    onChange(presetValue);
+    const newValue = value === presetValue ? null : presetValue;
+    onChange(newValue);
   };
 
   const handleClear = () => {
