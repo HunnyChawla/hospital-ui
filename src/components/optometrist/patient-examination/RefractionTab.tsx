@@ -389,31 +389,8 @@ export function RefractionTab({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Check OD required fields
-    if (formData.od.sphere === null) {
-      newErrors.od_sphere = "OD Sphere is required";
-    }
-    // Axis required if cylinder is specified
-    if (
-      formData.od.cylinder !== null &&
-      formData.od.cylinder !== 0 &&
-      formData.od.axis === null
-    ) {
-      newErrors.od_axis = "Axis is required when cylinder is specified";
-    }
-
-    // Check OS required fields
-    if (formData.os.sphere === null) {
-      newErrors.os_sphere = "OS Sphere is required";
-    }
-    // Axis required if cylinder is specified
-    if (
-      formData.os.cylinder !== null &&
-      formData.os.cylinder !== 0 &&
-      formData.os.axis === null
-    ) {
-      newErrors.os_axis = "Axis is required when cylinder is specified";
-    }
+    // All fields are now optional - no validation required
+    // Axis is only relevant if cylinder is specified, but not required
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -425,10 +402,8 @@ export function RefractionTab({
       toast.error("No active visit found. Please select/start a visit before saving refraction.");
       return;
     }
-    if (!validateForm()) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
+    // Validate form (currently always returns true since all fields are optional)
+    validateForm();
 
     setIsSubmitting(true);
 
@@ -442,7 +417,7 @@ export function RefractionTab({
               optometrist_id: optometristId,
               visit_id: visitId,
               od: {
-                sphere: formData.od.sphere!,
+                sphere: formData.od.sphere,
                 cylinder: formData.od.cylinder,
                 axis: formData.od.axis,
                 visual_acuity_uncorrected: formData.od.visual_acuity_uncorrected,
@@ -452,7 +427,7 @@ export function RefractionTab({
                 add_power: formData.od.add_power,
               },
               os: {
-                sphere: formData.os.sphere!,
+                sphere: formData.os.sphere,
                 cylinder: formData.os.cylinder,
                 axis: formData.os.axis,
                 visual_acuity_uncorrected: formData.os.visual_acuity_uncorrected,
@@ -514,7 +489,7 @@ export function RefractionTab({
               optometrist_id: optometristId,
               visit_id: visitId,
               od: {
-                sphere: formData.od.sphere!,
+                sphere: formData.od.sphere,
                 cylinder: formData.od.cylinder,
                 axis: formData.od.axis,
                 visual_acuity_uncorrected: formData.od.visual_acuity_uncorrected,
@@ -524,7 +499,7 @@ export function RefractionTab({
                 add_power: formData.od.add_power,
               },
               os: {
-                sphere: formData.os.sphere!,
+                sphere: formData.os.sphere,
                 cylinder: formData.os.cylinder,
                 axis: formData.os.axis,
                 visual_acuity_uncorrected: formData.os.visual_acuity_uncorrected,
@@ -798,7 +773,6 @@ export function RefractionTab({
               max={30}
               unit="D"
               presets={spherePresets}
-              required
               odError={errors.od_sphere}
               osError={errors.os_sphere}
             />
@@ -830,10 +804,6 @@ export function RefractionTab({
               max={180}
               unit="°"
               presets={axisPresets}
-              required={
-                (formData.od.cylinder !== null && formData.od.cylinder !== 0) ||
-                (formData.os.cylinder !== null && formData.os.cylinder !== 0)
-              }
               odError={errors.od_axis}
               osError={errors.os_axis}
             />
