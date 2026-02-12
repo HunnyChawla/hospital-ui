@@ -808,6 +808,7 @@ export function PrescriptionFormSection({
             appendMedicine({
                 medicine_id: "",
                 ...template.medicine,
+                applicable_eye: "BOTH",
             });
             // Track that this medicine has been added
             setAddedMedicineIds(prev => [...prev, id]);
@@ -873,6 +874,7 @@ export function PrescriptionFormSection({
             frequency,
             duration,
             instructions,
+            applicable_eye: "BOTH",
         });
         setMedicineSearchQuery("");
         setMedicineSearchResults([]);
@@ -973,6 +975,7 @@ export function PrescriptionFormSection({
                     frequency: med.frequency,
                     duration: med.duration,
                     instructions: med.instructions || "",
+                    applicable_eye: med.applicable_eye || "BOTH",
                 });
             });
         }
@@ -1647,7 +1650,19 @@ export function PrescriptionFormSection({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Eye</label>
+                                                    <select
+                                                        {...register(`medicine_items.${index}.applicable_eye`)}
+                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                    >
+                                                        <option value="BOTH">Both Eyes (OU)</option>
+                                                        <option value="RIGHT">Right Eye (OD)</option>
+                                                        <option value="LEFT">Left Eye (OS)</option>
+                                                        <option value="NA">N/A</option>
+                                                    </select>
+                                                </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
                                                     <input

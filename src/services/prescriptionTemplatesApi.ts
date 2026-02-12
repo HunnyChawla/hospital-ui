@@ -14,6 +14,7 @@ export interface MedicineTemplateItem {
     frequency: string;
     duration: string;
     instructions?: string;
+    applicable_eye?: "LEFT" | "RIGHT" | "BOTH" | "NA" | null;
 }
 
 export interface AdviceTemplateItem {

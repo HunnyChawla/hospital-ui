@@ -435,6 +435,7 @@ export type MedicineItem = {
   frequency: string;
   duration: string;
   instructions?: string;
+  applicable_eye?: "LEFT" | "RIGHT" | "BOTH" | "NA" | null;
   created_at?: string;
 };
 
