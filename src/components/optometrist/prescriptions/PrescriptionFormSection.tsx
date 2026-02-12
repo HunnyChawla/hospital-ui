@@ -144,6 +144,24 @@ const DURATIONS = [
     "Continuous",
 ];
 
+const MEDICINE_INSTRUCTIONS = [
+    "Before food",
+    "After food",
+    "Empty stomach",
+    "With water",
+    "With milk",
+    "At bedtime",
+    "Instill 1 drop",
+    "Instill 2 drops",
+    "Apply locally",
+    "Apply at night",
+    "Apply morning and night",
+    "Shake well before use",
+    "Warm compress before use",
+    "Cold compress before use",
+    "For external use only",
+];
+
 export function PrescriptionFormSection({
     patientId,
     visitId,
@@ -1701,11 +1719,17 @@ export function PrescriptionFormSection({
                                                 </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
-                                                    <input
-                                                        {...register(`medicine_items.${index}.instructions`)}
-                                                        placeholder="e.g. After food"
-                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`inst-options-${index}`}
+                                                            {...register(`medicine_items.${index}.instructions`)}
+                                                            placeholder="e.g. After food"
+                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                        />
+                                                        <datalist id={`inst-options-${index}`}>
+                                                            {MEDICINE_INSTRUCTIONS.map(i => <option key={i} value={i} />)}
+                                                        </datalist>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
