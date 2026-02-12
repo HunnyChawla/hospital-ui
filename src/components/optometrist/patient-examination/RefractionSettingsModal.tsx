@@ -186,16 +186,17 @@ export function RefractionSettingsModal({
 
                             const buttons = [];
                             let current = min;
-                            let count = 0;
-                            while (current <= max && count < 10) {
+                            while (current <= max && buttons.length < 200) {
                                 buttons.push(current);
                                 current += gap;
-                                // Fix floating point issues
                                 current = Math.round(current * 100) / 100;
-                                count++;
                             }
 
-                            return buttons.map((val, idx) => (
+                            const negativeButtons = buttons.filter(b => b < 0).sort((a, b) => b - a);
+                            const positiveButtons = buttons.filter(b => b >= 0).sort((a, b) => a - b);
+                            const sortedButtons = [...negativeButtons, ...positiveButtons].slice(0, 10);
+
+                            return sortedButtons.map((val, idx) => (
                                 <div key={idx} className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs text-slate-700 font-medium">
                                     {val > 0 ? `+${val}` : val}
                                 </div>
