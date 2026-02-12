@@ -289,11 +289,11 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2"
+      className="space-y-4"
     >
       {/* UHID Display (read-only, shown only when editing) */}
       {defaultValues && apiData?.uhid && (
-        <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3 sm:col-span-2">
+        <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3">
           <label className="space-y-1">
             <span className="text-xs font-semibold text-sky-700">Patient ID (UHID)</span>
             <input
@@ -305,202 +305,154 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         </div>
       )}
 
-      {/* Required Fields Section */}
-      <div className="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
-        <div className="sm:col-span-2 flex items-center gap-2 pb-1 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-sky-50 text-sky-600">
-            <User className="w-4 h-4" />
-          </div>
-          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Basic Information</h2>
-        </div>
-
-        <label className="space-y-1.5 group">
-          <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">
-            First Name <span className="text-rose-500">*</span>
-          </span>
-          <div className="relative">
-            <input
-              {...register("first_name", { required: "First name is required" })}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/30 pl-3 pr-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-              placeholder="e.g. John"
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-slate-100 group-focus-within:bg-sky-400 transition-colors" />
-          </div>
+      {/* Basic Information */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label className="space-y-1">
+          <span className="text-slate-600">First Name <span className="text-rose-500">*</span></span>
+          <input
+            {...register("first_name", { required: "First name is required" })}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            placeholder="e.g. John"
+          />
           {errors.first_name && (
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 ml-1">
-              <span className="w-1 h-1 rounded-full bg-rose-500" />
-              {errors.first_name.message}
-            </span>
+            <p className="text-xs text-rose-500">{errors.first_name.message}</p>
           )}
         </label>
 
-        <label className="space-y-1.5 group">
-          <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">Last Name</span>
+        <label className="space-y-1">
+          <span className="text-slate-600">Last Name</span>
           <input
             {...register("last_name")}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             placeholder="e.g. Doe"
           />
         </label>
 
-        <label className="space-y-1.5 group">
-          <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">
-            Mobile Number <span className="text-rose-500">*</span>
-          </span>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-              <Phone className="w-4 h-4" />
-            </div>
-            <input
-              type="tel"
-              {...register("mobile", {
-                required: "Mobile is required",
-                minLength: { value: 10, message: "Mobile must be at least 10 digits" },
-                maxLength: { value: 20, message: "Mobile must be at most 20 digits" },
-                pattern: {
-                  value: /^(\+91[\-\s]?|0)?[6-9]\d{9}$/,
-                  message: "Enter a valid 10-digit mobile number"
-                }
-              })}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/30 pl-10 pr-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-              placeholder="9876543210"
-            />
-          </div>
+        <label className="space-y-1">
+          <span className="text-slate-600">Mobile Number <span className="text-rose-500">*</span></span>
+          <input
+            type="tel"
+            {...register("mobile", {
+              required: "Mobile is required",
+              minLength: { value: 10, message: "Mobile must be at least 10 digits" },
+              maxLength: { value: 20, message: "Mobile must be at most 20 digits" },
+              pattern: {
+                value: /^(\+91[\-\s]?|0)?[6-9]\d{9}$/,
+                message: "Enter a valid 10-digit mobile number"
+              }
+            })}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            placeholder="9876543210"
+          />
           {errors.mobile && (
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 ml-1">
-              <span className="w-1 h-1 rounded-full bg-rose-500" />
-              {errors.mobile.message}
-            </span>
+            <p className="text-xs text-rose-500">{errors.mobile.message}</p>
           )}
         </label>
 
-        <label className="space-y-1.5 group">
-          <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">Email Address <span className="text-slate-400 normal-case">(Optional)</span></span>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-              <Mail className="w-4 h-4" />
-            </div>
-            <input
-              type="email"
-              {...register("email")}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/30 pl-10 pr-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-              placeholder="john.doe@example.com"
-            />
-          </div>
+        <label className="space-y-1">
+          <span className="text-slate-600">Email Address <span className="text-slate-400 text-xs">(Optional)</span></span>
+          <input
+            type="email"
+            {...register("email")}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            placeholder="john.doe@example.com"
+          />
         </label>
       </div>
 
       {/* Date of Birth / Age Section */}
-      <div className="mt-2 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden sm:col-span-2 group focus-within:border-sky-400 transition-all duration-300">
-        <div className="flex border-b border-slate-100 bg-slate-50/50">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="flex border-b border-slate-200 bg-slate-50">
           <button
             type="button"
             onClick={() => setInputMode('age')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold uppercase tracking-wider transition-all ${inputMode === 'age'
-              ? 'bg-white text-sky-600 border-b-2 border-sky-500 shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
-              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}
+            className={`flex-1 py-2.5 text-sm font-medium transition ${inputMode === 'age'
+              ? 'bg-white text-sky-600 border-b-2 border-sky-500'
+              : 'text-slate-600 hover:text-slate-900'}`}
           >
-            <Clock className={`w-4 h-4 ${inputMode === 'age' ? 'text-sky-500' : 'text-slate-400'}`} />
             Enter Age
           </button>
           <button
             type="button"
             onClick={() => setInputMode('dob')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold uppercase tracking-wider transition-all ${inputMode === 'dob'
-              ? 'bg-white text-sky-600 border-b-2 border-sky-500 shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
-              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}
+            className={`flex-1 py-2.5 text-sm font-medium transition ${inputMode === 'dob'
+              ? 'bg-white text-sky-600 border-b-2 border-sky-500'
+              : 'text-slate-600 hover:text-slate-900'}`}
           >
-            <Calendar className={`w-4 h-4 ${inputMode === 'dob' ? 'text-sky-500' : 'text-slate-400'}`} />
             Enter Date of Birth
           </button>
         </div>
 
-        <div className="p-5">
+        <div className="p-4">
           {inputMode === 'age' ? (
-            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-4 w-1 bg-sky-500 rounded-full"></div>
-                <span className="text-xs font-semibold text-slate-700">How old is the patient?</span>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5 focus-within:z-10">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Years</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={ageYears}
-                      onChange={(e) => handleAgeChange('years', e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Months</label>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <label className="space-y-1">
+                  <span className="text-xs text-slate-600">Years</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={ageYears}
+                    onChange={(e) => handleAgeChange('years', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                    placeholder="0"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-slate-600">Months</span>
                   <input
                     type="number"
                     min="0"
                     max="11"
                     value={ageMonths}
                     onChange={(e) => handleAgeChange('months', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                     placeholder="0"
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Days</label>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-slate-600">Days</span>
                   <input
                     type="number"
                     min="0"
                     max="31"
                     value={ageDays}
                     onChange={(e) => handleAgeChange('days', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                     placeholder="0"
                   />
-                </div>
+                </label>
               </div>
 
               {dobValue && !ageError && (
-                <div className="flex items-center gap-3 rounded-xl bg-indigo-50/50 border border-indigo-100 p-3 transition-all">
-                  <CalendarDays className="w-5 h-5 text-indigo-500" />
-                  <div>
-                    <p className="text-[10px] font-bold text-indigo-600 uppercase leading-none mb-1">Calculated DOB</p>
-                    <p className="text-sm font-semibold text-indigo-900">
-                      {new Date(dobValue).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
-                  </div>
+                <div className="rounded-lg bg-sky-50 border border-sky-100 p-3">
+                  <p className="text-xs text-sky-600 mb-1">Calculated Date of Birth</p>
+                  <p className="text-sm font-semibold text-sky-900">
+                    {new Date(dobValue).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
                 </div>
               )}
             </div>
           ) : (
-            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-4 w-1 bg-sky-500 rounded-full"></div>
-                <span className="text-xs font-semibold text-slate-700">When was the patient born?</span>
-              </div>
-              <div className="relative">
+            <div className="space-y-3">
+              <label className="space-y-1">
+                <span className="text-xs text-slate-600">Date of Birth</span>
                 <input
                   type="date"
                   value={dobValue}
                   onChange={(e) => handleDobChange(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-3 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5 appearance-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                 />
-                <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              </div>
+              </label>
 
               {dobValue && !ageError && (
-                <div className="flex items-center gap-3 rounded-xl bg-emerald-50/50 border border-emerald-100 p-3 transition-all">
-                  <User className="w-5 h-5 text-emerald-500" />
-                  <div>
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase leading-none mb-1">Calculated Age</p>
-                    <p className="text-sm font-semibold text-emerald-900">
-                      {ageYears}y {ageMonths}m {ageDays}d
-                    </p>
-                  </div>
+                <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3">
+                  <p className="text-xs text-emerald-600 mb-1">Calculated Age</p>
+                  <p className="text-sm font-semibold text-emerald-900">
+                    {ageYears} years, {ageMonths} months, {ageDays} days
+                  </p>
                 </div>
               )}
             </div>
@@ -508,9 +460,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
 
           {/* Error Messages */}
           {(ageError || errors.date_of_birth) && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-100 px-3 py-2 animate-in shake duration-500">
-              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-              <p className="text-xs text-rose-600 font-medium">
+            <div className="mt-3 rounded-lg bg-rose-50 border border-rose-100 px-3 py-2">
+              <p className="text-xs text-rose-600">
                 {ageError || errors.date_of_birth?.message}
               </p>
             </div>
@@ -518,130 +469,114 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         </div>
       </div>
 
-      {/* Gender Section */}
-      <div className="sm:col-span-2">
-        <label className="space-y-1.5 group">
-          <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">
-            Gender <span className="text-rose-500">*</span>
-          </span>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { id: 'male', label: 'Male', icon: '♂' },
-              { id: 'female', label: 'Female', icon: '♀' },
-              { id: 'other', label: 'Other', icon: '⚪' }
-            ].map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setValue('gender', g.id as any, { shouldValidate: true })}
-                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border transition-all ${watch('gender') === g.id
-                  ? 'bg-sky-50 border-sky-200 text-sky-700 font-bold ring-2 ring-sky-500/10'
-                  : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-                  }`}
-              >
-                <span className="text-sm">{g.icon}</span>
-                <span className="text-xs">{g.label}</span>
-              </button>
-            ))}
-          </div>
-          {/* Hidden input for react-hook-form */}
-          <input type="hidden" {...register("gender", { required: "Gender is required" })} />
-          {errors.gender && (
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 ml-1">
-              <span className="w-1 h-1 rounded-full bg-rose-500" />
-              {errors.gender.message}
-            </span>
-          )}
-        </label>
-      </div>
-
-      {/* Optional Fields Section */}
-      <div className="mt-2 rounded-2xl border border-slate-100 bg-slate-50/30 p-5 sm:col-span-2 space-y-5">
-        <div className="flex items-center gap-2 pb-1 border-b border-slate-200/50">
-          <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
-            <Hash className="w-4 h-4" />
-          </div>
-          <h2 className="text-sm font-bold text-slate-600 uppercase tracking-tight">Optional Details</h2>
+      {/* Gender */}
+      <label className="space-y-1">
+        <span className="text-slate-600">Gender <span className="text-rose-500">*</span></span>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: 'male', label: 'Male' },
+            { id: 'female', label: 'Female' },
+            { id: 'other', label: 'Other' }
+          ].map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setValue('gender', g.id as any, { shouldValidate: true })}
+              className={`py-2 rounded-xl border text-sm font-medium transition ${watch('gender') === g.id
+                ? 'bg-sky-50 border-sky-300 text-sky-700'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                }`}
+            >
+              {g.label}
+            </button>
+          ))}
         </div>
+        <input type="hidden" {...register("gender", { required: "Gender is required" })} />
+        {errors.gender && (
+          <p className="text-xs text-rose-500">{errors.gender.message}</p>
+        )}
+      </label>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="space-y-1.5 group">
-            <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">ABHA/Health ID</span>
+      {/* Optional Fields */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-slate-700">Optional Details</h3>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="space-y-1">
+            <span className="text-slate-600">ABHA/Health ID</span>
             <input
               {...register("abha_id")}
-              className="w-full rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
               placeholder="Enter ABHA ID"
             />
           </label>
-          <label className="space-y-1.5 group">
-            <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">Full Address</span>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <input
-                {...register("address")}
-                className="w-full rounded-xl border border-slate-200 bg-white/70 pl-10 pr-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-                placeholder="Street address"
-              />
-            </div>
+
+          <label className="space-y-1">
+            <span className="text-slate-600">Address</span>
+            <input
+              {...register("address")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              placeholder="Street address"
+            />
           </label>
-          <label className="space-y-1.5 group">
-            <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">City</span>
+
+          <label className="space-y-1">
+            <span className="text-slate-600">City</span>
             <input
               {...register("city")}
-              className="w-full rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
               placeholder="City name"
             />
           </label>
-          <label className="space-y-1.5 group">
-            <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 transition-colors group-focus-within:text-sky-600">State & Pincode</span>
-            <div className="flex gap-2">
-              <input
-                {...register("state")}
-                className="flex-[2] rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-                placeholder="State"
-              />
-              <input
-                {...register("pincode")}
-                className="flex-1 rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/5"
-                placeholder="Pincode"
-              />
-            </div>
+
+          <label className="space-y-1">
+            <span className="text-slate-600">State</span>
+            <input
+              {...register("state")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              placeholder="State"
+            />
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-slate-600">Pincode</span>
+            <input
+              {...register("pincode")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              placeholder="Pincode"
+            />
           </label>
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-3 sm:col-span-2 border-t border-slate-100 pt-6">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3 pt-4">
         <button
           type="button"
           onClick={() => reset()}
           disabled={createPatient.isPending || updatePatient.isPending}
-          className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-xl border border-slate-200 px-6 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
         >
           Reset
         </button>
         <button
           type="submit"
           disabled={createPatient.isPending || updatePatient.isPending}
-          className="relative overflow-hidden rounded-xl bg-slate-900 px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group"
+          className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-50"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <span className="relative flex items-center gap-2">
-            {createPatient.isPending || updatePatient.isPending ? (
-              <>
-                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : defaultValues ? (
-              "Save Changes"
-            ) : (
-              "Register Patient"
-            )}
-          </span>
+          {createPatient.isPending || updatePatient.isPending ? (
+            <span className="flex items-center gap-2">
+              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Saving...
+            </span>
+          ) : defaultValues ? (
+            "Update Patient"
+          ) : (
+            "Add Patient"
+          )}
         </button>
       </div>
-    </form >
+    </form>
   );
 }
 
