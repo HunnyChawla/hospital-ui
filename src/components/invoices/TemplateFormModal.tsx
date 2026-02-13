@@ -168,7 +168,7 @@ export function TemplateFormModal({
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g., Standard Consultation"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         required
                     />
                 </div>
@@ -183,7 +183,7 @@ export function TemplateFormModal({
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Optional description"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     />
                 </div>
 
@@ -196,7 +196,7 @@ export function TemplateFormModal({
                         <button
                             type="button"
                             onClick={handleAddLineItem}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Add Item
@@ -218,7 +218,7 @@ export function TemplateFormModal({
                                             handleLineItemChange(index, "description", e.target.value)
                                         }
                                         placeholder="Description"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                         required
                                     />
                                 </div>
@@ -234,7 +234,7 @@ export function TemplateFormModal({
                                         placeholder="Qty"
                                         min="0"
                                         step="1"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                     />
                                 </div>
 
@@ -249,7 +249,7 @@ export function TemplateFormModal({
                                         placeholder="Price"
                                         min="0"
                                         step="0.01"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                     />
                                 </div>
 
@@ -264,7 +264,7 @@ export function TemplateFormModal({
                                         placeholder="Discount"
                                         min="0"
                                         step="0.01"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                     />
                                 </div>
 
@@ -275,7 +275,7 @@ export function TemplateFormModal({
                                         onChange={(e) =>
                                             handleLineItemChange(index, "discount_type", e.target.value)
                                         }
-                                        className="w-full px-2 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-2 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                     >
                                         <option value="amount">₹</option>
                                         <option value="percentage">%</option>
@@ -312,7 +312,7 @@ export function TemplateFormModal({
                             min="0"
                             max="100"
                             step="0.01"
-                            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                     </div>
 
@@ -327,7 +327,7 @@ export function TemplateFormModal({
                             placeholder="0"
                             min="0"
                             step="0.01"
-                            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                     </div>
                 </div>
@@ -342,7 +342,7 @@ export function TemplateFormModal({
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Optional notes for this template"
                         rows={3}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
                     />
                 </div>
 
@@ -359,7 +359,7 @@ export function TemplateFormModal({
                     <button
                         type="submit"
                         disabled={createTemplate.isPending || updateTemplate.isPending}
-                        className="px-6 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2.5 bg-gradient-to-r from-primary to-accent text-white rounded-lg hover:shadow-md transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                     >
                         {createTemplate.isPending || updateTemplate.isPending
                             ? "Saving..."

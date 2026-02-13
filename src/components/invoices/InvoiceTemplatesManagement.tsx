@@ -102,7 +102,7 @@ export function InvoiceTemplatesManagement({
                             placeholder="Search templates..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                         {searchTerm && (
                             <button
@@ -121,7 +121,7 @@ export function InvoiceTemplatesManagement({
                         <button
                             onClick={() => setActiveFilter(undefined)}
                             className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${activeFilter === undefined
-                                ? "bg-blue-500 text-white"
+                                ? "bg-primary text-white shadow-sm"
                                 : "text-slate-600 hover:bg-slate-100"
                                 }`}
                         >
@@ -150,7 +150,7 @@ export function InvoiceTemplatesManagement({
                     {/* Create Button */}
                     <button
                         onClick={onCreateTemplate}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium whitespace-nowrap"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent text-white rounded-lg hover:shadow-md transition-all font-medium whitespace-nowrap active:scale-95"
                     >
                         <PlusCircle className="w-4 h-4" />
                         Create Template
@@ -161,7 +161,7 @@ export function InvoiceTemplatesManagement({
             {/* Loading State */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
             )}
 
@@ -190,7 +190,7 @@ export function InvoiceTemplatesManagement({
                     {!searchTerm && activeFilter === undefined && (
                         <button
                             onClick={onCreateTemplate}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-accent text-white rounded-lg hover:shadow-lg transition-all font-medium active:scale-95"
                         >
                             <PlusCircle className="w-5 h-5" />
                             Create Template
@@ -254,7 +254,7 @@ export function InvoiceTemplatesManagement({
                             <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                                 <button
                                     onClick={() => onEditTemplate?.(template)}
-                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
                                 >
                                     <Edit className="w-4 h-4" />
                                     Edit

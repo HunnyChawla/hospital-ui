@@ -358,7 +358,7 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                     <select
                         value={selectedTemplateId}
                         onChange={(e) => handleTemplateSelect(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-700"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700 bg-white"
                     >
                         <option value="">-- Select a template (optional) --</option>
                         {templatesData?.items.map((template) => (
@@ -717,7 +717,7 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                     <button
                         type="button"
                         onClick={handleSaveAsTemplate}
-                        className="flex items-center gap-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 transition-colors"
+                        className="flex items-center gap-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-primary hover:bg-primary/5 px-3 py-2 transition-colors"
                     >
                         <Bookmark className="h-4 w-4" />
                         Save as Template
