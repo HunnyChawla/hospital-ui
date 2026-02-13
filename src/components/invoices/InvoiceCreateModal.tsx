@@ -5,8 +5,10 @@ import { Modal } from "@/components/common/Modal";
 import { patientsApi } from "@/services/patientsApi";
 import { useCreateInvoice } from "@/hooks/queries/useInvoices";
 import { CreateInvoiceLineItem } from "@/services/invoicesApi";
+import { useInvoiceTemplates } from "@/hooks/queries/useInvoiceTemplates";
+import { InvoiceTemplate } from "@/services/invoiceTemplatesApi";
 import { toast } from "sonner";
-import { Search, User, X, Plus, Trash2, FileText, Smartphone } from "lucide-react";
+import { Search, User, X, Plus, Trash2, FileText, Smartphone, Bookmark } from "lucide-react";
 import { useRef } from "react";
 import { Patient } from "@/types";
 
@@ -51,8 +53,10 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
     });
     const [gstNumber, setGstNumber] = useState("");
     const [notes, setNotes] = useState("");
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
     const createInvoice = useCreateInvoice();
+    const { data: templatesData } = useInvoiceTemplates({ is_active: true });
 
     // Save discount type preference
     useEffect(() => {
@@ -172,6 +176,38 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
     const taxAmount = Math.round((amountAfterDiscount * taxRate) / 100);
     const totalAmount = amountAfterDiscount + taxAmount;
 
+    // Handle template selection and populate form
+    const handleTemplateSelect = useCallback((templateId: string) => {
+        setSelectedTemplateId(templateId);
+
+        if (!templateId) return;
+
+        // Save to localStorage
+        if (typeof window !== "undefined") {
+            localStorage.setItem("invoice_last_template_id", templateId);
+        }
+
+        // Find the template
+        const template = templatesData?.items.find((t) => t.id === templateId);
+        if (!template) return;
+
+        // Populate line items
+        setLineItems(template.line_items.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount: item.discount,
+            discount_type: item.discount_type,
+        })));
+
+        // Populate other fields
+        setTaxRate(template.tax_rate);
+        setDiscount(template.discount);
+        setNotes(template.notes || "");
+
+        toast.success(`Template "${template.name}" loaded`);
+    }, [templatesData]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -251,8 +287,23 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
         setDiscount(0);
         setGstNumber("");
         setNotes("");
+        setSelectedTemplateId("");
         onClose();
     };
+
+    // Load last used template on mount and populate form
+    useEffect(() => {
+        if (isOpen && typeof window !== "undefined" && templatesData?.items) {
+            const lastTemplateId = localStorage.getItem("invoice_last_template_id");
+            if (lastTemplateId) {
+                // Check if template exists in current data
+                const templateExists = templatesData.items.some(t => t.id === lastTemplateId);
+                if (templateExists) {
+                    handleTemplateSelect(lastTemplateId);
+                }
+            }
+        }
+    }, [isOpen, templatesData, handleTemplateSelect]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -269,6 +320,31 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Create New Invoice" size="xl" contentClassName="scrollbar-hide">
             <form onSubmit={handleSubmit} className="space-y-4 -mx-6 -mb-6 px-6 pb-6">
+                {/* Template Selection */}
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        <Bookmark className="inline-block w-4 h-4 mr-1.5 -mt-0.5" />
+                        Quick Start from Template
+                    </label>
+                    <select
+                        value={selectedTemplateId}
+                        onChange={(e) => handleTemplateSelect(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-700"
+                    >
+                        <option value="">-- Select a template (optional) --</option>
+                        {templatesData?.items.map((template) => (
+                            <option key={template.id} value={template.id}>
+                                {template.name} ({template.line_items.length} items, {template.tax_rate}% tax)
+                            </option>
+                        ))}
+                    </select>
+                    {selectedTemplateId && (
+                        <p className="mt-1.5 text-xs text-slate-500">
+                            Template loaded. You can modify the values below before creating the invoice.
+                        </p>
+                    )}
+                </div>
+
                 {/* Patient Selection */}
                 <div ref={searchRef}>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
