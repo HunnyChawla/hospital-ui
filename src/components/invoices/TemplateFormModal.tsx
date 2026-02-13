@@ -43,9 +43,9 @@ export function TemplateFormModal({
     const createTemplate = useCreateTemplate();
     const updateTemplate = useUpdateTemplate();
 
-    const isEditMode = !!template;
+    const isEditMode = !!template && !!template.id;
 
-    // Load template data when editing
+    // Load template data when editing or saving as template
     useEffect(() => {
         if (isOpen && template) {
             setName(template.name);

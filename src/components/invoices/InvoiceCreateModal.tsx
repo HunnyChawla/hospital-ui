@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Search, User, X, Plus, Trash2, FileText, Smartphone, Bookmark } from "lucide-react";
 import { useRef } from "react";
 import { Patient } from "@/types";
+import { TemplateFormModal } from "./TemplateFormModal";
 
 interface InvoiceCreateModalProps {
     isOpen: boolean;
@@ -37,6 +38,9 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
     const justSelectedRef = useRef(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
+    const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+    const [templateToSave, setTemplateToSave] = useState<InvoiceTemplate | null>(null);
+
     const [lineItems, setLineItems] = useState<LineItem[]>(() => {
         const defaultDiscountType = (typeof window !== "undefined"
             ? localStorage.getItem("invoice_line_discount_type_pref") as "percentage" | "amount"
@@ -57,6 +61,31 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
 
     const createInvoice = useCreateInvoice();
     const { data: templatesData } = useInvoiceTemplates({ is_active: true });
+
+    // Handle saving current invoice as template
+    const handleSaveAsTemplate = () => {
+        const templateData: InvoiceTemplate = {
+            id: "", // Important: Empty ID signals it's a new template
+            tenant_id: "", // Will be set by backend/hooks
+            name: "", // Will be filled by user
+            line_items: lineItems.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity) || 0,
+                unit_price: Number(item.unit_price) || 0,
+                discount: Number(item.discount) || 0,
+                discount_type: item.discount_type
+            })),
+            tax_rate: Number(taxRate) || 0,
+            discount: Number(discount) || 0,
+            notes: notes,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        setTemplateToSave(templateData);
+        setShowSaveTemplateModal(true);
+    };
 
     // Save discount type preference
     useEffect(() => {
@@ -684,34 +713,55 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+                <div className="flex justify-between items-center pt-3 border-t border-slate-200">
                     <button
                         type="button"
-                        onClick={handleClose}
-                        className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
-                        disabled={createInvoice.isPending}
+                        onClick={handleSaveAsTemplate}
+                        className="flex items-center gap-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 transition-colors"
                     >
-                        Cancel
+                        <Bookmark className="h-4 w-4" />
+                        Save as Template
                     </button>
-                    <button
-                        type="submit"
-                        disabled={createInvoice.isPending || !selectedPatientId || totalAmount <= 0}
-                        className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {createInvoice.isPending ? (
-                            <>
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                Creating...
-                            </>
-                        ) : (
-                            <>
-                                <FileText className="h-4 w-4" />
-                                Create Invoice
-                            </>
-                        )}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
+                            disabled={createInvoice.isPending}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={createInvoice.isPending || !selectedPatientId || totalAmount <= 0}
+                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {createInvoice.isPending ? (
+                                <>
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    Creating...
+                                </>
+                            ) : (
+                                <>
+                                    <FileText className="h-4 w-4" />
+                                    Create Invoice
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </form>
+
+            {/* Save as Template Modal */}
+            <TemplateFormModal
+                isOpen={showSaveTemplateModal}
+                onClose={() => setShowSaveTemplateModal(false)}
+                template={templateToSave}
+                onSuccess={() => {
+                    setShowSaveTemplateModal(false);
+                    // Optionally refresh templates list if needed, but react-query handles this
+                }}
+            />
         </Modal>
     );
 }
