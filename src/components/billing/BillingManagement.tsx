@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
+import { InvoiceCreateModal } from "@/components/invoices/InvoiceCreateModal";
 import { Modal } from "@/components/common/Modal";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
 import { useReactToPrint } from "react-to-print";
@@ -32,6 +33,7 @@ import {
   Filter,
   Download,
   Eye,
+  PlusCircle,
 } from "lucide-react";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
 
@@ -81,6 +83,9 @@ export function BillingManagement({
   // Payment collection state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+
+  // Invoice creation state
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
 
   // Print state
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
@@ -432,11 +437,10 @@ export function BillingManagement({
         <button
           key={filter.value}
           onClick={() => onStatusFilterChange(filter.value as any)}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
-            statusFilter === filter.value
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${statusFilter === filter.value
               ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
+            }`}
         >
           {filter.label}
         </button>
@@ -489,6 +493,14 @@ export function BillingManagement({
       {/* Filters Section */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            onClick={() => setShowCreateInvoiceModal(true)}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Create Invoice
+          </button>
+
           <div className="flex items-center gap-3">
             {!renderSearchInHeader && searchBox}
 
@@ -496,11 +508,10 @@ export function BillingManagement({
             <div className="relative">
               <button
                 onClick={() => setShowDatePicker(!showDatePicker)}
-                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
-                  dateFilter !== "all"
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${dateFilter !== "all"
                     ? "border-sky-500 bg-sky-50 text-sky-700"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 <Calendar className="h-4 w-4" />
                 <span>
@@ -520,11 +531,10 @@ export function BillingManagement({
                         setDateFilter("all");
                         setShowDatePicker(false);
                       }}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                        dateFilter === "all"
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "all"
                           ? "bg-sky-50 text-sky-700"
                           : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       All Time
                     </button>
@@ -533,11 +543,10 @@ export function BillingManagement({
                         setDateFilter("today");
                         setShowDatePicker(false);
                       }}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                        dateFilter === "today"
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "today"
                           ? "bg-sky-50 text-sky-700"
                           : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       Today
                     </button>
@@ -546,11 +555,10 @@ export function BillingManagement({
                         setDateFilter("week");
                         setShowDatePicker(false);
                       }}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                        dateFilter === "week"
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "week"
                           ? "bg-sky-50 text-sky-700"
                           : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       Last 7 Days
                     </button>
@@ -559,11 +567,10 @@ export function BillingManagement({
                         setDateFilter("month");
                         setShowDatePicker(false);
                       }}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                        dateFilter === "month"
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "month"
                           ? "bg-sky-50 text-sky-700"
                           : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       Last 30 Days
                     </button>
@@ -967,6 +974,15 @@ export function BillingManagement({
           </div>
         )}
       </Modal>
+
+      {/* Invoice Creation Modal */}
+      <InvoiceCreateModal
+        isOpen={showCreateInvoiceModal}
+        onClose={() => setShowCreateInvoiceModal(false)}
+        onSuccess={() => {
+          fetchInvoices();
+        }}
+      />
 
       {/* Payment Collection Modal */}
       <PaymentCollectionModal
