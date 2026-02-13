@@ -45,6 +45,7 @@ import {
   Play,
   CheckCircle,
   Edit2,
+  MapPin,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -752,6 +753,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   <span>•</span>
                   <span className="capitalize">{patient.status}</span>
                 </div>
+                {(patient.address || patient.city || patient.state || patient.pincode) && (
+                  <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                    <MapPin className="h-3 w-3 text-slate-400" />
+                    <span className="truncate max-w-[500px]" title={[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}>
+                      {[patient.address, patient.city, patient.state, patient.pincode]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setShowEditModal(true)}
