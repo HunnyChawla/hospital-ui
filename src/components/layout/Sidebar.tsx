@@ -25,6 +25,7 @@ import {
   Shield,
   Monitor,
   Link as LinkIcon,
+  LayoutTemplate,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -60,6 +61,7 @@ const iconMap: Record<string, LucideIcon> = {
   Building2,
   Shield,
   LayoutList,
+  LayoutTemplate,
   Radio,
   Monitor,
   Link: LinkIcon,

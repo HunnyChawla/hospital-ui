@@ -203,11 +203,33 @@ export function TemplateFormModal({
                         </button>
                     </div>
 
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <div className="space-y-3 max-h-96 overflow-y-auto rounded-xl border border-slate-200 p-3 bg-slate-50 scrollbar-hide">
+                        {/* Column Headers */}
+                        <div className="hidden sm:grid grid-cols-12 gap-2 px-3 pb-2 border-b border-slate-200">
+                            <div className="col-span-4">
+                                <span className="text-xs font-bold text-slate-700">Description</span>
+                            </div>
+                            <div className="col-span-2">
+                                <span className="text-xs font-bold text-slate-700">Quantity</span>
+                            </div>
+                            <div className="col-span-2">
+                                <span className="text-xs font-bold text-slate-700">Price (₹)</span>
+                            </div>
+                            <div className="col-span-2">
+                                <span className="text-xs font-bold text-slate-700">Discount</span>
+                            </div>
+                            <div className="col-span-1">
+                                <span className="text-xs font-bold text-slate-700">Type</span>
+                            </div>
+                            <div className="col-span-1 text-center">
+                                <span className="text-xs font-bold text-slate-700">Action</span>
+                            </div>
+                        </div>
+
                         {lineItems.map((item, index) => (
                             <div
                                 key={index}
-                                className="grid grid-cols-12 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200"
+                                className="grid grid-cols-12 gap-2 p-3 bg-white rounded-lg border border-slate-200 shadow-sm transition-all hover:border-primary/30"
                             >
                                 {/* Description */}
                                 <div className="col-span-12 sm:col-span-4">
