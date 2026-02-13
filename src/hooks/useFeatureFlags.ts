@@ -69,3 +69,18 @@ export function useQueueFlags() {
         isUpdating,
     };
 }
+
+/**
+ * Convenience hook for prescription feature flags
+ */
+export function usePrescriptionFlags() {
+    const { featureFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags('prescription');
+
+    return {
+        allowEditAfterFinalize: (featureFlags?.allow_edit_after_finalize as boolean) ?? false,
+        allowEditAfterVisitCompleted: (featureFlags?.allow_edit_after_visit_completed as boolean) ?? false,
+        isLoading,
+        updateFlags: (flags: FeatureFlagUpdate) => updateFlags({ feature: 'prescription', flags }),
+        isUpdating,
+    };
+}

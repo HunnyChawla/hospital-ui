@@ -27,6 +27,11 @@ export function FeatureFlagManagement() {
         allow_optometrist_pick_any: false,
     });
 
+    const [prescriptionFlags, setPrescriptionFlags] = useState({
+        allow_edit_after_finalize: false,
+        allow_edit_after_visit_completed: false,
+    });
+
     // Fetch tenants for platform owners
     useEffect(() => {
         if (isPlatformOwner) {
@@ -60,10 +65,20 @@ export function FeatureFlagManagement() {
                 allow_optometrist_pick_any: allFlags.queue.allow_optometrist_pick_any as boolean,
             });
         }
+        if (allFlags?.prescription) {
+            setPrescriptionFlags({
+                allow_edit_after_finalize: allFlags.prescription.allow_edit_after_finalize as boolean,
+                allow_edit_after_visit_completed: allFlags.prescription.allow_edit_after_visit_completed as boolean,
+            });
+        }
     }, [allFlags]);
 
     const handleSaveQueue = () => {
         updateFlags({ feature: 'queue', flags: queueFlags });
+    };
+
+    const handleSavePrescription = () => {
+        updateFlags({ feature: 'prescription', flags: prescriptionFlags });
     };
 
     const handleTenantChange = async (newTenantId: string) => {
@@ -184,6 +199,85 @@ export function FeatureFlagManagement() {
                     <div className="pt-4 border-t border-slate-200">
                         <button
                             onClick={handleSaveQueue}
+                            disabled={isUpdating}
+                            className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {isUpdating ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-4 w-4" />
+                                    Save Configuration
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Prescription Management Feature */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                    <h2 className="text-lg font-semibold text-slate-900">Prescription Management</h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Configure prescription editing permissions for doctors
+                    </p>
+                </div>
+
+                <div className="p-6 space-y-5">
+                    {/* Allow Edit After Finalize */}
+                    <label className="flex items-start gap-4 cursor-pointer group">
+                        <div className="flex items-center h-6">
+                            <input
+                                type="checkbox"
+                                checked={prescriptionFlags.allow_edit_after_finalize}
+                                onChange={(e) => setPrescriptionFlags(prev => ({
+                                    ...prev,
+                                    allow_edit_after_finalize: e.target.checked
+                                }))}
+                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 transition-colors"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-medium text-slate-900 group-hover:text-sky-700 transition-colors">
+                                Allow editing prescriptions after finalization
+                            </div>
+                            <div className="text-sm text-slate-500 mt-1">
+                                When enabled, doctors can edit prescriptions even after they have been finalized. When disabled, finalized prescriptions are read-only.
+                            </div>
+                        </div>
+                    </label>
+
+                    {/* Allow Edit After Visit Completed */}
+                    <label className="flex items-start gap-4 cursor-pointer group">
+                        <div className="flex items-center h-6">
+                            <input
+                                type="checkbox"
+                                checked={prescriptionFlags.allow_edit_after_visit_completed}
+                                onChange={(e) => setPrescriptionFlags(prev => ({
+                                    ...prev,
+                                    allow_edit_after_visit_completed: e.target.checked
+                                }))}
+                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 transition-colors"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-medium text-slate-900 group-hover:text-sky-700 transition-colors">
+                                Allow editing prescriptions after visit completion
+                            </div>
+                            <div className="text-sm text-slate-500 mt-1">
+                                When enabled, doctors can edit prescriptions even after the visit has been marked as complete. When disabled, prescriptions from completed visits are read-only.
+                            </div>
+                        </div>
+                    </label>
+
+                    {/* Save Button */}
+                    <div className="pt-4 border-t border-slate-200">
+                        <button
+                            onClick={handleSavePrescription}
                             disabled={isUpdating}
                             className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >

@@ -59,6 +59,7 @@ import { usersApi } from "@/services/usersApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
 import { labTestsApi } from "@/services/labTestsApi";
+import { usePrescriptionFlags } from "@/hooks/useFeatureFlags";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -228,6 +229,9 @@ export function PrescriptionFormSection({
     const [pendingFinalizeAction, setPendingFinalizeAction] = useState<{ data: FormData; print: boolean } | null>(null);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
+
+    // Feature flags for prescription editing
+    const { allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionFlags();
 
     // Fetch additional details
     useEffect(() => {
@@ -1331,8 +1335,23 @@ export function PrescriptionFormSection({
                 </div>
             )}
 
-            {/* Read-Only View */}
-            {(readOnly || savedPrescription?.status === 'finalized') ? (
+            {/* Read-Only View - Show only if editing is not allowed by feature flags */}
+            {(() => {
+                // Determine if we should show read-only view based on feature flags
+                const isPrescriptionFinalized = savedPrescription?.status === 'finalized';
+                const isVisitCompleted = readOnly;
+
+                // Check if editing should be allowed despite finalization/completion
+                const shouldAllowEdit =
+                    (isPrescriptionFinalized && allowEditAfterFinalize) ||
+                    (isVisitCompleted && allowEditAfterVisitCompleted);
+
+                // Show read-only view only if prescription/visit is locked AND editing is not allowed
+                const shouldShowReadOnly =
+                    (isPrescriptionFinalized || isVisitCompleted) && !shouldAllowEdit;
+
+                return shouldShowReadOnly;
+            })() ? (
                 <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-slate-200">
                     <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                         <h3 className="font-semibold text-slate-700">Prescription View</h3>
