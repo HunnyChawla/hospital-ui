@@ -20,6 +20,8 @@ interface LineItem {
     description: string;
     quantity: number;
     unit_price: number;
+    discount: number;
+    discount_type: "percentage" | "amount";
 }
 
 export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreateModalProps) {
@@ -33,9 +35,12 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
     const justSelectedRef = useRef(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
-    const [lineItems, setLineItems] = useState<LineItem[]>([
-        { description: "", quantity: 1, unit_price: 0 },
-    ]);
+    const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+        const defaultDiscountType = (typeof window !== "undefined"
+            ? localStorage.getItem("invoice_line_discount_type_pref") as "percentage" | "amount"
+            : null) || "amount";
+        return [{ description: "", quantity: 1, unit_price: 0, discount: 0, discount_type: defaultDiscountType }];
+    });
     const [taxRate, setTaxRate] = useState<number>(0);
     const [discount, setDiscount] = useState<number>(0);
     const [discountType, setDiscountType] = useState<"percentage" | "amount">(() => {
@@ -119,7 +124,10 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
     }, []);
 
     const handleAddLineItem = () => {
-        setLineItems([...lineItems, { description: "", quantity: 1, unit_price: 0 }]);
+        const defaultDiscountType = (typeof window !== "undefined"
+            ? localStorage.getItem("invoice_line_discount_type_pref") as "percentage" | "amount"
+            : null) || "amount";
+        setLineItems([...lineItems, { description: "", quantity: 1, unit_price: 0, discount: 0, discount_type: defaultDiscountType }]);
     };
 
     const handleRemoveLineItem = (index: number) => {
@@ -134,18 +142,34 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
         const newLineItems = [...lineItems];
         newLineItems[index] = { ...newLineItems[index], [field]: value };
         setLineItems(newLineItems);
+
+        // Save discount type preference when it changes
+        if (field === "discount_type" && typeof window !== "undefined") {
+            localStorage.setItem("invoice_line_discount_type_pref", value as string);
+        }
     };
 
     // Calculate totals
     const subtotal = lineItems.reduce((sum, item) => {
         const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) || 0 : item.quantity;
         const price = typeof item.unit_price === 'string' ? parseFloat(item.unit_price) || 0 : item.unit_price;
-        return sum + (quantity * price);
+        const lineSubtotal = quantity * price;
+
+        // Calculate line item discount (rounded)
+        const itemDiscount = typeof item.discount === 'string' ? parseFloat(item.discount) || 0 : item.discount;
+        const lineDiscountAmount = Math.round(
+            item.discount_type === "percentage"
+                ? (lineSubtotal * itemDiscount / 100)
+                : itemDiscount
+        );
+
+        // Add line total (after line discount) to sum
+        return sum + (lineSubtotal - lineDiscountAmount);
     }, 0);
 
-    const discountAmount = discountType === "percentage" ? (subtotal * discount) / 100 : discount;
+    const discountAmount = Math.round(discountType === "percentage" ? (subtotal * discount) / 100 : discount);
     const amountAfterDiscount = subtotal - discountAmount;
-    const taxAmount = (amountAfterDiscount * taxRate) / 100;
+    const taxAmount = Math.round((amountAfterDiscount * taxRate) / 100);
     const totalAmount = amountAfterDiscount + taxAmount;
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -170,11 +194,21 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
         try {
             const invoiceData: any = {
                 patient_id: selectedPatientId,
-                line_items: lineItems.map(item => ({
-                    description: item.description,
-                    quantity: Number(item.quantity),
-                    unit_price: Number(item.unit_price),
-                })),
+                line_items: lineItems.map(item => {
+                    const lineSubtotal = Number(item.quantity) * Number(item.unit_price);
+                    const lineDiscountAmount = Math.round(
+                        item.discount_type === "percentage"
+                            ? (lineSubtotal * Number(item.discount) / 100)
+                            : Number(item.discount)
+                    );
+
+                    return {
+                        description: item.description,
+                        quantity: Number(item.quantity),
+                        unit_price: Number(item.unit_price),
+                        discount: lineDiscountAmount,
+                    };
+                }),
                 tax_rate: Number(taxRate),
                 discount: Number(discountAmount), // Send calculated discount amount in rupees
             };
@@ -209,7 +243,10 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
         setSelectedPatientData(null);
         setSearchResults([]);
         setShowDropdown(false);
-        setLineItems([{ description: "", quantity: 1, unit_price: 0 }]);
+        const defaultDiscountType = (typeof window !== "undefined"
+            ? localStorage.getItem("invoice_line_discount_type_pref") as "percentage" | "amount"
+            : null) || "amount";
+        setLineItems([{ description: "", quantity: 1, unit_price: 0, discount: 0, discount_type: defaultDiscountType }]);
         setTaxRate(0);
         setDiscount(0);
         setGstNumber("");
@@ -361,7 +398,7 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                     <div className="space-y-2 max-h-80 overflow-y-auto rounded-xl border border-slate-200 p-3 bg-slate-50 scrollbar-hide">
                         {/* Column Headers */}
                         <div className="flex items-center gap-2 px-3 pb-2 border-b border-slate-300">
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2">
                                 <div className="md:col-span-1">
                                     <span className="text-xs font-bold text-slate-700">Description</span>
                                 </div>
@@ -370,6 +407,9 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                                 </div>
                                 <div>
                                     <span className="text-xs font-bold text-slate-700">Unit Price (₹)</span>
+                                </div>
+                                <div>
+                                    <span className="text-xs font-bold text-slate-700">Discount</span>
                                 </div>
                             </div>
                             <div className="w-10">
@@ -380,7 +420,7 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                         {/* Line Items */}
                         {lineItems.map((item, index) => (
                             <div key={index} className="flex items-start gap-2 bg-white rounded-lg p-3 border border-slate-200">
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2">
                                     <div className="md:col-span-1">
                                         <input
                                             type="text"
@@ -414,6 +454,33 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                                             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                             required
                                         />
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <input
+                                            type="number"
+                                            value={item.discount}
+                                            onChange={(e) => handleLineItemChange(index, "discount", parseFloat(e.target.value) || 0)}
+                                            placeholder="0"
+                                            min="0"
+                                            max={item.discount_type === "percentage" ? 100 : undefined}
+                                            step="0.01"
+                                            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                        />
+                                        <select
+                                            value={item.discount_type}
+                                            onChange={(e) => {
+                                                const newType = e.target.value as "percentage" | "amount";
+                                                handleLineItemChange(index, "discount_type", newType);
+                                                // Clamp percentage to 100
+                                                if (newType === "percentage" && item.discount > 100) {
+                                                    handleLineItemChange(index, "discount", 100);
+                                                }
+                                            }}
+                                            className="rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 bg-white"
+                                        >
+                                            <option value="amount">₹</option>
+                                            <option value="percentage">%</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <button

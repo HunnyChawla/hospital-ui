@@ -1640,7 +1640,17 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-600">Subtotal</span>
-                  <span className="font-semibold text-slate-900">{currency(selectedInvoice.subtotal)}</span>
+                  <span className="font-semibold text-slate-900">
+                    {currency(
+                      // Calculate subtotal from line items (after line-item discounts)
+                      selectedInvoice.line_items?.reduce((sum, item) => {
+                        const total = item.total_price !== undefined
+                          ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                          : (item.total || 0);
+                        return sum + total;
+                      }, 0) || selectedInvoice.subtotal
+                    )}
+                  </span>
                 </div>
                 {selectedInvoice.tax_amount > 0 && (
                   <div className="flex items-center justify-between">

@@ -438,8 +438,8 @@ export function BillingManagement({
           key={filter.value}
           onClick={() => onStatusFilterChange(filter.value as any)}
           className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${statusFilter === filter.value
-              ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-sm"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-sm"
+            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
         >
           {filter.label}
@@ -509,8 +509,8 @@ export function BillingManagement({
               <button
                 onClick={() => setShowDatePicker(!showDatePicker)}
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${dateFilter !== "all"
-                    ? "border-sky-500 bg-sky-50 text-sky-700"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
               >
                 <Calendar className="h-4 w-4" />
@@ -532,8 +532,8 @@ export function BillingManagement({
                         setShowDatePicker(false);
                       }}
                       className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "all"
-                          ? "bg-sky-50 text-sky-700"
-                          : "text-slate-700 hover:bg-slate-50"
+                        ? "bg-sky-50 text-sky-700"
+                        : "text-slate-700 hover:bg-slate-50"
                         }`}
                     >
                       All Time
@@ -544,8 +544,8 @@ export function BillingManagement({
                         setShowDatePicker(false);
                       }}
                       className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "today"
-                          ? "bg-sky-50 text-sky-700"
-                          : "text-slate-700 hover:bg-slate-50"
+                        ? "bg-sky-50 text-sky-700"
+                        : "text-slate-700 hover:bg-slate-50"
                         }`}
                     >
                       Today
@@ -556,8 +556,8 @@ export function BillingManagement({
                         setShowDatePicker(false);
                       }}
                       className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "week"
-                          ? "bg-sky-50 text-sky-700"
-                          : "text-slate-700 hover:bg-slate-50"
+                        ? "bg-sky-50 text-sky-700"
+                        : "text-slate-700 hover:bg-slate-50"
                         }`}
                     >
                       Last 7 Days
@@ -568,8 +568,8 @@ export function BillingManagement({
                         setShowDatePicker(false);
                       }}
                       className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "month"
-                          ? "bg-sky-50 text-sky-700"
-                          : "text-slate-700 hover:bg-slate-50"
+                        ? "bg-sky-50 text-sky-700"
+                        : "text-slate-700 hover:bg-slate-50"
                         }`}
                     >
                       Last 30 Days
@@ -888,7 +888,17 @@ export function BillingManagement({
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-slate-600">Subtotal</span>
-                    <span className="text-sm font-semibold text-slate-900">{currency(selectedInvoice.subtotal)}</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {currency(
+                        // Calculate subtotal from line items (after line-item discounts)
+                        selectedInvoice.line_items?.reduce((sum, item) => {
+                          const total = item.total_price !== undefined
+                            ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                            : (item.total || 0);
+                          return sum + total;
+                        }, 0) || selectedInvoice.subtotal
+                      )}
+                    </span>
                   </div>
                   {selectedInvoice.tax_rate > 0 && (
                     <div className="flex justify-between items-center">
