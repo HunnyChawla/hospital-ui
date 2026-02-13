@@ -356,11 +356,46 @@ export function PrescriptionFormSection({
                     const existing = response.items[0];
                     setSavedPrescription(existing);
 
-                    // Parse existing diagnosis to chips
+                    // Parse existing diagnosis to chips and extract eye information
                     let diagnosisNames: string[] = [];
+                    const eyeMap: Record<string, "OD" | "OS" | "OU" | "NA"> = {};
+
                     if (existing.diagnosis) {
-                        diagnosisNames = existing.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean);
+                        // Parse diagnosis text which may contain eye labels like "Myopia (Right Eye)"
+                        const diagnosisParts = existing.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean);
+
+                        diagnosisParts.forEach((part) => {
+                            // Extract diagnosis name and eye label using regex
+                            const match = part.match(/^(.+?)\s*\((.+?)\)$/);
+
+                            if (match) {
+                                const diagName = match[1].trim();
+                                const eyeLabel = match[2].trim();
+
+                                diagnosisNames.push(diagName);
+
+                                // Map eye labels back to codes
+                                if (eyeLabel === "Right Eye" || eyeLabel === "OD") {
+                                    eyeMap[diagName] = "OD";
+                                } else if (eyeLabel === "Left Eye" || eyeLabel === "OS") {
+                                    eyeMap[diagName] = "OS";
+                                } else if (eyeLabel === "Both Eyes" || eyeLabel === "OU") {
+                                    eyeMap[diagName] = "OU";
+                                } else if (eyeLabel === "Not Applicable" || eyeLabel === "NA") {
+                                    eyeMap[diagName] = "NA";
+                                } else {
+                                    // If eye label doesn't match expected format, default to OU
+                                    eyeMap[diagName] = "OU";
+                                }
+                            } else {
+                                // No eye label found, use the whole part as diagnosis name
+                                diagnosisNames.push(part);
+                                eyeMap[part] = "OU"; // Default to both eyes
+                            }
+                        });
+
                         setSelectedDiagnoses(diagnosisNames);
+                        setDiagnosisEyeMap(eyeMap);
                     }
 
                     // Set symptoms directly from draft
@@ -405,7 +440,7 @@ export function PrescriptionFormSection({
                     }
 
                     reset({
-                        diagnosis: existing.diagnosis || "",
+                        diagnosis: "", // Keep empty - chips are managed separately
                         followup_date: existing.followup_date || "",
                         plan_of_action: existing.plan_of_action || "",
                         remarks: existing.remarks || "",
@@ -539,6 +574,25 @@ export function PrescriptionFormSection({
 
     const selectedCoatings = watch("coatings");
     const currentDiagnosis = watch("diagnosis");
+
+    // Sync eye selection to diagnosis input field in real-time
+    useEffect(() => {
+        if (selectedDiagnoses.length > 0) {
+            const formattedDiagnosis = selectedDiagnoses.map(diagName => {
+                const eye = diagnosisEyeMap[diagName] || "OU";
+                const eyeLabel =
+                    eye === "OD" ? "Right Eye" :
+                        eye === "OS" ? "Left Eye" :
+                            eye === "OU" ? "Both Eyes" :
+                                "Not Applicable";
+                return `${diagName} (${eyeLabel})`;
+            }).join(", ");
+            setValue("diagnosis", formattedDiagnosis);
+        } else {
+            setValue("diagnosis", "");
+        }
+    }, [selectedDiagnoses, diagnosisEyeMap, setValue]);
+
 
     // Load dynamic presets and doctor signature - API only, no defaults
     useEffect(() => {
@@ -762,8 +816,7 @@ export function PrescriptionFormSection({
             const newList = isAdding
                 ? [...prev, value]
                 : prev.filter(d => d !== value);
-            // Update form value
-            setValue("diagnosis", newList.join(", "));
+            // Note: diagnosis field is auto-synced via useEffect
             return newList;
         });
 

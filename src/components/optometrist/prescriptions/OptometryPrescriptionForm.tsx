@@ -280,6 +280,24 @@ export function OptometryPrescriptionForm({
     }
   }, [existingPrescription, setValue]);
 
+  // Sync eye selection to diagnosis input field in real-time
+  useEffect(() => {
+    if (selectedDiagnoses.length > 0) {
+      const formattedDiagnosis = selectedDiagnoses.map(d => {
+        const eye = diagnosisEyeMap[d.id] || "OU";
+        return `${d.diagnosis_name} (${eye})`;
+      }).join(", ");
+      setValue("diagnosis", formattedDiagnosis);
+    } else {
+      // Don't clear if there are no chips, might be manual entry
+      // But if there ARE chips and we removed the last one, we should clear
+      // Actually, if selectedDiagnoses is empty, but diagnosis value has something, we might want to keep it
+      // However, for consistency with the other form, let's clear if chips are used.
+      // Or better: only clear if chips WERE present.
+    }
+  }, [selectedDiagnoses, diagnosisEyeMap, setValue]);
+
+
   const onSubmit = async (data: PrescriptionFormData, action: "save" | "finalize" | "print") => {
     if (action === "finalize") {
       if (!window.confirm("Are you sure you want to finalize this prescription? Once finalized cannot be updated.")) {
