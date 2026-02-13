@@ -66,6 +66,7 @@ export function OptometryPrescriptionForm({
   } = useForm<PrescriptionFormData>();
 
   const [selectedDiagnoses, setSelectedDiagnoses] = useState<Diagnosis[]>([]);
+  const [diagnosisEyeMap, setDiagnosisEyeMap] = useState<Record<string, "OD" | "OS" | "OU" | "NA">>({});
   const [availableSymptoms, setAvailableSymptoms] = useState<Record<string, DiagnosisSymptomMap[]>>({});
   const [selectedSymptoms, setSelectedSymptoms] = useState<PrescriptionSymptom[]>([]);
   const [diagnosisSearch, setDiagnosisSearch] = useState("");
@@ -107,12 +108,30 @@ export function OptometryPrescriptionForm({
     const newSelected = [...selectedDiagnoses, diagnosis];
     setSelectedDiagnoses(newSelected);
 
-    // Update the string field for compatibility
-    const currentString = watch("diagnosis");
-    const newString = currentString
-      ? `${currentString}, ${diagnosis.diagnosis_name}`
-      : diagnosis.diagnosis_name;
-    setValue("diagnosis", newString);
+    // Determine default eye from selected symptoms
+    let defaultEye: "OD" | "OS" | "OU" | "NA" = "OU";
+    const symptomEyes = selectedSymptoms
+      .filter(s => s.applicable_eye)
+      .map(s => s.applicable_eye);
+
+    if (symptomEyes.length > 0) {
+      // Use most common eye from symptoms
+      const eyeCounts = symptomEyes.reduce((acc, eye) => {
+        if (eye) acc[eye] = (acc[eye] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      const mostCommon = Object.entries(eyeCounts).sort((a, b) => b[1] - a[1])[0];
+      if (mostCommon) {
+        const eye = mostCommon[0];
+        if (eye === "LEFT") defaultEye = "OS";
+        else if (eye === "RIGHT") defaultEye = "OD";
+        else if (eye === "BOTH") defaultEye = "OU";
+        else defaultEye = "NA";
+      }
+    }
+
+    // Set default eye for this diagnosis
+    setDiagnosisEyeMap(prev => ({ ...prev, [diagnosis.id]: defaultEye }));
 
     // Fetch symptoms
     try {
@@ -129,13 +148,12 @@ export function OptometryPrescriptionForm({
 
   const removeDiagnosis = (id: string) => {
     setSelectedDiagnoses(prev => prev.filter(d => d.id !== id));
-    // Note: We don't automatically remove from the string field because user might have edited it manually.
-    // But we could try to remove the name if it matches exactly.
-    // For now, we leave the string field as is or let user edit it.
-
-    // Remove associated symptoms?
-    // Maybe filtered out from view, but keep in state? 
-    // Better to remove them to avoid saving phantom symptoms.
+    setDiagnosisEyeMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[id];
+      return newMap;
+    });
+    // Remove associated symptoms
     setSelectedSymptoms(prev => prev.filter(s => s.diagnosis_id !== id));
   };
 
@@ -201,8 +219,32 @@ export function OptometryPrescriptionForm({
       }
       if (existingPrescription.diagnosis) {
         setValue("diagnosis", existingPrescription.diagnosis);
-        // Try to resolve diagnoses if not already resolved?
-        // This is complex without backend support to return diagnosis IDs in the prescription directly (unless included in symptoms)
+
+        // Parse diagnosis text to extract eye information
+        // Format: "Myopia (OD), Astigmatism (OS), Cataract (OU)"
+        const diagnosisText = existingPrescription.diagnosis;
+        const diagnosisPatternWithEye = /([^,()]+)\s*\((OD|OS|OU|NA)\)/g;
+        const matches = [...diagnosisText.matchAll(diagnosisPatternWithEye)];
+
+        if (matches.length > 0) {
+          // Has formatted diagnoses with eyes
+          matches.forEach(match => {
+            const name = match[1].trim();
+            const eye = match[2] as "OD" | "OS" | "OU" | "NA";
+
+            // Try to find and add this diagnosis
+            diagnosesApi.list({ search: name, page_size: 1, status: 'active' }).then(res => {
+              if (res.items.length > 0 && res.items[0].diagnosis_name === name) {
+                const d = res.items[0];
+                setSelectedDiagnoses(prev => {
+                  if (prev.find(p => p.id === d.id)) return prev;
+                  return [...prev, d];
+                });
+                setDiagnosisEyeMap(prev => ({ ...prev, [d.id]: eye }));
+              }
+            }).catch(err => console.error("Failed to load diagnosis", err));
+          });
+        }
       }
       if (existingPrescription.notes) setValue("notes", existingPrescription.notes);
       if (existingPrescription.frame_fitting_notes) {
@@ -245,6 +287,15 @@ export function OptometryPrescriptionForm({
       }
     }
     try {
+      // Format diagnosis text with eye labels
+      const formatDiagnosisText = () => {
+        if (selectedDiagnoses.length === 0) return data.diagnosis || null;
+        return selectedDiagnoses.map(d => {
+          const eye = diagnosisEyeMap[d.id] || "OU";
+          return `${d.diagnosis_name} (${eye})`;
+        }).join(", ");
+      };
+
       const prescriptionData = {
         patient_id: patientId,
         visit_id: visitId,
@@ -272,7 +323,7 @@ export function OptometryPrescriptionForm({
         ],
         pupillary_distance: data.pupillary_distance ? parseFloat(data.pupillary_distance) : null,
         symptoms: selectedSymptoms,
-        diagnosis: data.diagnosis || null,
+        diagnosis: formatDiagnosisText(),
         notes: data.notes || null,
         frame_fitting_notes: data.frame_fitting_notes || null,
       };
@@ -636,6 +687,39 @@ export function OptometryPrescriptionForm({
                           <X className="h-4 w-4" />
                         </button>
                       </div>
+
+                      {/* Eye Selection Toggle Buttons */}
+                      <div className="flex items-center gap-3 py-2">
+                        <span className="text-xs font-medium text-slate-600">Applicable Eye:</span>
+                        <div className="flex gap-2">
+                          {(["OD", "OS", "OU", "NA"] as const).map((eye) => {
+                            const isActive = diagnosisEyeMap[diagnosis.id] === eye;
+                            return (
+                              <button
+                                key={eye}
+                                type="button"
+                                onClick={() => setDiagnosisEyeMap(prev => ({ ...prev, [diagnosis.id]: eye }))}
+                                className={`
+                                  px-3 py-1 text-xs font-medium rounded-md transition-all
+                                  ${isActive
+                                    ? 'bg-sky-600 text-white shadow-sm'
+                                    : 'bg-white text-slate-600 border border-slate-300 hover:border-sky-400 hover:bg-sky-50'
+                                  }
+                                `}
+                                title={
+                                  eye === "OD" ? "Right Eye (Oculus Dexter)" :
+                                    eye === "OS" ? "Left Eye (Oculus Sinister)" :
+                                      eye === "OU" ? "Both Eyes (Oculus Uterque)" :
+                                        "Not Applicable"
+                                }
+                              >
+                                {eye}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <div className="pl-2">
                         <p className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Related Symptoms</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">

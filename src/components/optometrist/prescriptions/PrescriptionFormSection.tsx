@@ -211,6 +211,7 @@ export function PrescriptionFormSection({
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
     const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
+    const [diagnosisEyeMap, setDiagnosisEyeMap] = useState<Record<string, "OD" | "OS" | "OU" | "NA">>({});
     const [resolvedDiagnoses, setResolvedDiagnoses] = useState<Record<string, Diagnosis>>({});
     const [availableSymptoms, setAvailableSymptoms] = useState<Record<string, DiagnosisSymptomMap[]>>({});
     const [selectedSymptoms, setSelectedSymptoms] = useState<PrescriptionSymptom[]>([]);
@@ -763,6 +764,30 @@ export function PrescriptionFormSection({
         });
 
         if (isAdding) {
+            // Determine default eye from selected symptoms
+            let defaultEye: "OD" | "OS" | "OU" | "NA" = "OU";
+            const symptomEyes = selectedSymptoms
+                .filter(s => s.applicable_eye)
+                .map(s => s.applicable_eye);
+
+            if (symptomEyes.length > 0) {
+                const eyeCounts = symptomEyes.reduce((acc, eye) => {
+                    if (eye) acc[eye] = (acc[eye] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
+                const mostCommon = Object.entries(eyeCounts).sort((a, b) => b[1] - a[1])[0];
+                if (mostCommon) {
+                    const eye = mostCommon[0];
+                    if (eye === "LEFT") defaultEye = "OS";
+                    else if (eye === "RIGHT") defaultEye = "OD";
+                    else if (eye === "BOTH") defaultEye = "OU";
+                    else defaultEye = "NA";
+                }
+            }
+
+            // Set default eye for this diagnosis
+            setDiagnosisEyeMap(prev => ({ ...prev, [value]: defaultEye }));
+
             // If it's a chip/preset, we might not have the ID yet unless it's in the option
             const option = diagnosesOptions.find(o => o.value === value);
             if (option?.id) {
@@ -788,6 +813,12 @@ export function PrescriptionFormSection({
                 }
             }
         } else {
+            // Remove from eye map
+            setDiagnosisEyeMap(prev => {
+                const newMap = { ...prev };
+                delete newMap[value];
+                return newMap;
+            });
             // Remove symptoms for this diagnosis
             const diagId = diagnosesOptions.find(o => o.value === value)?.id || resolvedDiagnoses[value]?.id;
             if (diagId) {
@@ -1093,9 +1124,24 @@ export function PrescriptionFormSection({
                 ? sanitizeMedicineItems(data.medicine_items)
                 : undefined;
 
+            // Format diagnosis text with eye labels
+            const formatDiagnosisText = () => {
+                if (selectedDiagnoses.length === 0) return data.diagnosis || null;
+                return selectedDiagnoses.map(diagName => {
+                    const eye = diagnosisEyeMap[diagName] || "OU";
+                    const eyeLabel =
+                        eye === "OD" ? "Right Eye" :
+                            eye === "OS" ? "Left Eye" :
+                                eye === "OU" ? "Both Eyes" :
+                                    "Not Applicable";
+                    return `${diagName} (${eyeLabel})`;
+                }).join(", ");
+            };
+            const formattedDiagnosis = formatDiagnosisText();
+
             if (savedPrescription?.id) {
                 result = await optometryPrescriptionApi.update(savedPrescription.id, {
-                    diagnosis: data.diagnosis || null,
+                    diagnosis: formattedDiagnosis,
                     notes: null,
                     items: items.length > 0 ? items : undefined,
                     followup_date: data.followup_date || null,
@@ -1119,7 +1165,7 @@ export function PrescriptionFormSection({
                     visit_id: visitId,
                     optometrist_id: optometristId,
                     doctor_id: doctorId,
-                    diagnosis: data.diagnosis || null,
+                    diagnosis: formattedDiagnosis,
                     notes: null,
                     items: items,
                     followup_date: data.followup_date || undefined,
@@ -1500,6 +1546,38 @@ export function PrescriptionFormSection({
                                                             diagnoses={[diagName]}
                                                             onRemove={handleDiagnosisToggle}
                                                         />
+
+                                                        {/* Eye Selection Toggle Buttons */}
+                                                        <div className="flex items-center gap-2 ml-2 mb-2">
+                                                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Eye:</span>
+                                                            <div className="flex gap-1.5">
+                                                                {(["OD", "OS", "OU", "NA"] as const).map((eye) => {
+                                                                    const isActive = diagnosisEyeMap[diagName] === eye;
+                                                                    return (
+                                                                        <button
+                                                                            key={eye}
+                                                                            type="button"
+                                                                            onClick={() => setDiagnosisEyeMap(prev => ({ ...prev, [diagName]: eye }))}
+                                                                            className={clsx(
+                                                                                "px-2.5 py-1 text-[10px] font-bold rounded-md transition-all uppercase tracking-wide",
+                                                                                isActive
+                                                                                    ? "bg-sky-600 text-white shadow-sm ring-2 ring-sky-500/30"
+                                                                                    : "bg-white text-slate-600 border border-slate-300 hover:border-sky-400 hover:bg-sky-50"
+                                                                            )}
+                                                                            title={
+                                                                                eye === "OD" ? "Right Eye (Oculus Dexter)" :
+                                                                                    eye === "OS" ? "Left Eye (Oculus Sinister)" :
+                                                                                        eye === "OU" ? "Both Eyes (Oculus Uterque)" :
+                                                                                            "Not Applicable"
+                                                                            }
+                                                                        >
+                                                                            {eye}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+
                                                         {symptoms && symptoms.length > 0 && (
                                                             <div className="ml-4 pl-4 border-l-2 border-slate-200 py-1 flex flex-wrap gap-1.5 transition-all animate-in fade-in slide-in-from-left-2 duration-300">
                                                                 {symptoms.map((s) => {
