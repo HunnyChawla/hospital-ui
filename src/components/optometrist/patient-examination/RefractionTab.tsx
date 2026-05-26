@@ -785,8 +785,8 @@ export function RefractionTab({
               onODChange={(v) => updateField("od", "cylinder", v)}
               onOSChange={(v) => updateField("os", "cylinder", v)}
               step={0.25}
-              min={-10}
-              max={0}
+              min={-6}
+              max={6}
 
               unit="D"
               presets={cylinderPresets}
