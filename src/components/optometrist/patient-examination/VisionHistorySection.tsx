@@ -13,19 +13,15 @@ interface VisionHistoryItem {
         ucva_distance: string | null;
         ph_va: string | null;
         va_with_current_specs: string | null;
-        bcva_distance: string | null;
         near_ucva: string | null;
         near_with_current_specs: string | null;
-        near_bcva: string | null;
     };
     os: {
         ucva_distance: string | null;
         ph_va: string | null;
         va_with_current_specs: string | null;
-        bcva_distance: string | null;
         near_ucva: string | null;
         near_with_current_specs: string | null;
-        near_bcva: string | null;
     };
     notes?: string | null;
 }
@@ -60,19 +56,15 @@ export function VisionHistorySection({
                 ucva_distance: record.od_ucva_distance || null,
                 ph_va: record.od_ph_va || null,
                 va_with_current_specs: record.od_va_with_current_specs || null,
-                bcva_distance: record.od_bcva_distance || null,
                 near_ucva: record.od_near_ucva || null,
                 near_with_current_specs: record.od_near_with_current_specs || null,
-                near_bcva: record.od_near_bcva || null,
             },
             os: {
                 ucva_distance: record.os_ucva_distance || null,
                 ph_va: record.os_ph_va || null,
                 va_with_current_specs: record.os_va_with_current_specs || null,
-                bcva_distance: record.os_bcva_distance || null,
                 near_ucva: record.os_near_ucva || null,
                 near_with_current_specs: record.os_near_with_current_specs || null,
-                near_bcva: record.os_near_bcva || null,
             },
             notes: record.notes,
         };
@@ -245,20 +237,12 @@ export function VisionHistorySection({
                                                     <span className="text-slate-500">With Specs:</span>
                                                     <span className="font-medium text-slate-800">{formatVA(record.od.va_with_current_specs)}</span>
                                                 </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-slate-500">BCVA:</span>
-                                                    <span className="font-medium text-slate-800">{formatVA(record.od.bcva_distance)}</span>
-                                                </div>
-                                                {(record.od.near_ucva || record.od.near_bcva) && (
+                                                {record.od.near_ucva && (
                                                     <>
                                                         <div className="border-t border-blue-200 my-1 pt-1" />
                                                         <div className="flex justify-between">
                                                             <span className="text-slate-500">Near UCVA:</span>
                                                             <span className="font-medium text-slate-800">{formatVA(record.od.near_ucva)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-slate-500">Near BCVA:</span>
-                                                            <span className="font-medium text-slate-800">{formatVA(record.od.near_bcva)}</span>
                                                         </div>
                                                     </>
                                                 )}
@@ -284,20 +268,12 @@ export function VisionHistorySection({
                                                     <span className="text-slate-500">With Specs:</span>
                                                     <span className="font-medium text-slate-800">{formatVA(record.os.va_with_current_specs)}</span>
                                                 </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-slate-500">BCVA:</span>
-                                                    <span className="font-medium text-slate-800">{formatVA(record.os.bcva_distance)}</span>
-                                                </div>
-                                                {(record.os.near_ucva || record.os.near_bcva) && (
+                                                {record.os.near_ucva && (
                                                     <>
                                                         <div className="border-t border-green-200 my-1 pt-1" />
                                                         <div className="flex justify-between">
                                                             <span className="text-slate-500">Near UCVA:</span>
                                                             <span className="font-medium text-slate-800">{formatVA(record.os.near_ucva)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-slate-500">Near BCVA:</span>
-                                                            <span className="font-medium text-slate-800">{formatVA(record.os.near_bcva)}</span>
                                                         </div>
                                                     </>
                                                 )}

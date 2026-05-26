@@ -280,7 +280,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.od_ucva_distance || visitData?.refraction?.od_visual_acuity_uncorrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_bcva_distance || visitData?.refraction?.od_visual_acuity_corrected)}
+                                                {formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.od_ph_va)}
@@ -289,7 +289,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.od_near_ucva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_near_bcva)}
+                                                {formatVal(visitData?.refraction?.od_near_bcva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.iop?.od_pressure)}
@@ -302,7 +302,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.os_ucva_distance || visitData?.refraction?.os_visual_acuity_uncorrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_bcva_distance || visitData?.refraction?.os_visual_acuity_corrected)}
+                                                {formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.os_ph_va)}
@@ -311,7 +311,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.os_near_ucva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_near_bcva)}
+                                                {formatVal(visitData?.refraction?.os_near_bcva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.iop?.os_pressure)}
@@ -497,8 +497,13 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 <div className={`${isCompact ? "space-y-1" : "space-y-2"}`}>
                                     {prescription.medicine_items.map((med, idx) => (
                                         <div key={idx} className={sectionFontClass}>
-                                            <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap">
+                                            <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap items-center">
                                                 <span>{idx + 1}. {med.medicine_name}</span>
+                                                {med.applicable_eye && med.applicable_eye !== 'NA' && (
+                                                    <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-bold ml-1">
+                                                        {med.applicable_eye === 'BOTH' ? 'BOTH EYES' : med.applicable_eye}
+                                                    </span>
+                                                )}
                                                 {med.generic_name && <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">({med.generic_name})</span>}
                                             </div>
                                             <div className="pl-5 text-[10px] text-slate-600">

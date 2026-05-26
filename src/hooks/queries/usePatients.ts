@@ -65,7 +65,8 @@ export function usePatient(patientId: string | null) {
 }
 
 /**
- * Create new patient with optimistic updates
+ * Create new patient
+ * Relying on onSettled invalidation to refresh the list with server IDs
  */
 export function useCreatePatient() {
   const queryClient = useQueryClient();
@@ -78,45 +79,14 @@ export function useCreatePatient() {
         isPlatformOwner ? tenantId ?? undefined : undefined
       );
     },
-    onMutate: async (newPatient) => {
-      // Cancel any outgoing refetches to prevent race conditions
-      await queryClient.cancelQueries({ queryKey: patientKeys.lists() });
-
-      // Snapshot the previous value
-      const previousPatients = queryClient.getQueryData(patientKeys.lists());
-
-      // Optimistically update to the new value
-      queryClient.setQueriesData({ queryKey: patientKeys.lists() }, (old: any) => {
-        if (!old || !old.patients) return old;
-
-        return {
-          ...old,
-          patients: [newPatient, ...(old.patients || [])],
-          pagination: {
-            ...old.pagination,
-            total: old.pagination.total + 1,
-          },
-        };
-      });
-
-      // Return context object with snapshot
-      return { previousPatients };
-    },
-    onError: (err, newPatient, context) => {
-      // If the mutation fails, use the context returned from onMutate to rollback
-      if (context?.previousPatients) {
-        queryClient.setQueryData(patientKeys.lists(), context.previousPatients);
-      }
-
-      // Show error toast
+    onError: (err) => {
       createMutationErrorHandler('Failed to create patient')(err);
     },
-    onSuccess: (data) => {
-      // Show success toast
+    onSuccess: () => {
       toast.success('Patient created successfully');
     },
     onSettled: () => {
-      // Always refetch after error or success to ensure server and cache are in sync
+      // Refresh the list from the server to get real IDs and avoid key warnings
       queryClient.invalidateQueries({ queryKey: patientKeys.lists() });
     },
   });

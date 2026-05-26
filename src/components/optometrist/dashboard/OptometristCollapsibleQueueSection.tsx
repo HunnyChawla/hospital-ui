@@ -3,6 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { ChevronRight, ChevronLeft, Users, CheckCircle, Play, X, RotateCcw, AlertTriangle, Clock, Droplet } from "lucide-react";
 import { OptometristQueueFilter } from "@/hooks/useOptometristPanelPreferences";
+import { useQueueFlags } from "@/hooks/useFeatureFlags";
 import {
   filterOptometristQueuePatients,
   getOptometristQueueCounts,
@@ -40,6 +41,9 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   onToggle,
   isDoctor = false,
 }) => {
+  // Feature flags for queue configuration
+  const { allowDoctorPickAny, allowOptometristPickAny } = useQueueFlags();
+
   // Scroll functionality for tabs
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftScroll, setShowLeftScroll] = useState(false);
@@ -369,7 +373,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                         {/* START: Optometrist Actions */}
                         {!isDoctor && (
                           <>
-                            {patient.status === "awaiting_optometrist" && index === 0 && (
+                            {patient.status === "awaiting_optometrist" && (allowOptometristPickAny || index === 0) && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -497,7 +501,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                         {isDoctor && (
                           <>
                             {/* Call Patient (Pick Doctor) - Show for awaiting_doctor */}
-                            {patient.status === "awaiting_doctor" && index === 0 && (
+                            {patient.status === "awaiting_doctor" && (allowDoctorPickAny || index === 0) && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

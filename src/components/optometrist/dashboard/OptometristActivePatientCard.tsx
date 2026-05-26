@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Eye, X, LayoutGrid, LayoutList, LayoutDashboard } from "lucide-react";
 import { CreatePrescriptionButton } from "../prescriptions/CreatePrescriptionButton";
 import { ShowSummaryButton } from "../summary/ShowSummaryButton";
 import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
+import { PatientDetailView } from "../../patients/PatientDetailView";
 
 type ActiveTab =
   | "complaints"
@@ -52,6 +53,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   isCompleted = false,
 }) => {
   const { viewMode, setViewMode } = useExaminationViewPreference();
+  const [showPatientDetail, setShowPatientDetail] = useState(false);
 
   if (!showPatientCard) {
     return (
@@ -79,7 +81,11 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h2 className="truncate text-sm font-bold text-slate-900 sm:text-base">
+                <h2
+                  onClick={() => setShowPatientDetail(true)}
+                  className="truncate text-sm font-bold text-slate-900 sm:text-base cursor-pointer hover:text-sky-600 hover:underline transition-all"
+                  title="View Patient Details"
+                >
                   {patientName || "Patient Details"}
                 </h2>
                 {visitType && (
@@ -170,6 +176,13 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
         {children}
       </div>
+
+      {showPatientDetail && patientId && (
+        <PatientDetailView
+          patientId={patientId}
+          onClose={() => setShowPatientDetail(false)}
+        />
+      )}
     </div>
   );
 };

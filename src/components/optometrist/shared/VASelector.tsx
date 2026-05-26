@@ -39,6 +39,12 @@ const vaOptions: VAOption[] = [
   { value: "3/60", label: "3/60", isCommon: false },
   { value: "2/60", label: "2/60", isCommon: false },
   { value: "1/60", label: "1/60", isCommon: false },
+  { value: "CF 6m", label: "Counting Finger 6m", isCommon: false },
+  { value: "CF 5m", label: "Counting Finger 5m", isCommon: false },
+  { value: "CF 4m", label: "Counting Finger 4m", isCommon: false },
+  { value: "CF 3m", label: "Counting Finger 3m", isCommon: false },
+  { value: "CF 2m", label: "Counting Finger 2m", isCommon: false },
+  { value: "CF 1m", label: "Counting Finger 1m", isCommon: false },
   { value: "CF", label: "CF (Counting Fingers)", isCommon: false },
   { value: "HM", label: "HM (Hand Movements)", isCommon: false },
   { value: "PL", label: "PL (Perception of Light)", isCommon: false },
@@ -115,14 +121,16 @@ export function VASelector({
   );
 
   const handleSelect = (optValue: string) => {
-    onChange(optValue);
+    const newValue = value === optValue ? "" : optValue;
+    onChange(newValue);
     setIsOpen(false);
     setSearchTerm("");
   };
 
   const handleQuickSelect = (optValue: string) => {
     if (disabled) return;
-    onChange(optValue);
+    const newValue = value === optValue ? "" : optValue;
+    onChange(newValue);
   };
 
   const selectedOption = vaOptions.find((opt) => opt.value === value);

@@ -33,7 +33,12 @@ export function AppointmentForm({
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
 
   const [patientId, setPatientId] = useState(defaultPatientId || "");
-  const [doctorId, setDoctorId] = useState("");
+  const [doctorId, setDoctorId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("last_selected_doctor_id") || "";
+    }
+    return "";
+  });
   const [appointmentDate, setAppointmentDate] = useState("");
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,15 +57,22 @@ export function AppointmentForm({
     }
   }, [dispatch, doctors.length, doctorsLoading]);
 
+  // Save selected doctor to local storage
+  useEffect(() => {
+    if (doctorId && typeof window !== "undefined") {
+      localStorage.setItem("last_selected_doctor_id", doctorId);
+    }
+  }, [doctorId]);
+
   // Do not auto-select the first doctor; require explicit user choice to avoid
   // submitting an unintended doctor. This prevents the form from silently
   // resetting to the first doctor in the list.
   useEffect(() => {
-    if (doctorId && doctors.length === 0) {
-      // Clear stale selection if list empties (e.g., refetch)
+    if (doctorId && doctors.length === 0 && !doctorsLoading) {
+      // Clear stale selection if list empties (e.g., refetch) and loading is finished
       setDoctorId("");
     }
-  }, [doctors.length, doctorId]);
+  }, [doctors.length, doctorId, doctorsLoading]);
 
   useEffect(() => {
     // Set default date to today
@@ -224,7 +236,6 @@ export function AppointmentForm({
 
       // Reset form
       setPatientId("");
-      setDoctorId("");
       setNotes("");
       setSearchTerm("");
       setDropdownSearchTerm("");

@@ -186,7 +186,8 @@ export function NumericStepper({
 
   const handlePresetClick = (presetValue: number) => {
     if (disabled) return;
-    onChange(presetValue);
+    const newValue = value === presetValue ? null : presetValue;
+    onChange(newValue);
   };
 
   const handleClear = () => {
@@ -295,8 +296,9 @@ export function NumericStepper({
         {showPresets && presets.length > 0 && (
           <div className="mt-3">
             {(() => {
-              const negativePresets = presets.filter((p) => p < 0);
-              const positivePresets = presets.filter((p) => p >= 0);
+              const negativePresets = presets.filter((p) => p < 0).sort((a, b) => b - a);
+              const positivePresets = presets.filter((p) => p >= 0).sort((a, b) => a - b);
+              const sortedPresets = [...negativePresets, ...positivePresets];
               const hasBoth = negativePresets.length > 0 && positivePresets.length > 0;
 
               if (hasBoth) {
@@ -352,7 +354,7 @@ export function NumericStepper({
 
               return (
                 <div className="flex flex-wrap gap-1">
-                  {presets.map((preset) => (
+                  {sortedPresets.map((preset) => (
                     <button
                       key={preset}
                       type="button"

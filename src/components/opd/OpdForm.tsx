@@ -32,7 +32,12 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
 
-  const [doctorId, setDoctorId] = useState("");
+  const [doctorId, setDoctorId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("last_selected_doctor_id") || "";
+    }
+    return "";
+  });
   const [symptoms, setSymptoms] = useState("");
   const [patientId, setPatientId] = useState(defaultPatientId || "");
   const [term, setTerm] = useState("");
@@ -41,6 +46,13 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedPatientData, setSelectedPatientData] = useState<Patient | null>(null);
+
+  // Save selected doctor to local storage
+  useEffect(() => {
+    if (doctorId && typeof window !== "undefined") {
+      localStorage.setItem("last_selected_doctor_id", doctorId);
+    }
+  }, [doctorId]);
   const [opdNumber, setOpdNumber] = useState("");
   const [tokenNumber, setTokenNumber] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<"" | "cash" | "upi" | "card" | "cheque">("");
@@ -853,7 +865,6 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                 setVisitData(null);
                 setOpdNumber("");
                 setTokenNumber(0);
-                setDoctorId("");
                 // Keep patient selected
                 setSymptoms("");
                 setPaymentMethod("");

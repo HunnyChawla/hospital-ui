@@ -9,7 +9,7 @@ import clsx from "clsx";
 import type { RefractionRecord } from "@/types";
 
 // Import shared components
-import { EyeValueInput, NumericStepper } from "../shared";
+import { EyeValueInput, NumericStepper, VASelector } from "../shared";
 import { TemplateSelector, CopyFromPreviousButton } from "../templates";
 import { refractionTemplates, type RefractionTemplate } from "../mock";
 import { refractionApi } from "@/services/refractionApi";
@@ -32,12 +32,20 @@ interface RefractionFormData {
     sphere: number | null;
     cylinder: number | null;
     axis: number | null;
+    visual_acuity_uncorrected: string;
+    visual_acuity_corrected: string;
+    distance_bcva: string;
+    near_bcva: string;
     add_power: number | null;
   };
   os: {
     sphere: number | null;
     cylinder: number | null;
     axis: number | null;
+    visual_acuity_uncorrected: string;
+    visual_acuity_corrected: string;
+    distance_bcva: string;
+    near_bcva: string;
     add_power: number | null;
   };
   pupillary_distance: number | null;
@@ -49,12 +57,20 @@ const initialFormData: RefractionFormData = {
     sphere: null,
     cylinder: null,
     axis: null,
+    visual_acuity_uncorrected: "",
+    visual_acuity_corrected: "",
+    distance_bcva: "",
+    near_bcva: "",
     add_power: null,
   },
   os: {
     sphere: null,
     cylinder: null,
     axis: null,
+    visual_acuity_uncorrected: "",
+    visual_acuity_corrected: "",
+    distance_bcva: "",
+    near_bcva: "",
     add_power: null,
   },
   pupillary_distance: null,
@@ -68,6 +84,7 @@ const initialFormData: RefractionFormData = {
 // const AXIS_PRESETS = [0, 10, 20, 30, 45, 60, 70, 80, 90, 100, 110, 120, 135, 150, 160, 170, 180];
 // const ADD_POWER_PRESETS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5];
 const PD_PRESETS = [54, 56, 58, 60, 61, 62, 63, 64, 65, 66, 68, 70];
+const NEAR_VA_OPTIONS = ["N5", "N6", "N8", "N10", "N12", "N14", "N18", "N24", "N36", "N48"];
 
 export function RefractionTab({
   patientId,
@@ -116,19 +133,23 @@ export function RefractionTab({
         sphere: hasNested ? toNumberOrNull(r.od.sphere) : toNumberOrNull(r.od_sphere),
         cylinder: hasNested ? toNumberOrNull(r.od.cylinder) : toNumberOrNull(r.od_cylinder),
         axis: hasNested ? toNumberOrNull(r.od.axis) : toNumberOrNull(r.od_axis),
-        visual_acuity_uncorrected: hasNested ? r.od.visual_acuity_uncorrected ?? null : r.od_visual_acuity_uncorrected ?? null,
-        visual_acuity_corrected: hasNested ? r.od.visual_acuity_corrected ?? null : r.od_visual_acuity_corrected ?? null,
+        visual_acuity_uncorrected: hasNested ? r.od.visual_acuity_uncorrected ?? "" : r.od_visual_acuity_uncorrected ?? "",
+        visual_acuity_corrected: hasNested ? r.od.visual_acuity_corrected ?? "" : r.od_visual_acuity_corrected ?? "",
+        distance_bcva: hasNested ? r.od.distance_bcva ?? "" : r.od_distance_bcva ?? "",
+        near_bcva: hasNested ? r.od.near_bcva ?? "" : r.od_near_bcva ?? "",
         add_power: hasNested ? toNumberOrNull(r.od.add_power) : toNumberOrNull(r.od_add_power),
       },
       os: {
         sphere: hasNested ? toNumberOrNull(r.os.sphere) : toNumberOrNull(r.os_sphere),
         cylinder: hasNested ? toNumberOrNull(r.os.cylinder) : toNumberOrNull(r.os_cylinder),
         axis: hasNested ? toNumberOrNull(r.os.axis) : toNumberOrNull(r.os_axis),
-        visual_acuity_uncorrected: hasNested ? r.os.visual_acuity_uncorrected ?? null : r.os_visual_acuity_uncorrected ?? null,
-        visual_acuity_corrected: hasNested ? r.os.visual_acuity_corrected ?? null : r.os_visual_acuity_corrected ?? null,
+        visual_acuity_uncorrected: hasNested ? r.os.visual_acuity_uncorrected ?? "" : r.os_visual_acuity_uncorrected ?? "",
+        visual_acuity_corrected: hasNested ? r.os.visual_acuity_corrected ?? "" : r.os_visual_acuity_corrected ?? "",
+        distance_bcva: hasNested ? r.os.distance_bcva ?? "" : r.os_distance_bcva ?? "",
+        near_bcva: hasNested ? r.os.near_bcva ?? "" : r.os_near_bcva ?? "",
         add_power: hasNested ? toNumberOrNull(r.os.add_power) : toNumberOrNull(r.os_add_power),
       },
-      pupillary_distance: hasNested ? toNumberOrNull(r.pupillary_distance) : toNumberOrNull(r.pupillary_distance),
+      pupillary_distance: toNumberOrNull(r.pupillary_distance),
     };
   };
 
@@ -228,6 +249,10 @@ export function RefractionTab({
         sphere: template.data.od.sphere,
         cylinder: template.data.od.cylinder,
         axis: template.data.od.axis,
+        visual_acuity_uncorrected: (template.data.od as any).visual_acuity_uncorrected || "",
+        visual_acuity_corrected: (template.data.od as any).visual_acuity_corrected || "",
+        distance_bcva: (template.data.od as any).distance_bcva || "",
+        near_bcva: (template.data.od as any).near_bcva || "",
         add_power: template.data.od.add_power,
       },
       os: {
@@ -235,6 +260,10 @@ export function RefractionTab({
         sphere: template.data.os.sphere,
         cylinder: template.data.os.cylinder,
         axis: template.data.os.axis,
+        visual_acuity_uncorrected: (template.data.os as any).visual_acuity_uncorrected || "",
+        visual_acuity_corrected: (template.data.os as any).visual_acuity_corrected || "",
+        distance_bcva: (template.data.os as any).distance_bcva || "",
+        near_bcva: (template.data.os as any).near_bcva || "",
         add_power: template.data.os.add_power,
       },
     }));
@@ -256,6 +285,10 @@ export function RefractionTab({
           sphere: prevData.od!.sphere,
           cylinder: prevData.od!.cylinder,
           axis: prevData.od!.axis,
+          visual_acuity_uncorrected: (prevData.od as any).visual_acuity_uncorrected || "",
+          visual_acuity_corrected: (prevData.od as any).visual_acuity_corrected || "",
+          distance_bcva: (prevData.od as any).distance_bcva || "",
+          near_bcva: (prevData.od as any).near_bcva || "",
           add_power: prevData.od!.add_power,
         },
       }));
@@ -268,6 +301,10 @@ export function RefractionTab({
           sphere: prevData.os!.sphere,
           cylinder: prevData.os!.cylinder,
           axis: prevData.os!.axis,
+          visual_acuity_uncorrected: (prevData.os as any).visual_acuity_uncorrected || "",
+          visual_acuity_corrected: (prevData.os as any).visual_acuity_corrected || "",
+          distance_bcva: (prevData.os as any).distance_bcva || "",
+          near_bcva: (prevData.os as any).near_bcva || "",
           add_power: prevData.os!.add_power,
         },
       }));
@@ -319,12 +356,20 @@ export function RefractionTab({
           sphere: visitCombined?.od?.sphere ?? visitOD?.sphere ?? null,
           cylinder: visitCombined?.od?.cylinder ?? visitOD?.cylinder ?? null,
           axis: visitCombined?.od?.axis ?? visitOD?.axis ?? null,
+          visual_acuity_uncorrected: visitCombined?.od?.visual_acuity_uncorrected ?? visitOD?.visual_acuity_uncorrected ?? "",
+          visual_acuity_corrected: visitCombined?.od?.visual_acuity_corrected ?? visitOD?.visual_acuity_corrected ?? "",
+          distance_bcva: visitCombined?.od?.distance_bcva ?? visitOD?.distance_bcva ?? "",
+          near_bcva: visitCombined?.od?.near_bcva ?? visitOD?.near_bcva ?? "",
           add_power: visitCombined?.od?.add_power ?? visitOD?.add_power ?? null,
         },
         os: {
           sphere: visitCombined?.os?.sphere ?? visitOS?.sphere ?? null,
           cylinder: visitCombined?.os?.cylinder ?? visitOS?.cylinder ?? null,
           axis: visitCombined?.os?.axis ?? visitOS?.axis ?? null,
+          visual_acuity_uncorrected: visitCombined?.os?.visual_acuity_uncorrected ?? visitOS?.visual_acuity_uncorrected ?? "",
+          visual_acuity_corrected: visitCombined?.os?.visual_acuity_corrected ?? visitOS?.visual_acuity_corrected ?? "",
+          distance_bcva: visitCombined?.os?.distance_bcva ?? visitOS?.distance_bcva ?? "",
+          near_bcva: visitCombined?.os?.near_bcva ?? visitOS?.near_bcva ?? "",
           add_power: visitCombined?.os?.add_power ?? visitOS?.add_power ?? null,
         },
         pupillary_distance: visitCombined?.pupillary_distance ?? visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
@@ -344,31 +389,8 @@ export function RefractionTab({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Check OD required fields
-    if (formData.od.sphere === null) {
-      newErrors.od_sphere = "OD Sphere is required";
-    }
-    // Axis required if cylinder is specified
-    if (
-      formData.od.cylinder !== null &&
-      formData.od.cylinder !== 0 &&
-      formData.od.axis === null
-    ) {
-      newErrors.od_axis = "Axis is required when cylinder is specified";
-    }
-
-    // Check OS required fields
-    if (formData.os.sphere === null) {
-      newErrors.os_sphere = "OS Sphere is required";
-    }
-    // Axis required if cylinder is specified
-    if (
-      formData.os.cylinder !== null &&
-      formData.os.cylinder !== 0 &&
-      formData.os.axis === null
-    ) {
-      newErrors.os_axis = "Axis is required when cylinder is specified";
-    }
+    // All fields are now optional - no validation required
+    // Axis is only relevant if cylinder is specified, but not required
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -380,10 +402,8 @@ export function RefractionTab({
       toast.error("No active visit found. Please select/start a visit before saving refraction.");
       return;
     }
-    if (!validateForm()) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
+    // Validate form (currently always returns true since all fields are optional)
+    validateForm();
 
     setIsSubmitting(true);
 
@@ -397,19 +417,23 @@ export function RefractionTab({
               optometrist_id: optometristId,
               visit_id: visitId,
               od: {
-                sphere: formData.od.sphere!,
+                sphere: formData.od.sphere,
                 cylinder: formData.od.cylinder,
                 axis: formData.od.axis,
-                visual_acuity_uncorrected: "",
-                visual_acuity_corrected: "",
+                visual_acuity_uncorrected: formData.od.visual_acuity_uncorrected,
+                visual_acuity_corrected: formData.od.visual_acuity_corrected,
+                distance_bcva: formData.od.distance_bcva,
+                near_bcva: formData.od.near_bcva,
                 add_power: formData.od.add_power,
               },
               os: {
-                sphere: formData.os.sphere!,
+                sphere: formData.os.sphere,
                 cylinder: formData.os.cylinder,
                 axis: formData.os.axis,
-                visual_acuity_uncorrected: "",
-                visual_acuity_corrected: "",
+                visual_acuity_uncorrected: formData.os.visual_acuity_uncorrected,
+                visual_acuity_corrected: formData.os.visual_acuity_corrected,
+                distance_bcva: formData.os.distance_bcva,
+                near_bcva: formData.os.near_bcva,
                 add_power: formData.os.add_power,
               },
               pupillary_distance: formData.pupillary_distance,
@@ -427,6 +451,10 @@ export function RefractionTab({
                 sphere: formData.od.sphere ?? undefined,
                 cylinder: formData.od.cylinder ?? undefined,
                 axis: formData.od.axis ?? undefined,
+                visual_acuity_uncorrected: formData.od.visual_acuity_uncorrected,
+                visual_acuity_corrected: formData.od.visual_acuity_corrected,
+                distance_bcva: formData.od.distance_bcva,
+                near_bcva: formData.od.near_bcva,
                 add_power: formData.od.add_power ?? undefined,
                 pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
@@ -442,6 +470,10 @@ export function RefractionTab({
                 sphere: formData.os.sphere ?? undefined,
                 cylinder: formData.os.cylinder ?? undefined,
                 axis: formData.os.axis ?? undefined,
+                visual_acuity_uncorrected: formData.os.visual_acuity_uncorrected,
+                visual_acuity_corrected: formData.os.visual_acuity_corrected,
+                distance_bcva: formData.os.distance_bcva,
+                near_bcva: formData.os.near_bcva,
                 add_power: formData.os.add_power ?? undefined,
                 pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
@@ -457,19 +489,23 @@ export function RefractionTab({
               optometrist_id: optometristId,
               visit_id: visitId,
               od: {
-                sphere: formData.od.sphere!,
+                sphere: formData.od.sphere,
                 cylinder: formData.od.cylinder,
                 axis: formData.od.axis,
-                visual_acuity_uncorrected: "",
-                visual_acuity_corrected: "",
+                visual_acuity_uncorrected: formData.od.visual_acuity_uncorrected,
+                visual_acuity_corrected: formData.od.visual_acuity_corrected,
+                distance_bcva: formData.od.distance_bcva,
+                near_bcva: formData.od.near_bcva,
                 add_power: formData.od.add_power,
               },
               os: {
-                sphere: formData.os.sphere!,
+                sphere: formData.os.sphere,
                 cylinder: formData.os.cylinder,
                 axis: formData.os.axis,
-                visual_acuity_uncorrected: "",
-                visual_acuity_corrected: "",
+                visual_acuity_uncorrected: formData.os.visual_acuity_uncorrected,
+                visual_acuity_corrected: formData.os.visual_acuity_corrected,
+                distance_bcva: formData.os.distance_bcva,
+                near_bcva: formData.os.near_bcva,
                 add_power: formData.os.add_power,
               },
               pupillary_distance: formData.pupillary_distance,
@@ -583,6 +619,20 @@ export function RefractionTab({
                       </p>
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-blue-200 pt-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Dist. BCVA</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {visitCombined?.od?.distance_bcva ?? visitOD?.distance_bcva ?? "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Near BCVA</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {visitCombined?.od?.near_bcva ?? visitOD?.near_bcva ?? "—"}
+                      </p>
+                    </div>
+                  </div>
                   <div className="border-t border-blue-200 pt-2">
                     <span className="text-xs text-slate-500">
                       {new Date(visitCombined?.recorded_at ?? visitOD?.recorded_at).toLocaleDateString()}
@@ -634,6 +684,20 @@ export function RefractionTab({
                       <p className="text-xs text-slate-500">ADD</p>
                       <p className="text-lg font-bold text-slate-900">
                         {formatValue(visitCombined?.os?.add_power ?? visitOS?.add_power, "add")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-green-200 pt-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Dist. BCVA</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {visitCombined?.os?.distance_bcva ?? visitOS?.distance_bcva ?? "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Near BCVA</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {visitCombined?.os?.near_bcva ?? visitOS?.near_bcva ?? "—"}
                       </p>
                     </div>
                   </div>
@@ -709,7 +773,6 @@ export function RefractionTab({
               max={30}
               unit="D"
               presets={spherePresets}
-              required
               odError={errors.od_sphere}
               osError={errors.os_sphere}
             />
@@ -741,10 +804,6 @@ export function RefractionTab({
               max={180}
               unit="°"
               presets={axisPresets}
-              required={
-                (formData.od.cylinder !== null && formData.od.cylinder !== 0) ||
-                (formData.os.cylinder !== null && formData.os.cylinder !== 0)
-              }
               odError={errors.od_axis}
               osError={errors.os_axis}
             />
@@ -763,6 +822,88 @@ export function RefractionTab({
               unit="D"
               presets={addPowerPresets}
             />
+
+            {/* Distance BCVA */}
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-slate-900">
+                Distance BCVA (Best Corrected)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <VASelector
+                  value={formData.od.distance_bcva || null}
+                  onChange={(v) => updateField("od", "distance_bcva", v)}
+                  colorScheme="blue"
+                  placeholder="OD BCVA"
+                />
+                <VASelector
+                  value={formData.os.distance_bcva || null}
+                  onChange={(v) => updateField("os", "distance_bcva", v)}
+                  colorScheme="green"
+                  placeholder="OS BCVA"
+                />
+              </div>
+            </div>
+
+            {/* Near BCVA */}
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-slate-900">
+                Near BCVA (Best Corrected Near)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                    <span className="text-xs font-semibold text-blue-700">OD (Right)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {NEAR_VA_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => {
+                          const newValue = formData.od.near_bcva === opt ? "" : opt;
+                          updateField("od", "near_bcva", newValue);
+                        }}
+                        className={clsx(
+                          "rounded-md border px-2 py-1 text-xs font-medium transition",
+                          formData.od.near_bcva === opt
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
+                        )}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-lg border border-green-200 bg-green-50/50 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="text-xs font-semibold text-green-700">OS (Left)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {NEAR_VA_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => {
+                          const newValue = formData.os.near_bcva === opt ? "" : opt;
+                          updateField("os", "near_bcva", newValue);
+                        }}
+                        className={clsx(
+                          "rounded-md border px-2 py-1 text-xs font-medium transition",
+                          formData.os.near_bcva === opt
+                            ? "bg-green-600 text-white border-green-600"
+                            : "bg-green-100 text-green-700 hover:bg-green-200 border-green-200"
+                        )}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Pupillary Distance */}
             <div className="border-t border-slate-200 pt-6">

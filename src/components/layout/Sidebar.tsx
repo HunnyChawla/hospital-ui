@@ -25,6 +25,8 @@ import {
   Shield,
   Monitor,
   Link as LinkIcon,
+  LayoutTemplate,
+  Settings,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -60,8 +62,10 @@ const iconMap: Record<string, LucideIcon> = {
   Building2,
   Shield,
   LayoutList,
+  LayoutTemplate,
   Radio,
   Monitor,
+  Settings,
   Link: LinkIcon,
 };
 
@@ -136,6 +140,9 @@ export function Sidebar() {
       }
       if (!items.find((i) => i.href === "/tenants")) {
         items.push({ label: "Tenants", href: "/tenants", icon: Building2 });
+      }
+      if (!items.find((i) => i.href === "/feature-flags")) {
+        items.push({ label: "Feature Flags", href: "/feature-flags", icon: Settings });
       }
     }
 

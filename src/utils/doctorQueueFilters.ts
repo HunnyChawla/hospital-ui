@@ -94,7 +94,7 @@ export function getDoctorQueueCounts(patients: DoctorQueuePatient[]): Record<Doc
 }
 
 export function getDoctorStatusColor(status: string): string {
-    switch (status.toLowerCase()) {
+    switch ((status || "").toLowerCase()) {
         // Doctor pending statuses
         case "awaiting_doctor":
             return "bg-purple-100 text-purple-700 border-purple-300";
@@ -121,7 +121,7 @@ export function getDoctorStatusColor(status: string): string {
 }
 
 export function getDoctorStatusLabel(status: string): string {
-    switch (status.toLowerCase()) {
+    switch ((status || "").toLowerCase()) {
         case "awaiting_doctor":
             return "Awaiting Doctor";
         case "doctor_assigned":

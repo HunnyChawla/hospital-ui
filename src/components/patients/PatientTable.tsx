@@ -61,7 +61,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
               </div>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${patient.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
                 }`}>
-                {patient.status.toLowerCase()}
+                {(patient.status || 'Active').toLowerCase()}
               </span>
             </div>
 
@@ -132,7 +132,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                   <div className="flex flex-col text-slate-700">
                     <span>{patient.mobile}</span>
                     <span className="text-xs text-slate-500 capitalize">
-                      {patient.status.toLowerCase()}
+                      {(patient.status || 'Active').toLowerCase()}
                     </span>
                   </div>
                 </td>

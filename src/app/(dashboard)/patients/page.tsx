@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { PatientTable } from "@/components/patients/PatientTable";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
+import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { Patient } from "@/types";
 import { Activity } from "lucide-react";
 
@@ -20,6 +21,7 @@ export default function PatientsPage() {
   const searchParams = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
   // Handle query parameters for opening modals
   useEffect(() => {
@@ -45,6 +47,14 @@ export default function PatientsPage() {
     setEditingPatient(null);
   };
 
+  const handlePatientClick = (patientId: string) => {
+    setSelectedPatientId(patientId);
+  };
+
+  const handleCloseDetailView = () => {
+    setSelectedPatientId(null);
+  };
+
   return (
     <div className="grid gap-3">
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
@@ -66,10 +76,7 @@ export default function PatientsPage() {
 
         <div className="mt-4">
           <PatientTable
-            onPatientClick={(id) => {
-              // Will implement patient detail route later
-              console.log('View patient:', id);
-            }}
+            onPatientClick={handlePatientClick}
             onEditClick={handleEditPatient}
           />
         </div>
@@ -80,6 +87,13 @@ export default function PatientsPage() {
         onClose={handleCloseModal}
         defaultValues={editingPatient ?? undefined}
       />
+
+      {selectedPatientId && (
+        <PatientDetailView
+          patientId={selectedPatientId}
+          onClose={handleCloseDetailView}
+        />
+      )}
     </div>
   );
 }

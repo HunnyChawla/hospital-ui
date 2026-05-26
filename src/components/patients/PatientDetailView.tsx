@@ -45,6 +45,7 @@ import {
   Play,
   CheckCircle,
   Edit2,
+  MapPin,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -752,6 +753,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   <span>•</span>
                   <span className="capitalize">{patient.status}</span>
                 </div>
+                {(patient.address || patient.city || patient.state || patient.pincode) && (
+                  <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                    <MapPin className="h-3 w-3 text-slate-400" />
+                    <span className="truncate max-w-[500px]" title={[patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ")}>
+                      {[patient.address, patient.city, patient.state, patient.pincode]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setShowEditModal(true)}
@@ -1640,7 +1651,17 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-600">Subtotal</span>
-                  <span className="font-semibold text-slate-900">{currency(selectedInvoice.subtotal)}</span>
+                  <span className="font-semibold text-slate-900">
+                    {currency(
+                      // Calculate subtotal from line items (after line-item discounts)
+                      selectedInvoice.line_items?.reduce((sum, item) => {
+                        const total = item.total_price !== undefined
+                          ? (typeof item.total_price === "string" ? parseFloat(item.total_price) : item.total_price)
+                          : (item.total || 0);
+                        return sum + total;
+                      }, 0) || selectedInvoice.subtotal
+                    )}
+                  </span>
                 </div>
                 {selectedInvoice.tax_amount > 0 && (
                   <div className="flex items-center justify-between">

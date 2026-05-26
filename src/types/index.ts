@@ -264,6 +264,8 @@ export type RefractionRecord = {
   axis: number | null;
   visual_acuity_uncorrected: string;
   visual_acuity_corrected: string;
+  distance_bcva: string | null;
+  near_bcva: string | null;
   add_power: number | null;
   pupillary_distance: number | null;
   notes: string | null;
@@ -433,6 +435,7 @@ export type MedicineItem = {
   frequency: string;
   duration: string;
   instructions?: string;
+  applicable_eye?: "LEFT" | "RIGHT" | "BOTH" | "NA" | null;
   created_at?: string;
 };
 
@@ -614,19 +617,15 @@ export interface VisionRecord {
   od_ucva_distance?: string | null;
   od_ph_va?: string | null;
   od_va_with_current_specs?: string | null;
-  od_bcva_distance?: string | null;
   od_near_ucva?: string | null;
   od_near_with_current_specs?: string | null;
-  od_near_bcva?: string | null;
 
   // Left Eye (OS)
   os_ucva_distance?: string | null;
   os_ph_va?: string | null;
   os_va_with_current_specs?: string | null;
-  os_bcva_distance?: string | null;
   os_near_ucva?: string | null;
   os_near_with_current_specs?: string | null;
-  os_near_bcva?: string | null;
 
   notes?: string | null;
 
@@ -645,19 +644,15 @@ export interface CreateVisionRequest {
   od_ucva_distance?: string | null;
   od_ph_va?: string | null;
   od_va_with_current_specs?: string | null;
-  od_bcva_distance?: string | null;
   od_near_ucva?: string | null;
   od_near_with_current_specs?: string | null;
-  od_near_bcva?: string | null;
 
   // Left Eye (OS)
   os_ucva_distance?: string | null;
   os_ph_va?: string | null;
   os_va_with_current_specs?: string | null;
-  os_bcva_distance?: string | null;
   os_near_ucva?: string | null;
   os_near_with_current_specs?: string | null;
-  os_near_bcva?: string | null;
 
   notes?: string | null;
 }

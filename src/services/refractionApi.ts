@@ -8,19 +8,23 @@ export interface CreateRefractionRequest {
   optometrist_id: string;
   visit_id: string;
   od: {
-    sphere: number;
+    sphere: number | null;
     cylinder: number | null;
     axis: number | null;
     visual_acuity_uncorrected: string;
     visual_acuity_corrected: string;
+    distance_bcva: string;
+    near_bcva: string;
     add_power: number | null;
   };
   os: {
-    sphere: number;
+    sphere: number | null;
     cylinder: number | null;
     axis: number | null;
     visual_acuity_uncorrected: string;
     visual_acuity_corrected: string;
+    distance_bcva: string;
+    near_bcva: string;
     add_power: number | null;
   };
   pupillary_distance?: number | null;
@@ -34,6 +38,8 @@ export interface UpdateRefractionRequest {
   axis?: number | null;
   visual_acuity_uncorrected?: string;
   visual_acuity_corrected?: string;
+  distance_bcva?: string;
+  near_bcva?: string;
   add_power?: number | null;
   pupillary_distance?: number | null;
   notes?: string | null;

@@ -59,6 +59,7 @@ import { usersApi } from "@/services/usersApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
 import { labTestsApi } from "@/services/labTestsApi";
+import { usePrescriptionFlags } from "@/hooks/useFeatureFlags";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -144,6 +145,24 @@ const DURATIONS = [
     "Continuous",
 ];
 
+const MEDICINE_INSTRUCTIONS = [
+    "Before food",
+    "After food",
+    "Empty stomach",
+    "With water",
+    "With milk",
+    "At bedtime",
+    "Instill 1 drop",
+    "Instill 2 drops",
+    "Apply locally",
+    "Apply at night",
+    "Apply morning and night",
+    "Shake well before use",
+    "Warm compress before use",
+    "Cold compress before use",
+    "For external use only",
+];
+
 export function PrescriptionFormSection({
     patientId,
     visitId,
@@ -193,6 +212,7 @@ export function PrescriptionFormSection({
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
     const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
+    const [diagnosisEyeMap, setDiagnosisEyeMap] = useState<Record<string, "OD" | "OS" | "OU" | "NA">>({});
     const [resolvedDiagnoses, setResolvedDiagnoses] = useState<Record<string, Diagnosis>>({});
     const [availableSymptoms, setAvailableSymptoms] = useState<Record<string, DiagnosisSymptomMap[]>>({});
     const [selectedSymptoms, setSelectedSymptoms] = useState<PrescriptionSymptom[]>([]);
@@ -209,6 +229,9 @@ export function PrescriptionFormSection({
     const [pendingFinalizeAction, setPendingFinalizeAction] = useState<{ data: FormData; print: boolean } | null>(null);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
+
+    // Feature flags for prescription editing
+    const { allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionFlags();
 
     // Fetch additional details
     useEffect(() => {
@@ -333,11 +356,46 @@ export function PrescriptionFormSection({
                     const existing = response.items[0];
                     setSavedPrescription(existing);
 
-                    // Parse existing diagnosis to chips
+                    // Parse existing diagnosis to chips and extract eye information
                     let diagnosisNames: string[] = [];
+                    const eyeMap: Record<string, "OD" | "OS" | "OU" | "NA"> = {};
+
                     if (existing.diagnosis) {
-                        diagnosisNames = existing.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean);
+                        // Parse diagnosis text which may contain eye labels like "Myopia (Right Eye)"
+                        const diagnosisParts = existing.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean);
+
+                        diagnosisParts.forEach((part) => {
+                            // Extract diagnosis name and eye label using regex
+                            const match = part.match(/^(.+?)\s*\((.+?)\)$/);
+
+                            if (match) {
+                                const diagName = match[1].trim();
+                                const eyeLabel = match[2].trim();
+
+                                diagnosisNames.push(diagName);
+
+                                // Map eye labels back to codes
+                                if (eyeLabel === "Right Eye" || eyeLabel === "OD") {
+                                    eyeMap[diagName] = "OD";
+                                } else if (eyeLabel === "Left Eye" || eyeLabel === "OS") {
+                                    eyeMap[diagName] = "OS";
+                                } else if (eyeLabel === "Both Eyes" || eyeLabel === "OU") {
+                                    eyeMap[diagName] = "OU";
+                                } else if (eyeLabel === "Not Applicable" || eyeLabel === "NA") {
+                                    eyeMap[diagName] = "NA";
+                                } else {
+                                    // If eye label doesn't match expected format, default to OU
+                                    eyeMap[diagName] = "OU";
+                                }
+                            } else {
+                                // No eye label found, use the whole part as diagnosis name
+                                diagnosisNames.push(part);
+                                eyeMap[part] = "OU"; // Default to both eyes
+                            }
+                        });
+
                         setSelectedDiagnoses(diagnosisNames);
+                        setDiagnosisEyeMap(eyeMap);
                     }
 
                     // Set symptoms directly from draft
@@ -382,7 +440,7 @@ export function PrescriptionFormSection({
                     }
 
                     reset({
-                        diagnosis: existing.diagnosis || "",
+                        diagnosis: "", // Keep empty - chips are managed separately
                         followup_date: existing.followup_date || "",
                         plan_of_action: existing.plan_of_action || "",
                         remarks: existing.remarks || "",
@@ -516,6 +574,25 @@ export function PrescriptionFormSection({
 
     const selectedCoatings = watch("coatings");
     const currentDiagnosis = watch("diagnosis");
+
+    // Sync eye selection to diagnosis input field in real-time
+    useEffect(() => {
+        if (selectedDiagnoses.length > 0) {
+            const formattedDiagnosis = selectedDiagnoses.map(diagName => {
+                const eye = diagnosisEyeMap[diagName] || "OU";
+                const eyeLabel =
+                    eye === "OD" ? "Right Eye" :
+                        eye === "OS" ? "Left Eye" :
+                            eye === "OU" ? "Both Eyes" :
+                                "Not Applicable";
+                return `${diagName} (${eyeLabel})`;
+            }).join(", ");
+            setValue("diagnosis", formattedDiagnosis);
+        } else {
+            setValue("diagnosis", "");
+        }
+    }, [selectedDiagnoses, diagnosisEyeMap, setValue]);
+
 
     // Load dynamic presets and doctor signature - API only, no defaults
     useEffect(() => {
@@ -739,12 +816,35 @@ export function PrescriptionFormSection({
             const newList = isAdding
                 ? [...prev, value]
                 : prev.filter(d => d !== value);
-            // Update form value
-            setValue("diagnosis", newList.join(", "));
+            // Note: diagnosis field is auto-synced via useEffect
             return newList;
         });
 
         if (isAdding) {
+            // Determine default eye from selected symptoms
+            let defaultEye: "OD" | "OS" | "OU" | "NA" = "OU";
+            const symptomEyes = selectedSymptoms
+                .filter(s => s.applicable_eye)
+                .map(s => s.applicable_eye);
+
+            if (symptomEyes.length > 0) {
+                const eyeCounts = symptomEyes.reduce((acc, eye) => {
+                    if (eye) acc[eye] = (acc[eye] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
+                const mostCommon = Object.entries(eyeCounts).sort((a, b) => b[1] - a[1])[0];
+                if (mostCommon) {
+                    const eye = mostCommon[0];
+                    if (eye === "LEFT") defaultEye = "OS";
+                    else if (eye === "RIGHT") defaultEye = "OD";
+                    else if (eye === "BOTH") defaultEye = "OU";
+                    else defaultEye = "NA";
+                }
+            }
+
+            // Set default eye for this diagnosis
+            setDiagnosisEyeMap(prev => ({ ...prev, [value]: defaultEye }));
+
             // If it's a chip/preset, we might not have the ID yet unless it's in the option
             const option = diagnosesOptions.find(o => o.value === value);
             if (option?.id) {
@@ -770,6 +870,12 @@ export function PrescriptionFormSection({
                 }
             }
         } else {
+            // Remove from eye map
+            setDiagnosisEyeMap(prev => {
+                const newMap = { ...prev };
+                delete newMap[value];
+                return newMap;
+            });
             // Remove symptoms for this diagnosis
             const diagId = diagnosesOptions.find(o => o.value === value)?.id || resolvedDiagnoses[value]?.id;
             if (diagId) {
@@ -808,6 +914,7 @@ export function PrescriptionFormSection({
             appendMedicine({
                 medicine_id: "",
                 ...template.medicine,
+                applicable_eye: "BOTH",
             });
             // Track that this medicine has been added
             setAddedMedicineIds(prev => [...prev, id]);
@@ -873,6 +980,7 @@ export function PrescriptionFormSection({
             frequency,
             duration,
             instructions,
+            applicable_eye: "BOTH",
         });
         setMedicineSearchQuery("");
         setMedicineSearchResults([]);
@@ -973,6 +1081,7 @@ export function PrescriptionFormSection({
                     frequency: med.frequency,
                     duration: med.duration,
                     instructions: med.instructions || "",
+                    applicable_eye: med.applicable_eye || "BOTH",
                 });
             });
         }
@@ -1072,9 +1181,24 @@ export function PrescriptionFormSection({
                 ? sanitizeMedicineItems(data.medicine_items)
                 : undefined;
 
+            // Format diagnosis text with eye labels
+            const formatDiagnosisText = () => {
+                if (selectedDiagnoses.length === 0) return data.diagnosis || null;
+                return selectedDiagnoses.map(diagName => {
+                    const eye = diagnosisEyeMap[diagName] || "OU";
+                    const eyeLabel =
+                        eye === "OD" ? "Right Eye" :
+                            eye === "OS" ? "Left Eye" :
+                                eye === "OU" ? "Both Eyes" :
+                                    "Not Applicable";
+                    return `${diagName} (${eyeLabel})`;
+                }).join(", ");
+            };
+            const formattedDiagnosis = formatDiagnosisText();
+
             if (savedPrescription?.id) {
                 result = await optometryPrescriptionApi.update(savedPrescription.id, {
-                    diagnosis: data.diagnosis || null,
+                    diagnosis: formattedDiagnosis,
                     notes: null,
                     items: items.length > 0 ? items : undefined,
                     followup_date: data.followup_date || null,
@@ -1098,7 +1222,7 @@ export function PrescriptionFormSection({
                     visit_id: visitId,
                     optometrist_id: optometristId,
                     doctor_id: doctorId,
-                    diagnosis: data.diagnosis || null,
+                    diagnosis: formattedDiagnosis,
                     notes: null,
                     items: items,
                     followup_date: data.followup_date || undefined,
@@ -1264,8 +1388,23 @@ export function PrescriptionFormSection({
                 </div>
             )}
 
-            {/* Read-Only View */}
-            {(readOnly || savedPrescription?.status === 'finalized') ? (
+            {/* Read-Only View - Show only if editing is not allowed by feature flags */}
+            {(() => {
+                // Determine if we should show read-only view based on feature flags
+                const isPrescriptionFinalized = savedPrescription?.status === 'finalized';
+                const isVisitCompleted = readOnly;
+
+                // Check if editing should be allowed despite finalization/completion
+                const shouldAllowEdit =
+                    (isPrescriptionFinalized && allowEditAfterFinalize) ||
+                    (isVisitCompleted && allowEditAfterVisitCompleted);
+
+                // Show read-only view only if prescription/visit is locked AND editing is not allowed
+                const shouldShowReadOnly =
+                    (isPrescriptionFinalized || isVisitCompleted) && !shouldAllowEdit;
+
+                return shouldShowReadOnly;
+            })() ? (
                 <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-slate-200">
                     <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                         <h3 className="font-semibold text-slate-700">Prescription View</h3>
@@ -1479,6 +1618,38 @@ export function PrescriptionFormSection({
                                                             diagnoses={[diagName]}
                                                             onRemove={handleDiagnosisToggle}
                                                         />
+
+                                                        {/* Eye Selection Toggle Buttons */}
+                                                        <div className="flex items-center gap-2 ml-2 mb-2">
+                                                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Eye:</span>
+                                                            <div className="flex gap-1.5">
+                                                                {(["OD", "OS", "OU", "NA"] as const).map((eye) => {
+                                                                    const isActive = diagnosisEyeMap[diagName] === eye;
+                                                                    return (
+                                                                        <button
+                                                                            key={eye}
+                                                                            type="button"
+                                                                            onClick={() => setDiagnosisEyeMap(prev => ({ ...prev, [diagName]: eye }))}
+                                                                            className={clsx(
+                                                                                "px-2.5 py-1 text-[10px] font-bold rounded-md transition-all uppercase tracking-wide",
+                                                                                isActive
+                                                                                    ? "bg-sky-600 text-white shadow-sm ring-2 ring-sky-500/30"
+                                                                                    : "bg-white text-slate-600 border border-slate-300 hover:border-sky-400 hover:bg-sky-50"
+                                                                            )}
+                                                                            title={
+                                                                                eye === "OD" ? "Right Eye (Oculus Dexter)" :
+                                                                                    eye === "OS" ? "Left Eye (Oculus Sinister)" :
+                                                                                        eye === "OU" ? "Both Eyes (Oculus Uterque)" :
+                                                                                            "Not Applicable"
+                                                                            }
+                                                                        >
+                                                                            {eye}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+
                                                         {symptoms && symptoms.length > 0 && (
                                                             <div className="ml-4 pl-4 border-l-2 border-slate-200 py-1 flex flex-wrap gap-1.5 transition-all animate-in fade-in slide-in-from-left-2 duration-300">
                                                                 {symptoms.map((s) => {
@@ -1647,7 +1818,19 @@ export function PrescriptionFormSection({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Eye</label>
+                                                    <select
+                                                        {...register(`medicine_items.${index}.applicable_eye`)}
+                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                    >
+                                                        <option value="BOTH">Both Eyes (OU)</option>
+                                                        <option value="RIGHT">Right Eye (OD)</option>
+                                                        <option value="LEFT">Left Eye (OS)</option>
+                                                        <option value="NA">N/A</option>
+                                                    </select>
+                                                </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
                                                     <input
@@ -1686,11 +1869,17 @@ export function PrescriptionFormSection({
                                                 </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
-                                                    <input
-                                                        {...register(`medicine_items.${index}.instructions`)}
-                                                        placeholder="e.g. After food"
-                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`inst-options-${index}`}
+                                                            {...register(`medicine_items.${index}.instructions`)}
+                                                            placeholder="e.g. After food"
+                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                        />
+                                                        <datalist id={`inst-options-${index}`}>
+                                                            {MEDICINE_INSTRUCTIONS.map(i => <option key={i} value={i} />)}
+                                                        </datalist>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

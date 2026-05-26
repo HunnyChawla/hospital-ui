@@ -186,11 +186,27 @@ export function getComplaintsStatus(complaints: any[]): SectionStatus {
 export function getVisionStatus(visionRecords: any[], visitId: string): SectionStatus {
   const currentVisitRecord = visionRecords.find((r) => r.visit_id === visitId);
   if (!currentVisitRecord) return "empty";
-  // Check if key fields are filled
-  const hasDistance = currentVisitRecord.od_ucva_distance || currentVisitRecord.os_ucva_distance;
-  const hasBCVA = currentVisitRecord.od_bcva_distance || currentVisitRecord.os_bcva_distance;
-  if (hasDistance && hasBCVA) return "complete";
-  if (hasDistance || hasBCVA) return "partial";
+
+  // Check if key fields are filled for each eye
+  // A vision record is considered 'has data' for an eye if any distance or near VA is recorded
+  const hasOD = !!(
+    currentVisitRecord.od_ucva_distance ||
+    currentVisitRecord.od_va_with_current_specs ||
+    currentVisitRecord.od_ph_va ||
+    currentVisitRecord.od_near_ucva ||
+    currentVisitRecord.od_near_with_current_specs
+  );
+
+  const hasOS = !!(
+    currentVisitRecord.os_ucva_distance ||
+    currentVisitRecord.os_va_with_current_specs ||
+    currentVisitRecord.os_ph_va ||
+    currentVisitRecord.os_near_ucva ||
+    currentVisitRecord.os_near_with_current_specs
+  );
+
+  if (hasOD && hasOS) return "complete";
+  if (hasOD || hasOS) return "partial";
   return "empty";
 }
 

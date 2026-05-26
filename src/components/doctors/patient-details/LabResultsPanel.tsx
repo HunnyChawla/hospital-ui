@@ -62,7 +62,7 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
   const [loadingResults, setLoadingResults] = useState<Record<string, boolean>>({});
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch ((status || "").toLowerCase()) {
       case "completed":
         return "bg-emerald-100 text-emerald-700 border-emerald-300";
       case "in_progress":
@@ -141,7 +141,7 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
           const isExpanded = expandedBooking === booking.id;
           const bookingResults = results[booking.id];
           const isLoadingResults = loadingResults[booking.id];
-          const canShowResults = booking.status.toLowerCase() === "completed";
+          const canShowResults = (booking.status || "").toLowerCase() === "completed";
 
           return (
             <div
