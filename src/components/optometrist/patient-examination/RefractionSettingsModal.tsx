@@ -21,7 +21,7 @@ export interface RefractionSettings {
 
 export const DEFAULT_REFRACTION_SETTINGS: RefractionSettings = {
     sphere: { min: -10, max: 10, gap: 0.5 },
-    cylinder: { min: -6, max: 0, gap: 0.25 },
+    cylinder: { min: -6, max: 6, gap: 0.25 },
     axis: { min: 0, max: 180, gap: 10 },
     add_power: { min: 0.75, max: 4, gap: 0.25 },
 };
