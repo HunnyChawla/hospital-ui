@@ -243,18 +243,18 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     // Ensure gender is lowercase
     const gender = (values.gender || "male").toLowerCase() as "male" | "female" | "other";
 
-    const patientData: CreatePatientRequest = {
+    const patientData = {
       first_name: values.first_name,
-      last_name: values.last_name || undefined,
+      last_name: values.last_name?.trim() || null,
       mobile: values.mobile,
-      email: values.email || undefined,
+      email: values.email?.trim() || null,
       date_of_birth: values.date_of_birth,
       gender,
-      abha_id: values.abha_id || undefined,
-      address: values.address || undefined,
-      city: values.city || undefined,
-      state: values.state || undefined,
-      pincode: values.pincode || undefined,
+      abha_id: values.abha_id?.trim() || null,
+      address: values.address?.trim() || null,
+      city: values.city?.trim() || null,
+      state: values.state?.trim() || null,
+      pincode: values.pincode?.trim() || null,
     };
 
     if (defaultValues) {
