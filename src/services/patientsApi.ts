@@ -40,30 +40,30 @@ export interface PatientApiResponse {
 
 export interface CreatePatientRequest {
   first_name: string;
-  last_name?: string;
+  last_name?: string | null;
   mobile: string;
-  email?: string;
+  email?: string | null;
   date_of_birth: string; // YYYY-MM-DD
   gender: "male" | "female" | "other";
-  abha_id?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
+  abha_id?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
 }
 
 export interface UpdatePatientRequest {
   first_name?: string;
-  last_name?: string;
+  last_name?: string | null;
   mobile?: string;
-  email?: string;
+  email?: string | null;
   date_of_birth?: string;
   gender?: string;
-  abha_id?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
+  abha_id?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
 }
 
 export interface PatientsSearchResponse {
