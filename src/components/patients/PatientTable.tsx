@@ -6,6 +6,7 @@ import { Edit2, User, Calendar, Phone } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { Patient } from "@/types";
 import { useState } from "react";
+import { Pagination } from "../common/Pagination";
 
 interface PatientTableProps {
   onPatientClick?: (patientId: string) => void;
@@ -13,8 +14,9 @@ interface PatientTableProps {
 }
 
 export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps) {
+  const [page, setPage] = useState(1);
   // Use React Query hook instead of Redux - automatic deduplication!
-  const { data, isLoading, error } = usePatients({});
+  const { data, isLoading, error } = usePatients({ page, page_size: 20 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Extract patients from React Query response
@@ -172,6 +174,15 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="border-t border-slate-100">
+        <Pagination
+          currentPage={page}
+          total={data?.pagination?.total ?? 0}
+          pageSize={20}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );
