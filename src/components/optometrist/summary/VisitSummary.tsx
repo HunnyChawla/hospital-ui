@@ -607,7 +607,7 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto p-6" style={{ maxHeight: "calc(90vh - 140px)" }}>
+        <div className="overflow-y-auto p-6 scrollbar-hide" style={{ maxHeight: "calc(90vh - 140px)" }}>
           <VisitSummaryLayout data={data} formatDate={formatDate} formatDateTime={formatDateTime} />
         </div>
 
