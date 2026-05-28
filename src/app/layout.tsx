@@ -49,12 +49,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="overflow-x-hidden">
+    <html lang="en" className="overflow-x-hidden scrollbar-hide">
       <head>
         <script src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/env-config.js`} defer />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-surface text-slate-900 overflow-x-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-surface text-slate-900 overflow-x-hidden scrollbar-hide`}
         suppressHydrationWarning
       >
         <Providers>{children}</Providers>
