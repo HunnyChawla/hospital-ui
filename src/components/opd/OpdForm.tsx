@@ -859,13 +859,21 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           <>
             <button
               type="button"
-              onClick={() => {
-                // Reset only form fields but keep the patient selected
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Reset form fields and unselect the patient
                 setCreatedVisitId(null);
                 setVisitData(null);
                 setOpdNumber("");
                 setTokenNumber(0);
-                // Keep patient selected
+                // Unselect patient
+                setPatientId("");
+                setSelectedPatientData(null);
+                setDropdownSearchTerm("");
+                setDropdownResults([]);
+                setShowDropdown(false);
+                // Reset remaining form fields
                 setSymptoms("");
                 setPaymentMethod("");
                 setPaymentReference("");
