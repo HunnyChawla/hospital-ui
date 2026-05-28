@@ -834,12 +834,14 @@ export function RefractionTab({
                   onChange={(v) => updateField("od", "distance_bcva", v)}
                   colorScheme="blue"
                   placeholder="OD BCVA"
+                  mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
                 />
                 <VASelector
                   value={formData.os.distance_bcva || null}
                   onChange={(v) => updateField("os", "distance_bcva", v)}
                   colorScheme="green"
                   placeholder="OS BCVA"
+                  mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
                 />
               </div>
             </div>

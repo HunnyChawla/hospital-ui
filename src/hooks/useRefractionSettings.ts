@@ -10,7 +10,15 @@ export function useRefractionSettings() {
         const saved = localStorage.getItem("refraction-settings");
         if (saved) {
             try {
-                setSettings(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                setSettings({
+                    ...DEFAULT_REFRACTION_SETTINGS,
+                    ...parsed,
+                    distance_bcva: {
+                        ...DEFAULT_REFRACTION_SETTINGS.distance_bcva,
+                        ...parsed.distance_bcva,
+                    },
+                });
             } catch (e) {
                 console.error("Failed to parse refraction settings", e);
             }
