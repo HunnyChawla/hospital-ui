@@ -479,7 +479,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                 </button>
               </div>
               {showDropdown && (dropdownResults.length > 0 || isSearching) && (
-                <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-xl max-h-56 overflow-y-auto">
+                <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-xl max-h-56 overflow-y-auto scrollbar-hide">
                   {isSearching ? (
                     <div className="p-4 text-center">
                       <div className="inline-flex items-center gap-2">
