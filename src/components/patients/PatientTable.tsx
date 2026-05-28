@@ -99,7 +99,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
       </div>
 
       {/* Desktop View - Table */}
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-x-auto md:block scrollbar-hide">
         <table className="min-w-full divide-y divide-slate-100 text-sm">
           <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
             <tr>
