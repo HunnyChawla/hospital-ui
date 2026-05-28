@@ -40,7 +40,7 @@
     }
 
     function updateCurrentYear() {
-        var year = new Date().getFullYear();
+        var year = 2026;
         var elements = document.getElementsByClassName('current-year');
         for (var i = 0; i < elements.length; i++) {
             elements[i].innerHTML = year;
