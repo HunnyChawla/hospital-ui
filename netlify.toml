@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "out"
+
+# Redirect rule for SPAs if any route doesn't match an exported file (fallback to 404 page)
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
