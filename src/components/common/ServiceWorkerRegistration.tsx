@@ -37,9 +37,10 @@ export function ServiceWorkerRegistration() {
     ) {
       // Only register in production
       if (process.env.NODE_ENV === "production") {
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
         // Register service worker
         navigator.serviceWorker
-          .register("/sw.js", { scope: "/" })
+          .register(`${basePath}/sw.js`, { scope: `${basePath}/` || "/" })
           .then((registration) => {
             console.log("Service Worker registered:", registration);
 

@@ -117,7 +117,7 @@ function LoginForm() {
           <div className="flex flex-col items-center justify-center space-y-6">
             <div className="transform hover:scale-105 transition-transform duration-300">
               <Image
-                src="../login-logo.png"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/login-logo.png`}
                 alt="CURA Logo"
                 width={691}
                 height={361}
@@ -144,7 +144,7 @@ function LoginForm() {
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="flex items-center justify-center">
                 <Image
-                  src="../login-logo.png"
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/login-logo.png`}
                   alt="CURA Logo"
                   width={691}
                   height={361}

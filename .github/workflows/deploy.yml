@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Fix Base Path in Manifest and Service Worker
+        run: node scripts/fix-basepath.js
+
       - name: Build
         env:
           NEXT_PUBLIC_BASE_PATH: '/hospital-ui'
