@@ -22,6 +22,7 @@ export function OpdFormModal({ isOpen, onClose, defaultPatientId }: OpdFormModal
         title="Create OPD Visit"
         size="lg"
         closeOnOutsideClick={false}
+        contentClassName="scrollbar-hide"
       >
         <OpdForm
           defaultPatientId={defaultPatientId}

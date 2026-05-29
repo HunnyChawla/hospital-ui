@@ -291,7 +291,7 @@ export function QuickPresetsSettingsModal({
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 scrollbar-hide">
                         {loading ? (
                             <div className="flex h-full items-center justify-center">
                                 <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />

@@ -729,7 +729,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/20 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/20 backdrop-blur-sm scrollbar-hide">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="relative w-full max-w-6xl rounded-2xl bg-white shadow-2xl">
           {/* Header */}
@@ -786,7 +786,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
             </div>
           </div>
 
-          <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6">
+          <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6 scrollbar-hide">
             {/* Action Tabs */}
             <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200">
               {[

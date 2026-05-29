@@ -44,7 +44,7 @@ export function OptometryPrescriptionModal({
       />
 
       {/* Modal */}
-      <div className="relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-slate-50 shadow-2xl">
+      <div className="relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-slate-50 shadow-2xl scrollbar-hide">
         {/* Header */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
