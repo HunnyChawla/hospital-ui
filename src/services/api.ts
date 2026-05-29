@@ -35,7 +35,8 @@ const getApiClient = () => {
             localStorage.removeItem("user_id");
             localStorage.removeItem("tenant_id");
             localStorage.removeItem("role");
-            window.location.href = "/login";
+            const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+            window.location.href = `${basePath}/login`;
           }
         }
         return Promise.reject(error);
