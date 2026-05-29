@@ -77,7 +77,7 @@ export function RefractionSettingsModal({
             }
             // Safety check to prevent too many buttons
             const steps = (max - min) / gap;
-            if (steps > 100) {
+            if (steps > 250) {
                 toast.error(`Too many steps for ${key}. Please increase gap or reduce range.`);
                 return;
             }
@@ -186,7 +186,7 @@ export function RefractionSettingsModal({
 
                             const buttons = [];
                             let current = min;
-                            while (current <= max && buttons.length < 200) {
+                            while (current <= max && buttons.length < 250) {
                                 buttons.push(current);
                                 current += gap;
                                 current = Math.round(current * 100) / 100;

@@ -769,8 +769,8 @@ export function RefractionTab({
               onODChange={(v) => updateField("od", "sphere", v)}
               onOSChange={(v) => updateField("os", "sphere", v)}
               step={0.25}
-              min={-30}
-              max={30}
+              min={settings.sphere.min}
+              max={settings.sphere.max}
               unit="D"
               presets={spherePresets}
               odError={errors.od_sphere}
@@ -785,8 +785,8 @@ export function RefractionTab({
               onODChange={(v) => updateField("od", "cylinder", v)}
               onOSChange={(v) => updateField("os", "cylinder", v)}
               step={0.25}
-              min={-6}
-              max={6}
+              min={settings.cylinder.min}
+              max={settings.cylinder.max}
 
               unit="D"
               presets={cylinderPresets}
@@ -800,8 +800,8 @@ export function RefractionTab({
               onODChange={(v) => updateField("od", "axis", v)}
               onOSChange={(v) => updateField("os", "axis", v)}
               step={1}
-              min={0}
-              max={180}
+              min={settings.axis.min}
+              max={settings.axis.max}
               unit="°"
               presets={axisPresets}
               odError={errors.od_axis}
@@ -816,8 +816,8 @@ export function RefractionTab({
               onODChange={(v) => updateField("od", "add_power", v)}
               onOSChange={(v) => updateField("os", "add_power", v)}
               step={0.25}
-              min={0.5}
-              max={4}
+              min={settings.add_power.min}
+              max={settings.add_power.max}
 
               unit="D"
               presets={addPowerPresets}
