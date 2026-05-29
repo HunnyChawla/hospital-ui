@@ -13,15 +13,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const metadata: Metadata = {
   title: "CURA - Hospital Management System",
   description:
     "Modern, fast, and intuitive hospital management portal built with Next.js.",
   icons: {
-    icon: "/cura-logo-v2.png",
-    apple: "/cura-logo-v2.png",
+    icon: `${basePath}/cura-logo-v2.png`,
+    apple: `${basePath}/cura-logo-v2.png`,
   },
-  manifest: "/manifest.json",
+  manifest: `${basePath}/manifest.json`,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

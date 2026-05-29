@@ -75,7 +75,7 @@ export const OptometryPrescriptionPrint = forwardRef<
           </div>
           <div className="flex h-16 w-16 items-center justify-center">
             <Image
-              src="/cura-logo-v2.png"
+              src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/cura-logo-v2.png`}
               alt="Hospital Logo"
               width={64}
               height={64}

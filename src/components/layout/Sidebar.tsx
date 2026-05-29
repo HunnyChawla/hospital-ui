@@ -186,7 +186,7 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
             <Image
-              src="/cura-logo-v2.png"
+              src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/cura-logo-v2.png`}
               alt="CURA Logo"
               width={500}
               height={500}
@@ -280,7 +280,7 @@ export function Sidebar() {
           <Tooltip content="CURA" side="right">
             <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm sm:h-10 sm:w-10 md:h-11 md:w-11">
               <Image
-                src="/cura-logo-v2.png"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/cura-logo-v2.png`}
                 alt="CURA Logo"
                 width={44}
                 height={44}
