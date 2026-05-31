@@ -10,8 +10,7 @@ import type { RefractionRecord } from "@/types";
 
 // Import shared components
 import { EyeValueInput, NumericStepper, VASelector } from "../shared";
-import { TemplateSelector, CopyFromPreviousButton } from "../templates";
-import { refractionTemplates, type RefractionTemplate } from "../mock";
+
 import { refractionApi } from "@/services/refractionApi";
 import { handleError } from "@/utils/errorHandler";
 import { RefractionHistorySection } from "./RefractionHistorySection";
@@ -241,80 +240,7 @@ export function RefractionTab({
   };
 
   // Apply template
-  const handleApplyTemplate = (template: RefractionTemplate) => {
-    setFormData((prev) => ({
-      ...prev,
-      od: {
-        ...prev.od,
-        sphere: template.data.od.sphere,
-        cylinder: template.data.od.cylinder,
-        axis: template.data.od.axis,
-        visual_acuity_uncorrected: (template.data.od as any).visual_acuity_uncorrected || "",
-        visual_acuity_corrected: (template.data.od as any).visual_acuity_corrected || "",
-        distance_bcva: (template.data.od as any).distance_bcva || "",
-        near_bcva: (template.data.od as any).near_bcva || "",
-        add_power: template.data.od.add_power,
-      },
-      os: {
-        ...prev.os,
-        sphere: template.data.os.sphere,
-        cylinder: template.data.os.cylinder,
-        axis: template.data.os.axis,
-        visual_acuity_uncorrected: (template.data.os as any).visual_acuity_uncorrected || "",
-        visual_acuity_corrected: (template.data.os as any).visual_acuity_corrected || "",
-        distance_bcva: (template.data.os as any).distance_bcva || "",
-        near_bcva: (template.data.os as any).near_bcva || "",
-        add_power: template.data.os.add_power,
-      },
-    }));
-    toast.success(`Applied template: ${template.name}`);
-  };
 
-  // Handle copy from previous
-  const handleCopyFromPrevious = (data: unknown) => {
-    const prevData = data as {
-      od: { sphere: number; cylinder: number | null; axis: number | null; add_power: number | null } | null;
-      os: { sphere: number; cylinder: number | null; axis: number | null; add_power: number | null } | null;
-    };
-
-    if (prevData.od) {
-      setFormData((prev) => ({
-        ...prev,
-        od: {
-          ...prev.od,
-          sphere: prevData.od!.sphere,
-          cylinder: prevData.od!.cylinder,
-          axis: prevData.od!.axis,
-          visual_acuity_uncorrected: (prevData.od as any).visual_acuity_uncorrected || "",
-          visual_acuity_corrected: (prevData.od as any).visual_acuity_corrected || "",
-          distance_bcva: (prevData.od as any).distance_bcva || "",
-          near_bcva: (prevData.od as any).near_bcva || "",
-          add_power: prevData.od!.add_power,
-        },
-      }));
-    }
-    if (prevData.os) {
-      setFormData((prev) => ({
-        ...prev,
-        os: {
-          ...prev.os,
-          sphere: prevData.os!.sphere,
-          cylinder: prevData.os!.cylinder,
-          axis: prevData.os!.axis,
-          visual_acuity_uncorrected: (prevData.os as any).visual_acuity_uncorrected || "",
-          visual_acuity_corrected: (prevData.os as any).visual_acuity_corrected || "",
-          distance_bcva: (prevData.os as any).distance_bcva || "",
-          near_bcva: (prevData.os as any).near_bcva || "",
-          add_power: prevData.os!.add_power,
-        },
-      }));
-    }
-    setFormData((prev) => ({
-      ...prev,
-      pupillary_distance: (prevData as any).pupillary_distance || prev.pupillary_distance,
-    }));
-    toast.success("Copied previous refraction data");
-  };
 
   // Reset form
   const handleReset = () => {
@@ -737,18 +663,7 @@ export function RefractionTab({
               </h4>
             </div>
             <div className="flex items-center gap-2">
-              <CopyFromPreviousButton
-                patientId={patientId}
-                dataType="refraction"
-                onDataLoaded={handleCopyFromPrevious}
-                size="sm"
-              />
-              <TemplateSelector
-                templateType="refraction"
-                templates={refractionTemplates}
-                onApply={handleApplyTemplate}
-                size="sm"
-              />
+
               <button
                 type="button"
                 onClick={handleReset}
@@ -1001,10 +916,7 @@ export function RefractionTab({
       {/* Quick Tips */}
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
         <p className="text-sm text-sky-900">
-          <strong>Tips:</strong> Use templates for common prescriptions, or copy
-          from previous visit for returning patients. The &quot;Same as OD&quot; button
-          copies values when both eyes are similar. Use +/- buttons or type
-          directly for precise values.
+          <strong>Tips:</strong> Use +/- buttons or type directly for precise values.
         </p>
       </div>
       <RefractionSettingsModal
