@@ -472,8 +472,8 @@ export function CurrentSpecsTab({
                             onODChange={(v) => updateField("od", "sph", v)}
                             onOSChange={(v) => updateField("os", "sph", v)}
                             step={0.25}
-                            min={-30}
-                            max={30}
+                            min={settings.sphere.min}
+                            max={settings.sphere.max}
                             unit="D"
                             presets={spherePresets}
                             odError={errors.od_sph}
@@ -488,8 +488,8 @@ export function CurrentSpecsTab({
                             onODChange={(v) => updateField("od", "cyl", v)}
                             onOSChange={(v) => updateField("os", "cyl", v)}
                             step={0.25}
-                            min={-6}
-                            max={6}
+                            min={settings.cylinder.min}
+                            max={settings.cylinder.max}
                             unit="D"
                             presets={cylinderPresets}
                         />
@@ -502,8 +502,8 @@ export function CurrentSpecsTab({
                             onODChange={(v) => updateField("od", "axis", v)}
                             onOSChange={(v) => updateField("os", "axis", v)}
                             step={1}
-                            min={0}
-                            max={180}
+                            min={settings.axis.min}
+                            max={settings.axis.max}
                             unit="°"
                             presets={axisPresets}
                             odError={errors.od_axis}
@@ -518,8 +518,8 @@ export function CurrentSpecsTab({
                             onODChange={(v) => updateField("od", "add", v)}
                             onOSChange={(v) => updateField("os", "add", v)}
                             step={0.25}
-                            min={0.5}
-                            max={4}
+                            min={settings.add_power.min}
+                            max={settings.add_power.max}
                             unit="D"
                             presets={addPowerPresets}
                         />

@@ -28,7 +28,7 @@ export function useRefractionSettings() {
         let current = min;
         // Safety break to prevent infinite loops or massive arrays
         let iterations = 0;
-        while (current <= max && iterations < 200) {
+        while (current <= max && iterations < 250) {
             // Handle floating point precision issues
             const val = Math.round(current * 100) / 100;
             presets.push(val);
