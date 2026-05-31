@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { QuickAdvice } from "@/services/quickPresetsApi";
 import { advicesApi, type Advice } from "@/services/advicesApi";
 
@@ -105,6 +106,23 @@ export function AdvicePresetList({ items, onChange }: AdvicePresetListProps) {
 
     const saveItem = () => {
         if (!editForm.label?.trim() || !editForm.value?.trim()) return;
+
+        const normalizedLabel = editForm.label.trim().toLowerCase();
+        const normalizedValue = editForm.value.trim().toLowerCase();
+
+        // Check for duplicates
+        const isDuplicate = items.some((item) => {
+            if (editingId !== null && item.id === editingId) return false;
+            return (
+                item.label.trim().toLowerCase() === normalizedLabel ||
+                item.value.trim().toLowerCase() === normalizedValue
+            );
+        });
+
+        if (isDuplicate) {
+            toast.error("A preset with this label or advice already exists.");
+            return;
+        }
 
         const newItem: QuickAdvice = {
             id: editForm.id || `new-${Date.now()}`, // Ensure ID exists

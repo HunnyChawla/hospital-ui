@@ -276,29 +276,47 @@ function VisitListRow({
       </div>
 
       {/* Status Badge */}
-      <div className="min-w-[140px]">
-        {isDilating ? (
-          <div className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold ${dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-violet-50 text-violet-700 border-violet-200"
-            }`}>
-            <Droplets className="h-3 w-3" />
-            <span>Dilating</span>
-            {visit.dilation_started_at && (
-              <>
-                <span className="text-slate-300">|</span>
-                <ClockIcon className="h-3 w-3" />
-                <span>
-                  {dilationOverdue
-                    ? "Overdue"
-                    : new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </>
+      <div className="min-w-[140px] flex flex-col gap-1">
+        <div>
+          {isDilating ? (
+            <div className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold ${dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-violet-50 text-violet-700 border-violet-200"
+              }`}>
+              <Droplets className="h-3 w-3" />
+              <span>Dilating</span>
+              {visit.dilation_started_at && (
+                <>
+                  <span className="text-slate-300">|</span>
+                  <ClockIcon className="h-3 w-3" />
+                  <span>
+                    {dilationOverdue
+                      ? "Overdue"
+                      : new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </>
+              )}
+            </div>
+          ) : (
+            <span className={`pill inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
+              {getStatusIcon(visit.status)}
+              <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
+            </span>
+          )}
+        </div>
+        {(visit.doctor_name || visit.optometrist_name) && (
+          <div className="flex flex-col gap-0.5 text-[10px] text-slate-500">
+            {visit.doctor_name && (
+              <div className="flex items-center gap-1" title="Assigned Doctor">
+                <Stethoscope className="h-2.5 w-2.5 text-sky-500 shrink-0" />
+                <span className="truncate max-w-[120px] font-medium">{visit.doctor_name}</span>
+              </div>
+            )}
+            {visit.optometrist_name && (
+              <div className="flex items-center gap-1" title="Assigned Optometrist">
+                <User className="h-2.5 w-2.5 text-purple-500 shrink-0" />
+                <span className="truncate max-w-[120px] font-medium">{visit.optometrist_name}</span>
+              </div>
             )}
           </div>
-        ) : (
-          <span className={`pill inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
-            {getStatusIcon(visit.status)}
-            <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
-          </span>
         )}
       </div>
 
@@ -388,6 +406,24 @@ function VisitCard({
           </div>
         </div>
       </div>
+
+      {/* Doctor & Optometrist Assignment Details */}
+      {(visit.doctor_name || visit.optometrist_name) && (
+        <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-slate-600">
+          {visit.doctor_name && (
+            <div className="flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5" title="Assigned Doctor">
+              <Stethoscope className="h-3 w-3 text-sky-500 shrink-0" />
+              <span>Doc: <span className="font-semibold text-slate-800">{visit.doctor_name}</span></span>
+            </div>
+          )}
+          {visit.optometrist_name && (
+            <div className="flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5" title="Assigned Optometrist">
+              <User className="h-3 w-3 text-purple-500 shrink-0" />
+              <span>Optom: <span className="font-semibold text-slate-800">{visit.optometrist_name}</span></span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer: Status + Actions - Unified Compact Layout */}
       <div className="mt-4 border-t border-slate-50 pt-3">

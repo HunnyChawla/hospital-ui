@@ -84,86 +84,22 @@ export function QuickPresetsSettingsModal({
     const handleSave = async () => {
         setSaving(true);
         try {
-            const promises: Promise<any>[] = [];
-
-            const processChanges = <T extends { id?: string }>(
-                currentList: T[],
-                originalListStr: string,
-                createFn: (doctorId: string, item: T) => Promise<T>,
-                updateFn: (doctorId: string, id: string, item: T) => Promise<T>,
-                deleteFn: (doctorId: string, id: string) => Promise<void>
-            ) => {
-                const originalList: T[] = JSON.parse(originalListStr || "[]");
-
-                // Identify Deletions: Items in original but not in current (by ID)
-                const currentIds = new Set(currentList.map(item => item.id).filter(Boolean));
-                const toDelete = originalList.filter(item => item.id && !currentIds.has(item.id));
-
-                toDelete.forEach(item => {
-                    if (item.id) promises.push(deleteFn(doctorId, item.id));
-                });
-
-                // Identify Creations and Updates
-                currentList.forEach((item, index) => {
-                    // Check if it's already in the original list
-                    const originalItem = originalList.find(o => o.id === item.id);
-                    const isNew = !originalItem;
-
-                    // Always update position to current index
-                    const itemWithPosition = { ...item, position: index };
-
-                    if (isNew) {
-                        // For creations, strip any "new-" prefix if it was a frontend-only temp ID
-                        // but keep standard UUIDs (likely from a selected diagnosis)
-                        const payload = { ...itemWithPosition };
-                        if (payload.id?.startsWith("new-")) {
-                            delete payload.id;
-                        }
-                        promises.push(createFn(doctorId, payload as T));
-                    } else {
-                        // Update: Check if it actually changed (including position)
-                        if (JSON.stringify(originalItem) !== JSON.stringify(itemWithPosition)) {
-                            promises.push(updateFn(doctorId, item.id!, itemWithPosition));
-                        }
+            const cleanList = <T extends { id?: string }>(list: T[]): T[] => {
+                return list.map((item, index) => {
+                    const cleaned = { ...item, position: index };
+                    if (cleaned.id?.startsWith("new-")) {
+                        delete cleaned.id;
                     }
+                    return cleaned;
                 });
             };
 
-            // Process Diagnoses
-            processChanges(
-                diagnoses,
-                originalDiagnoses,
-                quickPresetsApi.createDiagnosis,
-                quickPresetsApi.updateDiagnosis,
-                quickPresetsApi.deleteDiagnosis
-            );
-
-            // Process Medicines
-            processChanges(
-                medicines,
-                originalMedicines,
-                quickPresetsApi.createMedicine,
-                quickPresetsApi.updateMedicine,
-                quickPresetsApi.deleteMedicine
-            );
-
-            // Process Advices
-            processChanges(
-                advices,
-                originalAdvices,
-                quickPresetsApi.createAdvice,
-                quickPresetsApi.updateAdvice,
-                quickPresetsApi.deleteAdvice
-            );
-
-            // Process Lab Tests
-            processChanges(
-                labTests,
-                originalLabTests,
-                quickPresetsApi.createLabTest,
-                quickPresetsApi.updateLabTest,
-                quickPresetsApi.deleteLabTest
-            );
+            const promises = [
+                quickPresetsApi.updateDiagnoses(doctorId, cleanList(diagnoses)),
+                quickPresetsApi.updateMedicines(doctorId, cleanList(medicines)),
+                quickPresetsApi.updateAdvices(doctorId, cleanList(advices)),
+                quickPresetsApi.updateLabTests(doctorId, cleanList(labTests)),
+            ];
 
             await Promise.all(promises);
 

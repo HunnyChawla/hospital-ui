@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Droplets, Pill, Eye, Syringe, Tablets, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { QuickMedicine } from "@/services/quickPresetsApi";
 import { medicinesApi, type Medicine } from "@/services/medicinesApi";
 
@@ -107,6 +108,23 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
 
     const saveItem = () => {
         if (!label.trim() || !medicineName.trim()) return;
+
+        const normalizedLabel = label.trim().toLowerCase();
+        const normalizedMedicine = medicineName.trim().toLowerCase();
+
+        // Check for duplicates
+        const isDuplicate = items.some((item, index) => {
+            if (!addingNew && index === editingIndex) return false;
+            return (
+                item.label.trim().toLowerCase() === normalizedLabel ||
+                item.medicine_name.trim().toLowerCase() === normalizedMedicine
+            );
+        });
+
+        if (isDuplicate) {
+            toast.error("A preset with this label or medicine name already exists.");
+            return;
+        }
 
         const newItem: QuickMedicine = {
             label: label.trim(),

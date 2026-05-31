@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { QuickDiagnosis } from "@/services/quickPresetsApi";
 import { diagnosesApi, type Diagnosis } from "@/services/diagnosesApi";
 
@@ -53,7 +54,6 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
     const selectDiagnosis = (diagnosis: Diagnosis) => {
         setValue(diagnosis.diagnosis_name);
         console.log("diagnosi id", diagnosis.id);
-        setSelectedId(diagnosis.id);
 
         // Auto-fill label if empty
         if (!label) {
@@ -103,6 +103,23 @@ export function DiagnosisPresetList({ items, onChange }: DiagnosisPresetListProp
 
     const saveItem = () => {
         if (!label.trim() || !value.trim()) return;
+
+        const normalizedLabel = label.trim().toLowerCase();
+        const normalizedValue = value.trim().toLowerCase();
+
+        // Check for duplicates
+        const isDuplicate = items.some((item, index) => {
+            if (!addingNew && index === editingIndex) return false;
+            return (
+                item.label.trim().toLowerCase() === normalizedLabel ||
+                item.value.trim().toLowerCase() === normalizedValue
+            );
+        });
+
+        if (isDuplicate) {
+            toast.error("A preset with this label or diagnosis name already exists.");
+            return;
+        }
 
         const newItem: QuickDiagnosis = {
             id: selectedId || undefined,
