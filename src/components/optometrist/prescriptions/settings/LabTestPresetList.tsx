@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { QuickLabTest } from "@/services/quickPresetsApi";
 import { labTestsApi, type LabTest } from "@/services/labTestsApi";
 
@@ -104,6 +105,23 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
 
     const saveItem = () => {
         if (!label.trim() || !value.trim()) return;
+
+        const normalizedLabel = label.trim().toLowerCase();
+        const normalizedValue = value.trim().toLowerCase();
+
+        // Check for duplicates
+        const isDuplicate = items.some((item, index) => {
+            if (!addingNew && index === editingIndex) return false;
+            return (
+                item.label.trim().toLowerCase() === normalizedLabel ||
+                item.value.trim().toLowerCase() === normalizedValue
+            );
+        });
+
+        if (isDuplicate) {
+            toast.error("A preset with this label or lab test already exists.");
+            return;
+        }
 
         const newItem: QuickLabTest = {
             label: label.trim(),

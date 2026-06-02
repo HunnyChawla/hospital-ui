@@ -29,6 +29,7 @@ export interface Visit {
   patient_name?: string;
   patient_mobile?: string;
   doctor_id: string | null;
+  doctor_name?: string | null;
   visit_type: VisitType;
   visit_number: string;
   status: VisitStatus;
