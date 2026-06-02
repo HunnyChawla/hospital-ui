@@ -15,7 +15,7 @@
         <div id="header">
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
-                    <td width="44%" align="left" valign="middle">
+                    <td width="50%" align="left" valign="middle">
                         <table cellpadding="0" cellspacing="0" border="0">
                             <tr>
                                 <td valign="middle">
@@ -31,7 +31,7 @@
                             </tr>
                         </table>
                     </td>
-                    <td width="24%" align="center" valign="middle">
+                    <td width="30%" align="center" valign="middle">
                         <div id="doctor-selector-container">
                             <label for="doctor-selector">Select Doctor:</label>
                             <select id="doctor-selector" onchange="handleDoctorChange()">
@@ -39,17 +39,13 @@
                             </select>
                         </div>
                     </td>
-                    <td width="10%" align="center" valign="middle">
-                        <!-- Announcement queue status badge -->
-                        <span id="announcement-queue-status" class="ann-status ann-status-idle">Idle</span>
-                    </td>
-                    <td width="12%" align="center" valign="middle">
+                    <td width="15%" align="center" valign="middle">
                         <div id="connection-status">
                             <span id="status-dot" class="status-connecting"></span>
                             <span id="status-text">Connecting...</span>
                         </div>
                     </td>
-                    <td width="10%" align="right" valign="middle">
+                    <td width="15%" align="right" valign="middle">
                         <span id="clock">00:00:00</span>
                         <button id="logout-btn" onclick="handleLogout()" title="Logout">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
@@ -106,36 +102,17 @@
         <div id="display-footer">
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
-                    <td align="left" width="75%">
+                    <td align="left" width="70%">
                         <div class="settings-control">
                             <label><input type="checkbox" id="toggle-header" onchange="toggleHeader(this.checked)"> Hide
                                 Header</label>
-                        </div>
-                        <div class="settings-control announcement-toggle-group">
-                            <!-- Announcements on/off -->
-                            <label title="Enable or disable patient announcements via TTS">
-                                <input type="checkbox" id="toggle-announcements"
-                                    onchange="toggleAnnouncements(this.checked)"> 🔊 Announcements
-                            </label>
-                        </div>
-                        <div class="settings-control announcement-toggle-group">
-                            <!-- Both languages on/off -->
-                            <label title="Play announcements in both English and Hindi">
-                                <input type="checkbox" id="toggle-both-languages"
-                                    onchange="toggleBothLanguages(this.checked)"> 🇮🇳 Hindi
-                            </label>
-                        </div>
-                        <div class="settings-control">
-                            <button id="btn-test-announcement" onclick="openTestPanel()" class="test-btn">
-                                🧪 Test
-                            </button>
                         </div>
                         <span class="footer-brand"><strong>Technesian Cura</strong> <span class="separator">|</span>
                             Revolutionizing Hospital Management <span class="separator">•</span> © <span
                                 class="current-year">2026</span> Technesian <span class="separator">•</span> <a
                                 href="https://www.technesian.com" target="_blank">www.technesian.com</a></span>
                     </td>
-                    <td align="right" width="25%">
+                    <td align="right" width="30%">
                         <span>Last updated: <span id="last-update">--:--:--</span></span>
                     </td>
                 </tr>
@@ -149,70 +126,6 @@
         <source src="assets/notification.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- ============================================================
-         ANNOUNCEMENT TEST PANEL  (Modal Overlay)
-         ============================================================ -->
-    <div id="announcement-test-panel" style="display:none;">
-        <div id="announcement-test-box">
-            <div class="test-panel-header">
-                <h2>🧪 Announcement Test Panel</h2>
-                <button class="test-panel-close" onclick="closeTestPanel()" title="Close">✕</button>
-            </div>
-
-            <div class="test-panel-body">
-                <label for="test-announcement-text" class="test-label">Announcement Text (English)</label>
-                <textarea id="test-announcement-text" class="test-textarea" rows="3"
-                    placeholder="Patient Test User, token number 100, please proceed to Room 1."></textarea>
-
-                <p class="test-hint">
-                    The backend will automatically generate English audio and translate to Hindi.<br>
-                    Both language requests use the same English text.
-                </p>
-
-                <!-- Suggested messages -->
-                <div class="test-suggested-label">Suggested messages:</div>
-                <div class="test-suggestions">
-                    <button class="test-suggest-btn" onclick="document.getElementById('test-announcement-text').value='Patient Test User, token number 100, please proceed to Room 1.'">
-                        Token 100 → Room 1
-                    </button>
-                    <button class="test-suggest-btn" onclick="document.getElementById('test-announcement-text').value='Patient Test User, your consultation is ready. Please proceed to Counter 2.'">
-                        Counter 2 ready
-                    </button>
-                </div>
-
-                <!-- Language setting reminder -->
-                <div class="test-lang-row">
-                    <label class="test-lang-label">
-                        <input type="checkbox" id="test-both-lang-toggle" checked
-                            onchange="toggleBothLanguages(this.checked); document.getElementById('toggle-both-languages').checked=this.checked;">
-                        Play Hindi after English
-                    </label>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="test-btn-row">
-                    <button class="test-action-btn test-btn-en" onclick="runTestAnnouncement('en')">
-                        🇬🇧 Play English
-                    </button>
-                    <button class="test-action-btn test-btn-hi" onclick="runTestAnnouncement('hi')">
-                        🇮🇳 Play Hindi
-                    </button>
-                    <button class="test-action-btn test-btn-both" onclick="runTestAnnouncement('both')">
-                        🔊 Play Both
-                    </button>
-                    <button class="test-action-btn test-btn-queue" onclick="runTestAnnouncement('queue')">
-                        ⏩ Queue Stress Test
-                    </button>
-                </div>
-
-                <!-- Live Status -->
-                <div id="test-announcement-status" class="test-ann-status test-ann-idle">
-                    Ready
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="app.js"></script>
     <script>
         // Initialize display on page load
@@ -222,7 +135,6 @@
             initDisplay();
         }
     </script>
-
 </body>
 
 </html>

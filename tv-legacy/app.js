@@ -13,12 +13,10 @@
     // ================================================
 
     var CONFIG = {
-        POLL_INTERVAL: 15000,  // Poll every 15 seconds
+        POLL_INTERVAL: 5000,  // Poll every 5 seconds
         CLOCK_INTERVAL: 1000, // Update clock every second
         DEFAULT_API_URL: 'http://localhost:8080',  // Will be updated from /config endpoint
-        API_URL: null,  // Will be set after loading config
-        ANNOUNCEMENT_API_URL: null, // TTS service URL, loaded from /config
-        DEBUG_ANNOUNCEMENTS: false  // Set to true for verbose announcement logs
+        API_URL: null  // Will be set after loading config
     };
 
     // ================================================
@@ -107,322 +105,6 @@
     }
 
     // ================================================
-    // ANNOUNCEMENT SETTINGS HELPERS
-    // ================================================
-
-    function getAnnouncementsEnabled() {
-        var val = getItem('tv_announcements_enabled');
-        return val === null ? true : val === 'true';
-    }
-
-    function setAnnouncementsEnabled(enabled) {
-        setItem('tv_announcements_enabled', enabled ? 'true' : 'false');
-    }
-
-    function getAnnounceBothLanguages() {
-        var val = getItem('tv_announce_both_languages');
-        return val === null ? true : val === 'true';
-    }
-
-    function setAnnounceBothLanguages(both) {
-        setItem('tv_announce_both_languages', both ? 'true' : 'false');
-    }
-
-    function getDebugAnnouncements() {
-        return CONFIG.DEBUG_ANNOUNCEMENTS || getItem('tv_debug_announcements') === 'true';
-    }
-
-    function getTtsApiUrl() {
-        return CONFIG.ANNOUNCEMENT_API_URL ||
-               getItem('tv_announcement_api_url') ||
-               '';
-    }
-
-    function debugLog() {
-        if (!getDebugAnnouncements()) return;
-        var args = Array.prototype.slice.call(arguments);
-        args.unshift('[Announcement]');
-        console.log.apply(console, args);
-    }
-
-    // ================================================
-    // ANNOUNCEMENT TEXT GENERATOR
-    // ================================================
-
-    /**
-     * Build a clear English announcement sentence for TTS.
-     * The backend will translate to Hindi automatically when language='hi'.
-     *
-     * Examples:
-     *   "Patient John Doe, token number 25, please proceed to Room 3."
-     *   "Patient John Doe, token number 25, please proceed for consultation."
-     */
-    var AnnouncementTextGenerator = {
-        build: function (patientName, tokenNumber, destination) {
-            var name = (patientName || 'the patient').trim();
-            var token = tokenNumber || '';
-            var dest = (destination || '').trim();
-
-            if (!dest) {
-                dest = 'the consultation area';
-            }
-
-            var text = 'Patient ' + name + ', token number ' + token +
-                       ', please proceed to ' + dest + '.';
-            return text;
-        }
-    };
-
-    // ================================================
-    // ANNOUNCEMENT SERVICE  (XHR + Audio Blob)
-    // ================================================
-
-    /**
-     * Calls the gTTS API for a single language, plays the returned MP3 blob.
-     * onDone() is called after audio ends. onError(msg) is called on failure.
-     */
-    function playTTSAudio(text, lang, onDone, onError) {
-        var ttsUrl = getTtsApiUrl();
-        if (!ttsUrl) {
-            debugLog('TTS API URL not configured - skipping language: ' + lang);
-            onDone && onDone();
-            return;
-        }
-
-        debugLog('POST /api/v1/speech', { text: text, language: lang });
-
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', ttsUrl.replace(/\/$/, '') + '/api/v1/speech', true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.responseType = 'blob';
-
-        xhr.onload = function () {
-            debugLog('API response status: ' + xhr.status + ' lang=' + lang);
-            if (xhr.status >= 200 && xhr.status < 300) {
-                var blob = xhr.response;
-                debugLog('Audio blob size: ' + blob.size + ' bytes');
-                var objectUrl = URL.createObjectURL(blob);
-                var audio = new Audio(objectUrl);
-
-                audio.oncanplaythrough = null; // Not needed but good practice
-
-                audio.onended = function () {
-                    debugLog('Audio playback ended (' + lang + ')');
-                    URL.revokeObjectURL(objectUrl);
-                    onDone && onDone();
-                };
-
-                audio.onerror = function (e) {
-                    console.error('[Announcement] Audio playback error (' + lang + '):', e);
-                    URL.revokeObjectURL(objectUrl);
-                    onError && onError('Audio playback error for language: ' + lang);
-                };
-
-                debugLog('Starting audio playback (' + lang + ')');
-                audio.play();
-            } else {
-                var msg = 'API returned HTTP ' + xhr.status + ' for language: ' + lang;
-                console.error('[Announcement]', msg);
-                onError && onError(msg);
-            }
-        };
-
-        xhr.onerror = function () {
-            var msg = 'Network error reaching TTS API for language: ' + lang;
-            console.error('[Announcement]', msg);
-            onError && onError(msg);
-        };
-
-        xhr.ontimeout = function () {
-            var msg = 'TTS API request timed out for language: ' + lang;
-            console.error('[Announcement]', msg);
-            onError && onError(msg);
-        };
-
-        xhr.timeout = 15000; // 15 second timeout
-        xhr.send(JSON.stringify({ text: text, language: lang, slow: false }));
-    }
-
-    /**
-     * Plays English announcement, then Hindi if bothLanguages=true.
-     * Both use the same English text; backend auto-translates Hindi.
-     */
-    var AnnouncementService = {
-        play: function (text, bothLanguages, onDone, onError) {
-            debugLog('Playing announcement:', text, '| bothLanguages:', bothLanguages);
-
-            playTTSAudio(text, 'en', function () {
-                if (bothLanguages) {
-                    debugLog('English done - starting Hindi');
-                    playTTSAudio(text, 'hi', function () {
-                        debugLog('Hindi done - announcement complete');
-                        onDone && onDone();
-                    }, function (errMsg) {
-                        console.error('[Announcement] Hindi failed:', errMsg);
-                        // Hindi failure is non-blocking - consider announcement done
-                        onDone && onDone();
-                    });
-                } else {
-                    debugLog('English done - announcement complete');
-                    onDone && onDone();
-                }
-            }, function (errMsg) {
-                console.error('[Announcement] English failed:', errMsg);
-                onError && onError(errMsg);
-            });
-        }
-    };
-
-    // ================================================
-    // ANNOUNCEMENT QUEUE  (Sequential, Dedup-safe)
-    // ================================================
-
-    var AnnouncementQueue = (function () {
-        var _queue = [];
-        var _processing = false;
-        var _registry = {}; // key: visit_id + '::' + status -> timestamp
-
-        // Load persisted registry from localStorage
-        function _loadRegistry() {
-            try {
-                var raw = getItem('tv_announced_registry');
-                if (raw) {
-                    var parsed = JSON.parse(raw);
-                    var now = Date.now();
-                    var ttl = 12 * 60 * 60 * 1000; // 12 hours
-                    // Prune stale entries
-                    for (var key in parsed) {
-                        if (parsed.hasOwnProperty(key)) {
-                            if (now - parsed[key] < ttl) {
-                                _registry[key] = parsed[key];
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                _registry = {};
-            }
-        }
-
-        function _saveRegistry() {
-            try {
-                setItem('tv_announced_registry', JSON.stringify(_registry));
-            } catch (e) {
-                // Ignore storage errors
-            }
-        }
-
-        function _makeKey(visitId, status) {
-            return visitId + '::' + status;
-        }
-
-        function _isAnnounced(visitId, status) {
-            return !!_registry[_makeKey(visitId, status)];
-        }
-
-        function _markAnnounced(visitId, status) {
-            _registry[_makeKey(visitId, status)] = Date.now();
-            _saveRegistry();
-        }
-
-        function _processNext() {
-            if (_queue.length === 0) {
-                _processing = false;
-                debugLog('Queue empty - processing stopped');
-                _updateQueueStatusUI();
-                return;
-            }
-
-            _processing = true;
-            var item = _queue.shift();
-            debugLog('Processing announcement:', item, '| Remaining in queue:', _queue.length);
-            _updateQueueStatusUI();
-
-            var text = AnnouncementTextGenerator.build(
-                item.patient_name,
-                item.token_number,
-                item.destination
-            );
-
-            var bothLangs = getAnnounceBothLanguages();
-
-            AnnouncementService.play(text, bothLangs,
-                function () {
-                    // Success - process next
-                    debugLog('Announcement done for', item.patient_name);
-                    _processNext();
-                },
-                function (errMsg) {
-                    // Error - log and skip to next to keep queue moving
-                    console.error('[AnnouncementQueue] Skipping failed announcement:', errMsg);
-                    _processNext();
-                }
-            );
-        }
-
-        function _updateQueueStatusUI() {
-            var el = document.getElementById('announcement-queue-status');
-            if (!el) return;
-            if (_processing) {
-                el.innerHTML = 'Playing... (' + (_queue.length) + ' pending)';
-                el.className = 'ann-status ann-status-playing';
-            } else if (_queue.length > 0) {
-                el.innerHTML = 'Queued: ' + _queue.length;
-                el.className = 'ann-status ann-status-queued';
-            } else {
-                el.innerHTML = 'Idle';
-                el.className = 'ann-status ann-status-idle';
-            }
-        }
-
-        // Initialize on module creation
-        _loadRegistry();
-
-        return {
-            add: function (item) {
-                if (!getAnnouncementsEnabled()) {
-                    debugLog('Announcements disabled - skipping:', item.patient_name);
-                    return;
-                }
-                if (!getTtsApiUrl()) {
-                    debugLog('TTS API URL not set - skipping:', item.patient_name);
-                    return;
-                }
-                if (_isAnnounced(item.visit_id, item.status)) {
-                    debugLog('Duplicate skipped:', item.visit_id, item.status);
-                    return;
-                }
-
-                _markAnnounced(item.visit_id, item.status);
-                _queue.push(item);
-                debugLog('Queued:', item.patient_name, '| Queue length:', _queue.length);
-                _updateQueueStatusUI();
-
-                if (!_processing) {
-                    _processNext();
-                }
-            },
-
-            playDirect: function (text, bothLanguages, onDone, onError) {
-                // Used by the test panel - bypasses queue and dedup
-                debugLog('Direct play (test):', text);
-                AnnouncementService.play(text, bothLanguages, onDone, onError);
-            },
-
-            reset: function () {
-                _queue = [];
-                _processing = false;
-                debugLog('Queue reset');
-                _updateQueueStatusUI();
-            },
-
-            getStats: function () {
-                return { queueLength: _queue.length, processing: _processing };
-            }
-        };
-    })();
-
-    // ================================================
     // AJAX HELPER (XMLHttpRequest for old browsers)
     // ================================================
 
@@ -498,9 +180,6 @@
                 if (response && response.apiBaseUrl) {
                     CONFIG.API_URL = response.apiBaseUrl;
                     CONFIG.DEFAULT_API_URL = response.apiBaseUrl;
-                }
-                if (response && response.ttsApiUrl) {
-                    CONFIG.ANNOUNCEMENT_API_URL = response.ttsApiUrl;
                 }
                 callback && callback();
             },
@@ -764,9 +443,6 @@
             // Apply header preference
             applyHeaderPreference();
 
-            // Apply announcement settings (syncs footer checkboxes)
-            applyAnnouncementSettings();
-
             // Start clock
             updateClock();
             clockInterval = setInterval(updateClock, CONFIG.CLOCK_INTERVAL);
@@ -899,8 +575,6 @@
             // Clear previous queues
             previousOptQueue = [];
             previousDocQueue = [];
-            // Reset announcement queue so stale items from previous doctor are dropped
-            AnnouncementQueue.reset();
             // Fetch immediately
             fetchQueues();
         }
@@ -987,56 +661,27 @@
     }
 
     function checkForNewAssignments(current, previous, queueType) {
-        debugLog('Polling cycle -', queueType, '| current:', current.length, '| previous:', previous.length);
-
-        var soundPlayed = false;
-
         // Check for newly assigned patients
         for (var i = 0; i < current.length; i++) {
             var curr = current[i];
-
-            // Eligible statuses for announcements
             var isAssigned = (queueType === 'optometrist' && curr.status === 'optometrist_assigned') ||
-                             (queueType === 'doctor'      && curr.status === 'doctor_assigned');
+                (queueType === 'doctor' && curr.status === 'doctor_assigned');
 
-            if (!isAssigned) continue;
-
-            // Check if this patient+status was already in the previous snapshot
-            var wasAssigned = false;
-            for (var j = 0; j < previous.length; j++) {
-                var prev = previous[j];
-                if (prev.visit_id === curr.visit_id && prev.status === curr.status) {
-                    wasAssigned = true;
-                    break;
+            if (isAssigned) {
+                var wasAssigned = false;
+                for (var j = 0; j < previous.length; j++) {
+                    var prev = previous[j];
+                    if (prev.visit_id === curr.visit_id && prev.status === curr.status) {
+                        wasAssigned = true;
+                        break;
+                    }
                 }
-            }
 
-            if (!wasAssigned) {
-                // --- Notification chime (one per poll cycle) ---
-                if (!soundPlayed) {
+                if (!wasAssigned) {
+                    // Play notification sound
                     playNotificationSound();
-                    soundPlayed = true;
+                    break; // Only one notification per update
                 }
-
-                // --- Queue TTS announcement ---
-                var destination = '';
-                if (queueType === 'optometrist') {
-                    destination = curr.optometrist_cabin || 'eye examination';
-                } else {
-                    destination = curr.doctor_cabin || 'consultation';
-                }
-
-                debugLog('New eligible patient:', curr.patient_name, '| token:', curr.token_number,
-                         '| destination:', destination, '| status:', curr.status);
-
-                AnnouncementQueue.add({
-                    visit_id:     curr.visit_id || curr.item_id || '',
-                    patient_name: curr.patient_name || 'Unknown',
-                    token_number: curr.token_number || curr.token || '',
-                    destination:  destination,
-                    status:       curr.status,
-                    timestamp:    Date.now()
-                });
             }
         }
     }
@@ -1180,164 +825,6 @@
         if (waitingEl) waitingEl.innerHTML = waiting;
         if (progressEl) progressEl.innerHTML = inProgress;
     }
-
-    // ================================================
-    // ANNOUNCEMENT UI FUNCTIONS
-    // ================================================
-
-    /**
-     * Sync announcement-related checkboxes to saved localStorage state.
-     * Called during initDisplay.
-     */
-    function applyAnnouncementSettings() {
-        var enabledCheckbox = document.getElementById('toggle-announcements');
-        if (enabledCheckbox) {
-            enabledCheckbox.checked = getAnnouncementsEnabled();
-        }
-
-        var bothLangsCheckbox = document.getElementById('toggle-both-languages');
-        if (bothLangsCheckbox) {
-            bothLangsCheckbox.checked = getAnnounceBothLanguages();
-        }
-    }
-
-    window.toggleAnnouncements = function (enabled) {
-        setAnnouncementsEnabled(enabled);
-        debugLog('Announcements', enabled ? 'enabled' : 'disabled');
-    };
-
-    window.toggleBothLanguages = function (both) {
-        setAnnounceBothLanguages(both);
-        debugLog('Both languages', both ? 'enabled' : 'disabled');
-    };
-
-    window.openTestPanel = function () {
-        var panel = document.getElementById('announcement-test-panel');
-        if (panel) {
-            panel.style.display = 'flex';
-            // Pre-fill textarea with example text if empty
-            var textarea = document.getElementById('test-announcement-text');
-            if (textarea && !textarea.value.trim()) {
-                textarea.value = 'Patient Test User, token number 100, please proceed to Room 1.';
-            }
-            // Reset status
-            var status = document.getElementById('test-announcement-status');
-            if (status) {
-                status.innerHTML = 'Ready';
-                status.className = 'test-ann-status test-ann-idle';
-            }
-        }
-    };
-
-    window.closeTestPanel = function () {
-        var panel = document.getElementById('announcement-test-panel');
-        if (panel) {
-            panel.style.display = 'none';
-        }
-    };
-
-    /**
-     * Called by test panel buttons.
-     * mode: 'en' | 'hi' | 'both'
-     */
-    window.runTestAnnouncement = function (mode) {
-        var textarea = document.getElementById('test-announcement-text');
-        var statusEl = document.getElementById('test-announcement-status');
-        var text = textarea ? textarea.value.trim() : '';
-
-        if (!text) {
-            if (statusEl) {
-                statusEl.innerHTML = 'Error: Please enter announcement text.';
-                statusEl.className = 'test-ann-status test-ann-error';
-            }
-            return;
-        }
-
-        if (!getTtsApiUrl()) {
-            if (statusEl) {
-                statusEl.innerHTML = 'Error: TTS API URL not configured. Check .env TTS_API_URL.';
-                statusEl.className = 'test-ann-status test-ann-error';
-            }
-            return;
-        }
-
-        function setStatus(msg, cls) {
-            if (statusEl) {
-                statusEl.innerHTML = msg;
-                statusEl.className = 'test-ann-status ' + (cls || 'test-ann-playing');
-            }
-        }
-
-        if (mode === 'en') {
-            setStatus('⏳ Generating English audio...');
-            playTTSAudio(text, 'en', function () {
-                setStatus('✓ English playback complete.', 'test-ann-done');
-            }, function (err) {
-                setStatus('✗ English failed: ' + err, 'test-ann-error');
-            });
-        } else if (mode === 'hi') {
-            setStatus('⏳ Generating Hindi audio...');
-            playTTSAudio(text, 'hi', function () {
-                setStatus('✓ Hindi playback complete.', 'test-ann-done');
-            }, function (err) {
-                setStatus('✗ Hindi failed: ' + err, 'test-ann-error');
-            });
-        } else if (mode === 'both') {
-            setStatus('⏳ Playing English...');
-            playTTSAudio(text, 'en', function () {
-                setStatus('⏳ English done. Playing Hindi...');
-                playTTSAudio(text, 'hi', function () {
-                    setStatus('✓ Both languages complete.', 'test-ann-done');
-                }, function (err) {
-                    setStatus('✗ Hindi failed: ' + err, 'test-ann-error');
-                });
-            }, function (err) {
-                setStatus('✗ English failed: ' + err, 'test-ann-error');
-            });
-        } else if (mode === 'queue') {
-            // Queue test: add three consecutive test announcements
-            var msgs = [
-                { text: 'Patient Test Alpha, token number 101, please proceed to Room 1.', id: 'test-101' },
-                { text: 'Patient Test Beta, token number 102, please proceed to Counter 2.', id: 'test-102' },
-                { text: 'Patient Test Gamma, token number 103, please proceed for consultation.', id: 'test-103' }
-            ];
-            setStatus('⏳ Queuing 3 test announcements...');
-            for (var i = 0; i < msgs.length; i++) {
-                AnnouncementQueue.add({
-                    visit_id:     msgs[i].id + '-' + Date.now() + '-' + i,
-                    patient_name: msgs[i].text,   // pass full text as name for test
-                    token_number: '',
-                    destination:  '',
-                    status:       'test',
-                    timestamp:    Date.now() + i
-                });
-            }
-            // Override with direct playback for queue test
-            // (the add() above won't work right since we pass full text as name)
-            // Reset and play directly in sequence instead
-            setStatus('⏳ Queue test: playing 3 sequential announcements...');
-            var idx = 0;
-            function playNext() {
-                if (idx >= msgs.length) {
-                    setStatus('✓ Queue stress test complete (' + msgs.length + ' announcements).', 'test-ann-done');
-                    return;
-                }
-                var msg = msgs[idx];
-                idx++;
-                setStatus('⏳ Playing ' + idx + ' of ' + msgs.length + ': ' + msg.text.substring(0, 40) + '...');
-                AnnouncementQueue.playDirect(
-                    msg.text,
-                    getAnnounceBothLanguages(),
-                    playNext,
-                    function (err) {
-                        setStatus('✗ Failed on message ' + idx + ': ' + err, 'test-ann-error');
-                        playNext(); // continue despite error
-                    }
-                );
-            }
-            playNext();
-        }
-    };
 
     // ================================================
     // CLEANUP
