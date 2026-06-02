@@ -39,7 +39,6 @@ try {
 
 var PORT = process.env.PORT || 5500;
 var API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8080';
-var TTS_API_URL = process.env.TTS_API_URL || '';
 
 // MIME types for serving files
 var mimeTypes = {
@@ -73,8 +72,7 @@ var server = http.createServer(function (req, res) {
             'Cache-Control': 'no-cache'
         });
         res.end(JSON.stringify({
-            apiBaseUrl: API_BASE_URL,
-            ttsApiUrl: TTS_API_URL
+            apiBaseUrl: API_BASE_URL
         }));
         return;
     }
