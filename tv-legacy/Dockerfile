@@ -21,11 +21,7 @@ RUN npm ci --production --omit=dev || npm install --production || echo "No depen
 
 # Copy application files
 COPY server.js ./
-COPY *.html ./
-COPY *.css ./
-COPY *.js ./
-COPY *.png ./
-COPY assets/ ./assets/
+COPY public/ ./public/
 
 # Create a non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

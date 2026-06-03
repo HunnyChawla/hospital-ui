@@ -85,7 +85,7 @@ var server = http.createServer(function (req, res) {
     }
 
     // Build file path
-    var filePath = path.join(__dirname, urlPath);
+    var filePath = path.join(__dirname, 'public', urlPath);
 
     // Get file extension
     var ext = path.extname(filePath).toLowerCase();
