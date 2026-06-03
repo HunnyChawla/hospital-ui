@@ -651,3 +651,292 @@ body {
     margin-right: 5px;
     vertical-align: middle;
 }
+
+/* ================================================
+   TEST ANNOUNCEMENT PANEL
+   ================================================ */
+
+/* Toggle button in footer */
+.test-panel-toggle-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #0284c7;
+    background-color: #e0f2fe;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+}
+
+.test-panel-toggle-btn:hover {
+    background-color: #bae6fd;
+    color: #0369a1;
+    border-color: #7dd3fc;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15);
+}
+
+/* Overlay panel — slides up above the footer */
+#test-panel-body {
+    position: fixed;
+    bottom: 48px;   /* sits just above the footer bar */
+    left: 0;
+    right: 0;
+    z-index: 9000;
+    padding: 0 20px 10px 20px;
+    animation: slideUpPanel 0.25s ease-out;
+}
+
+@keyframes slideUpPanel {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.test-panel-inner {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(14,165,233,0.08);
+    overflow: hidden;
+}
+
+/* Panel header bar */
+.test-panel-header {
+    display: table;
+    width: 100%;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%);
+    background-color: #0ea5e9; /* fallback */
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    box-sizing: border-box;
+}
+
+.test-panel-header span {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.test-panel-close {
+    display: table-cell;
+    vertical-align: middle;
+    text-align: right;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.85);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+
+.test-panel-close:hover {
+    color: #ffffff;
+}
+
+/* Two-column content layout */
+.test-panel-content {
+    display: table;
+    width: 100%;
+    padding: 16px 18px;
+    box-sizing: border-box;
+}
+
+.test-panel-left {
+    display: table-cell;
+    vertical-align: top;
+    width: 60%;
+    padding-right: 16px;
+}
+
+.test-panel-right {
+    display: table-cell;
+    vertical-align: top;
+    width: 40%;
+    border-left: 1px solid #f1f5f9;
+    padding-left: 16px;
+}
+
+/* Label */
+.test-label {
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+    color: #475569;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* Text input area */
+.test-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #1e293b;
+    box-sizing: border-box;
+    resize: vertical;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+}
+
+.test-textarea:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    background-color: #ffffff;
+}
+
+/* Preset buttons row */
+.test-presets {
+    margin-top: 8px;
+    margin-bottom: 12px;
+}
+
+.test-presets-label {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: bold;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.test-preset-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    background-color: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #475569;
+    margin-right: 5px;
+    vertical-align: middle;
+    transition: all 0.15s;
+}
+
+.test-preset-btn:hover {
+    background-color: #e2e8f0;
+    color: #1e293b;
+}
+
+/* Action button group */
+.test-btn-group {
+    display: table;
+    width: 100%;
+}
+
+.test-btn {
+    display: table-cell;
+    padding: 8px 6px;
+    font-size: 12px;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    vertical-align: middle;
+    transition: all 0.15s ease;
+    letter-spacing: 0.2px;
+}
+
+/* English — sky blue */
+.test-btn-en {
+    background-color: #0ea5e9;
+    color: #ffffff;
+    margin-right: 6px;
+}
+
+.test-btn-en:hover {
+    background-color: #0284c7;
+    box-shadow: 0 3px 8px rgba(14,165,233,0.3);
+}
+
+/* Hindi — amber/orange */
+.test-btn-hi {
+    background-color: #f59e0b;
+    color: #ffffff;
+    margin-right: 6px;
+}
+
+.test-btn-hi:hover {
+    background-color: #d97706;
+    box-shadow: 0 3px 8px rgba(245,158,11,0.3);
+}
+
+/* Both (queue) — teal */
+.test-btn-both {
+    background-color: #14b8a6;
+    color: #ffffff;
+    margin-right: 6px;
+}
+
+.test-btn-both:hover {
+    background-color: #0d9488;
+    box-shadow: 0 3px 8px rgba(20,184,166,0.3);
+}
+
+/* Stress test — violet */
+.test-btn-seq {
+    background-color: #8b5cf6;
+    color: #ffffff;
+}
+
+.test-btn-seq:hover {
+    background-color: #7c3aed;
+    box-shadow: 0 3px 8px rgba(139,92,246,0.3);
+}
+
+/* Status message */
+.test-status {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    min-height: 20px;
+    color: #475569;
+}
+
+/* Debug panel (right column) */
+.test-debug-label {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.test-debug-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #334155;
+    line-height: 1.8;
+    min-height: 80px;
+}
+
+.test-debug-hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.6;
+}
+
+.test-debug-hint code {
+    background-color: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}

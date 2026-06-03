@@ -114,11 +114,74 @@
                     </td>
                     <td align="right" width="30%">
                         <span>Last updated: <span id="last-update">--:--:--</span></span>
+                        &nbsp;&nbsp;
+                        <button id="test-panel-toggle-btn" onclick="toggleTestPanel()" class="test-panel-toggle-btn">
+                            🔊 Test Announcement
+                        </button>
                     </td>
                 </tr>
             </table>
         </div>
+
+        <!-- Test Announcement Panel (collapsible overlay above footer) -->
+        <div id="test-panel-body" style="display:none;">
+            <div class="test-panel-inner">
+                <div class="test-panel-header">
+                    <span>🔊 Announcement Test Tool</span>
+                    <button onclick="toggleTestPanel()" class="test-panel-close" title="Close">✕</button>
+                </div>
+
+                <div class="test-panel-content">
+                    <!-- Left: Input & Controls -->
+                    <div class="test-panel-left">
+                        <label class="test-label" for="test-announcement-text">Announcement Text (English)</label>
+                        <textarea
+                            id="test-announcement-text"
+                            class="test-textarea"
+                            rows="3"
+                            placeholder="Patient Test User, token number 100, please proceed to Room 1."
+                        >Patient Test User, token number 100, please proceed to Room 1.</textarea>
+
+                        <div class="test-presets">
+                            <span class="test-presets-label">Quick presets:</span>
+                            <button class="test-preset-btn" onclick="document.getElementById('test-announcement-text').value='Patient Test User, token number 100, please proceed to Room 1.'">Room 1</button>
+                            <button class="test-preset-btn" onclick="document.getElementById('test-announcement-text').value='Patient Test User, your consultation is ready. Please proceed to Counter 2.'">Counter 2</button>
+                        </div>
+
+                        <div class="test-btn-group">
+                            <button onclick="testAnnouncement('en')" class="test-btn test-btn-en">
+                                ▶ English
+                            </button>
+                            <button onclick="testAnnouncement('hi')" class="test-btn test-btn-hi">
+                                ▶ Hindi
+                            </button>
+                            <button onclick="testBothLanguages()" class="test-btn test-btn-both">
+                                ▶ EN + HI (Queue)
+                            </button>
+                            <button onclick="testQueueSequencing()" class="test-btn test-btn-seq">
+                                ▶▶ Queue Stress Test
+                            </button>
+                        </div>
+
+                        <div id="test-announcement-status" class="test-status"></div>
+                    </div>
+
+                    <!-- Right: Live Debug -->
+                    <div class="test-panel-right">
+                        <div class="test-debug-label">Live Queue Debug</div>
+                        <div id="queue-debug-info" class="test-debug-box">
+                            Initializing...
+                        </div>
+                        <div class="test-debug-hint">
+                            ℹ️ Open browser console for detailed logs.<br>
+                            Set <code>CONFIG.ANNOUNCEMENT_DEBUG = false</code> to silence.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
 
     <!-- Notification Sound -->
     <audio id="notification-sound" preload="auto">

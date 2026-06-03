@@ -10,8 +10,10 @@ export default function handler(req, res) {
     return;
   }
 
-  // Return the configured API base URL
+  // Return the configured API base URL and TTS API URL
   res.status(200).json({
-    apiBaseUrl: process.env.API_BASE_URL || 'https://13.60.213.156.sslip.io'
+    apiBaseUrl: process.env.API_BASE_URL || 'https://13.60.213.156.sslip.io',
+    ttsApiUrl: process.env.TTS_API_URL || ''
   });
 }
+

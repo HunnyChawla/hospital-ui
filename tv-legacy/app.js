@@ -16,7 +16,9 @@
         POLL_INTERVAL: 5000,  // Poll every 5 seconds
         CLOCK_INTERVAL: 1000, // Update clock every second
         DEFAULT_API_URL: 'http://localhost:8080',  // Will be updated from /config endpoint
-        API_URL: null  // Will be set after loading config
+        API_URL: null,        // Will be set after loading config
+        TTS_API_URL: null,    // Will be set after loading config (from TTS_API_URL env)
+        ANNOUNCEMENT_DEBUG: true  // Set to false to silence announcement debug logs
     };
 
     // ================================================
@@ -181,6 +183,12 @@
                     CONFIG.API_URL = response.apiBaseUrl;
                     CONFIG.DEFAULT_API_URL = response.apiBaseUrl;
                 }
+                if (response && response.ttsApiUrl) {
+                    CONFIG.TTS_API_URL = response.ttsApiUrl;
+                    announcementDebug('CONFIG', 'TTS API URL loaded: ' + response.ttsApiUrl);
+                } else {
+                    announcementDebug('CONFIG', 'TTS API URL not set — announcement audio disabled');
+                }
                 callback && callback();
             },
             error: function () {
@@ -188,6 +196,10 @@
                 callback && callback();
             }
         });
+    }
+
+    function getTtsApiUrl() {
+        return CONFIG.TTS_API_URL || getItem('tv_tts_api_url') || '';
     }
 
     // ================================================
@@ -575,6 +587,8 @@
             // Clear previous queues
             previousOptQueue = [];
             previousDocQueue = [];
+            // Reset announcement state for new doctor context
+            resetAnnouncementState();
             // Fetch immediately
             fetchQueues();
         }
@@ -660,28 +674,86 @@
         return [];
     }
 
+    /**
+     * Resolve the best available unique identifier from a patient record.
+     *
+     * The API returns the queue entry as `id` (not `visit_id`).
+     * We fall back through several fields to guarantee a non-undefined key:
+     *   id  →  visit_id  →  appointment_id  →  patient_id + token_number
+     *
+     * Returns null only if the record is entirely devoid of identifiers
+     * (which should never happen in a real response).
+     *
+     * @param {Object} patient - Raw patient object from the API
+     * @returns {string|null}
+     */
+    function getPatientId(patient) {
+        if (!patient) return null;
+        if (patient.id)             return String(patient.id);
+        if (patient.visit_id)       return String(patient.visit_id);
+        if (patient.appointment_id) return String(patient.appointment_id);
+        // Last-resort composite key — unique enough for dedup purposes
+        if (patient.patient_id && (patient.token_number || patient.token)) {
+            return String(patient.patient_id) + '_' + String(patient.token_number || patient.token);
+        }
+        return null;
+    }
+
     function checkForNewAssignments(current, previous, queueType) {
+        announcementDebug('POLL', 'Checking ' + queueType + ' queue — ' + current.length + ' patient(s)');
+
         // Check for newly assigned patients
         for (var i = 0; i < current.length; i++) {
             var curr = current[i];
             var isAssigned = (queueType === 'optometrist' && curr.status === 'optometrist_assigned') ||
                 (queueType === 'doctor' && curr.status === 'doctor_assigned');
 
-            if (isAssigned) {
-                var wasAssigned = false;
-                for (var j = 0; j < previous.length; j++) {
-                    var prev = previous[j];
-                    if (prev.visit_id === curr.visit_id && prev.status === curr.status) {
-                        wasAssigned = true;
-                        break;
-                    }
-                }
+            if (!isAssigned) continue;
 
-                if (!wasAssigned) {
-                    // Play notification sound
-                    playNotificationSound();
-                    break; // Only one notification per update
+            // Resolve a reliable identifier for this patient
+            var currId = getPatientId(curr);
+
+            if (!currId) {
+                // Cannot reliably identify this patient — skip to avoid creating broken dedup keys
+                announcementDebug('POLL', 'WARNING: Could not resolve ID for patient "' +
+                    (curr.patient_name || 'Unknown') + '" — skipping announcement');
+                continue;
+            }
+
+            // Check if this patient was already in the assigned status in the previous poll
+            var wasAssigned = false;
+            for (var j = 0; j < previous.length; j++) {
+                var prev = previous[j];
+                var prevId = getPatientId(prev);
+                if (prevId === currId && prev.status === curr.status) {
+                    wasAssigned = true;
+                    break;
                 }
+            }
+
+            if (!wasAssigned) {
+                announcementDebug('POLL', 'New assignment detected: ' + curr.patient_name +
+                    ' [id=' + currId + '] (token ' + (curr.token_number || curr.token) +
+                    ') status=' + curr.status);
+
+                // Play notification chime immediately
+                playNotificationSound();
+
+                // Build announcement text
+                var cabin = queueType === 'optometrist'
+                    ? (curr.optometrist_cabin || null)
+                    : (curr.doctor_cabin || null);
+
+                var announcementText = generateAnnouncementText(
+                    curr.patient_name,
+                    curr.token_number || curr.token,
+                    cabin,
+                    queueType
+                );
+
+                // Enqueue with the resolved, non-undefined ID
+                enqueueAnnouncement(currId, curr.status, announcementText);
+                break; // Only one new assignment detection per poll cycle
             }
         }
     }
@@ -825,6 +897,402 @@
         if (waitingEl) waitingEl.innerHTML = waiting;
         if (progressEl) progressEl.innerHTML = inProgress;
     }
+
+    // ================================================
+    // ANNOUNCEMENT SYSTEM
+    // ================================================
+
+    // ---- Debug Logger ----
+    function announcementDebug(category, message) {
+        if (CONFIG.ANNOUNCEMENT_DEBUG) {
+            console.log('[ANNOUNCEMENT:' + category + '] ' + message);
+        }
+    }
+
+    // ---- AnnouncementTextGenerator ----
+
+    /**
+     * Build the English TTS sentence from patient data.
+     * Backend will auto-translate this to Hindi when language='hi' is requested.
+     *
+     * Examples:
+     *   "Patient John Doe, token number 25, please proceed to Room 3."
+     *   "Patient John Doe, token number 25, please proceed for eye examination."
+     *   "Patient John Doe, token number 25, your consultation is ready."
+     */
+    function generateAnnouncementText(patientName, tokenNumber, cabin, queueType) {
+        var name = patientName || 'Unknown';
+        var token = tokenNumber || '--';
+
+        if (cabin) {
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed to ' + cabin + '.';
+        }
+
+        if (queueType === 'optometrist') {
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed for eye examination.';
+        }
+
+        // Doctor queue without cabin
+        return 'Patient ' + name + ', token number ' + token +
+            ', your consultation is ready.';
+    }
+
+    // ---- AnnouncementService ----
+
+    /**
+     * POST to /api/v1/speech and return the audio as an Object URL.
+     * Uses XMLHttpRequest with responseType='arraybuffer' for ES5 compatibility.
+     *
+     * @param {string}   text      - English text to synthesize
+     * @param {string}   language  - 'en' or 'hi'
+     * @param {Function} callback  - function(err, objectUrl)
+     */
+    function fetchSpeechAudio(text, language, callback) {
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            announcementDebug('API', 'TTS URL not configured — skipping ' + language + ' audio');
+            callback('TTS URL not configured', null);
+            return;
+        }
+
+        var endpoint = ttsUrl.replace(/\/$/, '') + '/api/v1/speech';
+        announcementDebug('API', 'POST ' + endpoint + ' lang=' + language + ' text="' + text + '"');
+
+        var xhr;
+        if (window.XMLHttpRequest) {
+            xhr = new XMLHttpRequest();
+        } else if (window.ActiveXObject) {
+            try { xhr = new ActiveXObject('Msxml2.XMLHTTP'); }
+            catch (e) {
+                try { xhr = new ActiveXObject('Microsoft.XMLHTTP'); }
+                catch (e2) { callback('XMLHttpRequest not supported', null); return; }
+            }
+        }
+
+        xhr.responseType = 'arraybuffer';
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    var blob = new Blob([xhr.response], { type: 'audio/mpeg' });
+                    var objectUrl = URL.createObjectURL(blob);
+                    announcementDebug('API', 'Audio received for lang=' + language +
+                        ' size=' + xhr.response.byteLength + ' bytes');
+                    callback(null, objectUrl);
+                } catch (e) {
+                    announcementDebug('API', 'Error creating Blob URL: ' + e.message);
+                    callback(e, null);
+                }
+            } else {
+                announcementDebug('API', 'TTS request failed: HTTP ' + xhr.status +
+                    ' lang=' + language);
+                callback('HTTP ' + xhr.status, null);
+            }
+        };
+
+        xhr.onerror = function () {
+            announcementDebug('API', 'TTS network error for lang=' + language);
+            callback('Network error', null);
+        };
+
+        xhr.open('POST', endpoint, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({ text: text, language: language, slow: false }));
+    }
+
+    // ---- AudioPlaybackService ----
+
+    /**
+     * Play an audio Object URL and invoke onComplete when done (or on error/skip).
+     * Automatically revokes the Object URL after playback.
+     *
+     * @param {string}   objectUrl  - URL.createObjectURL blob URL
+     * @param {Function} onComplete - called when playback finishes or fails
+     */
+    function playAudioUrl(objectUrl, onComplete) {
+        try {
+            var audio = new Audio(objectUrl);
+
+            audio.onended = function () {
+                announcementDebug('AUDIO', 'Playback complete');
+                try { URL.revokeObjectURL(objectUrl); } catch (e) { /* ignore */ }
+                onComplete();
+            };
+
+            audio.onerror = function (e) {
+                announcementDebug('AUDIO', 'Playback error — skipping: ' +
+                    (audio.error ? audio.error.message : 'unknown'));
+                try { URL.revokeObjectURL(objectUrl); } catch (e2) { /* ignore */ }
+                onComplete();
+            };
+
+            var playPromise = audio.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch(function (err) {
+                    announcementDebug('AUDIO', 'play() rejected: ' + err.message);
+                    try { URL.revokeObjectURL(objectUrl); } catch (e) { /* ignore */ }
+                    onComplete();
+                });
+            }
+
+            announcementDebug('AUDIO', 'Playback started for: ' + objectUrl);
+        } catch (e) {
+            announcementDebug('AUDIO', 'Audio() constructor failed: ' + e.message);
+            try { URL.revokeObjectURL(objectUrl); } catch (e2) { /* ignore */ }
+            onComplete();
+        }
+    }
+
+    // ---- AnnouncementQueueManager ----
+
+    var announcementQueue     = [];  // Array of { visitId, status, text }
+    var isAnnouncementPlaying = false;
+    var announcedCount        = 0;   // Session-level counter — for debug panel only (does NOT block re-announcements)
+
+    /**
+     * Reset announcement state (called on doctor change).
+     * Clears pending queue. In-flight audio is allowed to finish naturally.
+     * The previousQueue arrays in the polling section act as the sole dedup — they
+     * are also reset by handleDoctorChange(), so a doctor switch correctly re-arms
+     * announcements for the new doctor context.
+     */
+    function resetAnnouncementState() {
+        announcementQueue    = [];
+        announcedCount       = 0;
+        // Note: isAnnouncementPlaying is NOT reset — in-flight audio completes naturally,
+        // then processAnnouncementQueue() finds an empty queue and exits.
+        announcementDebug('QUEUE', 'State reset (doctor change)');
+        updateQueueDebugPanel();
+    }
+
+    /**
+     * Add an announcement to the queue and kick off processing.
+     *
+     * DEDUP STRATEGY: This function does NOT block based on a registry.
+     * The caller (checkForNewAssignments) already guarantees this is only
+     * called when the patient's status genuinely changed in the LAST poll.
+     * Blocking here would prevent re-announcement after legitimate status
+     * re-transitions (e.g. patient re-assigned after being moved).
+     *
+     * @param {string} patientId - resolved patient/record ID
+     * @param {string} status    - the triggering status
+     * @param {string} text      - English announcement text
+     */
+    function enqueueAnnouncement(patientId, status, text) {
+        announcementQueue.push({ visitId: patientId, status: status, text: text });
+        announcedCount++;
+
+        announcementDebug('QUEUE', 'Enqueued [' + patientId + '_' + status + '] "' + text +
+            '" — queue length: ' + announcementQueue.length +
+            ' | session total: ' + announcedCount);
+        updateQueueDebugPanel();
+        processAnnouncementQueue();
+    }
+
+    /**
+     * Dequeue and play the next announcement.
+     * Auto-advances until the queue is empty.
+     */
+    function processAnnouncementQueue() {
+        if (isAnnouncementPlaying) {
+            announcementDebug('QUEUE', 'Already playing — will resume after current finishes');
+            return;
+        }
+        if (announcementQueue.length === 0) {
+            announcementDebug('QUEUE', 'Queue empty — done');
+            updateQueueDebugPanel();
+            return;
+        }
+
+        isAnnouncementPlaying = true;
+        var item = announcementQueue.shift();
+
+        announcementDebug('QUEUE', 'Processing: [' + item.visitId + '_' + item.status + 
+            '] "' + item.text + '" — remaining: ' + announcementQueue.length);
+        updateQueueDebugPanel();
+
+        playAnnouncementItem(item, function () {
+            isAnnouncementPlaying = false;
+            announcementDebug('QUEUE', 'Item complete — advancing queue');
+            updateQueueDebugPanel();
+            processAnnouncementQueue();
+        });
+    }
+
+    /**
+     * Play a single announcement item: English audio, then Hindi audio (backend translates).
+     * Same English text is sent for both; backend handles translation for 'hi'.
+     *
+     * @param {{ visitId: string, status: string, text: string }} item
+     * @param {Function} onDone - called when both languages are done (or on failure)
+     */
+    function playAnnouncementItem(item, onDone) {
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            announcementDebug('QUEUE', 'TTS not configured — skipping item');
+            onDone();
+            return;
+        }
+
+        // Step 1: Fetch and play English audio
+        announcementDebug('AUDIO', 'Fetching English audio for: "' + item.text + '"');
+        fetchSpeechAudio(item.text, 'en', function (err, enUrl) {
+            if (err) {
+                announcementDebug('AUDIO', 'English fetch failed: ' + err + ' — skipping item');
+                onDone();
+                return;
+            }
+
+            playAudioUrl(enUrl, function () {
+                // Step 2: Fetch and play Hindi audio (same text — backend translates)
+                announcementDebug('AUDIO', 'Fetching Hindi audio for: "' + item.text + '"');
+                fetchSpeechAudio(item.text, 'hi', function (err2, hiUrl) {
+                    if (err2) {
+                        announcementDebug('AUDIO', 'Hindi fetch failed: ' + err2 + ' — skipping Hindi');
+                        onDone();
+                        return;
+                    }
+                    playAudioUrl(hiUrl, onDone);
+                });
+            });
+        });
+    }
+
+    // ---- Test Announcement Functions ----
+
+    /**
+     * Show/hide the test announcement panel in the footer.
+     */
+    window.toggleTestPanel = function () {
+        var body = document.getElementById('test-panel-body');
+        var btn  = document.getElementById('test-panel-toggle-btn');
+        if (!body) return;
+        if (body.style.display === 'none' || body.style.display === '') {
+            body.style.display = 'block';
+            if (btn) btn.innerHTML = '🔊 Hide Test Panel';
+        } else {
+            body.style.display = 'none';
+            if (btn) btn.innerHTML = '🔊 Test Announcement';
+        }
+    };
+
+    /**
+     * Trigger a single-language test announcement from the test panel textarea.
+     * @param {string} lang - 'en' or 'hi'
+     */
+    window.testAnnouncement = function (lang) {
+        var textEl   = document.getElementById('test-announcement-text');
+        var statusEl = document.getElementById('test-announcement-status');
+        if (!textEl || !statusEl) return;
+
+        var text = textEl.value.trim();
+        if (!text) { statusEl.innerHTML = '<span style="color:#e55;">Please enter announcement text.</span>'; return; }
+
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            statusEl.innerHTML = '<span style="color:#e55;">TTS API URL not configured. Check .env and restart server.</span>';
+            return;
+        }
+
+        statusEl.innerHTML = '<span style="color:#f90;">⏳ Fetching ' + lang.toUpperCase() + ' audio...</span>';
+
+        fetchSpeechAudio(text, lang, function (err, objectUrl) {
+            if (err) {
+                statusEl.innerHTML = '<span style="color:#e55;">❌ Error: ' + err + '</span>';
+                return;
+            }
+            statusEl.innerHTML = '<span style="color:#3a3;">▶ Playing ' + lang.toUpperCase() + ' audio...</span>';
+            playAudioUrl(objectUrl, function () {
+                statusEl.innerHTML = '<span style="color:#3a3;">✅ Playback complete (' + lang.toUpperCase() + ')</span>';
+            });
+        });
+    };
+
+    /**
+     * Test both English + Hindi sequentially through the queue system.
+     */
+    window.testBothLanguages = function () {
+        var textEl   = document.getElementById('test-announcement-text');
+        var statusEl = document.getElementById('test-announcement-status');
+        if (!textEl || !statusEl) return;
+
+        var text = textEl.value.trim();
+        if (!text) { statusEl.innerHTML = '<span style="color:#e55;">Please enter announcement text.</span>'; return; }
+
+        var ttsUrl = getTtsApiUrl();
+        if (!ttsUrl) {
+            statusEl.innerHTML = '<span style="color:#e55;">TTS API URL not configured.</span>';
+            return;
+        }
+
+        // Use a unique test ID so it bypasses the dedup registry each time
+        var testId  = 'test_' + Date.now();
+        var testKey = testId + '_test';
+
+        statusEl.innerHTML = '<span style="color:#f90;">⏳ Queued — playing English then Hindi...</span>';
+
+        // Directly push to queue bypassing dedup (it's a manual test)
+        announcementQueue.push({ visitId: testId, status: 'test', text: text });
+        announcementDebug('TEST', 'Manual test enqueued: "' + text + '"');
+        updateQueueDebugPanel();
+        processAnnouncementQueue();
+
+        statusEl.innerHTML = '<span style="color:#3a3;">▶ Processing queue... check debug panel</span>';
+    };
+
+    /**
+     * Test two consecutive announcements to verify queue sequencing.
+     */
+    window.testQueueSequencing = function () {
+        var statusEl = document.getElementById('test-announcement-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f90;">⏳ Adding 2 test items to queue...</span>';
+
+        var msgs = [
+            'Patient Test User, token number 100, please proceed to Room 1.',
+            'Patient Test User, your consultation is ready. Please proceed to Counter 2.'
+        ];
+
+        for (var i = 0; i < msgs.length; i++) {
+            var testId = 'seq_test_' + Date.now() + '_' + i;
+            announcementQueue.push({ visitId: testId, status: 'test', text: msgs[i] });
+        }
+
+        announcementDebug('TEST', 'Queue sequencing test: 2 items added');
+        updateQueueDebugPanel();
+        processAnnouncementQueue();
+
+        if (statusEl) statusEl.innerHTML = '<span style="color:#3a3;">▶ 2 items queued — playing sequentially...</span>';
+    };
+
+    /**
+     * Update the live queue debug panel in the test UI.
+     */
+    function updateQueueDebugPanel() {
+        var el = document.getElementById('queue-debug-info');
+        if (!el) return;
+
+        var status = isAnnouncementPlaying ? '🔊 Playing' : '⏸ Idle';
+        var qLen   = announcementQueue.length;
+        var ttsUrl = getTtsApiUrl();
+
+        el.innerHTML =
+            '<strong>Queue Status:</strong> ' + status + '<br>' +
+            '<strong>Pending Items:</strong> ' + qLen + '<br>' +
+            '<strong>Session Announcements:</strong> ' + announcedCount + '<br>' +
+            '<strong>TTS API:</strong> ' + (ttsUrl ? '<span style="color:#3a3;">' + ttsUrl + '</span>' : '<span style="color:#e55;">Not configured</span>');
+    }
+
+    // Refresh queue debug panel every 2 seconds when open
+    setInterval(function () {
+        var body = document.getElementById('test-panel-body');
+        if (body && body.style.display !== 'none' && body.style.display !== '') {
+            updateQueueDebugPanel();
+        }
+    }, 2000);
 
     // ================================================
     // CLEANUP

@@ -39,6 +39,7 @@ try {
 
 var PORT = process.env.PORT || 5500;
 var API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8080';
+var TTS_API_URL = process.env.TTS_API_URL || '';
 
 // MIME types for serving files
 var mimeTypes = {
@@ -72,7 +73,8 @@ var server = http.createServer(function (req, res) {
             'Cache-Control': 'no-cache'
         });
         res.end(JSON.stringify({
-            apiBaseUrl: API_BASE_URL
+            apiBaseUrl: API_BASE_URL,
+            ttsApiUrl: TTS_API_URL
         }));
         return;
     }
@@ -120,6 +122,7 @@ server.listen(PORT, function () {
     console.log('========================================');
     console.log('Server running at: http://localhost:' + PORT);
     console.log('API Base URL:      ' + API_BASE_URL);
+    console.log('TTS API URL:       ' + (TTS_API_URL || '(not configured)'));
     console.log('');
     console.log('Open your browser and navigate to:');
     console.log('  http://localhost:' + PORT);
