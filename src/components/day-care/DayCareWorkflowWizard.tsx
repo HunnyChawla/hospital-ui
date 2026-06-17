@@ -27,6 +27,7 @@ import {
   X
 } from "lucide-react";
 import { dayCareApi } from "@/services/dayCareApi";
+import { doctorsApi } from "@/services/doctorsApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { otConsumablesApi, OTConsumable } from "@/services/otConsumablesApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
@@ -176,6 +177,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   // Print state
   const printRef = React.useRef<HTMLDivElement>(null);
   const [printData, setPrintData] = useState<DischargeSummaryPrintResponse | null>(null);
+  const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
 
   // MRD Documents state for this visit
@@ -667,6 +669,39 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       toast.info("Preparing Discharge Summary Print...");
       const res = await dayCareApi.getDischargeSummaryPrintData(visit.id);
       setPrintData(res);
+
+      // Fetch surgeon's signature
+      if (visit.surgeon_id) {
+        try {
+          const sigRes = await doctorsApi.getSignature(visit.surgeon_id);
+          if (sigRes && sigRes.signature) {
+            setDoctorSignature(sigRes.signature);
+          } else {
+            const docProfile = await doctorsApi.getById(visit.surgeon_id);
+            if (docProfile?.signature) {
+              setDoctorSignature(docProfile.signature);
+            } else {
+              setDoctorSignature(null);
+            }
+          }
+        } catch (sigErr) {
+          console.error("Failed to fetch doctor signature:", sigErr);
+          try {
+            const docProfile = await doctorsApi.getById(visit.surgeon_id);
+            if (docProfile?.signature) {
+              setDoctorSignature(docProfile.signature);
+            } else {
+              setDoctorSignature(null);
+            }
+          } catch (innerErr) {
+            console.error("Failed backup signature fetch:", innerErr);
+            setDoctorSignature(null);
+          }
+        }
+      } else {
+        setDoctorSignature(null);
+      }
+
       setShouldPrint(true);
     } catch (err) {
       toast.error(getErrorMessage(err) || "Failed to save discharge record");
@@ -1953,6 +1988,39 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                       toast.info("Preparing Discharge Summary Print...");
                       const res = await dayCareApi.getDischargeSummaryPrintData(visit.id);
                       setPrintData(res);
+
+                      // Fetch surgeon's signature
+                      if (visit.surgeon_id) {
+                        try {
+                          const sigRes = await doctorsApi.getSignature(visit.surgeon_id);
+                          if (sigRes && sigRes.signature) {
+                            setDoctorSignature(sigRes.signature);
+                          } else {
+                            const docProfile = await doctorsApi.getById(visit.surgeon_id);
+                            if (docProfile?.signature) {
+                              setDoctorSignature(docProfile.signature);
+                            } else {
+                              setDoctorSignature(null);
+                            }
+                          }
+                        } catch (sigErr) {
+                          console.error("Failed to fetch doctor signature:", sigErr);
+                          try {
+                            const docProfile = await doctorsApi.getById(visit.surgeon_id);
+                            if (docProfile?.signature) {
+                              setDoctorSignature(docProfile.signature);
+                            } else {
+                              setDoctorSignature(null);
+                            }
+                          } catch (innerErr) {
+                            console.error("Failed backup signature fetch:", innerErr);
+                            setDoctorSignature(null);
+                          }
+                        }
+                      } else {
+                        setDoctorSignature(null);
+                      }
+
                       setShouldPrint(true);
                     } catch (err) {
                       console.error("Print Data Fetch error:", err);
@@ -2027,7 +2095,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
         <div ref={printRef} className="print-content">
           {printData && (
-            <DischargeSummaryPrint data={printData} />
+            <DischargeSummaryPrint data={printData} doctorSignature={doctorSignature} />
           )}
         </div>
         <div ref={consentPrintRef} className="print-content">

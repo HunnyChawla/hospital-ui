@@ -7,9 +7,10 @@ import type { DischargeSummaryPrintResponse } from "@/types/dayCare";
 
 interface DischargeSummaryPrintProps {
     data: DischargeSummaryPrintResponse;
+    doctorSignature?: string | null;
 }
 
-export const DischargeSummaryPrint = ({ data }: DischargeSummaryPrintProps) => {
+export const DischargeSummaryPrint = ({ data, doctorSignature }: DischargeSummaryPrintProps) => {
         const { tenant } = useTenant();
 
         return (
@@ -31,7 +32,7 @@ export const DischargeSummaryPrint = ({ data }: DischargeSummaryPrintProps) => {
                         .prescription-print-container {
                             width: 210mm !important;
                             min-height: 297mm !important;
-                            padding: 15mm !important;
+                            padding: 10mm 15mm !important;
                             margin: 0 !important;
                             max-width: none !important;
                             height: auto !important;
@@ -136,17 +137,27 @@ export const DischargeSummaryPrint = ({ data }: DischargeSummaryPrintProps) => {
                         )}
                         
                         {/* Some empty space at bottom of table like in image */}
-                        <div className="h-6"></div>
+                        <div className="h-2"></div>
                     </div>
                 </div>
 
                 {/* Signature Box */}
-                <div className="mt-16 flex justify-end break-inside-avoid px-8">
+                <div className="mt-6 flex justify-end break-inside-avoid px-8">
                     <div className="text-center w-64 text-indigo-900/90 font-bold uppercase leading-snug">
-                        <div className="mb-12"></div>
-                        <div className="text-sm">DR. {data.admission_info?.consultant_name?.replace(/^Dr\.?\s*/i, '') || "DOCTOR"}</div>
-                        <div className="text-xs">M.B.B.S. DNB</div>
-                        <div className="text-xs">CONSULTANT OPHTHALMOLOGIST</div>
+                        <div className="h-12 flex items-end justify-center mb-1">
+                            {doctorSignature ? (
+                                <img
+                                    src={doctorSignature}
+                                    alt="Doctor Signature"
+                                    className="max-h-12 max-w-full object-contain"
+                                />
+                            ) : (
+                                <div className="border-b border-dashed border-slate-300 w-full h-6" />
+                            )}
+                        </div>
+                        <div className="text-xs">DR. {data.admission_info?.consultant_name?.replace(/^Dr\.?\s*/i, '') || "DOCTOR"}</div>
+                        <div className="text-[10px] text-slate-700">M.B.B.S. DNB</div>
+                        <div className="text-[10px] text-slate-700">CONSULTANT OPHTHALMOLOGIST</div>
                     </div>
                 </div>
 
