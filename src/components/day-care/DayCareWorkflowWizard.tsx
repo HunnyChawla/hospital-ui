@@ -20,7 +20,10 @@ import {
   ArrowRight,
   Check,
   AlertCircle,
-  FilePlus2
+  FilePlus2,
+  Download,
+  Eye,
+  Upload
 } from "lucide-react";
 import { dayCareApi } from "@/services/dayCareApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
@@ -28,6 +31,7 @@ import { otConsumablesApi, OTConsumable } from "@/services/otConsumablesApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi, Advice } from "@/services/advicesApi";
 import { medicinesApi, Medicine } from "@/services/medicinesApi";
+import { servicesApi, Service } from "@/services/servicesApi";
 import { Combobox } from "@/components/common/Combobox";
 import { Surgery } from "@/types";
 import {
@@ -45,6 +49,8 @@ import {
 } from "@/types/dayCare";
 import { useReactToPrint } from "react-to-print";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
+import { ConsentFormPrint } from "./ConsentFormPrint";
+import { mrdApi, MRDDocument, MRDDocumentCategory } from "@/services/mrdApi";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { Payment } from "@/services/paymentsApi";
@@ -59,7 +65,7 @@ interface DayCareWorkflowWizardProps {
   visitId: string;
 }
 
-type TabType = "billing" | "clinical" | "checklist" | "ot" | "recovery" | "discharge";
+type TabType = "billing" | "consent" | "clinical" | "checklist" | "ot" | "recovery" | "discharge";
 
 const DOSAGES = [
   "1 drop", "2 drops", "1 tablet", "2 tablets", "1 capsule", "5ml", "10ml", "Apply locally"
@@ -90,7 +96,8 @@ const MEDICINE_INSTRUCTIONS = [
 
 const STAGES: { id: TabType; label: string; icon: React.ReactNode; defaultStatus: DayCareStatus[] }[] = [
   { id: "billing", label: "Admission & Check-in", icon: <IndianRupee className="h-4 w-4" />, defaultStatus: ["scheduled"] },
-  { id: "clinical", label: "Pre-Assessment", icon: <Heart className="h-4 w-4" />, defaultStatus: ["checked_in"] },
+  { id: "consent", label: "Consent & Documents", icon: <FilePlus2 className="h-4 w-4" />, defaultStatus: ["checked_in"] },
+  { id: "clinical", label: "Pre-Assessment", icon: <Heart className="h-4 w-4" />, defaultStatus: [] },
   { id: "checklist", label: "OT Prep", icon: <ClipboardList className="h-4 w-4" />, defaultStatus: ["pre_assessment_completed"] },
   { id: "ot", label: "OT Procedure", icon: <FileText className="h-4 w-4" />, defaultStatus: ["ready_for_ot", "in_ot"] },
   { id: "recovery", label: "Recovery", icon: <Activity className="h-4 w-4" />, defaultStatus: ["recovery"] },
@@ -108,6 +115,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   const [availableDiagnoses, setAvailableDiagnoses] = useState<Diagnosis[]>([]);
   const [availableAdvices, setAvailableAdvices] = useState<Advice[]>([]);
   const [availableMedicines, setAvailableMedicines] = useState<Medicine[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
   // Sub-resource states
   const [clinical, setClinical] = useState<Partial<DayCareClinicalAssessment>>({});
@@ -142,9 +150,32 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   const [printData, setPrintData] = useState<DischargeSummaryPrintResponse | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
 
+  // MRD Documents state for this visit
+  const [mrdDocuments, setMrdDocuments] = useState<MRDDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docName, setDocName] = useState("");
+  const [docCategory, setDocCategory] = useState<MRDDocumentCategory>("CONSENT_FORM");
+  const [docDescription, setDocDescription] = useState("");
+
+  const consentPrintRef = React.useRef<HTMLDivElement>(null);
+  const handleConsentPrint = useReactToPrint({
+    contentRef: consentPrintRef,
+    documentTitle: `Consent_Form_${visit?.patient_name || "Patient"}`,
+  });
+
   // Payment State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [invoiceLineItems, setInvoiceLineItems] = useState<{
+    description: string;
+    quantity: number;
+    unit_price: number;
+  }[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -173,6 +204,17 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       const v = await dayCareApi.getVisit(visitId);
       setVisit(v);
       
+      if (v.invoice_id) {
+        try {
+          const inv = await invoicesApi.getById(v.invoice_id);
+          setInvoice(inv);
+        } catch (invErr) {
+          console.error("Failed to load invoice:", invErr);
+        }
+      } else {
+        setInvoice(null);
+      }
+      
       const tabToLoad = initialLoad ? getInitialTabForStatus(v.status) : activeTab;
       if (initialLoad) setActiveTab(tabToLoad);
 
@@ -184,9 +226,104 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     }
   };
 
+  const fetchMrdDocuments = async (patientId: string, visitId: string) => {
+    setLoadingDocs(true);
+    try {
+      const res = await mrdApi.list({ patient_id: patientId, page: 1, limit: 100 });
+      const visitTag = `daycare-visit-${visitId}`;
+      const filtered = res.items.filter(doc => doc.tags && doc.tags.includes(visitTag));
+      setMrdDocuments(filtered);
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+      toast.error("Failed to load documents");
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!visit) return;
+    if (!docFile) {
+      toast.error("Please select a file to upload");
+      return;
+    }
+    if (!docName.trim()) {
+      toast.error("Please enter a document name");
+      return;
+    }
+
+    setUploadingDoc(true);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      await mrdApi.upload({
+        file: docFile,
+        document_name: docName.trim(),
+        category: docCategory,
+        patient_id: visit.patient_id,
+        tags: [`daycare-visit-${visit.id}`]
+      }, tenantId || undefined);
+
+      toast.success("Document uploaded successfully");
+      setDocFile(null);
+      setDocName("");
+      setDocCategory("CONSENT_FORM");
+      const fileInput = document.getElementById("daycare-file-upload") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+
+      await fetchMrdDocuments(visit.patient_id, visit.id);
+    } catch (err) {
+      toast.error(getErrorMessage(err) || "Failed to upload document");
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!visit) return;
+    if (!confirm("Are you sure you want to delete this document?")) return;
+
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      await mrdApi.delete(docId, tenantId || undefined);
+      toast.success("Document deleted successfully");
+      await fetchMrdDocuments(visit.patient_id, visit.id);
+    } catch (err) {
+      toast.error(getErrorMessage(err) || "Failed to delete document");
+    }
+  };
+
+  const handleDownloadDocumentFile = async (docId: string, docName: string, mode: "view" | "download") => {
+    const downloadPromise = async () => {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const blob = await mrdApi.download(docId, tenantId || undefined);
+      const url = window.URL.createObjectURL(blob);
+      
+      if (mode === "view") {
+        window.open(url, "_blank");
+      } else {
+        const a = window.document.createElement("a");
+        a.href = url;
+        a.download = docName || `document-${docId}`;
+        window.document.body.appendChild(a);
+        a.click();
+        window.document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      }
+    };
+
+    toast.promise(downloadPromise(), {
+      loading: mode === "view" ? "Opening document..." : "Downloading document...",
+      success: mode === "view" ? "Document opened successfully" : "Document downloaded successfully",
+      error: "Failed to load document file"
+    });
+  };
+
   const loadTabResource = async (v: DayCareVisit, tab: TabType) => {
     try {
-      if (tab === "clinical") {
+      if (tab === "consent") {
+        await fetchMrdDocuments(v.patient_id, v.id);
+      } else if (tab === "clinical") {
         const data = await dayCareApi.getClinicalAssessment(v.id);
         if (data) {
           setClinical(data);
@@ -254,6 +391,24 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     }
   };
 
+  // Resolve dynamic prices from Service Master
+  const getSurgeryPrice = (): number => {
+    if (!visit || !visit.surgery_name) return 25000;
+    const sNameLower = visit.surgery_name.toLowerCase().trim();
+    const surgery = availableSurgeries.find(s => s.name.toLowerCase().trim() === sNameLower);
+    return surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
+  };
+
+  const getOtChargesPrice = (): number => {
+    const service = services.find(s => s.name.toLowerCase().trim() === "ot charges");
+    return service && service.price !== undefined && service.price !== null ? service.price : 5000;
+  };
+
+  const getConsumablesPrice = (): number => {
+    const service = services.find(s => s.name.toLowerCase().trim() === "consumables & disposables" || s.name.toLowerCase().trim() === "consumables");
+    return service && service.price !== undefined && service.price !== null ? service.price : 1500;
+  };
+
   useEffect(() => {
     if (visitId) {
       fetchAllDetails(true);
@@ -262,6 +417,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       diagnosesApi.list({ status: "active", page_size: 1000 }).then(res => setAvailableDiagnoses(res.items || [])).catch(console.error);
       advicesApi.list({ status: "active", page_size: 1000 }).then(res => setAvailableAdvices(res.items || [])).catch(console.error);
       medicinesApi.list({ is_active: true, page_size: 1000 }).then(res => setAvailableMedicines(res.items || [])).catch(console.error);
+      servicesApi.list({ is_active: true, page_size: 1000 }).then(res => setServices(res.items || [])).catch(console.error);
     }
   }, [visitId]);
 
@@ -271,17 +427,67 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     }
   }, [activeTab]);
 
+  // Initialize default line items when visit is loaded
+  useEffect(() => {
+    if (visit && !visit.invoice_id && invoiceLineItems.length === 0 && availableSurgeries.length > 0) {
+      const sNameLower = visit.surgery_name.toLowerCase().trim();
+      const surgery = availableSurgeries.find(s => s.name.toLowerCase().trim() === sNameLower);
+      const price = surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
+      
+      setInvoiceLineItems([
+        {
+          description: `${visit.surgery_name} package charges`,
+          quantity: 1,
+          unit_price: price
+        }
+      ]);
+    }
+  }, [visit?.id, visit?.invoice_id, availableSurgeries, invoiceLineItems.length]);
+
+  const handleAddServiceItem = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
+    
+    const alreadyExists = invoiceLineItems.some(
+      item => item.description.toLowerCase().trim() === service.name.toLowerCase().trim()
+    );
+    if (alreadyExists) {
+      toast.warning(`${service.name} is already in the line items`);
+      return;
+    }
+
+    setInvoiceLineItems([
+      ...invoiceLineItems,
+      {
+        description: service.name,
+        quantity: 1,
+        unit_price: service.price
+      }
+    ]);
+    setSelectedServiceId("");
+  };
+
+  const handleRemoveServiceItem = (idx: number) => {
+    setInvoiceLineItems(invoiceLineItems.filter((_, i) => i !== idx));
+  };
+
+  const handleQuantityChange = (idx: number, qty: number) => {
+    if (qty < 1) return;
+    const updated = [...invoiceLineItems];
+    updated[idx].quantity = qty;
+    setInvoiceLineItems(updated);
+  };
+
   // Invoice creation helper
   const handleGenerateInvoice = async () => {
     if (!visit) return;
+    if (invoiceLineItems.length === 0) {
+      toast.error("Please add at least one line item before generating the invoice");
+      return;
+    }
     setSubmitting(true);
     try {
-      const items = [
-        { description: `${visit.surgery_name} package charges`, quantity: 1, unit_price: 25000 },
-        { description: `OT Charges`, quantity: 1, unit_price: 5000 },
-        { description: `Consumables & disposables`, quantity: 1, unit_price: 1500 }
-      ];
-      await dayCareApi.generateInvoice(visit.id, items);
+      await dayCareApi.generateInvoice(visit.id, invoiceLineItems);
       toast.success("Invoice generated successfully");
       await fetchAllDetails(false);
     } catch (err) {
@@ -302,10 +508,12 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       
       const v = await dayCareApi.getVisit(visitId);
       setVisit(v);
+    } catch (err) {
+      console.error(`Status transition to ${toStatus} failed, moving to next tab anyway:`, err);
+      toast.warning(`Server status update failed, but proceeding to next step.`);
+    } finally {
       setActiveTab(nextTab);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err) {
-      toast.error(getErrorMessage(err) || "Status transition failed");
     }
   };
 
@@ -314,10 +522,10 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     setSubmitting(true);
     try {
       if (visit.status === "scheduled") {
-        await handleTransition("checked_in", "clinical");
+        await handleTransition("checked_in", "consent");
       } else {
         toast.success("Admission details updated");
-        setActiveTab("clinical");
+        setActiveTab("consent");
       }
     } finally {
       setSubmitting(false);
@@ -584,7 +792,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
             const isCompleted = highestStageIndex > idx || visit.status === "discharged";
             const isPendingPaymentAction = stage.id === "billing" && !visit.payment_id;
             const isActuallyCompleted = isCompleted && !isPendingPaymentAction;
-            const isSelectable = highestStageIndex >= idx || isTerminalState || isCompleted || (visit.status === "recovery" && idx === 5);
+            const isSelectable = true; // Always allow navigating to any step to keep the workflow flexible
 
             return (
               <React.Fragment key={stage.id}>
@@ -659,29 +867,159 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               </div>
 
               {!visit?.invoice_id ? (
-                <div className="text-center py-8 bg-white border border-slate-200 rounded-xl">
-                  <IndianRupee className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm text-slate-500 mb-5">
-                    Generate the day care package billing to proceed with admission.
-                  </p>
-                  <button
-                    onClick={handleGenerateInvoice}
-                    disabled={submitting}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
-                  >
-                    {submitting ? "Generating..." : "Generate Invoice Now"}
-                  </button>
+                <div className="space-y-6">
+                  {/* Proposed Items Table */}
+                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Service / Description</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Unit Price</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "100px" }}>Qty</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Total</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "80px" }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                          {invoiceLineItems.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 font-semibold text-slate-800">{item.description}</td>
+                              <td className="p-4 text-right text-slate-600 font-medium">{currency(item.unit_price)}</td>
+                              <td className="p-4 text-center">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => handleQuantityChange(idx, parseInt(e.target.value) || 1)}
+                                  className="w-16 px-2 py-1 text-center font-semibold rounded-lg border border-slate-200 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 bg-slate-50"
+                                />
+                              </td>
+                              <td className="p-4 text-right font-bold text-slate-900">{currency(item.unit_price * item.quantity)}</td>
+                              <td className="p-4 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveServiceItem(idx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                  title="Remove item"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {invoiceLineItems.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-slate-400 font-medium">
+                                No billing items added yet. Please select a service below.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Add Service Catalog Input */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Add Service from Catalog</h4>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <Combobox
+                          value={selectedServiceId}
+                          onChange={(val) => {
+                            setSelectedServiceId(val);
+                            if (val) handleAddServiceItem(val);
+                          }}
+                          options={services.map(s => ({
+                            label: `${s.name} (₹${s.price})`,
+                            value: s.id
+                          }))}
+                          placeholder="Search or select service to add..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total and Action */}
+                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                    <div className="text-center sm:text-left">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Proposed Billing</span>
+                      <p className="text-sm text-slate-500 font-medium mt-0.5">{invoiceLineItems.length} items selected</p>
+                    </div>
+                    <div className="text-center sm:text-right mt-4 sm:mt-0">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Total</span>
+                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
+                        {currency(invoiceLineItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0))}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center pt-2">
+                    <button
+                      onClick={handleGenerateInvoice}
+                      disabled={submitting || invoiceLineItems.length === 0}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
+                    >
+                      {submitting ? "Generating..." : "Generate Invoice Now"}
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-5">
+                <div className="space-y-6">
+                  {/* Generated Items Table */}
+                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Service / Description</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Unit Price</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "100px" }}>Qty</th>
+                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                          {invoice?.line_items ? (
+                            invoice.line_items.map((item, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-4 font-semibold text-slate-800">{item.description}</td>
+                                <td className="p-4 text-right text-slate-600 font-medium">
+                                  {currency(typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : item.unit_price)}
+                                </td>
+                                <td className="p-4 text-center font-semibold text-slate-700">{item.quantity}</td>
+                                <td className="p-4 text-right font-bold text-slate-900">
+                                  {currency(
+                                    (typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : item.unit_price) * 
+                                    (typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity)
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="p-8 text-center text-slate-400 font-medium flex items-center justify-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                                Loading invoice line items...
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Summary Details */}
                   <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
                     <div className="text-center sm:text-left">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Number</span>
                       <p className="font-mono text-xl font-bold text-slate-800 mt-1">{visit.invoice_number || visit.invoice_id}</p>
                     </div>
                     <div className="text-center sm:text-right mt-4 sm:mt-0">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Total</span>
-                      <p className="text-3xl font-extrabold text-slate-900 mt-1">{currency(31500)}</p>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Total</span>
+                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
+                        {currency(invoice?.total_amount || 0)}
+                      </p>
                     </div>
                   </div>
 
@@ -714,6 +1052,252 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                 className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 {visit?.status === "scheduled" ? "Check-in & Continue" : "Save & Continue"}
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 1.5. CONSENT & DOCUMENTS */}
+        {activeTab === "consent" && (
+          <div className="space-y-8 max-w-3xl mx-auto">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-slate-900">Consent & Documents</h2>
+              <p className="text-slate-500 mt-2">Download patient consent forms and upload verification documents</p>
+            </div>
+
+            {/* Part 1: Download Consent Form */}
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
+              <div>
+                <h3 className="font-bold text-slate-800 text-lg">1. Download Consent Form</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Generate and print the auto-filled consent form. Have the patient, attendant, and witness sign the printed copy before uploading it.
+                </p>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={handleConsentPrint}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all text-sm"
+                >
+                  <FileText className="w-4 h-4" />
+                  Download Auto-Filled Consent Form
+                </button>
+              </div>
+            </div>
+
+            {/* Part 2: Upload Documents */}
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm">
+              <div>
+                <h3 className="font-bold text-slate-800 text-lg">2. Upload Signed Consent or Documents</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Upload signed consent forms, patient ID proof, or other clinical reports.
+                </p>
+              </div>
+
+              <form onSubmit={handleUploadDocument} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Document Type / Category</label>
+                    <select
+                      value={docCategory}
+                      onChange={(e) => {
+                        const cat = e.target.value as MRDDocumentCategory;
+                        setDocCategory(cat);
+                        if (!docName || docName === "Signed Consent Form" || docName === "Patient ID Proof" || docName === "Other Document") {
+                          if (cat === "CONSENT_FORM") setDocName("Signed Consent Form");
+                          else if (cat === "ID_PROOF") setDocName("Patient ID Proof");
+                          else setDocName("Other Document");
+                        }
+                      }}
+                      className="w-full text-sm font-semibold rounded-xl border border-slate-200 px-4 py-3 bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+                      disabled={isTerminalState}
+                    >
+                      <option value="CONSENT_FORM">Consent Form</option>
+                      <option value="ID_PROOF">ID Proof (Aadhaar, Passport, etc.)</option>
+                      <option value="OTHER">Other Document</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Document Name / Title</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Signed Consent Form, Aadhaar Card"
+                      value={docName}
+                      onChange={(e) => setDocName(e.target.value)}
+                      className="w-full text-sm font-semibold rounded-xl border border-slate-200 px-4 py-3 bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+                      disabled={isTerminalState}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">Select File</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="daycare-file-upload"
+                      required
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setDocFile(file);
+                        if (file && !docName) {
+                          const cleanedName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+                          setDocName(cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1));
+                        }
+                      }}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      disabled={isTerminalState}
+                    />
+                    <label
+                      htmlFor="daycare-file-upload"
+                      className="flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-white p-6 transition hover:border-sky-400 hover:bg-sky-50"
+                    >
+                      <Upload className="h-5 w-5 text-slate-400" />
+                      <div className="text-center">
+                        <p className="text-sm font-bold text-slate-700">
+                          {docFile ? docFile.name : "Click to select document file"}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {docFile
+                            ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB • ${docFile.type || "Unknown"}`
+                            : "PDF, JPG, JPEG, PNG (Max 10MB)"}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={uploadingDoc || !docFile || !docName.trim() || isTerminalState}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2.5 font-semibold text-white shadow-sm transition hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {uploadingDoc ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Upload Document
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Part 3: Uploaded Documents List */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
+              <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3">Uploaded Documents</h3>
+
+              {loadingDocs ? (
+                <div className="flex items-center justify-center p-8 gap-2 text-slate-500 font-semibold text-sm">
+                  <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
+                  Loading uploaded documents...
+                </div>
+              ) : mrdDocuments.length === 0 ? (
+                <div className="text-center p-8 text-slate-400 font-medium text-sm border-2 border-dashed border-slate-100 rounded-xl">
+                  No documents uploaded for this daycare visit yet.
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Document Name</th>
+                          <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Category</th>
+                          <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {mrdDocuments.map((doc) => (
+                          <tr key={doc.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-2.5">
+                                <FileText className="w-4.5 h-4.5 text-slate-400" />
+                                <div>
+                                  <p className="font-semibold text-slate-800">{doc.document_name}</p>
+                                  <p className="text-xs text-slate-400 mt-0.5">Size: {(doc.file_size / 1024).toFixed(1)} KB</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={clsx(
+                                "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                doc.category === "CONSENT_FORM" && "bg-teal-50 text-teal-700 border border-teal-100",
+                                doc.category === "ID_PROOF" && "bg-sky-50 text-sky-700 border border-sky-100",
+                                doc.category !== "CONSENT_FORM" && doc.category !== "ID_PROOF" && "bg-slate-50 text-slate-600 border border-slate-200"
+                              )}>
+                                {doc.category === "CONSENT_FORM" ? "Consent Form" : doc.category === "ID_PROOF" ? "ID Proof" : "Other"}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="inline-flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadDocumentFile(doc.id, doc.document_name, "view")}
+                                  className="p-2 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
+                                  title="View Document"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadDocumentFile(doc.id, doc.document_name, "download")}
+                                  className="p-2 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
+                                  title="Download File"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                  disabled={isTerminalState}
+                                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-50"
+                                  title="Delete document"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation Button */}
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("billing");
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-2 px-6 py-3 border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all"
+              >
+                Back to Billing
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("clinical");
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all"
+              >
+                Continue to Pre-Assessment
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -1416,6 +2000,11 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         <div ref={printRef} className="print-content">
           {printData && (
             <DischargeSummaryPrint data={printData} />
+          )}
+        </div>
+        <div ref={consentPrintRef} className="print-content">
+          {visit && (
+            <ConsentFormPrint visit={visit} />
           )}
         </div>
       </div>
