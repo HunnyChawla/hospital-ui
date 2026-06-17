@@ -23,7 +23,8 @@ import {
   FilePlus2,
   Download,
   Eye,
-  Upload
+  Upload,
+  X
 } from "lucide-react";
 import { dayCareApi } from "@/services/dayCareApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
@@ -93,6 +94,33 @@ const MEDICINE_INSTRUCTIONS = [
   "Apply morning and night",
   "Shake well before use",
 ];
+
+const formatLocalDateTime = (dateStr?: string | null): string => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const parseLocalDateTime = (localDateTimeStr: string): string | null => {
+  if (!localDateTimeStr) return null;
+  const [datePart, timePart] = localDateTimeStr.split("T");
+  if (!datePart || !timePart) {
+    const d = new Date(localDateTimeStr);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hours, minutes] = timePart.split(":").map(Number);
+  const date = new Date(year, month - 1, day, hours, minutes);
+  return isNaN(date.getTime()) ? null : date.toISOString();
+};
 
 const STAGES: { id: TabType; label: string; icon: React.ReactNode; defaultStatus: DayCareStatus[] }[] = [
   { id: "billing", label: "Admission & Check-in", icon: <IndianRupee className="h-4 w-4" />, defaultStatus: ["scheduled"] },
@@ -740,36 +768,55 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   const isTerminalState = ["cancelled", "postponed", "no_show"].includes(visit.status);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      {/* Header Panel */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
-        <div className="p-6 md:p-8 bg-gradient-to-br from-sky-50 to-white flex-1 border-b md:border-b-0 md:border-r border-slate-200">
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-slate-900">{visit.patient_name}</h1>
-            <span className={clsx(
-              "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
-              visit.status === "scheduled" && "bg-slate-100 text-slate-700",
-              visit.status === "discharged" && "bg-teal-100 text-teal-800",
-              visit.status === "cancelled" && "bg-rose-100 text-rose-800",
-              !["scheduled", "discharged", "cancelled", "postponed", "no_show"].includes(visit.status) && "bg-emerald-100 text-emerald-800"
-            )}>
-              {visit.status.replace("_", " ")}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 mt-3 font-medium">
-            <span className="flex items-center gap-1"><User className="w-4 h-4 text-slate-400" /> UHID: {visit.patient_uhid || "N/A"}</span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span>{visit.patient_age || "N/A"} yrs, {visit.patient_gender || "N/A"}</span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span>Surgeon: <strong className="text-slate-800">{visit.surgeon_name}</strong></span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span>Procedure: <strong className="text-slate-800">{visit.surgery_name}</strong></span>
-          </div>
-        </div>
-        <div className="p-6 bg-slate-50 flex items-center justify-center shrink-0 min-w-[200px]">
-          <Link href="/day-care" className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-sm transition-all">
-            Exit Workflow
-          </Link>
+    <div className="w-full max-w-[1440px] mx-auto px-4 md:px-6 space-y-6 pb-20">
+      {/* Stepper Navigation */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden">
+        {/* Background Connecting Line */}
+        <div className="absolute left-[7.14%] right-[7.14%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-slate-100 -translate-y-1/2 z-0" />
+        
+        {/* Filled Connecting Line */}
+        <div 
+          className="absolute left-[7.14%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-emerald-500 -translate-y-1/2 transition-all duration-500 z-0" 
+          style={{ 
+            width: `calc(${Math.max(0, Math.min(6, Math.max(highestStageIndex, currentStageIndex))) / 6 * 100}% * 0.8572)` 
+          }} 
+        />
+
+        <div className="relative flex justify-between items-start w-full z-10">
+          {STAGES.map((stage, idx) => {
+            const isActive = activeTab === stage.id;
+            const isCompleted = highestStageIndex > idx || currentStageIndex > idx || visit.status === "discharged";
+            const isPendingPaymentAction = stage.id === "billing" && !visit.payment_id;
+            const isActuallyCompleted = isCompleted && !isPendingPaymentAction;
+            const isSelectable = true; // Always allow navigating to any step to keep the workflow flexible
+
+            return (
+              <div key={stage.id} className="flex flex-col items-center flex-1 min-w-0">
+                <button
+                  onClick={() => isSelectable && setActiveTab(stage.id)}
+                  disabled={!isSelectable}
+                  className={clsx(
+                    "flex items-center justify-center w-9 h-9 rounded-full border transition-all shrink-0 font-bold text-sm cursor-pointer z-10",
+                    isActive ? "border-sky-600 bg-sky-50 text-sky-600 shadow-sm ring-4 ring-sky-100" :
+                      isActuallyCompleted ? "border-emerald-500 bg-emerald-50 text-emerald-600 shadow-sm" :
+                        (isCompleted && isPendingPaymentAction) ? "border-amber-500 bg-amber-50 text-amber-600 shadow-sm" :
+                        "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                  )}
+                >
+                  {isActuallyCompleted && !isActive ? <Check className="w-4.5 h-4.5" /> : 
+                   (isCompleted && isPendingPaymentAction && !isActive) ? <AlertCircle className="w-4.5 h-4.5" /> : stage.icon}
+                </button>
+                <div className="text-center mt-3 hidden md:block px-1 w-full">
+                  <p className={clsx("text-[9px] font-extrabold uppercase tracking-wider mb-0.5", isActive ? "text-sky-600" : isActuallyCompleted ? "text-emerald-600" : (isCompleted && isPendingPaymentAction) ? "text-amber-600" : "text-slate-400")}>
+                    Step {idx + 1}
+                  </p>
+                  <p className={clsx("text-xs font-semibold leading-tight break-words max-w-[110px] mx-auto", isActive ? "text-slate-950 font-bold" : "text-slate-600")}>
+                    {stage.label}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -784,66 +831,15 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         </div>
       )}
 
-      {/* Stepper Navigation */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-x-auto hide-scrollbar">
-        <div className="flex items-center justify-between min-w-[800px]">
-          {STAGES.map((stage, idx) => {
-            const isActive = activeTab === stage.id;
-            const isCompleted = highestStageIndex > idx || visit.status === "discharged";
-            const isPendingPaymentAction = stage.id === "billing" && !visit.payment_id;
-            const isActuallyCompleted = isCompleted && !isPendingPaymentAction;
-            const isSelectable = true; // Always allow navigating to any step to keep the workflow flexible
-
-            return (
-              <React.Fragment key={stage.id}>
-                <button
-                  onClick={() => isSelectable && setActiveTab(stage.id)}
-                  disabled={!isSelectable}
-                  className={clsx(
-                    "flex items-center gap-3 px-3 py-2 rounded-xl transition-all",
-                    isActive ? "bg-sky-50" : (isSelectable ? "hover:bg-slate-50 cursor-pointer" : "opacity-50 cursor-not-allowed")
-                  )}
-                >
-                  <div className={clsx(
-                    "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all shrink-0",
-                    isActive ? "border-sky-600 bg-white text-sky-600" :
-                      isActuallyCompleted ? "border-emerald-500 bg-emerald-50 text-emerald-600" :
-                        (isCompleted && isPendingPaymentAction) ? "border-amber-500 bg-amber-50 text-amber-600" :
-                        "border-slate-200 bg-slate-50 text-slate-400"
-                  )}>
-                    {isActuallyCompleted && !isActive ? <Check className="w-5 h-5" /> : 
-                     (isCompleted && isPendingPaymentAction && !isActive) ? <AlertCircle className="w-5 h-5" /> : stage.icon}
-                  </div>
-                  <div className="text-left hidden md:block">
-                    <p className={clsx("text-xs font-bold uppercase tracking-wider mb-0.5", isActive ? "text-sky-600" : isActuallyCompleted ? "text-emerald-600" : (isCompleted && isPendingPaymentAction) ? "text-amber-600" : "text-slate-500")}>
-                      Step {idx + 1}
-                    </p>
-                    <p className={clsx("text-sm font-semibold", isActive ? "text-slate-900" : "text-slate-600")}>
-                      {stage.label}
-                    </p>
-                  </div>
-                </button>
-                {idx < STAGES.length - 1 && (
-                  <div className="flex-1 h-px bg-slate-200 mx-2">
-                    <div className={clsx("h-full transition-all duration-500", isCompleted ? (isPendingPaymentAction ? "w-full bg-amber-400" : "w-full bg-emerald-400") : "w-0")} />
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Form Content */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Two Column Layout (Form Content on Left, Patient Info on Right) */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Left Column: Form Content */}
+        <div className="flex-1 w-full order-2 lg:order-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         {/* 1. BILLING & ADMISSION */}
         {activeTab === "billing" && (
           <div className="space-y-8 max-w-3xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Admission & Check-In</h2>
-              <p className="text-slate-500 mt-2">Generate patient invoices and confirm admission</p>
-            </div>
+
 
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
@@ -959,7 +955,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     <button
                       onClick={handleGenerateInvoice}
                       disabled={submitting || invoiceLineItems.length === 0}
-                      className="inline-flex items-center gap-2 px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
+                      className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
                     >
                       {submitting ? "Generating..." : "Generate Invoice Now"}
                     </button>
@@ -1034,7 +1030,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     <div className="flex justify-center pt-2">
                       <button
                         onClick={handleOpenPayment}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all"
+                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all"
                       >
                         <IndianRupee className="w-5 h-5" />
                         Collect Payment
@@ -1049,7 +1045,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <button
                 onClick={handleSaveAndCheckIn}
                 disabled={submitting || isTerminalState}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 {visit?.status === "scheduled" ? "Check-in & Continue" : "Save & Continue"}
                 <ArrowRight className="w-5 h-5" />
@@ -1061,10 +1057,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 1.5. CONSENT & DOCUMENTS */}
         {activeTab === "consent" && (
           <div className="space-y-8 max-w-3xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Consent & Documents</h2>
-              <p className="text-slate-500 mt-2">Download patient consent forms and upload verification documents</p>
-            </div>
+
 
             {/* Part 1: Download Consent Form */}
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
@@ -1078,7 +1071,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                 <button
                   type="button"
                   onClick={handleConsentPrint}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all text-sm"
+                  className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all text-sm"
                 >
                   <FileText className="w-4 h-4" />
                   Download Auto-Filled Consent Form
@@ -1175,7 +1168,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   <button
                     type="submit"
                     disabled={uploadingDoc || !docFile || !docName.trim() || isTerminalState}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2.5 font-semibold text-white shadow-sm transition hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2.5 font-semibold text-white shadow-sm transition hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {uploadingDoc ? (
                       <>
@@ -1278,14 +1271,14 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
             </div>
 
             {/* Navigation Button */}
-            <div className="flex justify-between pt-4 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab("billing");
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="inline-flex items-center gap-2 px-6 py-3 border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all"
               >
                 Back to Billing
               </button>
@@ -1295,7 +1288,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   setActiveTab("clinical");
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all"
               >
                 Continue to Pre-Assessment
                 <ArrowRight className="w-5 h-5" />
@@ -1307,10 +1300,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 2. CLINICAL ASSESSMENT */}
         {activeTab === "clinical" && (
           <form onSubmit={handleSaveClinical} className="space-y-8 max-w-3xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Pre-Operative Assessment</h2>
-              <p className="text-slate-500 mt-2">Record patient vitals and medical history</p>
-            </div>
+
 
             <div className="space-y-6">
               <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3">Baseline Vitals</h3>
@@ -1401,7 +1391,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <button
                 type="submit"
                 disabled={submitting || isTerminalState}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 Save & Continue
                 <ArrowRight className="w-5 h-5" />
@@ -1413,10 +1403,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 3. CHECKLIST */}
         {activeTab === "checklist" && (
           <form onSubmit={handleSaveChecklist} className="space-y-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">OT Preparation Checklist</h2>
-              <p className="text-slate-500 mt-2">Verify requirements before moving patient to OT</p>
-            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
@@ -1502,7 +1489,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <button
                 type="submit"
                 disabled={submitting || isTerminalState}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 Mark Ready for OT
                 <ArrowRight className="w-5 h-5" />
@@ -1514,10 +1501,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 4. OT RECORD */}
         {activeTab === "ot" && (
           <form onSubmit={handleSaveOT} className="space-y-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Operation Theatre Record</h2>
-              <p className="text-slate-500 mt-2">Log surgical details, staff, and consumables</p>
-            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -1545,11 +1529,11 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase">Procedure Start Time</label>
-                <input type="datetime-local" value={ot.procedure_start_time ? new Date(ot.procedure_start_time).toISOString().slice(0, 16) : ""} onChange={(e) => setOt({ ...ot, procedure_start_time: e.target.value ? new Date(e.target.value).toISOString() : null })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" />
+                <input type="datetime-local" value={formatLocalDateTime(ot.procedure_start_time)} onChange={(e) => setOt({ ...ot, procedure_start_time: parseLocalDateTime(e.target.value) })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase">Procedure End Time</label>
-                <input type="datetime-local" value={ot.procedure_end_time ? new Date(ot.procedure_end_time).toISOString().slice(0, 16) : ""} onChange={(e) => setOt({ ...ot, procedure_end_time: e.target.value ? new Date(e.target.value).toISOString() : null })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" />
+                <input type="datetime-local" value={formatLocalDateTime(ot.procedure_end_time)} onChange={(e) => setOt({ ...ot, procedure_end_time: parseLocalDateTime(e.target.value) })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" />
               </div>
             </div>
 
@@ -1583,7 +1567,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               ) : (
                 <div className="space-y-3">
                   {otConsumables.map((c, i) => (
-                    <div key={i} className="flex gap-3 items-center bg-white p-2 rounded-xl border border-slate-200">
+                    <div key={i} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                       <div className="flex-1">
                         <Combobox
                           value={c.item}
@@ -1600,14 +1584,16 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                           placeholder="Item Name (e.g. Viscoelastic)"
                         />
                       </div>
-                      <input type="number" value={c.quantity} onChange={(e) => { const updated = [...otConsumables]; updated[i].quantity = parseInt(e.target.value) || 0; setOtConsumables(updated); }} placeholder="Qty" className="w-20 text-sm rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
-                      <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₹</span>
-                        <input type="number" value={c.unit_price} onChange={(e) => { const updated = [...otConsumables]; updated[i].unit_price = parseFloat(e.target.value) || 0; setOtConsumables(updated); }} placeholder="Price" className="w-28 text-sm rounded-lg border border-slate-200 pl-7 pr-3 py-2 outline-none focus:border-sky-400" />
+                      <div className="flex items-center gap-3">
+                        <input type="number" value={c.quantity} onChange={(e) => { const updated = [...otConsumables]; updated[i].quantity = parseInt(e.target.value) || 0; setOtConsumables(updated); }} placeholder="Qty" className="w-20 text-sm rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
+                        <div className="relative flex-1 sm:flex-none">
+                          <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₹</span>
+                          <input type="number" value={c.unit_price} onChange={(e) => { const updated = [...otConsumables]; updated[i].unit_price = parseFloat(e.target.value) || 0; setOtConsumables(updated); }} placeholder="Price" className="w-full sm:w-28 text-sm rounded-lg border border-slate-200 pl-7 pr-3 py-2 outline-none focus:border-sky-400" />
+                        </div>
+                        <button type="button" onClick={() => removeConsumable(i)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0">
+                          <Trash2 className="h-5 w-5" />
+                        </button>
                       </div>
-                      <button type="button" onClick={() => removeConsumable(i)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                        <Trash2 className="h-5 w-5" />
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -1633,7 +1619,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <button
                 type="submit"
                 disabled={submitting || isTerminalState}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 Save & Move to Recovery
                 <ArrowRight className="w-5 h-5" />
@@ -1645,38 +1631,37 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 5. RECOVERY */}
         {activeTab === "recovery" && (
           <form onSubmit={handleSaveRecovery} className="space-y-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Recovery Room</h2>
-              <p className="text-slate-500 mt-2">Log periodic vitals and determine discharge readiness</p>
-            </div>
+
 
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
               <h3 className="font-bold text-slate-800 text-lg mb-4">Vitals Monitoring Log</h3>
               
-              <div className="flex flex-wrap md:flex-nowrap gap-3 items-end bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-5">
-                <div className="flex-1 min-w-[100px]">
+              <div className="grid grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-5">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Time</label>
                   <input type="time" value={newVital.time} onChange={(e) => setNewVital({ ...newVital, time: e.target.value })} className="w-full text-sm font-semibold rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
                 </div>
-                <div className="w-20">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Sys BP</label>
                   <input type="number" value={newVital.bp_systolic} onChange={(e) => setNewVital({ ...newVital, bp_systolic: parseInt(e.target.value) || 0 })} className="w-full text-sm font-semibold rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
                 </div>
-                <div className="w-20">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Dia BP</label>
                   <input type="number" value={newVital.bp_diastolic} onChange={(e) => setNewVital({ ...newVital, bp_diastolic: parseInt(e.target.value) || 0 })} className="w-full text-sm font-semibold rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
                 </div>
-                <div className="w-20">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Pulse</label>
                   <input type="number" value={newVital.pulse} onChange={(e) => setNewVital({ ...newVital, pulse: parseInt(e.target.value) || 0 })} className="w-full text-sm font-semibold rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
                 </div>
-                <div className="w-20">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">SpO2</label>
                   <input type="number" value={newVital.spo2} onChange={(e) => setNewVital({ ...newVital, spo2: parseInt(e.target.value) || 0 })} className="w-full text-sm font-semibold rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
                 </div>
-                <button type="button" onClick={addVitalLog} className="px-5 py-2.5 h-[42px] bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold shadow shrink-0 transition-all">
-                  Log
-                </button>
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
+                  <button type="button" onClick={addVitalLog} className="w-full px-5 py-2.5 h-[42px] bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold shadow transition-all flex items-center justify-center">
+                    Log
+                  </button>
+                </div>
               </div>
 
               {recoveryVitals.length === 0 ? (
@@ -1684,7 +1669,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   <p className="text-sm text-slate-400">No periodic monitoring records added.</p>
                 </div>
               ) : (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto scrollbar-hide shadow-sm">
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                       <tr>
@@ -1765,7 +1750,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <button
                 type="submit"
                 disabled={submitting || isTerminalState}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 Proceed to Discharge
                 <ArrowRight className="w-5 h-5" />
@@ -1777,10 +1762,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 6. DISCHARGE */}
         {activeTab === "discharge" && (
           <form onSubmit={handleSaveDischarge} className="space-y-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Discharge Patient</h2>
-              <p className="text-slate-500 mt-2">Finalize discharge summary and provide instructions</p>
-            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -1851,8 +1833,8 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
               <h3 className="font-bold text-slate-800 text-lg mb-4">Discharge Home Medications</h3>
               
-              <div className="flex flex-wrap md:flex-nowrap gap-3 items-end bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-5">
-                <div className="flex-1 min-w-[150px]">
+              <div className="grid grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-5">
+                <div className="col-span-12 md:col-span-3">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Medicine Name</label>
                   <Combobox
                     value={newMed.name}
@@ -1876,7 +1858,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     allowCustomValue={true}
                   />
                 </div>
-                <div className="w-24">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Dose</label>
                   <Combobox
                     value={newMed.dose}
@@ -1886,7 +1868,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     allowCustomValue={true}
                   />
                 </div>
-                <div className="w-28">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Frequency</label>
                   <Combobox
                     value={newMed.frequency}
@@ -1896,7 +1878,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     allowCustomValue={true}
                   />
                 </div>
-                <div className="w-28">
+                <div className="col-span-6 sm:col-span-4 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Duration</label>
                   <Combobox
                     value={newMed.duration}
@@ -1906,7 +1888,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     allowCustomValue={true}
                   />
                 </div>
-                <div className="w-36">
+                <div className="col-span-6 sm:col-span-8 md:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Instructions</label>
                   <Combobox
                     value={newMed.instructions || ""}
@@ -1916,9 +1898,11 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     allowCustomValue={true}
                   />
                 </div>
-                <button type="button" onClick={addDischargeMed} className="px-5 py-2.5 h-[42px] bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold shadow shrink-0 transition-all">
-                  Add
-                </button>
+                <div className="col-span-12 sm:col-span-4 md:col-span-1">
+                  <button type="button" onClick={addDischargeMed} className="w-full px-5 py-2.5 h-[42px] bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold shadow transition-all flex items-center justify-center">
+                    Add
+                  </button>
+                </div>
               </div>
 
               {dischargeMeds.length === 0 ? (
@@ -1926,7 +1910,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   <p className="text-sm text-slate-400">No home medications prescribed.</p>
                 </div>
               ) : (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto scrollbar-hide shadow-sm">
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50 text-slate-500 text-xs uppercase text-left">
                       <tr>
@@ -1993,6 +1977,50 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
             </div>
           </form>
         )}
+        </div>
+
+        {/* Right Column: Patient Info Header Card */}
+        <div className="w-full lg:w-96 shrink-0 order-1 lg:order-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 bg-gradient-to-br from-sky-50/30 via-white to-white space-y-4 relative">
+          <Link
+            href="/day-care"
+            className="absolute right-4 top-4 text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-full transition-colors duration-150"
+            title="Exit Workflow"
+          >
+            <X className="w-5 h-5" />
+          </Link>
+
+          <div className="flex items-center justify-between gap-3 flex-wrap pr-8">
+            <h2 className="text-xl font-bold text-slate-900">{visit.patient_name}</h2>
+            <span className={clsx(
+              "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+              visit.status === "scheduled" && "bg-slate-100 text-slate-700",
+              visit.status === "discharged" && "bg-teal-100 text-teal-800",
+              visit.status === "cancelled" && "bg-rose-100 text-rose-800",
+              !["scheduled", "discharged", "cancelled", "postponed", "no_show"].includes(visit.status) && "bg-emerald-100 text-emerald-800"
+            )}>
+              {visit.status.replace("_", " ")}
+            </span>
+          </div>
+
+          <div className="flex flex-row flex-wrap lg:flex-col gap-2.5 text-sm text-slate-600 font-medium">
+            <div className="flex items-center gap-2 bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100/80 flex-1 lg:flex-none">
+              <User className="w-4 h-4 text-sky-500 shrink-0" />
+              <span>UHID: <strong className="text-slate-800">{visit.patient_uhid || "N/A"}</strong></span>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100/80 flex-1 lg:flex-none">
+              <Activity className="w-4 h-4 text-sky-500 shrink-0" />
+              <span>{visit.patient_age || "N/A"} yrs, {visit.patient_gender || "N/A"}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100/80 flex-1 lg:flex-none">
+              <span className="text-[9px] font-extrabold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">Dr</span>
+              <span>Surgeon: <strong className="text-slate-800">{visit.surgeon_name}</strong></span>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100/80 flex-1 lg:flex-none">
+              <ClipboardList className="w-4 h-4 text-sky-500 shrink-0" />
+              <span>Procedure: <strong className="text-slate-800">{visit.surgery_name}</strong></span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Hidden printable content */}
