@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { labBookingsApi, AdvisedTest, BookAdvisedTestsRequest, PaymentMethod, TestPriority } from "@/services/labBookingsApi";
+import { useState, useEffect } from "react";
+import { labBookingsApi, AdvisedTest, BookAdvisedTestsRequest, PaymentMethod, TestPriority, PatientWithPendingTests } from "@/services/labBookingsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
-import { patientsApi } from "@/services/patientsApi";
-import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, Search, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList } from "lucide-react";
+import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList } from "lucide-react";
 import { currency, getTodayDateLocal } from "@/utils/format";
 
 export interface PrescribedLabBookingPanelProps {
@@ -30,14 +28,12 @@ export function PrescribedLabBookingPanel({
   const [selectedVisitId, setSelectedVisitId] = useState<string>(propVisitId || "");
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
-  // Standalone mode state: Visits list and search
-  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
-  const [loadingVisits, setLoadingVisits] = useState(false);
-  const [patientSearchTerm, setPatientSearchTerm] = useState("");
-  const [isSearchingPatients, setIsSearchingPatients] = useState(false);
-  const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
+  // Standalone mode state: Pending patients and date filters
+  const [pendingPatients, setPendingPatients] = useState<PatientWithPendingTests[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  const [dateFilter, setDateFilter] = useState<"today" | "7days" | "custom">("today");
+  const [customStartDate, setCustomStartDate] = useState(getTodayDateLocal());
+  const [customEndDate, setCustomEndDate] = useState(getTodayDateLocal());
 
   // Booking details state
   const [advisedTests, setAdvisedTests] = useState<AdvisedTest[]>([]);
@@ -55,25 +51,62 @@ export function PrescribedLabBookingPanel({
     setScheduledDate(getTodayDateLocal());
   }, []);
 
-  // Standalone Mode: Fetch recent visits on load
+  // Standalone Mode: Fetch pending patients
+  const fetchPendingPatients = async () => {
+    setLoadingPatients(true);
+    try {
+      let start_date = getTodayDateLocal();
+      let end_date = getTodayDateLocal();
+
+      if (dateFilter === "7days") {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        start_date = d.toISOString().split("T")[0];
+      } else if (dateFilter === "custom") {
+        start_date = customStartDate || getTodayDateLocal();
+        end_date = customEndDate || getTodayDateLocal();
+      }
+
+      const res = await labBookingsApi.getPatientsWithPendingTests({
+        start_date,
+        end_date,
+      });
+
+      setPendingPatients(res.items || []);
+
+      // If the currently selected visit is not in the new list, deselect it
+      if (selectedVisitId) {
+        const stillPending = res.items.some((item) => item.visit_id === selectedVisitId);
+        if (!stillPending) {
+          setSelectedVisitId("");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch pending patients:", error);
+      toast.error("Failed to load prescribed patients");
+    } finally {
+      setLoadingPatients(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isDirectMode) return;
+    fetchPendingPatients();
+  }, [dateFilter, customStartDate, customEndDate, isDirectMode]);
+
+  // Standalone Mode: Listen for booking creation events to refresh the list
   useEffect(() => {
     if (isDirectMode) return;
 
-    const fetchRecentVisits = async () => {
-      setLoadingVisits(true);
-      try {
-        const response = await opdVisitsApi.list({ page_size: 20 });
-        setRecentVisits(response.items || []);
-      } catch (error) {
-        console.error("Failed to fetch recent visits:", error);
-        toast.error("Failed to load recent visits");
-      } finally {
-        setLoadingVisits(false);
-      }
+    const handleBookingCreated = () => {
+      fetchPendingPatients();
     };
 
-    fetchRecentVisits();
-  }, [isDirectMode]);
+    window.addEventListener("lab:booking:created", handleBookingCreated);
+    return () => {
+      window.removeEventListener("lab:booking:created", handleBookingCreated);
+    };
+  }, [dateFilter, customStartDate, customEndDate, isDirectMode]);
 
   // Standalone Mode: Fetch selected visit detail
   useEffect(() => {
@@ -97,43 +130,6 @@ export function PrescribedLabBookingPanel({
 
     fetchVisitDetail();
   }, [selectedVisitId, isDirectMode]);
-
-  // Standalone Mode: Patient search dropdown
-  useEffect(() => {
-    if (isDirectMode) return;
-    if (patientSearchTerm.trim().length >= 2) {
-      const timeoutId = setTimeout(async () => {
-        setIsSearchingPatients(true);
-        try {
-          const response = await patientsApi.searchGlobal({ q: patientSearchTerm.trim(), page_size: 10 });
-          const mapped = patientsApi.mapToPatients(response.items);
-          setSearchResults(mapped);
-          setShowSearchDropdown(true);
-        } catch (error) {
-          console.error("Search failed:", error);
-          setSearchResults([]);
-        } finally {
-          setIsSearchingPatients(false);
-        }
-      }, 300);
-
-      return () => clearTimeout(timeoutId);
-    } else {
-      setSearchResults([]);
-      setShowSearchDropdown(false);
-    }
-  }, [patientSearchTerm, isDirectMode]);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target as Node)) {
-        setShowSearchDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
 
   // Fetch Advised Tests for the selected visit
   const fetchAdvisedTests = async (vId: string) => {
@@ -161,29 +157,6 @@ export function PrescribedLabBookingPanel({
       fetchAdvisedTests(selectedVisitId);
     }
   }, [selectedVisitId]);
-
-  // Handle patient selection from search dropdown
-  const handlePatientSelect = async (patient: Patient) => {
-    setPatientSearchTerm("");
-    setShowSearchDropdown(false);
-    setLoadingVisits(true);
-    try {
-      // Find visits for the selected patient
-      const response = await opdVisitsApi.list({ patient_id: patient.id, page_size: 10 });
-      if (response.items && response.items.length > 0) {
-        setRecentVisits(response.items);
-        // Automatically select the most recent visit
-        setSelectedVisitId(response.items[0].id);
-      } else {
-        toast.info(`No recent visits found for patient ${patient.name}`);
-      }
-    } catch (error) {
-      console.error("Failed to fetch visits for selected patient:", error);
-      toast.error("Failed to find visits for patient");
-    } finally {
-      setLoadingVisits(false);
-    }
-  };
 
   // Checkbox toggle
   const handleToggleTest = (labTestId: string) => {
@@ -480,71 +453,90 @@ export function PrescribedLabBookingPanel({
         )}
       </div>
     );
-  }
-
-  // Standalone Mode render
+  }  // Standalone Mode render
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left Column: Recent OPD Visits Selection */}
+      {/* Left Column: Prescribed Patient Selection */}
       <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 space-y-4">
-        {/* Patient Search */}
-        <div className="space-y-1 relative" ref={searchDropdownRef}>
-          <label className="text-xs font-semibold text-slate-600">Quick Patient Search</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={patientSearchTerm}
-              onChange={(e) => setPatientSearchTerm(e.target.value)}
-              placeholder="Search by name, mobile, ID..."
-              className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm outline-none focus:border-sky-400 transition"
-            />
-            {isSearchingPatients && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
-              </div>
-            )}
+        {/* Date Filter Selector */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-slate-600 block">Date Range</label>
+          <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
+            {(["today", "7days", "custom"] as const).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setDateFilter(filter)}
+                className={`py-1.5 text-xs font-semibold rounded-lg transition-all capitalize cursor-pointer ${
+                  dateFilter === filter
+                    ? "bg-white text-slate-900 shadow-sm font-bold"
+                    : "text-slate-500 hover:text-slate-950"
+                }`}
+              >
+                {filter === "7days" ? "Last 7 Days" : filter}
+              </button>
+            ))}
           </div>
 
-          {showSearchDropdown && searchResults.length > 0 && (
-            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl py-1 divide-y divide-slate-50">
-              {searchResults.map((patient) => (
-                <div
-                  key={patient.id}
-                  onClick={() => handlePatientSelect(patient)}
-                  className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-sky-50 transition"
-                >
-                  <User className="h-4 w-4 text-slate-400" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{patient.name}</p>
-                    <p className="text-xs text-slate-500">{patient.mobile}</p>
-                  </div>
-                </div>
-              ))}
+          {/* Custom Date Picker Inputs */}
+          {dateFilter === "custom" && (
+            <div className="grid grid-cols-2 gap-2 mt-2 pt-1.5 border-t border-slate-100">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 block uppercase">Start Date</span>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  max={customEndDate || getTodayDateLocal()}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-500/10 transition"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 block uppercase">End Date</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  min={customStartDate}
+                  max={getTodayDateLocal()}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-500/10 transition"
+                />
+              </div>
             </div>
           )}
         </div>
 
-        {/* Recent OPD Visits List */}
+        {/* Prescribed Patients List */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-600 block">Recent Visits</label>
-          {loadingVisits ? (
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-semibold text-slate-650 block">Prescribed Patients</label>
+            {!loadingPatients && pendingPatients.length > 0 && (
+              <span className="inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/10">
+                {pendingPatients.length} {pendingPatients.length === 1 ? "patient" : "patients"}
+              </span>
+            )}
+          </div>
+          {loadingPatients ? (
             <div className="py-12 flex justify-center items-center">
               <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
-              <span className="ml-2 text-xs text-slate-500 font-medium">Loading visits...</span>
+              <span className="ml-2 text-xs text-slate-500 font-medium">Loading patients...</span>
             </div>
-          ) : recentVisits.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-250">
-              No recent visits found.
-            </p>
+          ) : pendingPatients.length === 0 ? (
+            <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 px-4">
+              <AlertCircle className="mx-auto h-6 w-6 text-slate-400 mb-1" />
+              <p className="text-xs font-semibold text-slate-600">No Prescribed Tests</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                No patients found with pending prescribed tests for this date range.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
-              {recentVisits.map((visit) => {
-                const isSelected = visit.id === selectedVisitId;
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              {pendingPatients.map((patient) => {
+                const isSelected = patient.visit_id === selectedVisitId;
                 return (
                   <div
-                    key={visit.id}
-                    onClick={() => setSelectedVisitId(visit.id)}
+                    key={patient.visit_id}
+                    onClick={() => setSelectedVisitId(patient.visit_id)}
                     className={`p-3 rounded-xl border transition-all cursor-pointer text-left ${
                       isSelected
                         ? "border-sky-400 bg-sky-50/50 shadow-sm"
@@ -553,17 +545,29 @@ export function PrescribedLabBookingPanel({
                   >
                     <div className="flex justify-between items-start gap-2">
                       <p className="text-sm font-semibold text-slate-900 truncate">
-                        {visit.patient_name || "Unknown Patient"}
+                        {patient.patient_name}
                       </p>
-                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md ${
-                        isSelected ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-600"
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                        isSelected ? "bg-sky-100 text-sky-850" : "bg-slate-100 text-slate-655"
                       }`}>
-                        {visit.visit_number}
+                        {patient.visit_number}
                       </span>
                     </div>
+
                     <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>Mob: {visit.patient_mobile || "N/A"}</span>
-                      <span className="font-medium text-slate-600">{visit.doctor_name || "OPD Doctor"}</span>
+                      <span>Mob: {patient.patient_mobile || "N/A"}</span>
+                      <span className="font-medium text-slate-650 truncate max-w-[120px]">
+                        {patient.doctor_name || "OPD Doctor"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-slate-100/50">
+                      <span className="text-[10px] text-slate-400">
+                        {patient.visit_date}
+                      </span>
+                      <span className="inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-inset ring-rose-600/10">
+                        {patient.pending_test_count} {patient.pending_test_count === 1 ? "test" : "tests"} pending
+                      </span>
                     </div>
                   </div>
                 );

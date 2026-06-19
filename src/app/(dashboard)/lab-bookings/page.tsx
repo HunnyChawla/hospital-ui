@@ -6,18 +6,48 @@ import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { PrescribedLabBookingPanel } from "@/components/lab-bookings/PrescribedLabBookingPanel";
 import { Beaker } from "lucide-react";
+import { labBookingsApi } from "@/services/labBookingsApi";
+import { getTodayDateLocal } from "@/utils/format";
 
 export default function LabBookingsPage() {
   const searchParams = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"list" | "prescribed">("list");
+  const [pendingCount, setPendingCount] = useState(0);
 
-  // Handle query parameters for opening modals
+  const fetchPendingCount = async () => {
+    try {
+      const today = getTodayDateLocal();
+      const res = await labBookingsApi.getPatientsWithPendingTests({
+        start_date: today,
+        end_date: today,
+      });
+      setPendingCount(res.total);
+    } catch (error) {
+      console.error("Failed to fetch pending lab tests count", error);
+    }
+  };
+
+  // Fetch count on mount and active tab change
+  useEffect(() => {
+    fetchPendingCount();
+  }, [activeTab]);
+
+  // Handle query parameters for opening modals and custom event listener
   useEffect(() => {
     const action = searchParams.get("action");
     if (action === "add") {
       setShowModal(true);
     }
+
+    const handleBookingCreated = () => {
+      fetchPendingCount();
+    };
+
+    window.addEventListener("lab:booking:created", handleBookingCreated);
+    return () => {
+      window.removeEventListener("lab:booking:created", handleBookingCreated);
+    };
   }, [searchParams]);
 
   return (
@@ -53,13 +83,18 @@ export default function LabBookingsPage() {
           </button>
           <button
             onClick={() => setActiveTab("prescribed")}
-            className={`px-4 py-2 text-sm font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-2 text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === "prescribed"
                 ? "border-b-2 border-sky-500 text-sky-600 font-bold"
                 : "text-slate-650 hover:text-slate-900"
             }`}
           >
             Prescribed Tests
+            {pendingCount > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                {pendingCount}
+              </span>
+            )}
           </button>
         </div>
 

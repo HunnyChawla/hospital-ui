@@ -178,5 +178,37 @@ export const labBookingsApi = {
     const response = await apiClient.post<LabBooking>("/lab-bookings/advised-tests/book", data, { params });
     return response.data;
   },
+
+  async getPatientsWithPendingTests(
+    params?: { start_date?: string; end_date?: string; tenant_id?: string }
+  ): Promise<PatientWithPendingTestsResponse> {
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
+
+    const queryString = queryParams.toString();
+    const url = `/lab-bookings/patients-with-pending-tests${queryString ? `?${queryString}` : ""}`;
+    const response = await apiClient.get<PatientWithPendingTestsResponse>(url);
+    return response.data;
+  },
 };
+
+export interface PatientWithPendingTests {
+  patient_id: string;
+  patient_name: string;
+  patient_mobile: string | null;
+  visit_id: string;
+  visit_number: string;
+  visit_date: string;
+  doctor_name: string | null;
+  pending_test_count: number;
+}
+
+export interface PatientWithPendingTestsResponse {
+  total: number;
+  items: PatientWithPendingTests[];
+}
+
 
