@@ -526,7 +526,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                 {/* Advice & Lab Investigations */}
                 <div className="space-y-1">
                     {/* Lab Investigations */}
-                    {prescription.advice_items?.some(a => a.advice_type === "Lab Test") && (!visibleSections || visibleSections.includes("Lab Investigations")) && (
+                    {prescription.advice_items?.some(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test") && (!visibleSections || visibleSections.includes("Lab Investigations")) && (
                         <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start break-inside-avoid`}>
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
@@ -538,7 +538,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             </div>
                             <div className={`${sectionFontClass} font-medium uppercase`}>
                                 {prescription.advice_items
-                                    .filter(a => a.advice_type === "Lab Test")
+                                    .filter(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test")
                                     .map(a => a.description)
                                     .join(", ")}
                             </div>
@@ -546,7 +546,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     )}
 
                     {/* Actual Advice */}
-                    {(prescription.advice_items?.some(a => a.advice_type !== "Lab Test") || prescription.plan_of_action) && (!visibleSections || visibleSections.includes("Advice")) && (
+                    {(prescription.advice_items?.some(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action) && (!visibleSections || visibleSections.includes("Advice")) && (
                         <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
@@ -560,7 +560,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 {[
                                     ...(prescription.plan_of_action ? [prescription.plan_of_action] : []),
                                     ...((prescription.advice_items || [])
-                                        .filter(a => a.advice_type !== "Lab Test")
+                                        .filter(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test")
                                         .map(a => a.description))
                                 ].join(", ")}
                             </div>

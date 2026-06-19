@@ -22,6 +22,9 @@ import { CancellationRefundAcknowledgmentModal } from "@/components/common/Cance
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PrescribedLabBookingModal } from "../lab-bookings/PrescribedLabBookingModal";
+import { Beaker } from "lucide-react";
 
 interface OpdListProps {
   doctorId?: string;
@@ -504,6 +507,8 @@ function VisitCard({
 export function OpdList({ doctorId }: OpdListProps) {
   // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const { list: doctors } = useAppSelector((s) => s.doctors);
+  const { userRole } = usePermissions();
+  const [bookingVisit, setBookingVisit] = useState<Visit | null>(null);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(() => {
@@ -803,6 +808,18 @@ export function OpdList({ doctorId }: OpdListProps) {
         break;
       // completed, cancelled, and other statuses: no action buttons (print only)
     }
+
+    // Append "Prescribed Lab Tests" action for receptionists/admin/owners
+    const isReceptionistOrAdmin = userRole === "receptionist" || userRole === "admin" || userRole === "platform_owner";
+    if (isReceptionistOrAdmin && visit.status !== "cancelled" && visit.status !== "no_show") {
+      actions.push({
+        icon: Beaker,
+        title: "Prescribed Lab Tests",
+        color: "indigo",
+        onClick: () => setBookingVisit(visit),
+      });
+    }
+
     return actions;
   };
 
@@ -1588,6 +1605,16 @@ export function OpdList({ doctorId }: OpdListProps) {
         amount={pendingCancellation?.paymentAmount}
         loading={cancelling}
       />
+
+      {bookingVisit && (
+        <PrescribedLabBookingModal
+          isOpen={!!bookingVisit}
+          onClose={() => setBookingVisit(null)}
+          visitId={bookingVisit.id}
+          patientId={bookingVisit.patient_id}
+          patientName={bookingVisit.patient_name || undefined}
+        />
+      )}
     </div >
   );
 }

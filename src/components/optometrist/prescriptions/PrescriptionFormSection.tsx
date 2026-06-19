@@ -20,6 +20,7 @@ import {
     Sparkles,
     Settings,
     X,
+    Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -533,10 +534,10 @@ export function PrescriptionFormSection({
     useEffect(() => {
         if (labTestsOptions.length > 0 && adviceFields.length > 0) {
             const labIds = adviceFields
-                .filter(field => field.advice_type === "Lab Test")
+                .filter(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test")
                 .map((field: any) => {
                     const match = labTestsOptions.find(opt =>
-                        opt.value === field.description
+                        opt.id === field.lab_test_id || opt.value === field.description
                     );
                     return match?.id;
                 }).filter(Boolean) as string[];
@@ -951,8 +952,9 @@ export function PrescriptionFormSection({
         const template = labTestsOptions.find(l => l.id === id);
         if (template) {
             appendAdvice({
-                advice_type: "Lab Test",
+                advice_type: "lab-test",
                 description: template.value,
+                lab_test_id: template.id,
                 notes: ""
             });
             setAddedLabTestIds(prev => [...prev, id]);
@@ -1014,8 +1016,9 @@ export function PrescriptionFormSection({
 
     const handleAddTestFromSearch = (test: any) => {
         appendAdvice({
-            advice_type: "Lab Test",
+            advice_type: "lab-test",
             description: test.value,
+            lab_test_id: test.id,
             notes: ""
         });
         setTestSearchQuery("");
@@ -2004,17 +2007,24 @@ export function PrescriptionFormSection({
                                     </div>
 
                                     {/* Added Tests List */}
-                                    {adviceFields.some(field => field.advice_type === "Lab Test") && (
+                                    {adviceFields.some(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test") && (
                                         <div className="space-y-2 mt-3">
                                             {adviceFields.map((field, index) => {
-                                                if (field.advice_type !== "Lab Test") return null;
+                                                if (field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") return null;
                                                 return (
                                                     <div key={field.id} className="flex items-center gap-2 group/advice">
-                                                        <div className="flex-1">
+                                                        <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
+                                                        <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
+                                                        <div className="flex-1 flex items-center gap-2">
                                                             <input
                                                                 {...register(`advice_items.${index}.description`)}
                                                                 className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                                                             />
+                                                            {field.lab_test_id && (
+                                                                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+                                                                    <Link2 className="h-3.5 w-3.5" /> Catalog
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <button
                                                             type="button"
@@ -2109,12 +2119,14 @@ export function PrescriptionFormSection({
                                     </div>
 
                                     {/* Added Advice List */}
-                                    {adviceFields.some(field => field.advice_type !== "Lab Test") && (
+                                    {adviceFields.some(field => field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") && (
                                         <div className="space-y-2 mt-3">
                                             {adviceFields.map((field, index) => {
-                                                if (field.advice_type === "Lab Test") return null;
+                                                if (field.advice_type === "Lab Test" || field.advice_type === "lab-test") return null;
                                                 return (
                                                     <div key={field.id} className="flex items-center gap-2 group/advice">
+                                                        <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
+                                                        <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
                                                         <div className="flex-1">
                                                             <input
                                                                 {...register(`advice_items.${index}.description`)}
