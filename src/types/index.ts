@@ -446,6 +446,7 @@ export type AdviceItem = {
   advice_type: string;
   description: string;
   notes?: string;
+  lab_test_id?: string | null;
   created_at?: string;
 };
 

@@ -40,6 +40,9 @@ import { Tooltip } from "@/components/common/Tooltip";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { usePermissions } from "@/hooks/usePermissions";
+import { labBookingsApi } from "@/services/labBookingsApi";
+import { getTodayDateLocal } from "@/utils/format";
+
 
 // Icon mapping from string names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -105,6 +108,7 @@ export function Sidebar() {
   const dispatch = useAppDispatch();
   const doctors = useAppSelector((state) => state.doctors.list);
   const { screenDetails, userRole, initialized, loading } = usePermissions();
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (userRole === "doctor" && doctors.length === 0) {
@@ -172,6 +176,43 @@ export function Sidebar() {
     });
   }, [navItems, userRole, doctors]);
 
+  const hasLabBookings = useMemo(() => {
+    return filteredNavItems.some((item) => item.href === "/lab-bookings");
+  }, [filteredNavItems]);
+
+  useEffect(() => {
+    if (!hasLabBookings) return;
+
+    const fetchPendingCount = async () => {
+      try {
+        const today = getTodayDateLocal();
+        const res = await labBookingsApi.getPatientsWithPendingTests({
+          start_date: today,
+          end_date: today,
+        });
+        setPendingCount(res.total);
+      } catch (error) {
+        console.error("Failed to fetch pending lab tests count in sidebar", error);
+      }
+    };
+
+    fetchPendingCount();
+
+    // Listen for booking creation/update
+    const handleBookingCreated = () => {
+      fetchPendingCount();
+    };
+    window.addEventListener("lab:booking:created", handleBookingCreated);
+
+    // Periodic poll every 30 seconds
+    const intervalId = setInterval(fetchPendingCount, 30000);
+
+    return () => {
+      window.removeEventListener("lab:booking:created", handleBookingCreated);
+      clearInterval(intervalId);
+    };
+  }, [hasLabBookings]);
+
   // Handle navigation click - close mobile drawer if on mobile
   const handleNavClick = () => {
     if (isMobile) {
@@ -237,7 +278,15 @@ export function Sidebar() {
                 onClick={handleNavClick}
               >
                 <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.href === "/lab-bookings" && pendingCount > 0 && (
+                  <span className={clsx(
+                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shadow-sm transition-all",
+                    active ? "bg-white text-teal-600" : "bg-rose-500 text-white"
+                  )}>
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
             );
           })
@@ -317,10 +366,15 @@ export function Sidebar() {
                 <Tooltip key={item.href} content={item.label} side="right">
                   <Link
                     href={item.href}
-                    className={iconButtonClass}
+                    className={clsx(iconButtonClass, "relative")}
                     onClick={handleNavClick}
                   >
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    {item.href === "/lab-bookings" && pendingCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
+                        {pendingCount}
+                      </span>
+                    )}
                   </Link>
                 </Tooltip>
               );
