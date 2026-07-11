@@ -537,7 +537,9 @@ export function PrescriptionFormSection({
                 .filter(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test")
                 .map((field: any) => {
                     const match = labTestsOptions.find(opt =>
-                        opt.id === field.lab_test_id || opt.value === field.description
+                        (opt.lab_test_id && opt.lab_test_id === field.lab_test_id) ||
+                        opt.value === field.description ||
+                        opt.id === field.lab_test_id
                     );
                     return match?.id;
                 }).filter(Boolean) as string[];
@@ -954,7 +956,7 @@ export function PrescriptionFormSection({
             appendAdvice({
                 advice_type: "lab-test",
                 description: template.value,
-                lab_test_id: template.id,
+                lab_test_id: template.lab_test_id || null,
                 notes: ""
             });
             setAddedLabTestIds(prev => [...prev, id]);
