@@ -130,6 +130,11 @@ export function Sidebar() {
       icon: iconMap[screen.icon] || Home,
     }));
 
+    // Ensure Day Care is in the navigation items fallback
+    if (!items.find((i) => i.href === "/day-care") && ["admin", "receptionist", "nurse", "doctor", "platform_owner"].includes(userRole || "")) {
+      items.push({ label: "Day Care Surgery", href: "/day-care", icon: Activity });
+    }
+
     // Platform Owner only screens
     const platformOwnerScreens = ["/screens", "/tenants"];
 
