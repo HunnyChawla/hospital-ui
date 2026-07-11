@@ -66,6 +66,27 @@ export interface LabBookingsSearchResponse {
   total_pages: number;
 }
 
+export interface AdvisedTest {
+  advice_item_id: string;
+  lab_test_id: string;
+  test_code: string;
+  test_name: string;
+  advice_type: string;
+  already_booked: boolean;
+  price?: number | null;
+}
+
+export interface BookAdvisedTestsRequest {
+  patient_id: string;
+  visit_id: string;
+  scheduled_date: string; // YYYY-MM-DD
+  priority?: TestPriority;
+  lab_test_ids: string[];
+  notes?: string;
+  payment_method?: PaymentMethod;
+  payment_reference?: string;
+}
+
 export const labBookingsApi = {
   async create(booking: CreateLabBookingRequest, tenantId?: string): Promise<LabBooking> {
     const apiTenantId = getTenantIdForApi(tenantId);
@@ -140,5 +161,54 @@ export const labBookingsApi = {
     );
     return response.data;
   },
+
+  async getAdvisedTests(visitId: string, tenantId?: string): Promise<AdvisedTest[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params: Record<string, string> = { visit_id: visitId };
+    if (apiTenantId) {
+      params.tenant_id = apiTenantId;
+    }
+    const response = await apiClient.get<AdvisedTest[]>("/lab-bookings/advised-tests", { params });
+    return response.data;
+  },
+
+  async bookAdvisedTests(data: BookAdvisedTestsRequest, tenantId?: string): Promise<LabBooking> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<LabBooking>("/lab-bookings/advised-tests/book", data, { params });
+    return response.data;
+  },
+
+  async getPatientsWithPendingTests(
+    params?: { start_date?: string; end_date?: string; tenant_id?: string }
+  ): Promise<PatientWithPendingTestsResponse> {
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
+
+    const queryString = queryParams.toString();
+    const url = `/lab-bookings/patients-with-pending-tests${queryString ? `?${queryString}` : ""}`;
+    const response = await apiClient.get<PatientWithPendingTestsResponse>(url);
+    return response.data;
+  },
 };
+
+export interface PatientWithPendingTests {
+  patient_id: string;
+  patient_name: string;
+  patient_mobile: string | null;
+  visit_id: string;
+  visit_number: string;
+  visit_date: string;
+  doctor_name: string | null;
+  pending_test_count: number;
+}
+
+export interface PatientWithPendingTestsResponse {
+  total: number;
+  items: PatientWithPendingTests[];
+}
+
 

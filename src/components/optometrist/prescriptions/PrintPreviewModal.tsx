@@ -232,8 +232,8 @@ export function PrintPreviewModal({
                                         if (section === "Optical Specs") hasData = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0));
                                         if (section === "Diagnosis") hasData = !!(prescription.diagnosis);
                                         if (section === "Meds") hasData = !!(prescription.medicine_items?.length);
-                                        if (section === "Lab Investigations") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test"));
-                                        if (section === "Advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test") || prescription.plan_of_action);
+                                        if (section === "Lab Investigations") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test" || a.advice_type === "lab-test"));
+                                        if (section === "Advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action);
                                         if (section === "Planned Surgery") hasData = !!(plannedSurgeries?.length);
                                         if (section === "FollowUp") hasData = !!(prescription.followup_date);
                                         if (section === "Digital Signature") hasData = !!doctorSignature;

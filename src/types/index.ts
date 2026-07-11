@@ -446,6 +446,7 @@ export type AdviceItem = {
   advice_type: string;
   description: string;
   notes?: string;
+  lab_test_id?: string | null;
   created_at?: string;
 };
 
@@ -531,6 +532,8 @@ export type Surgery = {
   name: string;
   description: string | null;
   category: string | null;
+  price?: number;
+  service_id?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -542,6 +545,7 @@ export type CreateSurgeryRequest = {
   name: string;
   description?: string | null;
   category?: string | null;
+  price?: number;
   is_active?: boolean;
 };
 
@@ -549,6 +553,7 @@ export type UpdateSurgeryRequest = {
   name?: string | null;
   description?: string | null;
   category?: string | null;
+  price?: number | null;
   is_active?: boolean | null;
 };
 

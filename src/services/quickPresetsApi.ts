@@ -38,6 +38,7 @@ export interface QuickLabTest {
     value: string;
     category: "Hematology" | "Biochemistry" | "Microbiology" | "Pathology" | "Serology" | "Other";
     position?: number;
+    lab_test_id?: string;
 }
 
 export type PresetType = 'diagnoses' | 'medicines' | 'advices' | 'lab-tests';

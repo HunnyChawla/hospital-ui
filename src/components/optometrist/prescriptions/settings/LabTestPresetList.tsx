@@ -18,6 +18,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
     // Form state
     const [label, setLabel] = useState("");
     const [value, setValue] = useState("");
+    const [selectedLabTestId, setSelectedLabTestId] = useState<string | null>(null);
     const [category, setCategory] = useState<QuickLabTest["category"]>("Other");
 
     // Search state
@@ -28,6 +29,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
 
     const handleSearch = (query: string) => {
         setValue(query);
+        setSelectedLabTestId(null);
         setShowSuggestions(true);
 
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -53,6 +55,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
 
     const selectLabTest = (test: LabTest) => {
         setValue(test.test_name);
+        setSelectedLabTestId(test.id);
 
         // Auto-fill label if empty
         if (!label) {
@@ -81,6 +84,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
         const item = items[index];
         setLabel(item.label);
         setValue(item.value);
+        setSelectedLabTestId(item.lab_test_id || null);
         setCategory(item.category);
         setEditingIndex(index);
         setAddingNew(false);
@@ -91,6 +95,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
     const startAdd = () => {
         setLabel("");
         setValue("");
+        setSelectedLabTestId(null);
         setCategory("Other");
         setAddingNew(true);
         setEditingIndex(null);
@@ -127,6 +132,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
             label: label.trim(),
             value: value.trim(),
             category,
+            lab_test_id: selectedLabTestId || undefined,
         };
 
         if (addingNew) {

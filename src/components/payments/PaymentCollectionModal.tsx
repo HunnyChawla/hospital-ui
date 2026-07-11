@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
 import { Invoice } from "@/services/invoicesApi";
-import { paymentsApi, CreatePaymentRequest, PaymentMethod } from "@/services/paymentsApi";
+import { paymentsApi, CreatePaymentRequest, PaymentMethod, Payment } from "@/services/paymentsApi";
 import { currency } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -13,7 +13,7 @@ interface PaymentCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   invoice: Invoice | null;
-  onSuccess?: () => void;
+  onSuccess?: (payment?: Payment) => void;
 }
 
 export function PaymentCollectionModal({
@@ -75,9 +75,9 @@ export function PaymentCollectionModal({
         notes: notes.trim() || undefined,
       };
 
-      await paymentsApi.create(paymentData, getTenantIdForApi(tenantId || undefined));
+      const payment = await paymentsApi.create(paymentData, getTenantIdForApi(tenantId || undefined));
       toast.success("Payment collected successfully");
-      onSuccess?.();
+      onSuccess?.(payment);
       onClose();
     } catch (error) {
       const errorMessage = getErrorMessage(error);
