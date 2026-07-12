@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { SearchableDropdown } from "./SearchableDropdown";
 import {
     Pill,
 
@@ -1851,45 +1852,51 @@ export function PrescriptionFormSection({
                                                 </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            list={`freq-options-${index}`}
-                                                            {...register(`medicine_items.${index}.frequency`)}
-                                                            placeholder="e.g. 1-0-1"
-                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                        />
-                                                        <datalist id={`freq-options-${index}`}>
-                                                            {FREQUENCIES.map(f => <option key={f} value={f} />)}
-                                                        </datalist>
-                                                    </div>
+                                                    <Controller
+                                                        control={control}
+                                                        name={`medicine_items.${index}.frequency`}
+                                                        render={({ field: { value, onChange } }) => (
+                                                            <SearchableDropdown
+                                                                value={value}
+                                                                onChange={onChange}
+                                                                options={FREQUENCIES}
+                                                                placeholder="e.g. 1-0-1"
+                                                                inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                            />
+                                                        )}
+                                                    />
                                                 </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            list={`dur-options-${index}`}
-                                                            {...register(`medicine_items.${index}.duration`)}
-                                                            placeholder="e.g. 5 days"
-                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                        />
-                                                        <datalist id={`dur-options-${index}`}>
-                                                            {DURATIONS.map(d => <option key={d} value={d} />)}
-                                                        </datalist>
-                                                    </div>
+                                                    <Controller
+                                                        control={control}
+                                                        name={`medicine_items.${index}.duration`}
+                                                        render={({ field: { value, onChange } }) => (
+                                                            <SearchableDropdown
+                                                                value={value}
+                                                                onChange={onChange}
+                                                                options={DURATIONS}
+                                                                placeholder="e.g. 5 days"
+                                                                inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                            />
+                                                        )}
+                                                    />
                                                 </div>
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            list={`inst-options-${index}`}
-                                                            {...register(`medicine_items.${index}.instructions`)}
-                                                            placeholder="e.g. After food"
-                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                        />
-                                                        <datalist id={`inst-options-${index}`}>
-                                                            {MEDICINE_INSTRUCTIONS.map(i => <option key={i} value={i} />)}
-                                                        </datalist>
-                                                    </div>
+                                                    <Controller
+                                                        control={control}
+                                                        name={`medicine_items.${index}.instructions`}
+                                                        render={({ field: { value, onChange } }) => (
+                                                            <SearchableDropdown
+                                                                value={value}
+                                                                onChange={onChange}
+                                                                options={MEDICINE_INSTRUCTIONS}
+                                                                placeholder="e.g. After food"
+                                                                inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                            />
+                                                        )}
+                                                    />
                                                 </div>
                                             </div>
 
@@ -1982,43 +1989,55 @@ export function PrescriptionFormSection({
                                                                                     <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
                                                                                         Frequency
                                                                                     </label>
-                                                                                    <input
-                                                                                        list={`freq-options-${index}-${stepIndex}`}
-                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.frequency`)}
-                                                                                        placeholder="e.g. 6 times a day"
-                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    <Controller
+                                                                                        control={control}
+                                                                                        name={`medicine_items.${index}.tapering_steps.${stepIndex}.frequency`}
+                                                                                        render={({ field: { value, onChange } }) => (
+                                                                                            <SearchableDropdown
+                                                                                                value={value}
+                                                                                                onChange={onChange}
+                                                                                                options={FREQUENCIES}
+                                                                                                placeholder="e.g. 6 times a day"
+                                                                                                inputClassName="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                            />
+                                                                                        )}
                                                                                     />
-                                                                                    <datalist id={`freq-options-${index}-${stepIndex}`}>
-                                                                                        {FREQUENCIES.map(f => <option key={f} value={f} />)}
-                                                                                    </datalist>
                                                                                 </div>
                                                                                 <div>
                                                                                     <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
                                                                                         Duration
                                                                                     </label>
-                                                                                    <input
-                                                                                        list={`dur-options-${index}-${stepIndex}`}
-                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.duration`)}
-                                                                                        placeholder="e.g. 1 week"
-                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    <Controller
+                                                                                        control={control}
+                                                                                        name={`medicine_items.${index}.tapering_steps.${stepIndex}.duration`}
+                                                                                        render={({ field: { value, onChange } }) => (
+                                                                                            <SearchableDropdown
+                                                                                                value={value}
+                                                                                                onChange={onChange}
+                                                                                                options={DURATIONS}
+                                                                                                placeholder="e.g. 1 week"
+                                                                                                inputClassName="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                            />
+                                                                                        )}
                                                                                     />
-                                                                                    <datalist id={`dur-options-${index}-${stepIndex}`}>
-                                                                                        {DURATIONS.map(d => <option key={d} value={d} />)}
-                                                                                    </datalist>
                                                                                 </div>
                                                                                 <div>
                                                                                     <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
                                                                                         Instructions
                                                                                     </label>
-                                                                                    <input
-                                                                                        list={`inst-options-${index}-${stepIndex}`}
-                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.instructions`)}
-                                                                                        placeholder="e.g. Instill 1 drop"
-                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    <Controller
+                                                                                        control={control}
+                                                                                        name={`medicine_items.${index}.tapering_steps.${stepIndex}.instructions`}
+                                                                                        render={({ field: { value, onChange } }) => (
+                                                                                            <SearchableDropdown
+                                                                                                value={value}
+                                                                                                onChange={onChange}
+                                                                                                options={MEDICINE_INSTRUCTIONS}
+                                                                                                placeholder="e.g. Instill 1 drop"
+                                                                                                inputClassName="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                            />
+                                                                                        )}
                                                                                     />
-                                                                                    <datalist id={`inst-options-${index}-${stepIndex}`}>
-                                                                                        {MEDICINE_INSTRUCTIONS.map(i => <option key={i} value={i} />)}
-                                                                                    </datalist>
                                                                                 </div>
                                                                             </div>
 
