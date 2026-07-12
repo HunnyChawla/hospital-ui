@@ -48,6 +48,11 @@ function LoginForm() {
     } else {
       // No subdomain, show input field
       setShowHospitalIdInput(true);
+      // Auto-fill hospital ID if saved in localStorage
+      const savedHospitalId = typeof window !== "undefined" ? localStorage.getItem("hospital_id") : null;
+      if (savedHospitalId) {
+        setFormData((prev) => ({ ...prev, hospital_id: savedHospitalId }));
+      }
     }
   }, []);
 
@@ -74,6 +79,11 @@ function LoginForm() {
     try {
       const result = await dispatch(login(formData)).unwrap();
       toast.success("Login successful");
+
+      // Save hospital ID to localStorage
+      if (typeof window !== "undefined" && formData.hospital_id) {
+        localStorage.setItem("hospital_id", formData.hospital_id);
+      }
 
       // Check for returnUrl
       const returnUrl = searchParams.get("returnUrl");
