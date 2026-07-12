@@ -79,32 +79,51 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {item.dosage && (
-                  <div>
-                    <span className="text-slate-600">Dosage: </span>
-                    <span className="font-semibold text-slate-900">{item.dosage}</span>
+              {item.tapering_steps && item.tapering_steps.length > 0 ? (
+                <div className="mt-2.5 border-t border-slate-200/60 pt-2">
+                  <p className="text-[10px] font-bold text-purple-800 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                    <span>📉</span> Tapering Dose Regimen Schedule:
+                  </p>
+                  <div className="space-y-1.5 pl-3 border-l-2 border-purple-200">
+                    {item.tapering_steps.map((step, stepIdx) => (
+                      <div key={stepIdx} className="text-xs text-slate-800">
+                        <span className="font-semibold text-purple-950">Step {stepIdx + 1}: </span>
+                        <span>{step.dosage || item.dosage || ""}</span>
+                        {step.frequency && <span className="mx-1">• {step.frequency}</span>}
+                        {step.duration && <span className="mx-1">• {step.duration}</span>}
+                        {step.instructions && <span className="text-slate-500 italic"> ({step.instructions})</span>}
+                      </div>
+                    ))}
                   </div>
-                )}
-                {item.frequency && (
-                  <div>
-                    <span className="text-slate-600">Frequency: </span>
-                    <span className="font-semibold text-slate-900">{item.frequency}</span>
-                  </div>
-                )}
-                {item.duration && (
-                  <div>
-                    <span className="text-slate-600">Duration: </span>
-                    <span className="font-semibold text-slate-900">{item.duration}</span>
-                  </div>
-                )}
-                {item.instructions && (
-                  <div className="col-span-2">
-                    <span className="text-slate-600">Instructions: </span>
-                    <span className="font-semibold text-slate-900">{item.instructions}</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {item.dosage && (
+                    <div>
+                      <span className="text-slate-600">Dosage: </span>
+                      <span className="font-semibold text-slate-900">{item.dosage}</span>
+                    </div>
+                  )}
+                  {item.frequency && (
+                    <div>
+                      <span className="text-slate-600">Frequency: </span>
+                      <span className="font-semibold text-slate-900">{item.frequency}</span>
+                    </div>
+                  )}
+                  {item.duration && (
+                    <div>
+                      <span className="text-slate-600">Duration: </span>
+                      <span className="font-semibold text-slate-900">{item.duration}</span>
+                    </div>
+                  )}
+                  {item.instructions && (
+                    <div className="col-span-2">
+                      <span className="text-slate-600">Instructions: </span>
+                      <span className="font-semibold text-slate-900">{item.instructions}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

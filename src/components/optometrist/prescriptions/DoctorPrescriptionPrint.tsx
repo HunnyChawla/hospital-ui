@@ -507,11 +507,30 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {med.generic_name && <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">({med.generic_name})</span>}
                                             </div>
                                             <div className="pl-5 text-[10px] text-slate-600">
-                                                {med.instructions && <span className="mr-2">({med.instructions})</span>}
-                                                <span className="uppercase font-medium">
-                                                    {med.frequency && `${med.frequency}, `}
-                                                    {med.duration && `${med.duration}`}
-                                                </span>
+                                                {med.tapering_steps && med.tapering_steps.length > 0 ? (
+                                                    <div className="mt-1 bg-purple-50/30 border border-purple-100/50 rounded-md p-2 max-w-md">
+                                                        <span className="text-[9px] font-bold text-purple-800 uppercase block mb-1">📉 Tapering Dose Schedule:</span>
+                                                        <div className="space-y-1">
+                                                            {med.tapering_steps.map((step, sIdx) => (
+                                                                <div key={sIdx} className="text-[9px] text-slate-700">
+                                                                    <span className="font-bold text-purple-950">Step {sIdx + 1}: </span>
+                                                                    <span>{step.dosage || med.dosage || ""}</span>
+                                                                    {step.frequency && <span> • {step.frequency}</span>}
+                                                                    {step.duration && <span> • {step.duration}</span>}
+                                                                    {step.instructions && <span className="italic text-slate-500"> ({step.instructions})</span>}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        {med.instructions && <span className="mr-2">({med.instructions})</span>}
+                                                        <span className="uppercase font-medium">
+                                                            {med.frequency && `${med.frequency}, `}
+                                                            {med.duration && `${med.duration}`}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

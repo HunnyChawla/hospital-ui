@@ -21,6 +21,9 @@ import {
     Settings,
     X,
     Link2,
+    Activity,
+    Plus,
+    TrendingDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -337,6 +340,8 @@ export function PrescriptionFormSection({
             advice_items: [],
         },
     });
+
+    const watchedMedicines = watch("medicine_items") || [];
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -1887,6 +1892,157 @@ export function PrescriptionFormSection({
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {/* Tapering Regimen Builder */}
+                                            {(() => {
+                                                const taperingSteps = watchedMedicines[index]?.tapering_steps;
+                                                const hasTapering = taperingSteps && taperingSteps.length > 0;
+                                                return (
+                                                    <div className="mt-4 border-t border-slate-100 pt-4 space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!hasTapering) {
+                                                                        setValue(`medicine_items.${index}.tapering_steps`, [
+                                                                            {
+                                                                                sequence: 1,
+                                                                                dosage: watch(`medicine_items.${index}.dosage`) || "",
+                                                                                frequency: watch(`medicine_items.${index}.frequency`) || "",
+                                                                                duration: watch(`medicine_items.${index}.duration`) || "",
+                                                                                instructions: watch(`medicine_items.${index}.instructions`) || ""
+                                                                            }
+                                                                        ]);
+                                                                    } else {
+                                                                        setValue(`medicine_items.${index}.tapering_steps`, undefined);
+                                                                    }
+                                                                }}
+                                                                className={clsx(
+                                                                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border-2 transition-all shadow-sm",
+                                                                    hasTapering
+                                                                        ? "bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
+                                                                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                                                )}
+                                                            >
+                                                                <Activity className="h-3.5 w-3.5" />
+                                                                {hasTapering ? "Disable Tapering Regimen" : "Enable Tapering Regimen"}
+                                                            </button>
+                                                        </div>
+
+                                                        {hasTapering && (
+                                                            <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                <div className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-100/50 rounded-lg p-2.5 flex items-center gap-2">
+                                                                    <span>💡</span>
+                                                                    <span>Tapering Regimen Active: The steps defined below will specify the medicine schedule.</span>
+                                                                </div>
+
+                                                                <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                                                                    <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                                                                        <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
+                                                                        Tapering Steps
+                                                                    </span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const currentSteps = taperingSteps || [];
+                                                                            const lastStep = currentSteps[currentSteps.length - 1];
+                                                                            setValue(`medicine_items.${index}.tapering_steps`, [
+                                                                                ...currentSteps,
+                                                                                {
+                                                                                    sequence: currentSteps.length + 1,
+                                                                                    dosage: lastStep?.dosage || "",
+                                                                                    frequency: lastStep?.frequency || "",
+                                                                                    duration: lastStep?.duration || "",
+                                                                                    instructions: lastStep?.instructions || ""
+                                                                                }
+                                                                            ]);
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-sm"
+                                                                    >
+                                                                        <Plus className="h-3 w-3" />
+                                                                        Add Step
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="space-y-3">
+                                                                    {(taperingSteps || []).map((step: any, stepIndex: number) => (
+                                                                        <div key={stepIndex} className="flex flex-col sm:flex-row gap-3 items-end bg-white/70 p-3 rounded-lg border border-purple-100/50 relative group/step">
+                                                                            <div className="flex-1 grid grid-cols-2 gap-3 sm:grid-cols-4 w-full">
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Step {stepIndex + 1} Dosage
+                                                                                    </label>
+                                                                                    <input
+                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.dosage`)}
+                                                                                        placeholder="e.g. 1 drop"
+                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Frequency
+                                                                                    </label>
+                                                                                    <input
+                                                                                        list={`freq-options-${index}-${stepIndex}`}
+                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.frequency`)}
+                                                                                        placeholder="e.g. 6 times a day"
+                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    />
+                                                                                    <datalist id={`freq-options-${index}-${stepIndex}`}>
+                                                                                        {FREQUENCIES.map(f => <option key={f} value={f} />)}
+                                                                                    </datalist>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Duration
+                                                                                    </label>
+                                                                                    <input
+                                                                                        list={`dur-options-${index}-${stepIndex}`}
+                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.duration`)}
+                                                                                        placeholder="e.g. 1 week"
+                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    />
+                                                                                    <datalist id={`dur-options-${index}-${stepIndex}`}>
+                                                                                        {DURATIONS.map(d => <option key={d} value={d} />)}
+                                                                                    </datalist>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Instructions
+                                                                                    </label>
+                                                                                    <input
+                                                                                        list={`inst-options-${index}-${stepIndex}`}
+                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.instructions`)}
+                                                                                        placeholder="e.g. Instill 1 drop"
+                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    />
+                                                                                    <datalist id={`inst-options-${index}-${stepIndex}`}>
+                                                                                        {MEDICINE_INSTRUCTIONS.map(i => <option key={i} value={i} />)}
+                                                                                    </datalist>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {taperingSteps.length > 1 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newSteps = taperingSteps.filter((_: any, sIdx: number) => sIdx !== stepIndex)
+                                                                                            .map((s: any, newIdx: number) => ({ ...s, sequence: newIdx + 1 }));
+                                                                                        setValue(`medicine_items.${index}.tapering_steps`, newSteps);
+                                                                                    }}
+                                                                                    className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm self-center sm:self-end animate-in fade-in duration-200"
+                                                                                >
+                                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     ))}
 

@@ -25,6 +25,9 @@ import {
   Clock,
   BookmarkPlus,
   Trash2,
+  Activity,
+  Plus,
+  TrendingDown,
 } from "lucide-react";
 import { formatDate } from "@/utils/format";
 
@@ -237,6 +240,10 @@ export function PrescriptionForm({
     setMedicines(medicines.map((m) => (m.tempId === tempId ? { ...m, [field]: value } : m)));
   };
 
+  const handleTaperingStepsChange = (tempId: string, steps: any[] | undefined) => {
+    setMedicines(medicines.map((m) => (m.tempId === tempId ? { ...m, tapering_steps: steps } : m)));
+  };
+
   const handleLoadPreviousPrescription = (prescription: PrescriptionResponse) => {
     const newMedicines: MedicineFormData[] = prescription.items.map((item) => ({
       tempId: Math.random().toString(36).substring(7),
@@ -246,6 +253,7 @@ export function PrescriptionForm({
       frequency: item.frequency || "",
       duration: item.duration || "",
       instructions: item.instructions || "",
+      tapering_steps: item.tapering_steps || undefined,
     }));
 
     setMedicines(newMedicines);
@@ -265,6 +273,7 @@ export function PrescriptionForm({
       frequency: item.frequency || "",
       duration: item.duration || "",
       instructions: item.instructions || "",
+      tapering_steps: item.tapering_steps || undefined,
     }));
 
     setMedicines(newMedicines);
@@ -291,6 +300,7 @@ export function PrescriptionForm({
       frequency: med.frequency,
       duration: med.duration,
       instructions: med.instructions,
+      tapering_steps: med.tapering_steps,
     }));
 
     saveTemplate({
@@ -554,6 +564,172 @@ export function PrescriptionForm({
                           />
                         </div>
                       </div>
+
+                      {/* Tapering Regimen Builder */}
+                      {(() => {
+                        const taperingSteps = medicine.tapering_steps;
+                        const hasTapering = taperingSteps && taperingSteps.length > 0;
+                        return (
+                          <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!hasTapering) {
+                                    handleTaperingStepsChange(medicine.tempId, [
+                                      {
+                                        sequence: 1,
+                                        dosage: medicine.dosage || "",
+                                        frequency: medicine.frequency || "",
+                                        duration: medicine.duration || "",
+                                        instructions: medicine.instructions || ""
+                                      }
+                                    ]);
+                                  } else {
+                                    handleTaperingStepsChange(medicine.tempId, undefined);
+                                  }
+                                }}
+                                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-all shadow-sm ${
+                                  hasTapering
+                                    ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                }`}
+                              >
+                                <Activity className="h-3.5 w-3.5" />
+                                {hasTapering ? "Disable Tapering Regimen" : "Enable Tapering Regimen"}
+                              </button>
+                            </div>
+
+                            {hasTapering && (
+                              <div className="rounded-lg border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                                <div className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-100 rounded p-2 flex items-center gap-2">
+                                  <span>💡</span>
+                                  <span>Tapering Regimen Active: The steps defined below will specify the medicine schedule.</span>
+                                </div>
+
+                                <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                                  <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                                    <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
+                                    Tapering Steps
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentSteps = taperingSteps || [];
+                                      const lastStep = currentSteps[currentSteps.length - 1];
+                                      handleTaperingStepsChange(medicine.tempId, [
+                                        ...currentSteps,
+                                        {
+                                          sequence: currentSteps.length + 1,
+                                          dosage: lastStep?.dosage || "",
+                                          frequency: lastStep?.frequency || "",
+                                          duration: lastStep?.duration || "",
+                                          instructions: lastStep?.instructions || ""
+                                        }
+                                      ]);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-sm"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    Add Step
+                                  </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                  {(taperingSteps || []).map((step, stepIndex) => (
+                                    <div key={stepIndex} className="flex flex-col sm:flex-row gap-3 items-end bg-white/70 p-3 rounded border border-purple-100/50 relative">
+                                      <div className="flex-1 grid grid-cols-2 gap-3 sm:grid-cols-4 w-full">
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Step {stepIndex + 1} Dosage
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={step.dosage || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].dosage = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            placeholder="e.g. 1 drop"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Frequency
+                                          </label>
+                                          <select
+                                            value={step.frequency || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].frequency = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          >
+                                            {FREQUENCY_OPTIONS.map((opt) => (
+                                              <option key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Duration
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={step.duration || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].duration = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            placeholder="e.g. 1 week"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Instructions
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={step.instructions || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].instructions = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            placeholder="e.g. Instill 1 drop"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {taperingSteps.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newSteps = taperingSteps.filter((_, sIdx) => sIdx !== stepIndex)
+                                              .map((s, newIdx) => ({ ...s, sequence: newIdx + 1 }));
+                                            handleTaperingStepsChange(medicine.tempId, newSteps);
+                                          }}
+                                          className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm self-center sm:self-end"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

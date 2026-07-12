@@ -424,6 +424,14 @@ export type OptometryPrescriptionItem = {
   created_at?: string;
 };
 
+export type TaperingStep = {
+  sequence: number;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
+};
+
 // Medicine Item for Doctor Prescriptions
 export type MedicineItem = {
   id?: string;
@@ -437,6 +445,7 @@ export type MedicineItem = {
   instructions?: string;
   applicable_eye?: "LEFT" | "RIGHT" | "BOTH" | "NA" | null;
   created_at?: string;
+  tapering_steps?: TaperingStep[];
 };
 
 // Advice Item for Doctor Prescriptions
