@@ -53,10 +53,11 @@ interface FormData {
 // Frequency options for dropdown
 const FREQUENCY_OPTIONS = [
   { value: "", label: "Select frequency" },
-  { value: "Once daily", label: "OD - Once daily" },
-  { value: "Twice daily", label: "BD - Twice daily" },
-  { value: "Thrice daily", label: "TDS - Three times daily" },
-  { value: "Four times daily", label: "QID - Four times daily" },
+  { value: "1 time daily", label: "1 time daily" },
+  { value: "2 times daily", label: "2 times daily" },
+  { value: "3 times daily", label: "3 times daily" },
+  { value: "4 times daily", label: "4 times daily" },
+  { value: "8 times daily", label: "8 times daily" },
   { value: "As needed", label: "SOS - As needed" },
   { value: "At bedtime", label: "HS - At bedtime" },
   { value: "Every 4 hours", label: "Q4H - Every 4 hours" },

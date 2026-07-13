@@ -126,10 +126,11 @@ const COATINGS = [
 ];
 
 const FREQUENCIES = [
-    "Once daily",
-    "Twice daily",
-    "Three times daily",
-    "Four times daily",
+    "1 time daily",
+    "2 times daily",
+    "3 times daily",
+    "4 times daily",
+    "8 times daily",
     "Every 4 hours",
     "Every 6 hours",
     "Every 8 hours",
