@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
+import type { TaperingStep } from "@/types";
 
 // Request types - for creating/updating prescriptions
 export interface PrescriptionItemRequest {
@@ -9,6 +10,7 @@ export interface PrescriptionItemRequest {
   frequency?: string;
   duration?: string;
   instructions?: string;
+  tapering_steps?: TaperingStep[];
 }
 
 export interface CreatePrescriptionRequest {
@@ -39,6 +41,7 @@ export interface PrescriptionItemResponse {
   instructions: string | null;
   created_at: string;
   created_by: string | null;
+  tapering_steps?: TaperingStep[];
 }
 
 export interface PrescriptionResponse {

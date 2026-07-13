@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { SearchableDropdown } from "./SearchableDropdown";
 import {
     Pill,
 
@@ -21,6 +22,9 @@ import {
     Settings,
     X,
     Link2,
+    Activity,
+    Plus,
+    TrendingDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -122,10 +126,11 @@ const COATINGS = [
 ];
 
 const FREQUENCIES = [
-    "Once daily",
-    "Twice daily",
-    "Three times daily",
-    "Four times daily",
+    "1 time daily",
+    "2 times daily",
+    "3 times daily",
+    "4 times daily",
+    "8 times daily",
     "Every 4 hours",
     "Every 6 hours",
     "Every 8 hours",
@@ -337,6 +342,8 @@ export function PrescriptionFormSection({
             advice_items: [],
         },
     });
+
+    const watchedMedicines = watch("medicine_items") || [];
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -1151,11 +1158,18 @@ export function PrescriptionFormSection({
 
     // Helper to sanitize medicine items - convert empty strings to undefined
     const sanitizeMedicineItems = (items: MedicineItem[]): MedicineItem[] => {
-        return items.map(item => ({
-            ...item,
-            medicine_id: item.medicine_id?.trim() || undefined,
-            generic_name: item.generic_name?.trim() || undefined,
-        }));
+        return items.map(item => {
+            const hasTapering = item.tapering_steps && item.tapering_steps.length > 0;
+            return {
+                ...item,
+                medicine_id: item.medicine_id?.trim() || undefined,
+                generic_name: item.generic_name?.trim() || undefined,
+                dosage: hasTapering ? "Refer steps" : item.dosage,
+                frequency: hasTapering ? "Refer steps" : item.frequency,
+                duration: hasTapering ? "Refer steps" : item.duration,
+                instructions: hasTapering ? "Refer steps" : item.instructions || undefined,
+            };
+        });
     };
 
     const processSubmit = async (data: FormData, options: { print?: boolean; finalize?: boolean }) => {
@@ -1823,8 +1837,8 @@ export function PrescriptionFormSection({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                                                <div>
+                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 items-end">
+                                                <div className={watchedMedicines[index]?.tapering_steps?.length ? "col-span-2 sm:col-span-1" : ""}>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Eye</label>
                                                     <select
                                                         {...register(`medicine_items.${index}.applicable_eye`)}
@@ -1836,57 +1850,234 @@ export function PrescriptionFormSection({
                                                         <option value="NA">N/A</option>
                                                     </select>
                                                 </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
-                                                    <input
-                                                        {...register(`medicine_items.${index}.dosage`)}
-                                                        placeholder="e.g. 500mg"
-                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            list={`freq-options-${index}`}
-                                                            {...register(`medicine_items.${index}.frequency`)}
-                                                            placeholder="e.g. 1-0-1"
-                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                        />
-                                                        <datalist id={`freq-options-${index}`}>
-                                                            {FREQUENCIES.map(f => <option key={f} value={f} />)}
-                                                        </datalist>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            list={`dur-options-${index}`}
-                                                            {...register(`medicine_items.${index}.duration`)}
-                                                            placeholder="e.g. 5 days"
-                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                        />
-                                                        <datalist id={`dur-options-${index}`}>
-                                                            {DURATIONS.map(d => <option key={d} value={d} />)}
-                                                        </datalist>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            list={`inst-options-${index}`}
-                                                            {...register(`medicine_items.${index}.instructions`)}
-                                                            placeholder="e.g. After food"
-                                                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                        />
-                                                        <datalist id={`inst-options-${index}`}>
-                                                            {MEDICINE_INSTRUCTIONS.map(i => <option key={i} value={i} />)}
-                                                        </datalist>
-                                                    </div>
-                                                </div>
+                                                {(() => {
+                                                    const taperingSteps = watchedMedicines[index]?.tapering_steps;
+                                                    const hasTapering = taperingSteps && taperingSteps.length > 0;
+                                                    return hasTapering ? (
+                                                        <div className="col-span-2 sm:col-span-4 flex justify-end mb-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setValue(`medicine_items.${index}.tapering_steps`, undefined)}
+                                                                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all shadow-sm border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                                                            >
+                                                                <Activity className="h-3.5 w-3.5" />
+                                                                Disable Tapering Regimen
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
+                                                                <input
+                                                                    {...register(`medicine_items.${index}.dosage`)}
+                                                                    placeholder="e.g. 500mg"
+                                                                    className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
+                                                                <Controller
+                                                                    control={control}
+                                                                    name={`medicine_items.${index}.frequency`}
+                                                                    render={({ field: { value, onChange } }) => (
+                                                                        <SearchableDropdown
+                                                                            value={value}
+                                                                            onChange={onChange}
+                                                                            options={FREQUENCIES}
+                                                                            placeholder="e.g. 1-0-1"
+                                                                            inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
+                                                                <Controller
+                                                                    control={control}
+                                                                    name={`medicine_items.${index}.duration`}
+                                                                    render={({ field: { value, onChange } }) => (
+                                                                        <SearchableDropdown
+                                                                            value={value}
+                                                                            onChange={onChange}
+                                                                            options={DURATIONS}
+                                                                            placeholder="e.g. 5 days"
+                                                                            inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
+                                                                <Controller
+                                                                    control={control}
+                                                                    name={`medicine_items.${index}.instructions`}
+                                                                    render={({ field: { value, onChange } }) => (
+                                                                        <SearchableDropdown
+                                                                            value={value}
+                                                                            onChange={onChange}
+                                                                            options={MEDICINE_INSTRUCTIONS}
+                                                                            placeholder="e.g. After food"
+                                                                            inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
+
+                                            {/* Tapering Regimen Builder */}
+                                            {(() => {
+                                                const taperingSteps = watchedMedicines[index]?.tapering_steps;
+                                                const hasTapering = taperingSteps && taperingSteps.length > 0;
+                                                return (
+                                                    <div className="mt-4 border-t border-slate-100 pt-4 space-y-3">
+                                                        {!hasTapering && (
+                                                            <div className="flex items-center justify-between">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setValue(`medicine_items.${index}.tapering_steps`, [
+                                                                            {
+                                                                                sequence: 1,
+                                                                                dosage: watch(`medicine_items.${index}.dosage`) || "",
+                                                                                frequency: watch(`medicine_items.${index}.frequency`) || "",
+                                                                                duration: watch(`medicine_items.${index}.duration`) || "",
+                                                                                instructions: watch(`medicine_items.${index}.instructions`) || ""
+                                                                            }
+                                                                        ]);
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                                                                >
+                                                                    <Activity className="h-3.5 w-3.5" />
+                                                                    Enable Tapering Regimen
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {hasTapering && (
+                                                            <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+
+                                                                <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                                                                    <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                                                                        <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
+                                                                        Tapering Steps
+                                                                    </span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const currentSteps = taperingSteps || [];
+                                                                            const lastStep = currentSteps[currentSteps.length - 1];
+                                                                            setValue(`medicine_items.${index}.tapering_steps`, [
+                                                                                ...currentSteps,
+                                                                                {
+                                                                                    sequence: currentSteps.length + 1,
+                                                                                    dosage: lastStep?.dosage || "",
+                                                                                    frequency: lastStep?.frequency || "",
+                                                                                    duration: lastStep?.duration || "",
+                                                                                    instructions: lastStep?.instructions || ""
+                                                                                }
+                                                                            ]);
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-sm"
+                                                                    >
+                                                                        <Plus className="h-3 w-3" />
+                                                                        Add Step
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="space-y-3">
+                                                                    {(taperingSteps || []).map((step: any, stepIndex: number) => (
+                                                                        <div key={stepIndex} className="flex flex-col sm:flex-row gap-3 items-end bg-white/70 p-3 rounded-lg border border-purple-100/50 relative group/step">
+                                                                            <div className="flex-1 grid grid-cols-2 gap-3 sm:grid-cols-4 w-full">
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Step {stepIndex + 1} Dosage
+                                                                                    </label>
+                                                                                    <input
+                                                                                        {...register(`medicine_items.${index}.tapering_steps.${stepIndex}.dosage`)}
+                                                                                        placeholder="e.g. 1 drop"
+                                                                                        className="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                    />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Frequency
+                                                                                    </label>
+                                                                                    <Controller
+                                                                                        control={control}
+                                                                                        name={`medicine_items.${index}.tapering_steps.${stepIndex}.frequency`}
+                                                                                        render={({ field: { value, onChange } }) => (
+                                                                                            <SearchableDropdown
+                                                                                                value={value}
+                                                                                                onChange={onChange}
+                                                                                                options={FREQUENCIES}
+                                                                                                placeholder="e.g. 6 times a day"
+                                                                                                inputClassName="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                            />
+                                                                                        )}
+                                                                                    />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Duration
+                                                                                    </label>
+                                                                                    <Controller
+                                                                                        control={control}
+                                                                                        name={`medicine_items.${index}.tapering_steps.${stepIndex}.duration`}
+                                                                                        render={({ field: { value, onChange } }) => (
+                                                                                            <SearchableDropdown
+                                                                                                value={value}
+                                                                                                onChange={onChange}
+                                                                                                options={DURATIONS}
+                                                                                                placeholder="e.g. 1 week"
+                                                                                                inputClassName="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                            />
+                                                                                        )}
+                                                                                    />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                                                                        Instructions
+                                                                                    </label>
+                                                                                    <Controller
+                                                                                        control={control}
+                                                                                        name={`medicine_items.${index}.tapering_steps.${stepIndex}.instructions`}
+                                                                                        render={({ field: { value, onChange } }) => (
+                                                                                            <SearchableDropdown
+                                                                                                value={value}
+                                                                                                onChange={onChange}
+                                                                                                options={MEDICINE_INSTRUCTIONS}
+                                                                                                placeholder="e.g. Instill 1 drop"
+                                                                                                inputClassName="w-full rounded-md border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                                                                            />
+                                                                                        )}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {taperingSteps.length > 1 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newSteps = taperingSteps.filter((_: any, sIdx: number) => sIdx !== stepIndex)
+                                                                                            .map((s: any, newIdx: number) => ({ ...s, sequence: newIdx + 1 }));
+                                                                                        setValue(`medicine_items.${index}.tapering_steps`, newSteps);
+                                                                                    }}
+                                                                                    className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm self-center sm:self-end animate-in fade-in duration-200"
+                                                                                >
+                                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     ))}
 

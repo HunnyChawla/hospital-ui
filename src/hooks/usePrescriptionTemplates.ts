@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+import type { TaperingStep } from "../types";
+
 export interface PrescriptionTemplateItem {
   medicine_id: string;
   medicine_name: string;
@@ -10,6 +12,7 @@ export interface PrescriptionTemplateItem {
   frequency?: string;
   duration?: string;
   instructions?: string;
+  tapering_steps?: TaperingStep[];
 }
 
 export interface PrescriptionTemplate {

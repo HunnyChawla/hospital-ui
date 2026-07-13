@@ -1,4 +1,5 @@
 import { apiClient } from "@/services/api";
+import { TaperingStep } from "@/types";
 
 // Types
 export interface QuickDiagnosis {
@@ -20,6 +21,7 @@ export interface QuickMedicine {
     frequency: string;
     duration: string;
     instructions?: string;
+    tapering_steps?: TaperingStep[];
     position?: number;
 }
 

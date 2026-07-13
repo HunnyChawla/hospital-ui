@@ -25,6 +25,9 @@ import {
   Clock,
   BookmarkPlus,
   Trash2,
+  Activity,
+  Plus,
+  TrendingDown,
 } from "lucide-react";
 import { formatDate } from "@/utils/format";
 
@@ -50,10 +53,11 @@ interface FormData {
 // Frequency options for dropdown
 const FREQUENCY_OPTIONS = [
   { value: "", label: "Select frequency" },
-  { value: "Once daily", label: "OD - Once daily" },
-  { value: "Twice daily", label: "BD - Twice daily" },
-  { value: "Thrice daily", label: "TDS - Three times daily" },
-  { value: "Four times daily", label: "QID - Four times daily" },
+  { value: "1 time daily", label: "1 time daily" },
+  { value: "2 times daily", label: "2 times daily" },
+  { value: "3 times daily", label: "3 times daily" },
+  { value: "4 times daily", label: "4 times daily" },
+  { value: "8 times daily", label: "8 times daily" },
   { value: "As needed", label: "SOS - As needed" },
   { value: "At bedtime", label: "HS - At bedtime" },
   { value: "Every 4 hours", label: "Q4H - Every 4 hours" },
@@ -237,6 +241,10 @@ export function PrescriptionForm({
     setMedicines(medicines.map((m) => (m.tempId === tempId ? { ...m, [field]: value } : m)));
   };
 
+  const handleTaperingStepsChange = (tempId: string, steps: any[] | undefined) => {
+    setMedicines(medicines.map((m) => (m.tempId === tempId ? { ...m, tapering_steps: steps } : m)));
+  };
+
   const handleLoadPreviousPrescription = (prescription: PrescriptionResponse) => {
     const newMedicines: MedicineFormData[] = prescription.items.map((item) => ({
       tempId: Math.random().toString(36).substring(7),
@@ -246,6 +254,7 @@ export function PrescriptionForm({
       frequency: item.frequency || "",
       duration: item.duration || "",
       instructions: item.instructions || "",
+      tapering_steps: item.tapering_steps || undefined,
     }));
 
     setMedicines(newMedicines);
@@ -265,6 +274,7 @@ export function PrescriptionForm({
       frequency: item.frequency || "",
       duration: item.duration || "",
       instructions: item.instructions || "",
+      tapering_steps: item.tapering_steps || undefined,
     }));
 
     setMedicines(newMedicines);
@@ -283,15 +293,19 @@ export function PrescriptionForm({
       return;
     }
 
-    const templateItems: PrescriptionTemplateItem[] = medicines.map((med) => ({
-      medicine_id: med.medicine_id,
-      medicine_name: med.medicine_name,
-      generic_name: med.generic_name,
-      dosage: med.dosage,
-      frequency: med.frequency,
-      duration: med.duration,
-      instructions: med.instructions,
-    }));
+    const templateItems: PrescriptionTemplateItem[] = medicines.map((med) => {
+      const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+      return {
+        medicine_id: med.medicine_id,
+        medicine_name: med.medicine_name,
+        generic_name: med.generic_name,
+        dosage: hasTapering ? "Refer steps" : med.dosage,
+        frequency: hasTapering ? "Refer steps" : med.frequency,
+        duration: hasTapering ? "Refer steps" : med.duration,
+        instructions: hasTapering ? "Refer steps" : med.instructions,
+        tapering_steps: med.tapering_steps,
+      };
+    });
 
     saveTemplate({
       name: templateName.trim(),
@@ -318,7 +332,16 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => {
+          const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+          return {
+            ...med,
+            dosage: hasTapering ? "Refer steps" : med.dosage,
+            frequency: hasTapering ? "Refer steps" : med.frequency,
+            duration: hasTapering ? "Refer steps" : med.duration,
+            instructions: hasTapering ? "Refer steps" : med.instructions || undefined,
+          };
+        }),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
@@ -355,7 +378,16 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => {
+          const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+          return {
+            ...med,
+            dosage: hasTapering ? "Refer steps" : med.dosage,
+            frequency: hasTapering ? "Refer steps" : med.frequency,
+            duration: hasTapering ? "Refer steps" : med.duration,
+            instructions: hasTapering ? "Refer steps" : med.instructions || undefined,
+          };
+        }),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
@@ -507,53 +539,230 @@ export function PrescriptionForm({
                         </button>
                       </div>
 
-                      {/* Medicine Fields - Grid */}
-                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Dosage</label>
-                          <input
-                            type="text"
-                            value={medicine.dosage || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "dosage", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                            placeholder="e.g., 500mg"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Frequency</label>
-                          <select
-                            value={medicine.frequency || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "frequency", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                          >
-                            {FREQUENCY_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Duration</label>
-                          <input
-                            type="text"
-                            value={medicine.duration || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "duration", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                            placeholder="e.g., 5 days"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Instructions</label>
-                          <input
-                            type="text"
-                            value={medicine.instructions || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "instructions", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                            placeholder="e.g., After meals"
-                          />
-                        </div>
-                      </div>
+                      {(() => {
+                        const taperingSteps = medicine.tapering_steps;
+                        const hasTapering = taperingSteps && taperingSteps.length > 0;
+                        return hasTapering ? (
+                          <div className="flex justify-between items-center bg-purple-50/20 border border-purple-100 rounded-lg p-3.5">
+                            <span className="text-xs font-bold text-purple-950 flex items-center gap-2">
+                              <span className="flex h-2 w-2 rounded-full bg-purple-500 animate-ping" />
+                              Tapering Regimen Active
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleTaperingStepsChange(medicine.tempId, undefined)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
+                            >
+                              <Activity className="h-3.5 w-3.5" />
+                              Disable Tapering Regimen
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Dosage</label>
+                              <input
+                                type="text"
+                                value={medicine.dosage || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "dosage", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                placeholder="e.g., 500mg"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Frequency</label>
+                              <select
+                                value={medicine.frequency || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "frequency", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                              >
+                                {FREQUENCY_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Duration</label>
+                              <input
+                                type="text"
+                                value={medicine.duration || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "duration", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                placeholder="e.g., 5 days"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Instructions</label>
+                              <input
+                                type="text"
+                                value={medicine.instructions || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "instructions", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                placeholder="e.g., After meals"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Tapering Regimen Builder */}
+                      {(() => {
+                        const taperingSteps = medicine.tapering_steps;
+                        const hasTapering = taperingSteps && taperingSteps.length > 0;
+                        return (
+                          <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
+                            {!hasTapering && (
+                              <div className="flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleTaperingStepsChange(medicine.tempId, [
+                                      {
+                                        sequence: 1,
+                                        dosage: medicine.dosage || "",
+                                        frequency: medicine.frequency || "",
+                                        duration: medicine.duration || "",
+                                        instructions: medicine.instructions || ""
+                                      }
+                                    ]);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
+                                >
+                                  <Activity className="h-3.5 w-3.5" />
+                                  Enable Tapering Regimen
+                                </button>
+                              </div>
+                            )}
+
+                            {hasTapering && (
+                              <div className="rounded-lg border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+
+
+                                <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                                  <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                                    <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
+                                    Tapering Steps
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentSteps = taperingSteps || [];
+                                      const lastStep = currentSteps[currentSteps.length - 1];
+                                      handleTaperingStepsChange(medicine.tempId, [
+                                        ...currentSteps,
+                                        {
+                                          sequence: currentSteps.length + 1,
+                                          dosage: lastStep?.dosage || "",
+                                          frequency: lastStep?.frequency || "",
+                                          duration: lastStep?.duration || "",
+                                          instructions: lastStep?.instructions || ""
+                                        }
+                                      ]);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-sm"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    Add Step
+                                  </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                  {(taperingSteps || []).map((step, stepIndex) => (
+                                    <div key={stepIndex} className="flex flex-col sm:flex-row gap-3 items-end bg-white/70 p-3 rounded border border-purple-100/50 relative">
+                                      <div className="flex-1 grid grid-cols-2 gap-3 sm:grid-cols-4 w-full">
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Step {stepIndex + 1} Dosage
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={step.dosage || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].dosage = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            placeholder="e.g. 1 drop"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Frequency
+                                          </label>
+                                          <select
+                                            value={step.frequency || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].frequency = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          >
+                                            {FREQUENCY_OPTIONS.map((opt) => (
+                                              <option key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Duration
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={step.duration || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].duration = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            placeholder="e.g. 1 week"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase tracking-wide">
+                                            Instructions
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={step.instructions || ""}
+                                            onChange={(e) => {
+                                              const newSteps = [...taperingSteps];
+                                              newSteps[stepIndex].instructions = e.target.value;
+                                              handleTaperingStepsChange(medicine.tempId, newSteps);
+                                            }}
+                                            placeholder="e.g. Instill 1 drop"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {taperingSteps.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newSteps = taperingSteps.filter((_, sIdx) => sIdx !== stepIndex)
+                                              .map((s, newIdx) => ({ ...s, sequence: newIdx + 1 }));
+                                            handleTaperingStepsChange(medicine.tempId, newSteps);
+                                          }}
+                                          className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm self-center sm:self-end"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
