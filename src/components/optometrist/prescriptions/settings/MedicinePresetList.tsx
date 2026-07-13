@@ -1,10 +1,64 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Droplets, Pill, Eye, Syringe, Tablets, Search, Loader2 } from "lucide-react";
+import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Droplets, Pill, Eye, Syringe, Tablets, Search, Loader2, Activity, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import type { QuickMedicine } from "@/services/quickPresetsApi";
 import { medicinesApi, type Medicine } from "@/services/medicinesApi";
+import { SearchableDropdown } from "../SearchableDropdown";
+
+const DOSAGES = [
+    "1 drop",
+    "2 drops",
+    "1 tablet",
+    "1 capsule",
+    "Apply local application",
+    "5 ml",
+    "10 ml"
+];
+
+const FREQUENCIES = [
+    "Once daily",
+    "Twice daily",
+    "Three times daily",
+    "Four times daily",
+    "Every 4 hours",
+    "Every 6 hours",
+    "Every 8 hours",
+    "At bedtime",
+    "As needed",
+];
+
+const DURATIONS = [
+    "3 days",
+    "5 days",
+    "7 days",
+    "10 days",
+    "14 days",
+    "21 days",
+    "1 month",
+    "2 months",
+    "3 months",
+    "Continuous",
+];
+
+const MEDICINE_INSTRUCTIONS = [
+    "Before food",
+    "After food",
+    "Empty stomach",
+    "With water",
+    "With milk",
+    "At bedtime",
+    "Instill 1 drop",
+    "Instill 2 drops",
+    "Apply locally",
+    "Apply at night",
+    "Apply morning and night",
+    "Shake well before use",
+    "Warm compress before use",
+    "Cold compress before use",
+    "For external use only",
+];
 
 interface MedicinePresetListProps {
     items: QuickMedicine[];
@@ -23,6 +77,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
     const [frequency, setFrequency] = useState("");
     const [duration, setDuration] = useState("");
     const [instructions, setInstructions] = useState("");
+    const [taperingSteps, setTaperingSteps] = useState<any[] | undefined>(undefined);
     const [icon, setIcon] = useState<QuickMedicine["icon"]>("droplets");
     const [color, setColor] = useState<QuickMedicine["color"]>("sky");
 
@@ -77,6 +132,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
         setFrequency(item.frequency);
         setDuration(item.duration);
         setInstructions(item.instructions || "");
+        setTaperingSteps(item.tapering_steps || undefined);
         setIcon(item.icon);
         setColor(item.color);
         setEditingIndex(index);
@@ -93,6 +149,7 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
         setFrequency("4 times daily");
         setDuration("1 month");
         setInstructions("");
+        setTaperingSteps(undefined);
         setIcon("droplets");
         setColor("sky");
         setAddingNew(true);
@@ -126,14 +183,16 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
             return;
         }
 
+        const hasTapering = taperingSteps && taperingSteps.length > 0;
         const newItem: QuickMedicine = {
             label: label.trim(),
             medicine_name: medicineName.trim(),
             generic_name: genericName.trim() || undefined,
-            dosage,
-            frequency,
-            duration,
-            instructions: instructions.trim() || undefined,
+            dosage: hasTapering ? "Refer steps" : dosage,
+            frequency: hasTapering ? "Refer steps" : frequency,
+            duration: hasTapering ? "Refer steps" : duration,
+            instructions: hasTapering ? "Refer steps" : instructions.trim() || undefined,
+            tapering_steps: taperingSteps,
             icon,
             color,
         };
@@ -274,46 +333,203 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
                                 />
                             </div>
 
-                            {/* Dosage Row */}
-                            <div className="col-span-2 grid grid-cols-3 gap-2">
-                                <div>
-                                    <label className="text-[10px] font-medium text-indigo-900 mb-1 block">Dosage</label>
-                                    <input
-                                        type="text"
-                                        value={dosage}
-                                        onChange={e => setDosage(e.target.value)}
-                                        className="w-full text-xs rounded border border-indigo-200 px-2 py-1.5"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-medium text-indigo-900 mb-1 block">Frequency</label>
-                                    <input
-                                        type="text"
-                                        value={frequency}
-                                        onChange={e => setFrequency(e.target.value)}
-                                        className="w-full text-xs rounded border border-indigo-200 px-2 py-1.5"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-medium text-indigo-900 mb-1 block">Duration</label>
-                                    <input
-                                        type="text"
-                                        value={duration}
-                                        onChange={e => setDuration(e.target.value)}
-                                        className="w-full text-xs rounded border border-indigo-200 px-2 py-1.5"
-                                    />
-                                </div>
-                            </div>
+                            {taperingSteps && taperingSteps.length > 0 ? null : (
+                                <>
+                                    {/* Dosage Row */}
+                                    <div className="col-span-2 grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label className="text-[10px] font-medium text-indigo-900 mb-1 block">Dosage</label>
+                                            <SearchableDropdown
+                                                value={dosage}
+                                                onChange={setDosage}
+                                                options={DOSAGES}
+                                                placeholder="e.g. 1 drop"
+                                                inputClassName="w-full text-xs rounded border border-indigo-200 px-2 py-1.5 focus:border-indigo-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-medium text-indigo-900 mb-1 block">Frequency</label>
+                                            <SearchableDropdown
+                                                value={frequency}
+                                                onChange={setFrequency}
+                                                options={FREQUENCIES}
+                                                placeholder="e.g. 4 times daily"
+                                                inputClassName="w-full text-xs rounded border border-indigo-200 px-2 py-1.5 focus:border-indigo-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-medium text-indigo-900 mb-1 block">Duration</label>
+                                            <SearchableDropdown
+                                                value={duration}
+                                                onChange={setDuration}
+                                                options={DURATIONS}
+                                                placeholder="e.g. 1 week"
+                                                inputClassName="w-full text-xs rounded border border-indigo-200 px-2 py-1.5 focus:border-indigo-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
 
-                            <div className="col-span-2">
-                                <label className="text-xs font-medium text-indigo-900 mb-1 block">Instructions</label>
-                                <input
-                                    type="text"
-                                    value={instructions}
-                                    onChange={e => setInstructions(e.target.value)}
-                                    placeholder="e.g. Both Eyes, After food"
-                                    className="w-full text-xs rounded border border-indigo-200 px-2 py-1.5"
-                                />
+                                    <div className="col-span-2">
+                                        <label className="text-xs font-medium text-indigo-900 mb-1 block">Instructions</label>
+                                        <SearchableDropdown
+                                            value={instructions}
+                                            onChange={setInstructions}
+                                            options={MEDICINE_INSTRUCTIONS}
+                                            placeholder="e.g. Both Eyes, After food"
+                                            inputClassName="w-full text-xs rounded border border-indigo-200 px-2 py-1.5 focus:border-indigo-500 focus:outline-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Tapering Regimen Builder */}
+                            <div className="col-span-2 mt-2 border-t border-indigo-200 pt-2 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!taperingSteps) {
+                                                setTaperingSteps([
+                                                    {
+                                                        sequence: 1,
+                                                        dosage: dosage || "1 drop",
+                                                        frequency: frequency || "4 times daily",
+                                                        duration: duration || "1 week",
+                                                        instructions: instructions || ""
+                                                    }
+                                                ]);
+                                            } else {
+                                                setTaperingSteps(undefined);
+                                            }
+                                        }}
+                                        className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-semibold border transition-all ${
+                                            taperingSteps
+                                                ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                        }`}
+                                    >
+                                        <Activity className="h-3 w-3" />
+                                        {taperingSteps ? "Disable Tapering Regimen" : "Enable Tapering Regimen"}
+                                    </button>
+                                </div>
+
+                                {taperingSteps && (
+                                    <div className="rounded-lg border border-purple-100 bg-purple-50/20 p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-155">
+                                        <div className="flex items-center justify-between border-b border-purple-100 pb-1.5">
+                                            <span className="text-[10px] font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1">
+                                                <TrendingDown className="h-3 w-3 text-purple-600" />
+                                                Tapering Steps
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const lastStep = taperingSteps[taperingSteps.length - 1];
+                                                    setTaperingSteps([
+                                                        ...taperingSteps,
+                                                        {
+                                                            sequence: taperingSteps.length + 1,
+                                                            dosage: lastStep?.dosage || "",
+                                                            frequency: lastStep?.frequency || "",
+                                                            duration: lastStep?.duration || "",
+                                                            instructions: lastStep?.instructions || ""
+                                                        }
+                                                    ]);
+                                                }}
+                                                className="inline-flex items-center gap-1 rounded bg-purple-600 px-1.5 py-0.5 text-[9px] font-bold text-white hover:bg-purple-700"
+                                            >
+                                                <Plus className="h-2.5 w-2.5" />
+                                                Add Step
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {taperingSteps.map((step, stepIndex) => (
+                                                <div key={stepIndex} className="flex gap-2 items-end bg-white p-2 rounded border border-purple-100/50">
+                                                    <div className="flex-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                        <div>
+                                                            <label className="text-[8px] font-bold text-purple-950/80 mb-0.5 block uppercase tracking-wide">
+                                                                Step {stepIndex + 1} Dosage
+                                                            </label>
+                                                            <SearchableDropdown
+                                                                value={step.dosage || ""}
+                                                                onChange={(val) => {
+                                                                    const newSteps = [...taperingSteps];
+                                                                    newSteps[stepIndex].dosage = val;
+                                                                    setTaperingSteps(newSteps);
+                                                                }}
+                                                                options={DOSAGES}
+                                                                placeholder="e.g. 1 drop"
+                                                                inputClassName="w-full rounded border border-purple-200 bg-white px-2 py-1 text-[10px] text-slate-900 focus:border-purple-500 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] font-bold text-purple-950/80 mb-0.5 block uppercase tracking-wide">
+                                                                Frequency
+                                                            </label>
+                                                            <SearchableDropdown
+                                                                value={step.frequency || ""}
+                                                                onChange={(val) => {
+                                                                    const newSteps = [...taperingSteps];
+                                                                    newSteps[stepIndex].frequency = val;
+                                                                    setTaperingSteps(newSteps);
+                                                                }}
+                                                                options={FREQUENCIES}
+                                                                placeholder="e.g. 4 times daily"
+                                                                inputClassName="w-full rounded border border-purple-200 bg-white px-2 py-1 text-[10px] text-slate-900 focus:border-purple-500 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] font-bold text-purple-950/80 mb-0.5 block uppercase tracking-wide">
+                                                                Duration
+                                                            </label>
+                                                            <SearchableDropdown
+                                                                value={step.duration || ""}
+                                                                onChange={(val) => {
+                                                                    const newSteps = [...taperingSteps];
+                                                                    newSteps[stepIndex].duration = val;
+                                                                    setTaperingSteps(newSteps);
+                                                                }}
+                                                                options={DURATIONS}
+                                                                placeholder="e.g. 1 week"
+                                                                inputClassName="w-full rounded border border-purple-200 bg-white px-2 py-1 text-[10px] text-slate-900 focus:border-purple-500 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] font-bold text-purple-950/80 mb-0.5 block uppercase tracking-wide">
+                                                                Instructions
+                                                            </label>
+                                                            <SearchableDropdown
+                                                                value={step.instructions || ""}
+                                                                onChange={(val) => {
+                                                                    const newSteps = [...taperingSteps];
+                                                                    newSteps[stepIndex].instructions = val;
+                                                                    setTaperingSteps(newSteps);
+                                                                }}
+                                                                options={MEDICINE_INSTRUCTIONS}
+                                                                placeholder="e.g. After food"
+                                                                inputClassName="w-full rounded border border-purple-200 bg-white px-2 py-1 text-[10px] text-slate-900 focus:border-purple-500 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {taperingSteps.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newSteps = taperingSteps.filter((_, sIdx) => sIdx !== stepIndex)
+                                                                    .map((s, newIdx) => ({ ...s, sequence: newIdx + 1 }));
+                                                                setTaperingSteps(newSteps);
+                                                            }}
+                                                            className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Styling */}
@@ -412,6 +628,14 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
                                 {item.dosage} • {item.frequency} • {item.duration}
                                 {item.instructions && <span className="text-slate-400 ml-1">({item.instructions})</span>}
                             </p>
+                            {item.tapering_steps && item.tapering_steps.length > 0 && (
+                                <div className="mt-1 flex items-center gap-1">
+                                    <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[9px] font-medium text-purple-700 border border-purple-100">
+                                        <Activity className="h-2.5 w-2.5 text-purple-500" />
+                                        Tapering ({item.tapering_steps.length} steps)
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Actions */}

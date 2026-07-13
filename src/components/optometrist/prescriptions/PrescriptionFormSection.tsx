@@ -1157,11 +1157,18 @@ export function PrescriptionFormSection({
 
     // Helper to sanitize medicine items - convert empty strings to undefined
     const sanitizeMedicineItems = (items: MedicineItem[]): MedicineItem[] => {
-        return items.map(item => ({
-            ...item,
-            medicine_id: item.medicine_id?.trim() || undefined,
-            generic_name: item.generic_name?.trim() || undefined,
-        }));
+        return items.map(item => {
+            const hasTapering = item.tapering_steps && item.tapering_steps.length > 0;
+            return {
+                ...item,
+                medicine_id: item.medicine_id?.trim() || undefined,
+                generic_name: item.generic_name?.trim() || undefined,
+                dosage: hasTapering ? "Refer steps" : item.dosage,
+                frequency: hasTapering ? "Refer steps" : item.frequency,
+                duration: hasTapering ? "Refer steps" : item.duration,
+                instructions: hasTapering ? "Refer steps" : item.instructions || undefined,
+            };
+        });
     };
 
     const processSubmit = async (data: FormData, options: { print?: boolean; finalize?: boolean }) => {
@@ -1842,62 +1849,70 @@ export function PrescriptionFormSection({
                                                         <option value="NA">N/A</option>
                                                     </select>
                                                 </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
-                                                    <input
-                                                        {...register(`medicine_items.${index}.dosage`)}
-                                                        placeholder="e.g. 500mg"
-                                                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
-                                                    <Controller
-                                                        control={control}
-                                                        name={`medicine_items.${index}.frequency`}
-                                                        render={({ field: { value, onChange } }) => (
-                                                            <SearchableDropdown
-                                                                value={value}
-                                                                onChange={onChange}
-                                                                options={FREQUENCIES}
-                                                                placeholder="e.g. 1-0-1"
-                                                                inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                            />
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
-                                                    <Controller
-                                                        control={control}
-                                                        name={`medicine_items.${index}.duration`}
-                                                        render={({ field: { value, onChange } }) => (
-                                                            <SearchableDropdown
-                                                                value={value}
-                                                                onChange={onChange}
-                                                                options={DURATIONS}
-                                                                placeholder="e.g. 5 days"
-                                                                inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                            />
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
-                                                    <Controller
-                                                        control={control}
-                                                        name={`medicine_items.${index}.instructions`}
-                                                        render={({ field: { value, onChange } }) => (
-                                                            <SearchableDropdown
-                                                                value={value}
-                                                                onChange={onChange}
-                                                                options={MEDICINE_INSTRUCTIONS}
-                                                                placeholder="e.g. After food"
-                                                                inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
-                                                            />
-                                                        )}
-                                                    />
-                                                </div>
+                                                {(() => {
+                                                    const taperingSteps = watchedMedicines[index]?.tapering_steps;
+                                                    const hasTapering = taperingSteps && taperingSteps.length > 0;
+                                                    return hasTapering ? null : (
+                                                        <>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
+                                                                <input
+                                                                    {...register(`medicine_items.${index}.dosage`)}
+                                                                    placeholder="e.g. 500mg"
+                                                                    className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Frequency</label>
+                                                                <Controller
+                                                                    control={control}
+                                                                    name={`medicine_items.${index}.frequency`}
+                                                                    render={({ field: { value, onChange } }) => (
+                                                                        <SearchableDropdown
+                                                                            value={value}
+                                                                            onChange={onChange}
+                                                                            options={FREQUENCIES}
+                                                                            placeholder="e.g. 1-0-1"
+                                                                            inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Duration</label>
+                                                                <Controller
+                                                                    control={control}
+                                                                    name={`medicine_items.${index}.duration`}
+                                                                    render={({ field: { value, onChange } }) => (
+                                                                        <SearchableDropdown
+                                                                            value={value}
+                                                                            onChange={onChange}
+                                                                            options={DURATIONS}
+                                                                            placeholder="e.g. 5 days"
+                                                                            inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Instructions</label>
+                                                                <Controller
+                                                                    control={control}
+                                                                    name={`medicine_items.${index}.instructions`}
+                                                                    render={({ field: { value, onChange } }) => (
+                                                                        <SearchableDropdown
+                                                                            value={value}
+                                                                            onChange={onChange}
+                                                                            options={MEDICINE_INSTRUCTIONS}
+                                                                            placeholder="e.g. After food"
+                                                                            inputClassName="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
 
                                             {/* Tapering Regimen Builder */}

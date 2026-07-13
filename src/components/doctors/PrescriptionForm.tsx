@@ -292,16 +292,19 @@ export function PrescriptionForm({
       return;
     }
 
-    const templateItems: PrescriptionTemplateItem[] = medicines.map((med) => ({
-      medicine_id: med.medicine_id,
-      medicine_name: med.medicine_name,
-      generic_name: med.generic_name,
-      dosage: med.dosage,
-      frequency: med.frequency,
-      duration: med.duration,
-      instructions: med.instructions,
-      tapering_steps: med.tapering_steps,
-    }));
+    const templateItems: PrescriptionTemplateItem[] = medicines.map((med) => {
+      const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+      return {
+        medicine_id: med.medicine_id,
+        medicine_name: med.medicine_name,
+        generic_name: med.generic_name,
+        dosage: hasTapering ? "Refer steps" : med.dosage,
+        frequency: hasTapering ? "Refer steps" : med.frequency,
+        duration: hasTapering ? "Refer steps" : med.duration,
+        instructions: hasTapering ? "Refer steps" : med.instructions,
+        tapering_steps: med.tapering_steps,
+      };
+    });
 
     saveTemplate({
       name: templateName.trim(),
@@ -328,7 +331,16 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => {
+          const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+          return {
+            ...med,
+            dosage: hasTapering ? "Refer steps" : med.dosage,
+            frequency: hasTapering ? "Refer steps" : med.frequency,
+            duration: hasTapering ? "Refer steps" : med.duration,
+            instructions: hasTapering ? "Refer steps" : med.instructions || undefined,
+          };
+        }),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
@@ -365,7 +377,16 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => med),
+        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => {
+          const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+          return {
+            ...med,
+            dosage: hasTapering ? "Refer steps" : med.dosage,
+            frequency: hasTapering ? "Refer steps" : med.frequency,
+            duration: hasTapering ? "Refer steps" : med.duration,
+            instructions: hasTapering ? "Refer steps" : med.instructions || undefined,
+          };
+        }),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       };
@@ -517,53 +538,58 @@ export function PrescriptionForm({
                         </button>
                       </div>
 
-                      {/* Medicine Fields - Grid */}
-                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Dosage</label>
-                          <input
-                            type="text"
-                            value={medicine.dosage || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "dosage", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                            placeholder="e.g., 500mg"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Frequency</label>
-                          <select
-                            value={medicine.frequency || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "frequency", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                          >
-                            {FREQUENCY_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Duration</label>
-                          <input
-                            type="text"
-                            value={medicine.duration || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "duration", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                            placeholder="e.g., 5 days"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-medium text-slate-600">Instructions</label>
-                          <input
-                            type="text"
-                            value={medicine.instructions || ""}
-                            onChange={(e) => handleMedicineChange(medicine.tempId, "instructions", e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
-                            placeholder="e.g., After meals"
-                          />
-                        </div>
-                      </div>
+                      {(() => {
+                        const taperingSteps = medicine.tapering_steps;
+                        const hasTapering = taperingSteps && taperingSteps.length > 0;
+                        return hasTapering ? null : (
+                          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Dosage</label>
+                              <input
+                                type="text"
+                                value={medicine.dosage || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "dosage", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                placeholder="e.g., 500mg"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Frequency</label>
+                              <select
+                                value={medicine.frequency || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "frequency", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                              >
+                                {FREQUENCY_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Duration</label>
+                              <input
+                                type="text"
+                                value={medicine.duration || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "duration", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                placeholder="e.g., 5 days"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-medium text-slate-600">Instructions</label>
+                              <input
+                                type="text"
+                                value={medicine.instructions || ""}
+                                onChange={(e) => handleMedicineChange(medicine.tempId, "instructions", e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                placeholder="e.g., After meals"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Tapering Regimen Builder */}
                       {(() => {
@@ -602,10 +628,7 @@ export function PrescriptionForm({
 
                             {hasTapering && (
                               <div className="rounded-lg border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
-                                <div className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-100 rounded p-2 flex items-center gap-2">
-                                  <span>💡</span>
-                                  <span>Tapering Regimen Active: The steps defined below will specify the medicine schedule.</span>
-                                </div>
+
 
                                 <div className="flex items-center justify-between border-b border-purple-100 pb-2">
                                   <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
