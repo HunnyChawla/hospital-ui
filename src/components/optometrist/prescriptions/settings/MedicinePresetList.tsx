@@ -333,7 +333,22 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
                                 />
                             </div>
 
-                            {taperingSteps && taperingSteps.length > 0 ? null : (
+                            {taperingSteps && taperingSteps.length > 0 ? (
+                                <div className="col-span-2 flex justify-between items-center bg-purple-50/20 border border-purple-100 rounded-lg p-2.5 mb-1">
+                                    <span className="text-xs font-bold text-purple-950 flex items-center gap-2">
+                                        <span className="flex h-2 w-2 rounded-full bg-purple-500 animate-ping" />
+                                        Tapering Regimen Active
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTaperingSteps(undefined)}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
+                                    >
+                                        <Activity className="h-3.5 w-3.5" />
+                                        Disable Tapering Regimen
+                                    </button>
+                                </div>
+                            ) : (
                                 <>
                                     {/* Dosage Row */}
                                     <div className="col-span-2 grid grid-cols-3 gap-2">
@@ -384,11 +399,11 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
 
                             {/* Tapering Regimen Builder */}
                             <div className="col-span-2 mt-2 border-t border-indigo-200 pt-2 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!taperingSteps) {
+                                {!taperingSteps && (
+                                    <div className="flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
                                                 setTaperingSteps([
                                                     {
                                                         sequence: 1,
@@ -398,20 +413,14 @@ export function MedicinePresetList({ items, onChange }: MedicinePresetListProps)
                                                         instructions: instructions || ""
                                                     }
                                                 ]);
-                                            } else {
-                                                setTaperingSteps(undefined);
-                                            }
-                                        }}
-                                        className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-semibold border transition-all ${
-                                            taperingSteps
-                                                ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                                        }`}
-                                    >
-                                        <Activity className="h-3 w-3" />
-                                        {taperingSteps ? "Disable Tapering Regimen" : "Enable Tapering Regimen"}
-                                    </button>
-                                </div>
+                                            }}
+                                            className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
+                                        >
+                                            <Activity className="h-3 w-3" />
+                                            Enable Tapering Regimen
+                                        </button>
+                                    </div>
+                                )}
 
                                 {taperingSteps && (
                                     <div className="rounded-lg border border-purple-100 bg-purple-50/20 p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-155">

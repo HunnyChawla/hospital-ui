@@ -541,7 +541,22 @@ export function PrescriptionForm({
                       {(() => {
                         const taperingSteps = medicine.tapering_steps;
                         const hasTapering = taperingSteps && taperingSteps.length > 0;
-                        return hasTapering ? null : (
+                        return hasTapering ? (
+                          <div className="flex justify-between items-center bg-purple-50/20 border border-purple-100 rounded-lg p-3.5">
+                            <span className="text-xs font-bold text-purple-950 flex items-center gap-2">
+                              <span className="flex h-2 w-2 rounded-full bg-purple-500 animate-ping" />
+                              Tapering Regimen Active
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleTaperingStepsChange(medicine.tempId, undefined)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
+                            >
+                              <Activity className="h-3.5 w-3.5" />
+                              Disable Tapering Regimen
+                            </button>
+                          </div>
+                        ) : (
                           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                             <div>
                               <label className="mb-1.5 block text-xs font-medium text-slate-600">Dosage</label>
@@ -597,11 +612,11 @@ export function PrescriptionForm({
                         const hasTapering = taperingSteps && taperingSteps.length > 0;
                         return (
                           <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!hasTapering) {
+                            {!hasTapering && (
+                              <div className="flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={() => {
                                     handleTaperingStepsChange(medicine.tempId, [
                                       {
                                         sequence: 1,
@@ -611,20 +626,14 @@ export function PrescriptionForm({
                                         instructions: medicine.instructions || ""
                                       }
                                     ]);
-                                  } else {
-                                    handleTaperingStepsChange(medicine.tempId, undefined);
-                                  }
-                                }}
-                                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-all shadow-sm ${
-                                  hasTapering
-                                    ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                                }`}
-                              >
-                                <Activity className="h-3.5 w-3.5" />
-                                {hasTapering ? "Disable Tapering Regimen" : "Enable Tapering Regimen"}
-                              </button>
-                            </div>
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
+                                >
+                                  <Activity className="h-3.5 w-3.5" />
+                                  Enable Tapering Regimen
+                                </button>
+                              </div>
+                            )}
 
                             {hasTapering && (
                               <div className="rounded-lg border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">

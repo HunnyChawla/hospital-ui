@@ -1836,8 +1836,8 @@ export function PrescriptionFormSection({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                                                <div>
+                                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 items-end">
+                                                <div className={watchedMedicines[index]?.tapering_steps?.length ? "col-span-2 sm:col-span-1" : ""}>
                                                     <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Eye</label>
                                                     <select
                                                         {...register(`medicine_items.${index}.applicable_eye`)}
@@ -1852,7 +1852,18 @@ export function PrescriptionFormSection({
                                                 {(() => {
                                                     const taperingSteps = watchedMedicines[index]?.tapering_steps;
                                                     const hasTapering = taperingSteps && taperingSteps.length > 0;
-                                                    return hasTapering ? null : (
+                                                    return hasTapering ? (
+                                                        <div className="col-span-2 sm:col-span-4 flex justify-end mb-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setValue(`medicine_items.${index}.tapering_steps`, undefined)}
+                                                                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all shadow-sm border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                                                            >
+                                                                <Activity className="h-3.5 w-3.5" />
+                                                                Disable Tapering Regimen
+                                                            </button>
+                                                        </div>
+                                                    ) : (
                                                         <>
                                                             <div>
                                                                 <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Dosage</label>
@@ -1921,11 +1932,11 @@ export function PrescriptionFormSection({
                                                 const hasTapering = taperingSteps && taperingSteps.length > 0;
                                                 return (
                                                     <div className="mt-4 border-t border-slate-100 pt-4 space-y-3">
-                                                        <div className="flex items-center justify-between">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (!hasTapering) {
+                                                        {!hasTapering && (
+                                                            <div className="flex items-center justify-between">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
                                                                         setValue(`medicine_items.${index}.tapering_steps`, [
                                                                             {
                                                                                 sequence: 1,
@@ -1935,28 +1946,17 @@ export function PrescriptionFormSection({
                                                                                 instructions: watch(`medicine_items.${index}.instructions`) || ""
                                                                             }
                                                                         ]);
-                                                                    } else {
-                                                                        setValue(`medicine_items.${index}.tapering_steps`, undefined);
-                                                                    }
-                                                                }}
-                                                                className={clsx(
-                                                                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border-2 transition-all shadow-sm",
-                                                                    hasTapering
-                                                                        ? "bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
-                                                                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                                                                )}
-                                                            >
-                                                                <Activity className="h-3.5 w-3.5" />
-                                                                {hasTapering ? "Disable Tapering Regimen" : "Enable Tapering Regimen"}
-                                                            </button>
-                                                        </div>
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                                                                >
+                                                                    <Activity className="h-3.5 w-3.5" />
+                                                                    Enable Tapering Regimen
+                                                                </button>
+                                                            </div>
+                                                        )}
 
                                                         {hasTapering && (
                                                             <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                <div className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-100/50 rounded-lg p-2.5 flex items-center gap-2">
-                                                                    <span>💡</span>
-                                                                    <span>Tapering Regimen Active: The steps defined below will specify the medicine schedule.</span>
-                                                                </div>
 
                                                                 <div className="flex items-center justify-between border-b border-purple-100 pb-2">
                                                                     <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
