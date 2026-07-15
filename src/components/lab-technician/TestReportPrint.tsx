@@ -9,6 +9,8 @@ import { formatDate } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
 import { getTenantIdForApi } from "@/utils/auth";
 
+import { MRDImage } from "./TestResultsForm";
+
 interface TestReportPrintProps {
   booking: LabBooking;
   patientName: string;
@@ -167,95 +169,139 @@ export function TestReportPrint({
           Test Results
         </h2>
 
-        {testResults.map(({ test, results }) => (
-          <div key={test.id} className="rounded-lg border border-slate-200 bg-white p-3 print:border-slate-300">
-            {/* Test Header */}
-            <div className="mb-3 border-b border-slate-200 pb-2">
-              <h3 className="text-sm font-bold text-slate-900">{test.test_name}</h3>
-              <p className="text-xs text-slate-600">Test Code: {test.test_code}</p>
-            </div>
+        {testResults.map(({ test, results }) => {
+          // Group results by section name
+          const resultsBySection = results.reduce<Record<string, LabTestResult[]>>((acc, res) => {
+            const sectionName = res.section_name || "General Parameters";
+            if (!acc[sectionName]) {
+              acc[sectionName] = [];
+            }
+            acc[sectionName].push(res);
+            return acc;
+          }, {});
 
-            {/* Results Table */}
-            {results.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-300 bg-slate-50">
-                      <th className="pb-1 pt-1 text-left font-semibold text-slate-900">Parameter</th>
-                      <th className="pb-1 pt-1 text-left font-semibold text-slate-900">Result</th>
-                      <th className="pb-1 pt-1 text-left font-semibold text-slate-900">Unit</th>
-                      <th className="pb-1 pt-1 text-left font-semibold text-slate-900">Normal Range</th>
-                      <th className="pb-1 pt-1 text-center font-semibold text-slate-900">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((result) => (
-                      <tr
-                        key={result.id}
-                        className={`border-b border-slate-100 ${
-                          result.is_abnormal ? "bg-rose-50 print:bg-slate-50" : ""
-                        }`}
-                      >
-                        <td className="py-1.5 text-slate-900">
-                          <div>
-                            <p className="font-semibold">{result.parameter_name}</p>
-                            <p className="text-[10px] text-slate-600">{result.parameter_code}</p>
+          return (
+            <div key={test.id} className="rounded-lg border border-slate-200 bg-white p-3 print:border-slate-300">
+              {/* Test Header */}
+              <div className="mb-3 border-b border-slate-200 pb-2">
+                <h3 className="text-sm font-bold text-slate-900">{test.test_name}</h3>
+                <p className="text-xs text-slate-600">Test Code: {test.test_code}</p>
+              </div>
+
+              {/* Grouped Results */}
+              {results.length > 0 ? (
+                <div className="space-y-4">
+                  {Object.entries(resultsBySection).map(([sectionName, sectionResults]) => {
+                    const imageResults = sectionResults.filter((r) => r.parameter_type === "image");
+                    const nonImageResults = sectionResults.filter((r) => r.parameter_type !== "image");
+
+                    return (
+                      <div key={sectionName} className="space-y-2">
+                        <h4 className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200/50 rounded px-2 py-1">
+                          {sectionName}
+                        </h4>
+
+                        {nonImageResults.length > 0 && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b border-slate-300 bg-slate-50/50">
+                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Parameter</th>
+                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Result</th>
+                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Unit</th>
+                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Normal Range</th>
+                                  <th className="pb-1 pt-1 text-center font-semibold text-slate-800">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {nonImageResults.map((result) => (
+                                  <tr
+                                    key={result.id}
+                                    className={`border-b border-slate-100 ${
+                                      result.is_abnormal ? "bg-rose-50 print:bg-slate-50" : ""
+                                    }`}
+                                  >
+                                    <td className="py-1.5 text-slate-900">
+                                      <div>
+                                        <p className="font-semibold">{result.parameter_name}</p>
+                                        <p className="text-[10px] text-slate-600">{result.parameter_code}</p>
+                                      </div>
+                                    </td>
+                                    <td className="py-1.5 font-semibold text-slate-900">{result.result_value}</td>
+                                    <td className="py-1.5 text-slate-600">{result.unit || "-"}</td>
+                                    <td className="py-1.5 text-slate-600">
+                                      {result.normal_text || (result.normal_min !== null && result.normal_max !== null
+                                        ? `${result.normal_min} - ${result.normal_max}`
+                                        : "-")}
+                                    </td>
+                                    <td className="py-1.5 text-center">
+                                      {result.parameter_type === "number" && (
+                                        result.is_abnormal ? (
+                                          <span className="inline-block rounded bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 print:bg-slate-200 print:text-slate-700">
+                                            Abnormal
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 print:bg-slate-200 print:text-slate-700">
+                                            Normal
+                                          </span>
+                                        )
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
-                        </td>
-                        <td className="py-1.5 font-semibold text-slate-900">{result.result_value}</td>
-                        <td className="py-1.5 text-slate-600">{result.unit || "-"}</td>
-                        <td className="py-1.5 text-slate-600">
-                          {result.normal_text || (result.normal_min !== null && result.normal_max !== null
-                            ? `${result.normal_min} - ${result.normal_max}`
-                            : "-")}
-                        </td>
-                        <td className="py-1.5 text-center">
-                          {result.is_abnormal ? (
-                            <span className="inline-block rounded bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 print:bg-slate-200 print:text-slate-700">
-                              Abnormal
-                            </span>
-                          ) : (
-                            <span className="inline-block rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 print:bg-slate-200 print:text-slate-700">
-                              Normal
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 italic">No results available for this test.</p>
-            )}
+                        )}
 
-            {/* Notes Section */}
-            {results.some((r) => r.notes) && (
-              <div className="mt-3 border-t border-slate-200 pt-2">
-                <p className="text-[10px] font-semibold text-slate-600">Notes:</p>
-                <div className="mt-1 space-y-1">
-                  {results
-                    .filter((r) => r.notes)
-                    .map((result) => (
-                      <div key={result.id} className="text-xs text-slate-700">
-                        <span className="font-medium">{result.parameter_name}:</span> {result.notes}
+                        {imageResults.length > 0 && (
+                          <div className="grid grid-cols-2 gap-3 pt-2">
+                            {imageResults.map((result) => (
+                              <div key={result.id} className="border border-slate-200 rounded p-2 bg-slate-50/50 flex flex-col items-center">
+                                <p className="text-[10px] font-semibold text-slate-700 mb-1">{result.parameter_name}</p>
+                                <div className="h-36 w-full overflow-hidden flex items-center justify-center bg-white rounded border border-slate-200">
+                                  <MRDImage documentId={result.result_value} className="max-h-full max-w-full object-contain" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-slate-500 italic">No results available for this test.</p>
+              )}
 
-            {/* Verification Info */}
-            {results.some((r) => r.verified_at) && (
-              <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500">
-                <p>
-                  Verified on:{" "}
-                  {new Date(results.find((r) => r.verified_at)?.verified_at || "").toLocaleString()}
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
+              {/* Notes Section */}
+              {results.some((r) => r.notes) && (
+                <div className="mt-3 border-t border-slate-200 pt-2">
+                  <p className="text-[10px] font-semibold text-slate-600">Notes:</p>
+                  <div className="mt-1 space-y-1">
+                    {results
+                      .filter((r) => r.notes)
+                      .map((result) => (
+                        <div key={result.id} className="text-xs text-slate-700">
+                          <span className="font-medium">{result.parameter_name}:</span> {result.notes}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Verification Info */}
+              {results.some((r) => r.verified_at) && (
+                <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500">
+                  <p>
+                    Verified on:{" "}
+                    {new Date(results.find((r) => r.verified_at)?.verified_at || "").toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Footer */}

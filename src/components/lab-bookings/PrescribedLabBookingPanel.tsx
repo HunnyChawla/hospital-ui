@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { labBookingsApi, AdvisedTest, BookAdvisedTestsRequest, PaymentMethod, TestPriority, PatientWithPendingTests } from "@/services/labBookingsApi";
+import { labTestsApi, PrescriptionField } from "@/services/labTestsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -39,6 +40,8 @@ export function PrescribedLabBookingPanel({
   const [advisedTests, setAdvisedTests] = useState<AdvisedTest[]>([]);
   const [loadingTests, setLoadingTests] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [prescriptionFieldsByTestCode, setPrescriptionFieldsByTestCode] = useState<Record<string, PrescriptionField[]>>({});
+  const [metadataValues, setMetadataValues] = useState<Record<string, Record<string, string>>>({});
   const [scheduledDate, setScheduledDate] = useState("");
   const [priority, setPriority] = useState<TestPriority>("routine");
   const [notes, setNotes] = useState("");
@@ -142,6 +145,14 @@ export function PrescribedLabBookingPanel({
         .filter((t) => !t.already_booked)
         .map((t) => t.lab_test_id);
       setSelectedTestIds(toCheck);
+      
+      const initialMetadata: Record<string, Record<string, any>> = {};
+      (tests || []).forEach((t) => {
+        if (t.prescription_metadata) {
+          initialMetadata[t.lab_test_id] = t.prescription_metadata;
+        }
+      });
+      setMetadataValues(initialMetadata);
     } catch (error) {
       console.error("Failed to fetch advised tests:", error);
       toast.error("Failed to load prescribed lab tests");
@@ -158,12 +169,158 @@ export function PrescribedLabBookingPanel({
     }
   }, [selectedVisitId]);
 
+  // Load active prescription fields for each advised test
+  useEffect(() => {
+    const loadFieldsForTests = async () => {
+      if (advisedTests.length === 0) return;
+      
+      const newFieldsMap: Record<string, PrescriptionField[]> = {};
+      const promises = advisedTests.map(async (test) => {
+        try {
+          // Fetch fields using API
+          const fieldsList = await labTestsApi.listPrescriptionFields(test.test_code);
+          newFieldsMap[test.test_code] = fieldsList.filter((f) => f.is_active);
+        } catch (error) {
+          console.error(`Failed to fetch prescription fields for ${test.test_code}:`, error);
+        }
+      });
+      await Promise.all(promises);
+      setPrescriptionFieldsByTestCode(newFieldsMap);
+    };
+
+    loadFieldsForTests();
+  }, [advisedTests]);
+
+  const handleMetadataChange = (labTestId: string, fieldName: string, value: string) => {
+    setMetadataValues((prev) => ({
+      ...prev,
+      [labTestId]: {
+        ...(prev[labTestId] || {}),
+        [fieldName]: value,
+      },
+    }));
+  };
+
   // Checkbox toggle
   const handleToggleTest = (labTestId: string) => {
     setSelectedTestIds((prev) =>
       prev.includes(labTestId)
         ? prev.filter((id) => id !== labTestId)
         : [...prev, labTestId]
+    );
+  };
+
+  const renderTestItem = (test: AdvisedTest) => {
+    const isChecked = selectedTestIds.includes(test.lab_test_id) || test.already_booked;
+    const fieldsForTest = prescriptionFieldsByTestCode[test.test_code] || [];
+    const showMetadataForm = isChecked && !test.already_booked && fieldsForTest.length > 0;
+
+    return (
+      <div key={test.advice_item_id} className="border-b border-slate-100 last:border-0 bg-white">
+        {/* Test Row */}
+        <div
+          className={`flex items-center justify-between p-3 transition-colors ${
+            test.already_booked ? "bg-slate-50/60" : "hover:bg-sky-50/30"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id={`test-${test.advice_item_id}`}
+              checked={isChecked}
+              disabled={test.already_booked}
+              onChange={() => handleToggleTest(test.lab_test_id)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:bg-slate-200 disabled:border-slate-350 cursor-pointer disabled:cursor-not-allowed"
+            />
+            <label
+              htmlFor={`test-${test.advice_item_id}`}
+              className={`text-sm font-medium cursor-pointer ${
+                test.already_booked ? "text-slate-400 line-through" : "text-slate-900"
+              }`}
+            >
+              {test.test_name}{" "}
+              <span className="text-xs font-mono font-normal text-slate-400">({test.test_code})</span>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {test.price !== undefined && test.price !== null ? (
+              <span className={`text-sm font-semibold ${test.already_booked ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                {currency(test.price)}
+              </span>
+            ) : (
+              <span className="text-xs font-medium text-slate-400 italic">
+                Price not set
+              </span>
+            )}
+            {test.already_booked ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                <Check className="h-3.5 w-3.5" /> Booked
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/10">
+                {test.advice_type}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Custom Prescription Fields Inline Form */}
+        {showMetadataForm && (
+          <div className="bg-slate-50 border-t border-slate-100 px-4 py-3 space-y-3 pl-10 text-left">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Required Information for {test.test_name}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {fieldsForTest.map((field) => {
+                const value = metadataValues[test.lab_test_id]?.[field.field_name] || "";
+                return (
+                  <div key={field.id} className="col-span-1 space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                      {field.field_name}
+                      {field.is_required && <span className="text-rose-500">*</span>}
+                    </label>
+
+                    {field.field_type === "dropdown" ? (
+                      <select
+                        value={value}
+                        onChange={(e) => handleMetadataChange(test.lab_test_id, field.field_name, e.target.value)}
+                        required={field.is_required}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 transition"
+                      >
+                        <option value="">Select option</option>
+                        {field.dropdown_options?.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : field.field_type === "number" ? (
+                      <input
+                        type="number"
+                        value={value}
+                        onChange={(e) => handleMetadataChange(test.lab_test_id, field.field_name, e.target.value)}
+                        required={field.is_required}
+                        placeholder="Enter number"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 transition"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => handleMetadataChange(test.lab_test_id, field.field_name, e.target.value)}
+                        required={field.is_required}
+                        placeholder="Enter details"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 transition"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -199,6 +356,34 @@ export function PrescribedLabBookingPanel({
         return;
       }
 
+      // Build and validate test_metadata
+      const testMetadata: Array<{ lab_test_id: string; metadata: Record<string, any> }> = [];
+      for (const testId of selectedTestIds) {
+        const test = advisedTests.find((t) => t.lab_test_id === testId);
+        if (!test) continue;
+        const fields = prescriptionFieldsByTestCode[test.test_code] || [];
+        const testMeta: Record<string, any> = {};
+
+        for (const field of fields) {
+          const val = metadataValues[testId]?.[field.field_name]?.trim();
+          if (field.is_required && (!val || val === "")) {
+            toast.error(`"${field.field_name}" is required for test "${test.test_name}"`);
+            setIsSubmitting(false);
+            return;
+          }
+          if (val) {
+            testMeta[field.field_name] = field.field_type === "number" ? Number(val) : val;
+          }
+        }
+
+        if (Object.keys(testMeta).length > 0) {
+          testMetadata.push({
+            lab_test_id: testId,
+            metadata: testMeta,
+          });
+        }
+      }
+
       const bookingReq: BookAdvisedTestsRequest = {
         patient_id: pId,
         visit_id: selectedVisitId,
@@ -208,6 +393,7 @@ export function PrescribedLabBookingPanel({
         notes: notes.trim() || undefined,
         payment_method: paymentMethod,
         payment_reference: paymentReference.trim() || undefined,
+        test_metadata: testMetadata.length > 0 ? testMetadata : undefined,
       };
 
       const result = await labBookingsApi.bookAdvisedTests(bookingReq);
@@ -269,58 +455,7 @@ export function PrescribedLabBookingPanel({
                 Select Tests to Book
               </label>
               <div className="max-h-60 overflow-y-auto border border-slate-150 rounded-xl bg-white p-1 divide-y divide-slate-100">
-                {advisedTests.map((test) => {
-                  const isChecked = selectedTestIds.includes(test.lab_test_id) || test.already_booked;
-                  return (
-                    <div
-                      key={test.advice_item_id}
-                      className={`flex items-center justify-between p-3 transition-colors ${
-                        test.already_booked ? "bg-slate-50/60" : "hover:bg-sky-50/30"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id={`test-${test.advice_item_id}`}
-                          checked={isChecked}
-                          disabled={test.already_booked}
-                          onChange={() => handleToggleTest(test.lab_test_id)}
-                          className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:bg-slate-200 disabled:border-slate-350 cursor-pointer disabled:cursor-not-allowed"
-                        />
-                        <label
-                          htmlFor={`test-${test.advice_item_id}`}
-                          className={`text-sm font-medium cursor-pointer ${
-                            test.already_booked ? "text-slate-400 line-through" : "text-slate-900"
-                          }`}
-                        >
-                          {test.test_name}{" "}
-                          <span className="text-xs font-mono font-normal text-slate-400">({test.test_code})</span>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {test.price !== undefined && test.price !== null ? (
-                          <span className={`text-sm font-semibold ${test.already_booked ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                            {currency(test.price)}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium text-slate-400 italic">
-                            Price not set
-                          </span>
-                        )}
-                        {test.already_booked ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                            <Check className="h-3.5 w-3.5" /> Booked
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/10">
-                            {test.advice_type}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                {advisedTests.map(renderTestItem)}
               </div>
             </div>
 
@@ -616,58 +751,7 @@ export function PrescribedLabBookingPanel({
                     Select Tests to Book
                   </label>
                   <div className="max-h-60 overflow-y-auto border border-slate-150 rounded-xl bg-white p-1 divide-y divide-slate-100">
-                    {advisedTests.map((test) => {
-                      const isChecked = selectedTestIds.includes(test.lab_test_id) || test.already_booked;
-                      return (
-                        <div
-                          key={test.advice_item_id}
-                          className={`flex items-center justify-between p-3 transition-colors ${
-                            test.already_booked ? "bg-slate-50/60" : "hover:bg-sky-50/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              id={`test-${test.advice_item_id}`}
-                              checked={isChecked}
-                              disabled={test.already_booked}
-                              onChange={() => handleToggleTest(test.lab_test_id)}
-                              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:bg-slate-200 disabled:border-slate-350 cursor-pointer disabled:cursor-not-allowed"
-                            />
-                            <label
-                              htmlFor={`test-${test.advice_item_id}`}
-                              className={`text-sm font-medium cursor-pointer ${
-                                test.already_booked ? "text-slate-400 line-through" : "text-slate-900"
-                              }`}
-                            >
-                              {test.test_name}{" "}
-                              <span className="text-xs font-mono font-normal text-slate-400">({test.test_code})</span>
-                            </label>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {test.price !== undefined && test.price !== null ? (
-                              <span className={`text-sm font-semibold ${test.already_booked ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                                {currency(test.price)}
-                              </span>
-                            ) : (
-                              <span className="text-xs font-medium text-slate-400 italic">
-                                Price not set
-                              </span>
-                            )}
-                            {test.already_booked ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                                <Check className="h-3.5 w-3.5" /> Booked
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/10">
-                                {test.advice_type}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {advisedTests.map(renderTestItem)}
                   </div>
                 </div>
 

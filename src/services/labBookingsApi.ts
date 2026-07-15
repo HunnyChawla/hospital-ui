@@ -74,6 +74,7 @@ export interface AdvisedTest {
   advice_type: string;
   already_booked: boolean;
   price?: number | null;
+  prescription_metadata?: Record<string, any> | null;
 }
 
 export interface BookAdvisedTestsRequest {
@@ -85,6 +86,10 @@ export interface BookAdvisedTestsRequest {
   notes?: string;
   payment_method?: PaymentMethod;
   payment_reference?: string;
+  test_metadata?: Array<{
+    lab_test_id: string;
+    metadata: Record<string, any>;
+  }>;
 }
 
 export const labBookingsApi = {

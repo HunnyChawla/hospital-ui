@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { labTestsApi, LabTestParameter, PublishResultsRequest } from "@/services/labTestsApi";
+import { mrdApi } from "@/services/mrdApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Modal } from "../common/Modal";
@@ -15,13 +16,65 @@ interface TestResultsFormProps {
   testCode: string;
   testName: string;
   patientGender?: string;
+  patientId?: string;
   onSuccess?: () => void;
 }
 
 interface ParameterResult {
   parameter_id: string;
   result_numeric: string;
+  result_value: string;
   notes: string;
+  image_file?: File | null;
+  image_url?: string;
+}
+
+export function MRDImage({ documentId, className, alt }: { documentId: string; className?: string; alt?: string }) {
+  const [src, setSrc] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!documentId) return;
+    let active = true;
+    const loadImg = async () => {
+      try {
+        setLoading(true);
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const blob = await mrdApi.download(documentId, tenantId || undefined);
+        const url = URL.createObjectURL(blob);
+        if (active) {
+          setSrc(url);
+        }
+      } catch (err) {
+        console.error("Failed to load MRD image", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadImg();
+    return () => {
+      active = false;
+      if (src) URL.revokeObjectURL(src);
+    };
+  }, [documentId]);
+
+  if (loading) {
+    return (
+      <div className={`flex items-center justify-center bg-slate-50 text-slate-400 text-xs ${className || ""}`}>
+        <Loader2 className="h-4 w-4 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!src) {
+    return (
+      <div className={`flex items-center justify-center bg-slate-50 text-slate-400 text-xs ${className || ""}`}>
+        Failed to load
+      </div>
+    );
+  }
+
+  return <img src={src} className={className} alt={alt} />;
 }
 
 export function TestResultsForm({
@@ -32,6 +85,7 @@ export function TestResultsForm({
   testCode,
   testName,
   patientGender,
+  patientId,
   onSuccess,
 }: TestResultsFormProps) {
   const [parameters, setParameters] = useState<LabTestParameter[]>([]);
@@ -73,7 +127,9 @@ export function TestResultsForm({
         initialResults[param.id] = {
           parameter_id: param.id,
           result_numeric: existingResult?.result_numeric?.toString() || "",
+          result_value: existingResult?.result_value || "",
           notes: existingResult?.notes || "",
+          image_url: param.parameter_type === "image" && existingResult?.result_value ? existingResult.result_value : undefined,
         };
       });
       setResults(initialResults);
@@ -91,6 +147,27 @@ export function TestResultsForm({
       [parameterId]: {
         ...prev[parameterId],
         result_numeric: value,
+      },
+    }));
+  };
+
+  const handleResultValueChange = (parameterId: string, value: string) => {
+    setResults((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        result_value: value,
+      },
+    }));
+  };
+
+  const handleImageChange = (parameterId: string, file: File | null) => {
+    setResults((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        image_file: file,
+        image_url: file ? URL.createObjectURL(file) : undefined,
       },
     }));
   };
@@ -120,7 +197,17 @@ export function TestResultsForm({
     
     // Validate that at least one result is provided
     const hasResults = Object.values(results).some(
-      (r) => r.result_numeric.trim() !== ""
+      (r) => {
+        const param = parameters.find((p) => p.id === r.parameter_id);
+        if (!param) return false;
+        if (param.parameter_type === "number") {
+          return r.result_numeric.trim() !== "";
+        } else if (param.parameter_type === "image") {
+          return r.result_value.trim() !== "" || !!r.image_file;
+        } else {
+          return r.result_value.trim() !== "";
+        }
+      }
     );
     
     if (!hasResults) {
@@ -130,14 +217,49 @@ export function TestResultsForm({
 
     setSubmitting(true);
     try {
+      const updatedResults = { ...results };
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+
+      // Upload files for image parameters
+      for (const param of parameters) {
+        if (param.parameter_type === "image" && updatedResults[param.id]?.image_file) {
+          const file = updatedResults[param.id].image_file!;
+          const uploadRes = await mrdApi.upload(
+            {
+              file,
+              document_name: `${testName}_${param.parameter_name}_result`,
+              category: "LAB_REPORT",
+              patient_id: patientId || "",
+              lab_booking_id: labBookingId,
+            },
+            tenantId || undefined
+          );
+          updatedResults[param.id].result_value = uploadRes.id;
+        }
+      }
+
       const publishRequest: PublishResultsRequest = {
-        results: Object.values(results)
-          .filter((r) => r.result_numeric.trim() !== "")
-          .map((r) => ({
-            parameter_id: r.parameter_id,
-            result_numeric: parseFloat(r.result_numeric),
-            notes: r.notes.trim() || undefined,
-          })),
+        results: Object.values(updatedResults)
+          .filter((r) => {
+            const param = parameters.find((p) => p.id === r.parameter_id);
+            if (!param) return false;
+            if (param.parameter_type === "number") {
+              return r.result_numeric.trim() !== "";
+            } else if (param.parameter_type === "image") {
+              return r.result_value.trim() !== "";
+            } else {
+              return r.result_value.trim() !== "";
+            }
+          })
+          .map((r) => {
+            const param = parameters.find((p) => p.id === r.parameter_id)!;
+            return {
+              parameter_id: r.parameter_id,
+              result_numeric: param.parameter_type === "number" ? parseFloat(r.result_numeric) : undefined,
+              result_value: param.parameter_type !== "number" ? r.result_value : undefined,
+              notes: r.notes.trim() || undefined,
+            };
+          }),
       };
 
       await labTestsApi.publishResults(labBookingId, bookingItemId, publishRequest);
@@ -162,6 +284,16 @@ export function TestResultsForm({
     }
   };
 
+  // Group parameters by section name
+  const parametersBySection = parameters.reduce<Record<string, LabTestParameter[]>>((acc, param) => {
+    const sectionName = param.section_name || "General Parameters";
+    if (!acc[sectionName]) {
+      acc[sectionName] = [];
+    }
+    acc[sectionName].push(param);
+    return acc;
+  }, {});
+
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={`Publish Results - ${testName}`} size="lg">
       {loading ? (
@@ -176,78 +308,157 @@ export function TestResultsForm({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            {parameters.map((param) => {
-              const result = results[param.id];
-              const abnormal = result && isAbnormal(param, result.result_numeric);
-              
-              return (
-                <div
-                  key={param.id}
-                  className={`rounded-xl border p-4 ${
-                    abnormal ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-slate-900">{param.parameter_name}</h4>
-                      <p className="text-xs text-slate-500">
-                        Code: {param.parameter_code}
-                        {param.unit && ` • Unit: ${param.unit}`}
-                      </p>
-                    </div>
-                    {abnormal && (
-                      <span className="ml-2 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700">
-                        Abnormal
-                      </span>
-                    )}
-                  </div>
+          <div className="space-y-6 max-h-[60vh] overflow-y-auto px-1">
+            {Object.entries(parametersBySection).map(([sectionName, sectionParams]) => (
+              <div key={sectionName} className="space-y-4">
+                <h3 className="text-xs font-bold text-slate-600 bg-slate-100/75 border border-slate-200/50 rounded-lg px-3 py-1.5 flex items-center justify-between">
+                  <span>{sectionName}</span>
+                  <span className="text-slate-400 font-normal">
+                    ({sectionParams.length} parameter{sectionParams.length !== 1 ? "s" : ""})
+                  </span>
+                </h3>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Result Value {param.unit && `(${param.unit})`}
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={result?.result_numeric || ""}
-                        onChange={(e) => handleResultChange(param.id, e.target.value)}
-                        placeholder="Enter result"
-                        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                          abnormal
-                            ? "border-rose-300 bg-rose-50 focus:border-rose-400"
-                            : "border-slate-300 bg-white focus:border-sky-400"
+                <div className="space-y-4">
+                  {sectionParams.map((param) => {
+                    const result = results[param.id];
+                    const abnormal = param.parameter_type === "number" && result && isAbnormal(param, result.result_numeric);
+                    
+                    return (
+                      <div
+                        key={param.id}
+                        className={`rounded-xl border p-4 ${
+                          abnormal ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"
                         }`}
-                      />
-                      {param.normal_text && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          Normal Range: {param.normal_text}
-                        </p>
-                      )}
-                      {param.normal_min !== null && param.normal_max !== null && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          Normal: {param.normal_min} - {param.normal_max} {param.unit}
-                        </p>
-                      )}
-                    </div>
+                      >
+                        <div className="mb-3 flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900">{param.parameter_name}</h4>
+                            <p className="text-xs text-slate-500">
+                              Code: {param.parameter_code}
+                              {param.unit && ` • Unit: ${param.unit}`}
+                              {` • Type: ${param.parameter_type}`}
+                            </p>
+                          </div>
+                          {abnormal && (
+                            <span className="ml-2 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700">
+                              Abnormal
+                            </span>
+                          )}
+                        </div>
 
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Notes (Optional)
-                      </label>
-                      <textarea
-                        value={result?.notes || ""}
-                        onChange={(e) => handleNotesChange(param.id, e.target.value)}
-                        placeholder="Add notes..."
-                        rows={3}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
-                      />
-                    </div>
-                  </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-slate-700">
+                              Result Value {param.unit && `(${param.unit})`}
+                            </label>
+                            
+                            {param.parameter_type === "number" && (
+                              <input
+                                type="number"
+                                step="any"
+                                value={result?.result_numeric || ""}
+                                onChange={(e) => handleResultChange(param.id, e.target.value)}
+                                placeholder="Enter result"
+                                className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                                  abnormal
+                                    ? "border-rose-300 bg-rose-50 focus:border-rose-400"
+                                    : "border-slate-300 bg-white focus:border-sky-400"
+                                }`}
+                              />
+                            )}
+
+                            {param.parameter_type === "dropdown" && (
+                              <select
+                                value={result?.result_value || ""}
+                                onChange={(e) => handleResultValueChange(param.id, e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                              >
+                                <option value="">Select option</option>
+                                {param.dropdown_options?.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+
+                            {param.parameter_type === "text" && (
+                              <input
+                                type="text"
+                                value={result?.result_value || ""}
+                                onChange={(e) => handleResultValueChange(param.id, e.target.value)}
+                                placeholder="Enter text value"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                              />
+                            )}
+
+                            {param.parameter_type === "image" && (
+                              <div className="space-y-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0] || null;
+                                    handleImageChange(param.id, file);
+                                  }}
+                                  className="w-full text-xs text-slate-500 file:mr-4 file:rounded-lg file:border-0 file:bg-sky-50 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-sky-700 hover:file:bg-sky-100"
+                                />
+                                {result?.image_url && (
+                                  <div className="relative mt-2 h-32 w-full overflow-hidden rounded-lg border border-slate-200 flex items-center justify-center bg-slate-50">
+                                    {result.image_file ? (
+                                      <img
+                                        src={result.image_url}
+                                        alt="Preview"
+                                        className="h-full max-w-full object-contain"
+                                      />
+                                    ) : (
+                                      <MRDImage
+                                        documentId={result.result_value}
+                                        className="h-full max-w-full object-contain"
+                                        alt="Uploaded Result"
+                                      />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {param.parameter_type === "number" && param.normal_text && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                Normal Range: {param.normal_text}
+                              </p>
+                            )}
+                            {param.parameter_type === "number" && param.normal_min !== null && param.normal_max !== null && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                Normal: {param.normal_min} - {param.normal_max} {param.unit}
+                              </p>
+                            )}
+                            {param.parameter_type !== "number" && param.normal_text && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                Expected: {param.normal_text}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-slate-700">
+                              Notes (Optional)
+                            </label>
+                            <textarea
+                              value={result?.notes || ""}
+                              onChange={(e) => handleNotesChange(param.id, e.target.value)}
+                              placeholder="Add notes..."
+                              rows={3}
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
           <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
@@ -279,4 +490,5 @@ export function TestResultsForm({
     </Modal>
   );
 }
+
 

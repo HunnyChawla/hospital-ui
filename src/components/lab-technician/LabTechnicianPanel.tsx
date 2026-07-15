@@ -51,6 +51,7 @@ export function LabTechnicianPanel() {
     testCode: string;
     testName: string;
     patientGender?: string;
+    patientId?: string;
   } | null>(null);
   const [selectedTestForView, setSelectedTestForView] = useState<{
     labBookingId: string;
@@ -729,6 +730,7 @@ export function LabTechnicianPanel() {
       testCode: test.test_code,
       testName: test.test_name,
       patientGender: booking?.patient_gender,
+      patientId: booking?.patient_id,
     });
   };
 
@@ -1263,6 +1265,7 @@ export function LabTechnicianPanel() {
           testCode={selectedTestForResults.testCode}
           testName={selectedTestForResults.testName}
           patientGender={selectedTestForResults.patientGender}
+          patientId={selectedTestForResults.patientId}
           onSuccess={handleResultsPublished}
         />
       )}

@@ -64,6 +64,9 @@ export interface LabTestParameter {
   method: string | null;
   display_order: number;
   is_active: boolean;
+  section_name?: string | null;
+  parameter_type: "number" | "dropdown" | "text" | "image";
+  dropdown_options?: string[] | null;
 }
 
 export interface CreateLabTestParameterRequest {
@@ -79,6 +82,9 @@ export interface CreateLabTestParameterRequest {
   method?: string;
   display_order: number;
   is_active?: boolean;
+  section_name?: string | null;
+  parameter_type: "number" | "dropdown" | "text" | "image";
+  dropdown_options?: string[] | null;
 }
 
 export interface UpdateLabTestParameterRequest {
@@ -94,6 +100,9 @@ export interface UpdateLabTestParameterRequest {
   method?: string | null;
   display_order?: number;
   is_active?: boolean;
+  section_name?: string | null;
+  parameter_type?: "number" | "dropdown" | "text" | "image";
+  dropdown_options?: string[] | null;
 }
 
 export interface LabTestPrice {
@@ -129,6 +138,8 @@ export interface LabTestResult {
   created_by: string;
   created_at: string;
   updated_at: string;
+  section_name?: string | null;
+  parameter_type: "number" | "dropdown" | "text" | "image";
 }
 
 export interface LabTestResultsResponse {
@@ -142,9 +153,41 @@ export interface LabTestResultsResponse {
 export interface PublishResultsRequest {
   results: Array<{
     parameter_id: string;
-    result_numeric?: number;
-    notes?: string;
+    result_value?: string | null;
+    result_numeric?: number | null;
+    notes?: string | null;
+    image_url?: string | null;
   }>;
+}
+
+export interface PrescriptionField {
+  id: string;
+  tenant_id: string;
+  test_code: string;
+  field_name: string;
+  field_type: "text" | "dropdown" | "number";
+  dropdown_options?: string[] | null;
+  is_required: boolean;
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface CreatePrescriptionFieldRequest {
+  field_name: string;
+  field_type: "text" | "dropdown" | "number";
+  dropdown_options?: string[] | null;
+  is_required?: boolean;
+  display_order?: number;
+  is_active?: boolean;
+}
+
+export interface UpdatePrescriptionFieldRequest {
+  field_name?: string;
+  field_type?: "text" | "dropdown" | "number";
+  dropdown_options?: string[] | null;
+  is_required?: boolean;
+  display_order?: number;
+  is_active?: boolean;
 }
 
 export const labTestsApi = {
@@ -284,6 +327,50 @@ export const labTestsApi = {
       { params }
     );
     return response.data;
+  },
+
+  async listPrescriptionFields(testCode: string, tenantId?: string): Promise<PrescriptionField[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<PrescriptionField[]>(`/lab-tests/${testCode}/prescription-fields`, { params });
+    return response.data;
+  },
+
+  async createPrescriptionField(
+    testCode: string,
+    field: CreatePrescriptionFieldRequest,
+    tenantId?: string
+  ): Promise<PrescriptionField> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<PrescriptionField>(
+      `/lab-tests/${testCode}/prescription-fields`,
+      field,
+      { params }
+    );
+    return response.data;
+  },
+
+  async updatePrescriptionField(
+    testCode: string,
+    fieldId: string,
+    updates: UpdatePrescriptionFieldRequest,
+    tenantId?: string
+  ): Promise<PrescriptionField> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.patch<PrescriptionField>(
+      `/lab-tests/${testCode}/prescription-fields/${fieldId}`,
+      updates,
+      { params }
+    );
+    return response.data;
+  },
+
+  async deletePrescriptionField(testCode: string, fieldId: string, tenantId?: string): Promise<void> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    await apiClient.delete(`/lab-tests/${testCode}/prescription-fields/${fieldId}`, { params });
   },
 };
 

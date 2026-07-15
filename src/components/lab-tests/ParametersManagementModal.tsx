@@ -28,6 +28,15 @@ export function ParametersManagementModal({
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (sectionName: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionName]: !prev[sectionName],
+    }));
+  };
+
   useEffect(() => {
     if (isOpen && testCode) {
       fetchParameters();
@@ -36,6 +45,7 @@ export function ParametersManagementModal({
       setParameters([]);
       setShowForm(false);
       setEditingParameter(null);
+      setCollapsedSections({});
     }
   }, [isOpen, testCode]);
 
@@ -133,6 +143,16 @@ export function ParametersManagementModal({
     return "-";
   };
 
+  // Group parameters by section name
+  const parametersBySection = parameters.reduce<Record<string, LabTestParameter[]>>((acc, param) => {
+    const sectionName = param.section_name || "General Parameters";
+    if (!acc[sectionName]) {
+      acc[sectionName] = [];
+    }
+    acc[sectionName].push(param);
+    return acc;
+  }, {});
+
   return (
     <Modal
       isOpen={isOpen}
@@ -179,7 +199,7 @@ export function ParametersManagementModal({
             <div className="overflow-hidden rounded-lg border border-slate-200">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">
                         Order
@@ -202,6 +222,9 @@ export function ParametersManagementModal({
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">
                         Age Range
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">
+                        Type
+                      </th>
                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-slate-500">
                         Status
                       </th>
@@ -210,71 +233,108 @@ export function ParametersManagementModal({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {parameters.map((param) => (
-                      <tr
-                        key={param.id}
-                        className={`transition hover:bg-slate-50 ${
-                          !param.is_active ? "bg-slate-50/50 opacity-75" : ""
-                        }`}
-                      >
-                        <td className="px-4 py-3 font-medium text-slate-900">
-                          {param.display_order}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                          {param.parameter_code}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-slate-900">
-                          {param.parameter_name}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">{param.unit}</td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {getNormalRangeDisplay(param)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {param.gender === "ALL" ? "All" : param.gender === "M" ? "Male" : "Female"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {param.age_min}-{param.age_max}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => handleToggleActive(param)}
-                            className={`pill text-xs ${
-                              param.is_active
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-amber-50 text-amber-700"
-                            }`}
-                          >
-                            {param.is_active ? "Active" : "Inactive"}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
+                  {Object.entries(parametersBySection).map(([sectionName, sectionParams]) => {
+                    const isCollapsed = !!collapsedSections[sectionName];
+                    return (
+                      <tbody key={sectionName} className="divide-y divide-slate-100">
+                        {/* Section Header Row */}
+                        <tr className="bg-slate-50/75 border-y border-slate-200">
+                          <td colSpan={10} className="px-4 py-2">
                             <button
-                              onClick={() => handleEditClick(param)}
-                              className="rounded-lg p-1.5 text-sky-600 transition hover:bg-sky-50"
-                              title="Edit parameter"
+                              onClick={() => toggleSection(sectionName)}
+                              className="flex items-center gap-2 font-semibold text-slate-700 hover:text-slate-900 focus:outline-none"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <span className="text-xs transition-transform duration-200 select-none">
+                                {isCollapsed ? "▶" : "▼"}
+                              </span>
+                              <span>{sectionName}</span>
+                              <span className="text-xs text-slate-400 font-normal">
+                                ({sectionParams.length} parameter{sectionParams.length !== 1 ? "s" : ""})
+                              </span>
                             </button>
-                            <button
-                              onClick={() => handleDelete(param)}
-                              disabled={deletingId === param.id}
-                              className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
-                              title="Delete parameter"
+                          </td>
+                        </tr>
+
+                        {!isCollapsed &&
+                          sectionParams.map((param) => (
+                            <tr
+                              key={param.id}
+                              className={`transition hover:bg-slate-50 ${
+                                !param.is_active ? "bg-slate-50/50 opacity-75" : ""
+                              }`}
                             >
-                              {deletingId === param.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+                              <td className="px-4 py-3 font-medium text-slate-900">
+                                {param.display_order}
+                              </td>
+                              <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                                {param.parameter_code}
+                              </td>
+                              <td className="px-4 py-3 font-medium text-slate-900">
+                                {param.parameter_name}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">{param.unit}</td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {getNormalRangeDisplay(param)}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {param.gender === "ALL" ? "All" : param.gender === "M" ? "Male" : "Female"}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {param.age_min}-{param.age_max}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+                                  param.parameter_type === "number"
+                                    ? "bg-blue-50 text-blue-700 border-blue-100"
+                                    : param.parameter_type === "dropdown"
+                                    ? "bg-purple-50 text-purple-700 border-purple-100"
+                                    : param.parameter_type === "image"
+                                    ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                    : "bg-slate-50 text-slate-700 border-slate-100"
+                                }`}>
+                                  {param.parameter_type.charAt(0).toUpperCase() + param.parameter_type.slice(1)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  onClick={() => handleToggleActive(param)}
+                                  className={`pill text-xs ${
+                                    param.is_active
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "bg-amber-50 text-amber-700"
+                                  }`}
+                                >
+                                  {param.is_active ? "Active" : "Inactive"}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleEditClick(param)}
+                                    className="rounded-lg p-1.5 text-sky-600 transition hover:bg-sky-50"
+                                    title="Edit parameter"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(param)}
+                                    disabled={deletingId === param.id}
+                                    className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                                    title="Delete parameter"
+                                  >
+                                    {deletingId === param.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    );
+                  })}
                 </table>
               </div>
             </div>
