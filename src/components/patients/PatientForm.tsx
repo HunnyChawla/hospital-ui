@@ -28,11 +28,39 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const [dobValue, setDobValue] = useState<string>("");
   const [ageError, setAgeError] = useState<string>("");
   const [inputMode, setInputMode] = useState<'dob' | 'age'>('age');
+  const [isNewborn, setIsNewborn] = useState<boolean>(false);
+  const [parentName, setParentName] = useState<string>(defaultValues?.title === "Baby of" && defaultValues?.name ? (defaultValues.name.startsWith("Baby of ") ? defaultValues.name.substring(8) : defaultValues.name) : "");
 
   const { register, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<CreatePatientRequest>({
     mode: "onChange",
     reValidateMode: "onChange",
   });
+
+  // Watch newborn state to autofill fields
+  useEffect(() => {
+    if (isNewborn) {
+      setValue("title", "Baby of");
+      // Set default DOB to today
+      const today = new Date().toISOString().split('T')[0];
+      setDobValue(today);
+      setValue("date_of_birth", today);
+      setAgeYears("0");
+      setAgeMonths("0");
+      setAgeDays("0");
+    } else {
+      // Only clear if not editing an existing patient
+      if (!defaultValues) {
+        setValue("title", "");
+        setValue("first_name", "");
+        setDobValue("");
+        setValue("date_of_birth", "");
+        setAgeYears("");
+        setAgeMonths("");
+        setAgeDays("");
+        setParentName("");
+      }
+    }
+  }, [isNewborn, setValue, defaultValues]);
 
   // Helper function: Calculate DOB from age
   const calculateDobFromAge = (years: number, months: number, days: number): string => {
@@ -182,8 +210,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       // fullPatientData is now PatientApiResponse with all fields preserved
       const apiData = fullPatientData as any;
       const dob = apiData.date_of_birth || "";
+      const isBabyOf = apiData.title === "Baby of";
 
       reset({
+        title: apiData.title || "",
         first_name: apiData.first_name || "",
         last_name: apiData.last_name || "",
         mobile: apiData.mobile || "",
@@ -205,9 +235,21 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         setAgeMonths(age.months.toString());
         setAgeDays(age.days.toString());
       }
+
+      if (isBabyOf) {
+        setIsNewborn(true);
+        const namePart = apiData.first_name?.startsWith("Baby of ") 
+          ? apiData.first_name.substring(8) 
+          : apiData.first_name || "";
+        setParentName(namePart);
+      } else {
+        setIsNewborn(false);
+        setParentName("");
+      }
     } else if (!defaultValues) {
       // Reset form for new patient
       reset({
+        title: "",
         first_name: "",
         last_name: "",
         mobile: "",
@@ -227,6 +269,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       setAgeMonths("");
       setAgeDays("");
       setAgeError("");
+      setIsNewborn(false);
+      setParentName("");
     }
   }, [fullPatientData, defaultValues, reset]);
 
@@ -243,19 +287,42 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     // Ensure gender is lowercase
     const gender = (values.gender || "male").toLowerCase() as "male" | "female" | "other";
 
-    const patientData = {
-      first_name: values.first_name,
-      last_name: values.last_name?.trim() || null,
-      mobile: values.mobile,
-      email: values.email?.trim() || null,
-      date_of_birth: values.date_of_birth,
-      gender,
-      abha_id: values.abha_id?.trim() || null,
-      address: values.address?.trim() || null,
-      city: values.city?.trim() || null,
-      state: values.state?.trim() || null,
-      pincode: values.pincode?.trim() || null,
-    };
+    let patientData: any;
+    if (isNewborn) {
+      if (!parentName.trim()) {
+        setAgeError("Mother's/Parent's name is required for a newborn baby.");
+        return;
+      }
+      patientData = {
+        title: "Baby of",
+        first_name: `Baby of ${parentName.trim()}`,
+        last_name: null,
+        mobile: values.mobile,
+        email: values.email?.trim() || null,
+        date_of_birth: dobValue,
+        gender,
+        abha_id: values.abha_id?.trim() || null,
+        address: values.address?.trim() || null,
+        city: values.city?.trim() || null,
+        state: values.state?.trim() || null,
+        pincode: values.pincode?.trim() || null,
+      };
+    } else {
+      patientData = {
+        title: values.title?.trim() || null,
+        first_name: values.first_name,
+        last_name: values.last_name?.trim() || null,
+        mobile: values.mobile,
+        email: values.email?.trim() || null,
+        date_of_birth: values.date_of_birth,
+        gender,
+        abha_id: values.abha_id?.trim() || null,
+        address: values.address?.trim() || null,
+        city: values.city?.trim() || null,
+        state: values.state?.trim() || null,
+        pincode: values.pincode?.trim() || null,
+      };
+    }
 
     if (defaultValues) {
       // Update existing patient
@@ -282,6 +349,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
 
       // React Query mutation already shows toast and invalidates cache!
       reset();
+      setIsNewborn(false);
+      setParentName("");
       onSuccess?.(newPatient);
     }
   };
@@ -305,28 +374,72 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         </div>
       )}
 
+      {/* Newborn Checkbox */}
+      <div className="flex items-center gap-2 pb-2">
+        <input
+          type="checkbox"
+          id="is_newborn"
+          checked={isNewborn}
+          onChange={(e) => setIsNewborn(e.target.checked)}
+          className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+        />
+        <label htmlFor="is_newborn" className="text-sm font-semibold text-slate-700 select-none cursor-pointer">
+          Newborn Baby (Name not decided yet)
+        </label>
+      </div>
+
       {/* Basic Information */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <label className="space-y-1">
-          <span className="text-slate-600">First Name <span className="text-rose-500">*</span></span>
-          <input
-            {...register("first_name", { required: "First name is required" })}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            placeholder="e.g. John"
-          />
-          {errors.first_name && (
-            <p className="text-xs text-rose-500">{errors.first_name.message}</p>
-          )}
-        </label>
+        {!isNewborn ? (
+          <div className="grid grid-cols-4 gap-2 col-span-1 md:col-span-2">
+            <label className="col-span-1 space-y-1">
+              <span className="text-slate-600 text-sm">Title</span>
+              <select
+                {...register("title")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+              >
+                <option value="">Select</option>
+                <option value="Mr.">Mr.</option>
+                <option value="Mrs.">Mrs.</option>
+                <option value="Ms.">Ms.</option>
+                <option value="Dr.">Dr.</option>
+                <option value="Baby">Baby</option>
+                <option value="Baby of">Baby of</option>
+              </select>
+            </label>
 
-        <label className="space-y-1">
-          <span className="text-slate-600">Last Name</span>
-          <input
-            {...register("last_name")}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            placeholder="e.g. Doe"
-          />
-        </label>
+            <label className="col-span-2 space-y-1">
+              <span className="text-slate-600 text-sm">First Name <span className="text-rose-500">*</span></span>
+              <input
+                {...register("first_name", { required: "First name is required" })}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+                placeholder="e.g. John"
+              />
+              {errors.first_name && (
+                <p className="text-xs text-rose-500">{errors.first_name.message}</p>
+              )}
+            </label>
+
+            <label className="col-span-1 space-y-1">
+              <span className="text-slate-600 text-sm">Last Name</span>
+              <input
+                {...register("last_name")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+                placeholder="e.g. Doe"
+              />
+            </label>
+          </div>
+        ) : (
+          <label className="col-span-1 md:col-span-2 space-y-1">
+            <span className="text-slate-600 text-sm">Mother's/Parent's Name <span className="text-rose-500">*</span></span>
+            <input
+              value={parentName}
+              onChange={(e) => setParentName(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+              placeholder="e.g. Jane Doe"
+            />
+          </label>
+        )}
 
         <label className="space-y-1">
           <span className="text-slate-600">Mobile Number <span className="text-rose-500">*</span></span>

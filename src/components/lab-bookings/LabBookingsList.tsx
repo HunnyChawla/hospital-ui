@@ -5,7 +5,7 @@ import { useReactToPrint } from "react-to-print";
 import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/services/labBookingsApi";
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
 import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
@@ -657,7 +657,7 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
       if (!booking.patient_name || !booking.patient_mobile) {
         try {
           const patient = await patientsApi.getById(booking.patient_id);
-          patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+          patientName = formatPatientName(patient);
           patientMobile = patient.mobile;
         } catch (error) {
           console.error("Failed to fetch patient details:", error);

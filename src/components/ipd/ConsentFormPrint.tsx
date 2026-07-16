@@ -1,7 +1,7 @@
 "use client";
 
 import { Admission } from "@/services/admissionsApi";
-import { PatientApiResponse } from "@/services/patientsApi";
+import { PatientApiResponse, formatPatientName } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
 
@@ -13,7 +13,7 @@ interface ConsentFormPrintProps {
 export function ConsentFormPrint({ admission, patient }: ConsentFormPrintProps) {
   const { tenant, hospitalName } = useTenant();
 
-  const fullName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+  const fullName = formatPatientName(patient);
   
   const calculateAge = (dateOfBirth: string): number => {
     const today = new Date();

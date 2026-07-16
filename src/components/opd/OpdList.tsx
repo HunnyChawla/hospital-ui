@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAppSelector } from "@/redux/hooks";
 import { useOpdVisits, useUpdateOpdVisitStatus, useCompleteDilation } from "@/hooks/queries/useOpdVisits";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
@@ -984,7 +984,7 @@ export function OpdList({ doctorId }: OpdListProps) {
 
       // Fetch patient details
       const patient = await patientsApi.getById(invoice.patient_id);
-      const patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+      const patientName = formatPatientName(patient);
       const patientMobile = patient.mobile;
 
       // Set print data
@@ -1537,7 +1537,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               <OpdSlipPrint
                 patient={{
                   id: printVisitData.patient.id,
-                  name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
+                  name: formatPatientName(printVisitData.patient),
                   mobile: printVisitData.patient.mobile,
                   healthId: printVisitData.patient.abha_id || "",
                   age: printVisitData.patient.date_of_birth

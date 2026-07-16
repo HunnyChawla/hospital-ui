@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Invoice } from "@/services/invoicesApi";
 import { LabBookingTest } from "@/services/labBookingsApi";
-import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
+import { PatientApiResponse, patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate, currency } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
@@ -76,7 +76,7 @@ export function InvoicePrint({ invoice, patientName, patientMobile, tests, booki
 
   // Format full name
   const fullName = patient 
-    ? `${patient.first_name} ${patient.last_name || ""}`.trim()
+    ? formatPatientName(patient)
     : patientName;
 
   // Format address

@@ -14,7 +14,7 @@ import { opdVisitsApi, Visit, CreateVisitRequest } from "@/services/opdVisitsApi
 import { labBookingsApi, LabBooking, LabBookingTest } from "@/services/labBookingsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
@@ -567,7 +567,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         visit,
         patient: {
           id: patientData.id,
-          name: `${patientData.first_name} ${patientData.last_name || ""}`.trim(),
+          name: formatPatientName(patientData),
           mobile: patientData.mobile,
           healthId: patientData.abha_id || "",
           age: patientData.date_of_birth

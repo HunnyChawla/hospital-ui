@@ -23,6 +23,7 @@ export interface PatientApiResponse {
   id: string;
   tenant_id: string;
   uhid: string;
+  title: string | null;
   first_name: string;
   last_name: string | null;
   mobile: string;
@@ -39,6 +40,7 @@ export interface PatientApiResponse {
 }
 
 export interface CreatePatientRequest {
+  title?: string | null;
   first_name: string;
   last_name?: string | null;
   mobile: string;
@@ -53,6 +55,7 @@ export interface CreatePatientRequest {
 }
 
 export interface UpdatePatientRequest {
+  title?: string | null;
   first_name?: string;
   last_name?: string | null;
   mobile?: string;
@@ -88,11 +91,13 @@ const calculateAge = (dateOfBirth: string): number => {
 
 // Map API response to Patient type
 const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
-  const fullName = `${apiPatient.first_name} ${apiPatient.last_name || ""}`.trim();
+  const titlePrefix = apiPatient.title && !apiPatient.first_name.startsWith(apiPatient.title) ? `${apiPatient.title} ` : "";
+  const fullName = `${titlePrefix}${apiPatient.first_name} ${apiPatient.last_name || ""}`.trim();
   const gender = apiPatient.gender.charAt(0).toUpperCase() + apiPatient.gender.slice(1).toLowerCase();
 
   return {
     id: apiPatient.id,
+    title: apiPatient.title || undefined,
     name: fullName,
     age: calculateAge(apiPatient.date_of_birth),
     gender: (gender === "Male" || gender === "Female" ? gender : "Other") as "Male" | "Female" | "Other",
@@ -107,6 +112,13 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     state: apiPatient.state || undefined,
     pincode: apiPatient.pincode || undefined,
   };
+};
+
+// Helper function to format patient name with title
+export const formatPatientName = (patient: { title?: string | null; first_name?: string; last_name?: string | null }): string => {
+  if (!patient || !patient.first_name) return "";
+  const titlePrefix = patient.title && !patient.first_name.startsWith(patient.title) ? `${patient.title} ` : "";
+  return `${titlePrefix}${patient.first_name} ${patient.last_name || ""}`.trim();
 };
 
 export const patientsApi = {
