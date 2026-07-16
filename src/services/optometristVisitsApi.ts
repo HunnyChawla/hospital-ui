@@ -7,7 +7,9 @@ export interface OptometristVisitResponse {
   patient_id: string;
   patient_name: string;
   patient_mobile: string;
+  patient_category?: string | null;
   doctor_id: string;
+
   visit_type: "walk_in" | "appointment" | "emergency";
   visit_number: string;
   status: string;

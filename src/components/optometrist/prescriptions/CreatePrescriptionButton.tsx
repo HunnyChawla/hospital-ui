@@ -9,6 +9,7 @@ interface CreatePrescriptionButtonProps {
     patientId: string;
     patientName: string;
     patientUhid?: string;
+    patientCategory?: string;
     visitId: string;
     optometristId: string;
     doctorId: string;
@@ -21,6 +22,7 @@ export function CreatePrescriptionButton({
     patientId,
     patientName,
     patientUhid,
+    patientCategory,
     visitId,
     optometristId,
     doctorId,
@@ -28,6 +30,7 @@ export function CreatePrescriptionButton({
     onPrescriptionCreated,
     isCompleted = false,
 }: CreatePrescriptionButtonProps) {
+
     const [showModal, setShowModal] = useState(false);
     const [hasFinalizedPrescription, setHasFinalizedPrescription] = useState(false);
 

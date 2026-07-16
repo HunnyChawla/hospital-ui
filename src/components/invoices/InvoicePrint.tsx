@@ -147,7 +147,14 @@ export function InvoicePrint({ invoice, patientName, patientMobile, tests, booki
             <p className="text-[10px] text-slate-600">Status</p>
             <p className="font-semibold text-slate-900 capitalize">{invoice.status}</p>
           </div>
+          {patient?.category && (
+            <div>
+              <p className="text-[10px] text-slate-600">Category</p>
+              <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
+            </div>
+          )}
           {address && (
+
             <div className="col-span-4">
               <p className="text-[10px] text-slate-600">Address</p>
               <p className="font-semibold text-slate-900">{address}</p>

@@ -17,7 +17,9 @@ export type Patient = {
   city?: string;
   state?: string;
   pincode?: string;
+  category?: string;
 };
+
 
 export type Admission = {
   id: string;
