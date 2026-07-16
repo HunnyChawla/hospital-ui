@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useCreatePatient, useUpdatePatient, usePatient } from "@/hooks/queries/usePatients";
 import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
+import { patientCategoriesApi } from "@/services/patientCategoriesApi";
 import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "lucide-react";
+
 
 interface PatientFormProps {
   defaultValues?: Patient;
@@ -31,10 +33,41 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const [isNewborn, setIsNewborn] = useState<boolean>(false);
   const [parentName, setParentName] = useState<string>(defaultValues?.title === "Baby of" && defaultValues?.name ? (defaultValues.name.startsWith("Baby of ") ? defaultValues.name.substring(8) : defaultValues.name) : "");
 
+  const [categories, setCategories] = useState<string[]>([
+    "General",
+    "Staff",
+    "NFL",
+    "ECHS",
+    "Haryana Govt.",
+    "Central Govt.",
+    "Ayushman Bharat",
+    "ESI",
+    "EX_SERVICEMAN",
+    "STAFF_FAMILY",
+  ]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await patientCategoriesApi.list();
+        setCategories(data.map((c) => c.name));
+      } catch (err) {
+        console.error("Failed to load patient categories:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const { register, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<CreatePatientRequest>({
     mode: "onChange",
     reValidateMode: "onChange",
+    defaultValues: {
+      gender: "male",
+      category: "General",
+    }
   });
+
+
 
   // Watch newborn state to autofill fields
   useEffect(() => {
@@ -225,7 +258,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         city: apiData.city || "",
         state: apiData.state || "",
         pincode: apiData.pincode || "",
+        category: apiData.category || "General",
       });
+
+
 
       // Populate age fields from DOB
       setDobValue(dob);
@@ -261,7 +297,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         city: "",
         state: "",
         pincode: "",
+        category: "General",
       });
+
+
 
       // Clear age fields
       setDobValue("");
@@ -306,6 +345,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         city: values.city?.trim() || null,
         state: values.state?.trim() || null,
         pincode: values.pincode?.trim() || null,
+        category: values.category || "General",
       };
     } else {
       patientData = {
@@ -321,8 +361,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         city: values.city?.trim() || null,
         state: values.state?.trim() || null,
         pincode: values.pincode?.trim() || null,
+        category: values.category || "General",
       };
     }
+
 
     if (defaultValues) {
       // Update existing patient
@@ -610,16 +652,32 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         )}
       </label>
 
-      {/* Optional Fields */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">Optional Details</h3>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* Category */}
+          <label className="space-y-1">
+            <span className="text-slate-600">Category</span>
+            <select
+              {...register("category")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm appearance-none"
+              style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 0.75rem center", backgroundSize: "1rem" }}
+            >
+              <option value="">Select Category</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="space-y-1">
             <span className="text-slate-600">ABHA/Health ID</span>
             <input
               {...register("abha_id")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Enter ABHA ID"
             />
           </label>
@@ -628,16 +686,17 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <span className="text-slate-600">Address</span>
             <input
               {...register("address")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Street address"
             />
           </label>
+
 
           <label className="space-y-1">
             <span className="text-slate-600">City</span>
             <input
               {...register("city")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="City name"
             />
           </label>
@@ -646,7 +705,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <span className="text-slate-600">State</span>
             <input
               {...register("state")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="State"
             />
           </label>
@@ -655,11 +714,12 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <span className="text-slate-600">Pincode</span>
             <input
               {...register("pincode")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Pincode"
             />
           </label>
         </div>
+
       </div>
 
       {/* Action Buttons */}

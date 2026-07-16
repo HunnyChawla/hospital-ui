@@ -752,7 +752,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   <span>{patient.mobile}</span>
                   <span>•</span>
                   <span className="capitalize">{patient.status}</span>
+                  {patient.category && (
+                    <>
+                      <span>•</span>
+                      <span className="bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded font-medium border border-sky-200 uppercase text-[10px] tracking-wider">
+                        {patient.category}
+                      </span>
+                    </>
+                  )}
                 </div>
+
                 {(patient.address || patient.city || patient.state || patient.pincode) && (
                   <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                     <MapPin className="h-3 w-3 text-slate-400" />

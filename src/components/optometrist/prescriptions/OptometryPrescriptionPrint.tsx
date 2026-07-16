@@ -11,6 +11,7 @@ interface OptometryPrescriptionPrintProps {
   patientAge?: number;
   patientGender?: string;
   patientUhid?: string;
+  patientCategory?: string;
   optometristName: string;
   refractionOD?: RefractionRecord | null;
   refractionOS?: RefractionRecord | null;
@@ -26,12 +27,14 @@ export const OptometryPrescriptionPrint = forwardRef<
     patientAge,
     patientGender,
     patientUhid,
+    patientCategory,
     optometristName,
     refractionOD,
     refractionOS,
   },
   ref
 ) {
+
   const { tenant, hospitalName } = useTenant();
 
   // Format address
@@ -133,8 +136,15 @@ export const OptometryPrescriptionPrint = forwardRef<
             <p className="text-sm font-medium text-slate-600">Optometrist</p>
             <p className="text-base font-semibold text-slate-900">{optometristName}</p>
           </div>
+          {patientCategory && (
+            <div>
+              <p className="text-sm font-medium text-slate-600">Category</p>
+              <p className="text-base font-semibold text-slate-900 capitalize">{patientCategory}</p>
+            </div>
+          )}
         </div>
       </div>
+
 
       {/* Refraction Details */}
       {(refractionOD || refractionOS) && (

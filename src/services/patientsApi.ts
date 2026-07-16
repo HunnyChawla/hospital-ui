@@ -35,9 +35,11 @@ export interface PatientApiResponse {
   city: string | null;
   state: string | null;
   pincode: string | null;
+  category: string | null;
   created_at: string;
   updated_at: string;
 }
+
 
 export interface CreatePatientRequest {
   title?: string | null;
@@ -52,7 +54,9 @@ export interface CreatePatientRequest {
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
+  category?: string | null;
 }
+
 
 export interface UpdatePatientRequest {
   title?: string | null;
@@ -67,7 +71,9 @@ export interface UpdatePatientRequest {
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
+  category?: string | null;
 }
+
 
 export interface PatientsSearchResponse {
   items: PatientApiResponse[];
@@ -111,8 +117,10 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     city: apiPatient.city || undefined,
     state: apiPatient.state || undefined,
     pincode: apiPatient.pincode || undefined,
+    category: apiPatient.category || undefined,
   };
 };
+
 
 // Helper function to format patient name with title
 export const formatPatientName = (patient: { title?: string | null; first_name?: string; last_name?: string | null }): string => {

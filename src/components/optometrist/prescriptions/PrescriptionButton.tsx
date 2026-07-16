@@ -30,6 +30,7 @@ interface PrescriptionButtonProps {
   patientAge?: number;
   patientGender?: string;
   patientUhid?: string;
+  patientCategory?: string;
   visitId: string;
   optometristId: string;
   optometristName: string;
@@ -44,6 +45,7 @@ export function PrescriptionButton({
   patientAge,
   patientGender,
   patientUhid,
+  patientCategory,
   visitId,
   optometristId,
   optometristName,
@@ -51,6 +53,7 @@ export function PrescriptionButton({
   latestRefractionOS,
   currentSpecs,
 }: PrescriptionButtonProps) {
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPrescription, setCurrentPrescription] = useState<any>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -147,10 +150,12 @@ export function PrescriptionButton({
               patientAge={patientAge}
               patientGender={patientGender}
               patientUhid={patientUhid}
+              patientCategory={patientCategory}
               optometristName={optometristName}
               refractionOD={latestRefractionOD}
               refractionOS={latestRefractionOS}
             />
+
           </div>
         </div>
       )}

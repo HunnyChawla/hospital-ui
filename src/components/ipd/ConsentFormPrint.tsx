@@ -144,7 +144,14 @@ export function ConsentFormPrint({ admission, patient }: ConsentFormPrintProps) 
             <span className="font-semibold">Ward / Room No:</span>{" "}
             <span className="border-b border-slate-400 px-2">{wardRoom}</span>
           </div>
+          {patient.category && (
+            <div>
+              <span className="font-semibold">Category:</span>{" "}
+              <span className="border-b border-slate-400 px-2 capitalize">{patient.category}</span>
+            </div>
+          )}
         </div>
+
       </div>
 
       {/* Attendant / Guardian Details */}

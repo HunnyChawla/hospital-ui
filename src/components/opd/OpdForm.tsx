@@ -640,8 +640,10 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
               ) : consultationFee ? (
                 <div>
                   <span className="text-xl font-bold text-slate-900">{currency(parseFloat(consultationFee))}</span>
-                  {feeCalculation && (
+                   {feeCalculation && (
                     <div className="mt-1 flex items-center gap-2 text-xs text-slate-600">
+                      <span>{feeCalculation.patient_category_used || "General"}</span>
+                      <span>•</span>
                       <span>{feeCalculation.patient_type_used}</span>
                       <span>•</span>
                       <span>{feeCalculation.shift}</span>

@@ -104,7 +104,14 @@ export function DischargeSummaryPrint({ admission, patient }: DischargeSummaryPr
             <p className="text-[10px] text-slate-600">Mobile</p>
             <p className="font-semibold text-slate-900">{patient.mobile}</p>
           </div>
+          {patient.category && (
+            <div>
+              <p className="text-[10px] text-slate-600">Category</p>
+              <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
+            </div>
+          )}
           {patient.email && (
+
             <div>
               <p className="text-[10px] text-slate-600">Email</p>
               <p className="font-semibold text-slate-900">{patient.email}</p>
