@@ -170,7 +170,7 @@ export function ConsultationFeeForm({ doctorId, onSuccess }: ConsultationFeeForm
             const val = data[key];
             
             // For special categories, skip if it's empty (NaN, null, undefined)
-            if (!isGeneralSelected && (val === undefined || val === null || isNaN(val) || val === "")) {
+            if (!isGeneralSelected && (val === undefined || val === null || isNaN(val) || (val as any) === "")) {
               return;
             }
 
