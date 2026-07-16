@@ -17,7 +17,7 @@ import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { useAppSelector } from "@/redux/hooks";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
@@ -164,7 +164,7 @@ export function DoctorPanel() {
     try {
       const patient = await patientsApi.getById(patientId);
       setSelectedPatientName(
-        `${patient.first_name} ${patient.last_name || ""}`.trim()
+        formatPatientName(patient)
       );
       setSelectedPatientUhid(patient.uhid);
     } catch (error) {
@@ -521,7 +521,7 @@ export function DoctorPanel() {
             <OpdSlipPrint
               patient={{
                 id: printVisitData.patient.id,
-                name: `${printVisitData.patient.first_name} ${printVisitData.patient.last_name || ""}`.trim(),
+                name: formatPatientName(printVisitData.patient),
                 mobile: printVisitData.patient.mobile,
                 healthId: printVisitData.patient.abha_id || "",
                 age: printVisitData.patient.date_of_birth

@@ -8,7 +8,7 @@ import {
   PrescriptionItemRequest,
   PrescriptionResponse,
 } from "@/services/prescriptionsApi";
-import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
+import { patientsApi, PatientApiResponse, formatPatientName } from "@/services/patientsApi";
 import { doctorsApi, Doctor } from "@/services/doctorsApi";
 import {
   usePrescriptionTemplates,
@@ -427,7 +427,7 @@ export function PrescriptionForm({
   };
 
   const patientInfo = patient
-    ? `${patient.first_name} ${patient.last_name || ""}`.trim() +
+    ? formatPatientName(patient) +
       (patient.date_of_birth ? ` (${calculateAge(patient.date_of_birth)}${patient.gender ? patient.gender.charAt(0).toUpperCase() : ""})` : "") +
       (patient.uhid ? ` • ${patient.uhid}` : "")
     : "Loading...";

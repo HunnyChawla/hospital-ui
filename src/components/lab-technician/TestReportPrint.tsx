@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { LabBooking, LabBookingTest } from "@/services/labBookingsApi";
 import { LabTestResult } from "@/services/labTestsApi";
-import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
+import { PatientApiResponse, patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
@@ -64,7 +64,7 @@ export function TestReportPrint({
 
   // Format full name
   const fullName = patient
-    ? `${patient.first_name} ${patient.last_name || ""}`.trim()
+    ? formatPatientName(patient)
     : patientName;
 
   // Format address

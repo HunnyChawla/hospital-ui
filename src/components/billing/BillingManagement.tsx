@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi } from "@/services/paymentsApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
@@ -284,7 +284,7 @@ export function BillingManagement({
 
       if (!fullInvoice.patient_name || !fullInvoice.patient_mobile) {
         const patient = await patientsApi.getById(fullInvoice.patient_id);
-        patientName = `${patient.first_name} ${patient.last_name || ""}`.trim();
+        patientName = formatPatientName(patient);
         patientMobile = patient.mobile;
       }
 

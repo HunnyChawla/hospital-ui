@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/common/Modal";
 import { invoicesApi, Invoice, InvoiceStatus } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { analyticsApi } from "@/services/analyticsApi";
 import { currency, formatDate } from "@/utils/format";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -293,7 +293,7 @@ export function PaymentSummaryModal({
             });
             return {
               ...invoice,
-              patient_name: `${patient.first_name} ${patient.last_name || ""}`.trim(),
+              patient_name: formatPatientName(patient),
               patient_mobile: patient.mobile,
               payments: paymentsResponse.items,
             };
