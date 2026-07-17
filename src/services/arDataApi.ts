@@ -10,13 +10,21 @@ export interface CreateARDataRequest {
   od_sphere: number | null;
   od_cylinder: number | null;
   od_axis: number | null;
-  od_visual_acuity: string | null;
+  od_visual_acuity?: string | null;
   os_sphere: number | null;
   os_cylinder: number | null;
   os_axis: number | null;
-  os_visual_acuity: string | null;
+  os_visual_acuity?: string | null;
   pupillary_distance: number | null;
   notes: string | null;
+
+  // New fields
+  od_wet_sphere?: number | null;
+  od_wet_cylinder?: number | null;
+  od_wet_axis?: number | null;
+  os_wet_sphere?: number | null;
+  os_wet_cylinder?: number | null;
+  os_wet_axis?: number | null;
 }
 
 // Search/List params and response

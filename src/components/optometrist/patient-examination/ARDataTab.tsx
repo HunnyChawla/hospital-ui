@@ -36,6 +36,16 @@ interface ARDataFormData {
     cylinder: number | string | null;
     axis: number | string | null;
   };
+  od_wet: {
+    sphere: number | string | null;
+    cylinder: number | string | null;
+    axis: number | string | null;
+  };
+  os_wet: {
+    sphere: number | string | null;
+    cylinder: number | string | null;
+    axis: number | string | null;
+  };
   pupillary_distance: number | string | null;
   notes: string;
 }
@@ -43,6 +53,8 @@ interface ARDataFormData {
 const initialFormData: ARDataFormData = {
   od: { sphere: null, cylinder: null, axis: null },
   os: { sphere: null, cylinder: null, axis: null },
+  od_wet: { sphere: null, cylinder: null, axis: null },
+  os_wet: { sphere: null, cylinder: null, axis: null },
   pupillary_distance: null,
   notes: "",
 };
@@ -85,11 +97,9 @@ export function ARDataTab({
     if (Number.isNaN(num)) return `${value}`;
     if (type === "axis") return `${Math.round(num)}°`;
     return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
-  };
-
-  // Update form field
+  }  // Update form field
   const updateField = (
-    eye: "od" | "os",
+    eye: "od" | "os" | "od_wet" | "os_wet",
     field: keyof ARDataFormData["od"],
     value: number | string | null
   ) => {
@@ -101,32 +111,31 @@ export function ARDataTab({
 
   // Handle copy from previous
   const handleCopyFromPrevious = (data: unknown) => {
-    const prevData = data as {
-      od: { sphere: number; cylinder: number | null; axis: number | null; pupillary_distance: number | null } | null;
-      os: { sphere: number; cylinder: number | null; axis: number | null; pupillary_distance: number | null } | null;
-    };
-
-    if (prevData.od) {
+    const prevCombined = data as any;
+    if (prevCombined) {
       setFormData((prev) => ({
         ...prev,
         od: {
-          ...prev.od,
-          sphere: prevData.od!.sphere,
-          cylinder: prevData.od!.cylinder,
-          axis: prevData.od!.axis,
+          sphere: prevCombined.od_sphere ?? prevCombined.od?.sphere ?? prev.od.sphere,
+          cylinder: prevCombined.od_cylinder ?? prevCombined.od?.cylinder ?? prev.od.cylinder,
+          axis: prevCombined.od_axis ?? prevCombined.od?.axis ?? prev.od.axis,
         },
-        pupillary_distance: prevData.od!.pupillary_distance || prev.pupillary_distance,
-      }));
-    }
-    if (prevData.os) {
-      setFormData((prev) => ({
-        ...prev,
         os: {
-          ...prev.os,
-          sphere: prevData.os!.sphere,
-          cylinder: prevData.os!.cylinder,
-          axis: prevData.os!.axis,
+          sphere: prevCombined.os_sphere ?? prevCombined.os?.sphere ?? prev.os.sphere,
+          cylinder: prevCombined.os_cylinder ?? prevCombined.os?.cylinder ?? prev.os.cylinder,
+          axis: prevCombined.os_axis ?? prevCombined.os?.axis ?? prev.os.axis,
         },
+        od_wet: {
+          sphere: prevCombined.od_wet_sphere ?? prevCombined.od_wet?.sphere ?? prev.od_wet.sphere,
+          cylinder: prevCombined.od_wet_cylinder ?? prevCombined.od_wet?.cylinder ?? prev.od_wet.cylinder,
+          axis: prevCombined.od_wet_axis ?? prevCombined.od_wet?.axis ?? prev.od_wet.axis,
+        },
+        os_wet: {
+          sphere: prevCombined.os_wet_sphere ?? prevCombined.os_wet?.sphere ?? prev.os_wet.sphere,
+          cylinder: prevCombined.os_wet_cylinder ?? prevCombined.os_wet?.cylinder ?? prev.os_wet.cylinder,
+          axis: prevCombined.os_wet_axis ?? prevCombined.os_wet?.axis ?? prev.os_wet.axis,
+        },
+        pupillary_distance: prevCombined.pupillary_distance ?? prev.pupillary_distance,
       }));
     }
     toast.success("Copied previous AR data");
@@ -165,6 +174,16 @@ export function ARDataTab({
           cylinder: visitCombinedRecord.os_cylinder ?? null,
           axis: visitCombinedRecord.os_axis ?? null,
         },
+        od_wet: {
+          sphere: visitCombinedRecord.od_wet_sphere ?? null,
+          cylinder: visitCombinedRecord.od_wet_cylinder ?? null,
+          axis: visitCombinedRecord.od_wet_axis ?? null,
+        },
+        os_wet: {
+          sphere: visitCombinedRecord.os_wet_sphere ?? null,
+          cylinder: visitCombinedRecord.os_wet_cylinder ?? null,
+          axis: visitCombinedRecord.os_wet_axis ?? null,
+        },
         pupillary_distance: visitCombinedRecord.pupillary_distance ?? null,
         notes: visitCombinedRecord.notes ?? "",
       });
@@ -180,6 +199,16 @@ export function ARDataTab({
           sphere: visitOS?.sphere ?? null,
           cylinder: visitOS?.cylinder ?? null,
           axis: visitOS?.axis ?? null,
+        },
+        od_wet: {
+          sphere: visitOD?.od_wet_sphere ?? null,
+          cylinder: visitOD?.od_wet_cylinder ?? null,
+          axis: visitOD?.od_wet_axis ?? null,
+        },
+        os_wet: {
+          sphere: visitOS?.os_wet_sphere ?? null,
+          cylinder: visitOS?.os_wet_cylinder ?? null,
+          axis: visitOS?.os_wet_axis ?? null,
         },
         pupillary_distance: visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
         notes: visitOD?.notes ?? visitOS?.notes ?? "",
@@ -200,9 +229,11 @@ export function ARDataTab({
       return;
     }
 
-    // At least one eye should have data
-    const odHasData = formData.od.sphere !== null && formData.od.sphere !== undefined && formData.od.sphere !== "";
-    const osHasData = formData.os.sphere !== null && formData.os.sphere !== undefined && formData.os.sphere !== "";
+    // At least one eye should have data (either dry or wet)
+    const odHasData = (formData.od.sphere !== null && formData.od.sphere !== undefined && formData.od.sphere !== "") ||
+                      (formData.od_wet.sphere !== null && formData.od_wet.sphere !== undefined && formData.od_wet.sphere !== "");
+    const osHasData = (formData.os.sphere !== null && formData.os.sphere !== undefined && formData.os.sphere !== "") ||
+                      (formData.os_wet.sphere !== null && formData.os_wet.sphere !== undefined && formData.os_wet.sphere !== "");
 
     if (!odHasData && !osHasData) {
       toast.error("Please enter AR data for at least one eye");
@@ -222,6 +253,12 @@ export function ARDataTab({
         os_sphere: formData.os.sphere === "" || formData.os.sphere === null ? null : Number(formData.os.sphere),
         os_cylinder: formData.os.cylinder === "" || formData.os.cylinder === null ? null : Number(formData.os.cylinder),
         os_axis: formData.os.axis === "" || formData.os.axis === null ? null : Number(formData.os.axis),
+        od_wet_sphere: formData.od_wet.sphere === "" || formData.od_wet.sphere === null ? null : Number(formData.od_wet.sphere),
+        od_wet_cylinder: formData.od_wet.cylinder === "" || formData.od_wet.cylinder === null ? null : Number(formData.od_wet.cylinder),
+        od_wet_axis: formData.od_wet.axis === "" || formData.od_wet.axis === null ? null : Number(formData.od_wet.axis),
+        os_wet_sphere: formData.os_wet.sphere === "" || formData.os_wet.sphere === null ? null : Number(formData.os_wet.sphere),
+        os_wet_cylinder: formData.os_wet.cylinder === "" || formData.os_wet.cylinder === null ? null : Number(formData.os_wet.cylinder),
+        os_wet_axis: formData.os_wet.axis === "" || formData.os_wet.axis === null ? null : Number(formData.os_wet.axis),
         pupillary_distance: formData.pupillary_distance === "" || formData.pupillary_distance === null ? null : Number(formData.pupillary_distance),
         notes: formData.notes || null,
       };
@@ -335,58 +372,122 @@ export function ARDataTab({
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* OD Display */}
-            <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
+            <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4 space-y-4">
+              <div className="flex items-center gap-2">
                 <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
                 <h5 className="font-semibold text-blue-900">OD (Right Eye)</h5>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="space-y-3">
+                {/* Dry AR */}
                 <div>
-                  <p className="text-xs text-slate-500">SPH</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatValue(visitCombinedRecord?.od_sphere ?? visitOD?.sphere, "sphere")}
-                  </p>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Dry AR</span>
+                  <div className="grid grid-cols-3 gap-3 text-center mt-1 bg-white/50 rounded-lg p-2 border border-blue-100">
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-semibold">SPH</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {formatValue(visitCombinedRecord?.od_sphere ?? visitOD?.sphere, "sphere")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-semibold">CYL</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {formatValue(visitCombinedRecord?.od_cylinder ?? visitOD?.cylinder, "cylinder")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-semibold">AXIS</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {formatValue(visitCombinedRecord?.od_axis ?? visitOD?.axis, "axis")}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">CYL</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatValue(visitCombinedRecord?.od_cylinder ?? visitOD?.cylinder, "cylinder")}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">AXIS</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatValue(visitCombinedRecord?.od_axis ?? visitOD?.axis, "axis")}
-                  </p>
-                </div>
+                {/* Wet AR */}
+                {(visitCombinedRecord?.od_wet_sphere != null || visitOD?.od_wet_sphere != null) && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Wet AR (Dilated)</span>
+                    <div className="grid grid-cols-3 gap-3 text-center mt-1 bg-white/50 rounded-lg p-2 border border-blue-100">
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-semibold">SPH</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatValue(visitCombinedRecord?.od_wet_sphere ?? visitOD?.od_wet_sphere, "sphere")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-semibold">CYL</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatValue(visitCombinedRecord?.od_wet_cylinder ?? visitOD?.od_wet_cylinder, "cylinder")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-semibold">AXIS</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatValue(visitCombinedRecord?.od_wet_axis ?? visitOD?.od_wet_axis, "axis")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* OS Display */}
-            <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
+            <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4 space-y-4">
+              <div className="flex items-center gap-2">
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
                 <h5 className="font-semibold text-green-900">OS (Left Eye)</h5>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="space-y-3">
+                {/* Dry AR */}
                 <div>
-                  <p className="text-xs text-slate-500">SPH</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatValue(visitCombinedRecord?.os_sphere ?? visitOS?.sphere, "sphere")}
-                  </p>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Dry AR</span>
+                  <div className="grid grid-cols-3 gap-3 text-center mt-1 bg-white/50 rounded-lg p-2 border border-green-100">
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-semibold">SPH</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {formatValue(visitCombinedRecord?.os_sphere ?? visitOS?.sphere, "sphere")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-semibold">CYL</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {formatValue(visitCombinedRecord?.os_cylinder ?? visitOS?.cylinder, "cylinder")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-semibold">AXIS</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {formatValue(visitCombinedRecord?.os_axis ?? visitOS?.axis, "axis")}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">CYL</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatValue(visitCombinedRecord?.os_cylinder ?? visitOS?.cylinder, "cylinder")}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">AXIS</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatValue(visitCombinedRecord?.os_axis ?? visitOS?.axis, "axis")}
-                  </p>
-                </div>
+                {/* Wet AR */}
+                {(visitCombinedRecord?.os_wet_sphere != null || visitOS?.os_wet_sphere != null) && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Wet AR (Dilated)</span>
+                    <div className="grid grid-cols-3 gap-3 text-center mt-1 bg-white/50 rounded-lg p-2 border border-green-100">
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-semibold">SPH</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatValue(visitCombinedRecord?.os_wet_sphere ?? visitOS?.os_wet_sphere, "sphere")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-semibold">CYL</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatValue(visitCombinedRecord?.os_wet_cylinder ?? visitOS?.os_wet_cylinder, "cylinder")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-semibold">AXIS</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatValue(visitCombinedRecord?.os_wet_axis ?? visitOS?.os_wet_axis, "axis")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -470,6 +571,53 @@ export function ARDataTab({
               unit="°"
               presets={axisPresets}
             />
+
+            {/* Wet AR (Dilated) Section */}
+            <div className="border-t border-slate-200 pt-6 space-y-6">
+              <div>
+                <h5 className="text-sm font-semibold text-slate-800">Wet AR (Dilated)</h5>
+                <p className="text-xs text-slate-500">Record auto-refraction post-dilation</p>
+              </div>
+
+              <EyeValueInput
+                label="Sphere (SPH)"
+                odValue={formData.od_wet.sphere === "" || formData.od_wet.sphere === null ? null : Number(formData.od_wet.sphere)}
+                osValue={formData.os_wet.sphere === "" || formData.os_wet.sphere === null ? null : Number(formData.os_wet.sphere)}
+                onODChange={(v) => updateField("od_wet", "sphere", v)}
+                onOSChange={(v) => updateField("os_wet", "sphere", v)}
+                step={0.25}
+                min={-30}
+                max={30}
+                unit="D"
+                presets={spherePresets}
+              />
+
+              <EyeValueInput
+                label="Cylinder (CYL)"
+                odValue={formData.od_wet.cylinder === "" || formData.od_wet.cylinder === null ? null : Number(formData.od_wet.cylinder)}
+                osValue={formData.os_wet.cylinder === "" || formData.os_wet.cylinder === null ? null : Number(formData.os_wet.cylinder)}
+                onODChange={(v) => updateField("od_wet", "cylinder", v)}
+                onOSChange={(v) => updateField("os_wet", "cylinder", v)}
+                step={0.25}
+                min={-6}
+                max={6}
+                unit="D"
+                presets={cylinderPresets}
+              />
+
+              <EyeValueInput
+                label="Axis"
+                odValue={formData.od_wet.axis === "" || formData.od_wet.axis === null ? null : Number(formData.od_wet.axis)}
+                osValue={formData.os_wet.axis === "" || formData.os_wet.axis === null ? null : Number(formData.os_wet.axis)}
+                onODChange={(v) => updateField("od_wet", "axis", v)}
+                onOSChange={(v) => updateField("os_wet", "axis", v)}
+                step={1}
+                min={0}
+                max={180}
+                unit="°"
+                presets={axisPresets}
+              />
+            </div>
 
             {/* Pupillary Distance */}
             <div className="border-t border-slate-200 pt-6">

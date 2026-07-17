@@ -30,6 +30,20 @@ export interface CreateRefractionRequest {
   pupillary_distance?: number | null;
   notes: string | null;
   recorded_at?: string;
+
+  // New fields
+  od_prism?: string | null;
+  os_prism?: string | null;
+  od_dilated_sphere?: number | null;
+  od_dilated_cylinder?: number | null;
+  od_dilated_axis?: number | null;
+  od_dilated_visual_acuity?: string | null;
+  od_dilated_pinhole?: string | null;
+  os_dilated_sphere?: number | null;
+  os_dilated_cylinder?: number | null;
+  os_dilated_axis?: number | null;
+  os_dilated_visual_acuity?: string | null;
+  os_dilated_pinhole?: string | null;
 }
 
 export interface UpdateRefractionRequest {
@@ -43,6 +57,40 @@ export interface UpdateRefractionRequest {
   add_power?: number | null;
   pupillary_distance?: number | null;
   notes?: string | null;
+
+  // New fields
+  od?: {
+    sphere: number | null;
+    cylinder: number | null;
+    axis: number | null;
+    visual_acuity_uncorrected: string;
+    visual_acuity_corrected: string;
+    distance_bcva: string;
+    near_bcva: string;
+    add_power: number | null;
+  };
+  os?: {
+    sphere: number | null;
+    cylinder: number | null;
+    axis: number | null;
+    visual_acuity_uncorrected: string;
+    visual_acuity_corrected: string;
+    distance_bcva: string;
+    near_bcva: string;
+    add_power: number | null;
+  };
+  od_prism?: string | null;
+  os_prism?: string | null;
+  od_dilated_sphere?: number | null;
+  od_dilated_cylinder?: number | null;
+  od_dilated_axis?: number | null;
+  od_dilated_visual_acuity?: string | null;
+  od_dilated_pinhole?: string | null;
+  os_dilated_sphere?: number | null;
+  os_dilated_cylinder?: number | null;
+  os_dilated_axis?: number | null;
+  os_dilated_visual_acuity?: string | null;
+  os_dilated_pinhole?: string | null;
 }
 
 // Search/List params and response

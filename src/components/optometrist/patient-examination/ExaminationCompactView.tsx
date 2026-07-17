@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
 import { useExaminationViewContext } from "@/context/ExaminationViewContext";
+import clsx from "clsx";
 import {
     MessageSquare,
     FileHeart,
@@ -28,6 +29,7 @@ import {
     DrugAllergiesSummary,
     MedicalHistorySummary,
     CurrentSpecsSummary,
+    MergedVisionSummary,
     type SummaryStatus,
 } from "./CompactDataSummary";
 import { DataEditModal } from "./DataEditModal";
@@ -35,6 +37,7 @@ import { DataEditModal } from "./DataEditModal";
 // Import tab components
 import { ComplaintsTab } from "./ComplaintsTab";
 import { VisionTab } from "./VisionTab";
+import { MergedVisionTab } from "./MergedVisionTab";
 import { CurrentSpecsTab } from "./CurrentSpecsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
@@ -117,6 +120,7 @@ interface ExaminationCompactViewProps {
     refreshIOP: () => void;
     refreshVision: () => void;
     refreshCurrentSpecs?: () => void;
+    refreshUnifiedExam?: () => void;
 }
 
 interface SectionConfig {
@@ -164,9 +168,10 @@ export function ExaminationCompactView({
     refreshIOP,
     refreshVision,
     refreshCurrentSpecs,
+    refreshUnifiedExam,
 }: ExaminationCompactViewProps) {
     const dispatch = useAppDispatch();
-    const { hiddenTabs } = useExaminationViewContext();
+    const { hiddenTabs, useMergedVisionView, setUseMergedVisionView } = useExaminationViewContext();
     const [activeModal, setActiveModal] = useState<SectionId | null>(null);
 
     // Refresh medical conditions when modal closes
@@ -176,6 +181,16 @@ export function ExaminationCompactView({
             refreshMedicalHistory();
         }
     };
+
+    // Dynamically compute sections list based on layout preference
+    const visibleSections = useMemo(() => {
+        if (useMergedVisionView) {
+            return sections
+                .filter((s) => s.id !== "ar_data" && s.id !== "refraction" && s.id !== "current_specs")
+                .map((s) => (s.id === "vision" ? { ...s, title: "Vision & Refraction" } : s));
+        }
+        return sections;
+    }, [useMergedVisionView]);
 
     // Get current visit records
     const currentVisionRecord = useMemo(
@@ -199,7 +214,7 @@ export function ExaminationCompactView({
         [iopRecords, visitId]
     );
 
-    // Calculate section statuses
+    // Calculate base section statuses
     const sectionStatuses = useMemo(
         () => ({
             complaints: getComplaintsStatus(complaints) as SummaryStatus,
@@ -226,15 +241,39 @@ export function ExaminationCompactView({
         ]
     );
 
+    // Compute final section statuses (including merged vision status if layout is merged)
+    const finalSectionStatuses = useMemo(() => {
+        const statuses = { ...sectionStatuses };
+        if (useMergedVisionView) {
+            const mergedFields = [
+                sectionStatuses.vision,
+                sectionStatuses.ar_data,
+                sectionStatuses.refraction,
+                sectionStatuses.current_specs,
+            ];
+            let combined: SummaryStatus = "empty";
+            if (mergedFields.includes("partial")) {
+                combined = "partial";
+            } else if (mergedFields.includes("complete")) {
+                combined = "complete";
+            }
+            statuses.vision = combined;
+        }
+        return statuses;
+    }, [sectionStatuses, useMergedVisionView]);
+
     // Calculate overall progress based on visible sections
     const completedCount = useMemo(() => {
-        return sections
+        return visibleSections
             .filter((s) => !hiddenTabs.includes(s.id))
-            .filter((s) => sectionStatuses[s.id] === "complete")
+            .filter((s) => finalSectionStatuses[s.id] === "complete")
             .length;
-    }, [sectionStatuses, hiddenTabs]);
+    }, [finalSectionStatuses, hiddenTabs, visibleSections]);
 
-    const totalSections = sections.filter((s) => !hiddenTabs.includes(s.id)).length;
+    const totalSections = useMemo(() => {
+        return visibleSections.filter((s) => !hiddenTabs.includes(s.id)).length;
+    }, [visibleSections, hiddenTabs]);
+
     // Avoid division by zero
     const progressPercent = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
@@ -253,6 +292,17 @@ export function ExaminationCompactView({
                 return drugAllergies.length > 0
                     ? `${drugAllergies.length} item${drugAllergies.length > 1 ? "s" : ""}`
                     : undefined;
+            case "vision":
+                if (useMergedVisionView) {
+                    const filledCount = [
+                        sectionStatuses.vision !== "empty",
+                        sectionStatuses.ar_data !== "empty",
+                        sectionStatuses.refraction !== "empty",
+                        sectionStatuses.current_specs !== "empty",
+                    ].filter(Boolean).length;
+                    return filledCount > 0 ? `${filledCount} of 4 components` : undefined;
+                }
+                return undefined;
             default:
                 return undefined;
         }
@@ -264,7 +314,16 @@ export function ExaminationCompactView({
             case "complaints":
                 return <ComplaintsSummary complaints={complaints} />;
             case "vision":
-                return <VisionSummary record={currentVisionRecord} />;
+                return useMergedVisionView ? (
+                    <MergedVisionSummary
+                        visionRecord={currentVisionRecord}
+                        arRecord={currentARRecord}
+                        refractionRecord={currentRefractionRecord}
+                        specsRecord={currentSpecsRecords?.find(r => r.visit_id === visitId)}
+                    />
+                ) : (
+                    <VisionSummary record={currentVisionRecord} />
+                );
             case "medical_history":
                 return <MedicalHistorySummary conditions={medicalConditions} />;
             case "ophthalmic_history":
@@ -299,7 +358,24 @@ export function ExaminationCompactView({
                     />
                 );
             case "vision":
-                return (
+                return useMergedVisionView ? (
+                    <MergedVisionTab
+                        patientId={patientId}
+                        visitId={visitId}
+                        optometristId={optometristId}
+                        visionRecords={visionRecords}
+                        arDataRecords={arDataRecords}
+                        refractionRecords={refractionRecords}
+                        currentSpecsRecords={currentSpecsRecords || []}
+                        loading={{
+                            vision: loading.vision,
+                            arData: loading.arData,
+                            refraction: loading.refraction,
+                            currentSpecs: loading.currentSpecs || false,
+                        }}
+                        onRefresh={refreshUnifiedExam || (() => {})}
+                    />
+                ) : (
                     <VisionTab
                         patientId={patientId}
                         visitId={visitId}
@@ -377,7 +453,7 @@ export function ExaminationCompactView({
                         optometristId={optometristId}
                         currentSpecsRecords={currentSpecsRecords || []}
                         loading={loading.currentSpecs || false}
-                        onRefresh={refreshCurrentSpecs || (() => { })}
+                        onRefresh={refreshCurrentSpecs || (() => {})}
                     />
                 );
             default:
@@ -386,7 +462,7 @@ export function ExaminationCompactView({
     };
 
     // Find active modal config
-    const activeModalConfig = activeModal ? sections.find((s) => s.id === activeModal) : null;
+    const activeModalConfig = activeModal ? visibleSections.find((s) => s.id === activeModal) : null;
 
     return (
         <div className="space-y-3 pb-5">
@@ -401,7 +477,38 @@ export function ExaminationCompactView({
                             </span>
                         </div>
                     </div>
-                    <span className="text-xs font-bold text-sky-600">{progressPercent}%</span>
+                    <div className="flex items-center gap-2">
+                        {/* Layout Mode Toggle */}
+                        <button
+                            onClick={() => setUseMergedVisionView(!useMergedVisionView)}
+                            className={clsx(
+                                "flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold shadow-sm transition-all duration-200 border bg-white",
+                                useMergedVisionView
+                                    ? "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100"
+                                    : "text-slate-700 border-slate-200 hover:bg-slate-50"
+                            )}
+                            title={useMergedVisionView ? "Switch to separate sections" : "Switch to merged vision & refraction"}
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-3 w-3"
+                            >
+                                <rect width="18" height="18" x="3" y="3" rx="2" />
+                                <path d="M3 9h18" />
+                                <path d="M9 21V9" />
+                            </svg>
+                            <span>{useMergedVisionView ? "Merged" : "Tabbed"}</span>
+                        </button>
+                        <span className="text-xs font-bold text-sky-600 ml-1">{progressPercent}%</span>
+                    </div>
                 </div>
 
                 {/* Progress Bar */}
@@ -414,11 +521,11 @@ export function ExaminationCompactView({
 
                 {/* Quick Navigation */}
                 <div className="flex flex-wrap gap-2">
-                    {sections.map((section) => {
+                    {visibleSections.map((section) => {
                         // Skip if section is hidden
                         if (hiddenTabs.includes(section.id)) return null;
 
-                        const status = sectionStatuses[section.id];
+                        const status = finalSectionStatuses[section.id];
                         const isComplete = status === "complete";
                         const isPartial = status === "partial";
 
@@ -426,12 +533,13 @@ export function ExaminationCompactView({
                             <button
                                 key={section.id}
                                 onClick={() => setActiveModal(section.id)}
-                                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${isComplete
-                                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                    : isPartial
+                                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                                    isComplete
+                                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                        : isPartial
                                         ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
                                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                    }`}
+                                }`}
                             >
                                 {isComplete ? (
                                     <CheckCircle2 className="h-3 w-3" />
@@ -447,12 +555,12 @@ export function ExaminationCompactView({
 
             {/* Compact Section Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {sections.map((section) => {
+                {visibleSections.map((section) => {
                     // Skip if section is hidden
                     if (hiddenTabs.includes(section.id)) return null;
 
                     const SectionIcon = section.icon;
-                    const status = sectionStatuses[section.id];
+                    const status = finalSectionStatuses[section.id];
 
                     return (
                         <CompactDataSummary

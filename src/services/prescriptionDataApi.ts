@@ -41,6 +41,14 @@ export interface PrescriptionDataResponse {
     updated_at: string;
     created_by: string;
     updated_by: string | null;
+
+    // Wet AR fields
+    od_wet_sphere?: string | null;
+    od_wet_cylinder?: string | null;
+    od_wet_axis?: number | null;
+    os_wet_sphere?: string | null;
+    os_wet_cylinder?: string | null;
+    os_wet_axis?: number | null;
   } | null;
   refraction: {
     id: string;
@@ -70,6 +78,20 @@ export interface PrescriptionDataResponse {
     updated_at: string;
     created_by: string;
     updated_by: string | null;
+
+    // Prism and Dilated Acceptance fields
+    od_prism?: string | null;
+    os_prism?: string | null;
+    od_dilated_sphere?: string | null;
+    od_dilated_cylinder?: string | null;
+    od_dilated_axis?: number | null;
+    od_dilated_visual_acuity?: string | null;
+    od_dilated_pinhole?: string | null;
+    os_dilated_sphere?: string | null;
+    os_dilated_cylinder?: string | null;
+    os_dilated_axis?: number | null;
+    os_dilated_visual_acuity?: string | null;
+    os_dilated_pinhole?: string | null;
   } | null;
   iop: {
     id: string;
