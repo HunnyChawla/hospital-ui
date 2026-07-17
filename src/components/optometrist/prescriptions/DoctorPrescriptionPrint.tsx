@@ -69,12 +69,13 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
         const complaintsCount = visitData?.complaints?.length || 0;
         const surgeriesCount = plannedSurgeries?.length || 0;
         const visionTableVisible = !!(visitData?.vision || visitData?.iop) && (!visibleSections || visibleSections.includes("Vision"));
-        const refractionVisible = !!visitData?.refraction && (!visibleSections || visibleSections.includes("Refraction"));
+        const refractionDryVisible = !!(visitData?.refraction?.od_sphere || visitData?.refraction?.os_sphere) && (!visibleSections || visibleSections.includes("Refraction (Dry)"));
+        const refractionDilatedVisible = !!(visitData?.refraction?.od_dilated_sphere || visitData?.refraction?.os_dilated_sphere) && (!visibleSections || visibleSections.includes("Refraction (Dilated)"));
         const glassesRxVisible = (prescription.items?.length || 0) > 0 && (!visibleSections || visibleSections.includes("Glasses Rx"));
         const opticalSpecsVisible = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (!visibleSections || visibleSections.includes("Optical Specs"));
 
         const totalItemsScore = medicineCount + adviceCount + complaintsCount + (surgeriesCount * 1.5) +
-            (visionTableVisible ? 3 : 0) + (refractionVisible ? 3 : 0) + (glassesRxVisible ? 3 : 0) + (opticalSpecsVisible ? 2 : 0);
+            (visionTableVisible ? 3 : 0) + (refractionDryVisible ? 3 : 0) + (refractionDilatedVisible ? 3 : 0) + (glassesRxVisible ? 3 : 0) + (opticalSpecsVisible ? 2 : 0);
 
         // Threshold for applying compact layout
         const isCompact = totalItemsScore > 15; // Lowered threshold for compact
@@ -265,16 +266,14 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                     <thead>
                                         <tr className="bg-sky-50/50 text-center">
                                             <th className={`border border-slate-300 ${cellPadding} w-12`} rowSpan={2}>Eye</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={3}>Distance Vision</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={2}>Near Vision</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={2}>Distance Vision</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={1}>Near Vision</th>
                                             <th className={`border border-slate-300 ${cellPadding}`} colSpan={1}>IOP</th>
                                         </tr>
                                         <tr className="bg-slate-50 text-center text-[10px]">
-                                            <th className={`border border-slate-300 ${cellPadding}`}>UCDVA</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`}>BCDVA</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>UCVA</th>
                                             <th className={`border border-slate-300 ${cellPadding}`}>PH</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`}>UCNVA</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`}>BCNVA</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>UCVA</th>
                                             <th className={`border border-slate-300 ${cellPadding}`}>mmHg</th>
                                         </tr>
                                     </thead>
@@ -286,16 +285,10 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.od_ucva_distance || visitData?.refraction?.od_visual_acuity_uncorrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.od_ph_va)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.od_near_ucva)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.refraction?.od_near_bcva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.iop?.od_pressure)}
@@ -308,16 +301,10 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 {formatVal(visitData?.vision?.os_ucva_distance || visitData?.refraction?.os_visual_acuity_uncorrected)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.os_ph_va)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.vision?.os_near_ucva)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.refraction?.os_near_bcva)}
                                             </td>
                                             <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                 {formatVal(visitData?.iop?.os_pressure)}
@@ -335,26 +322,28 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     )}
                 </div>
 
-                {/* Refraction Details */}
-                {refractionVisible && (
+                {/* Refraction (Dry) Details */}
+                {refractionDryVisible && (
                     <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
                         <div className="flex items-center gap-1.5 pr-2">
                             <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                 <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
                             </div>
                             <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Refraction Details
+                                Refraction (Dry)
                             </span>
                         </div>
                         <div>
                             <table className="w-full text-xs border-collapse border border-slate-300">
                                 <thead>
-                                    <tr className="bg-amber-50">
+                                    <tr className="bg-amber-50/50">
                                         <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
                                         <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Dist)</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Near)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -366,6 +355,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             {visitData?.refraction?.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
                                         </td>
                                         <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_near_bcva)}</td>
                                     </tr>
                                     <tr>
                                         <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
@@ -375,15 +366,74 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             {visitData?.refraction?.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
                                         </td>
                                         <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_near_bcva)}</td>
                                     </tr>
                                 </tbody>
                             </table>
-                            {visitData?.refraction?.notes && (
-                                <p className="mt-1 text-[10px] text-slate-500 italic text-left">
-                                    Notes: {visitData.refraction.notes}
-                                </p>
-                            )}
                         </div>
+                    </div>
+                )}
+
+                {/* Refraction (Dilated) Details */}
+                {refractionDilatedVisible && (
+                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
+                        <div className="flex items-center gap-1.5 pr-2">
+                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                            </div>
+                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                Refraction (Dilated)
+                            </span>
+                        </div>
+                        <div>
+                            <table className="w-full text-xs border-collapse border border-slate-300">
+                                <thead>
+                                    <tr className="bg-teal-50/50">
+                                        <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Dist)</th>
+                                        <th className={`border border-slate-300 ${cellPadding}`}>PH</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_sphere)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_cylinder)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                            {visitData?.refraction?.od_dilated_axis ? `${visitData.refraction.od_dilated_axis}°` : "-"}
+                                        </td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>-</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_visual_acuity)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_pinhole)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_sphere)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_cylinder)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                            {visitData?.refraction?.os_dilated_axis ? `${visitData.refraction.os_dilated_axis}°` : "-"}
+                                        </td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>-</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_visual_acuity)}</td>
+                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_pinhole)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {(refractionDryVisible || refractionDilatedVisible) && visitData?.refraction?.notes && (
+                    <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
+                        <div className="w-full"></div>
+                        <p className="text-[10px] text-slate-500 italic text-left">
+                            Refraction Notes: {visitData.refraction.notes}
+                        </p>
                     </div>
                 )}
 

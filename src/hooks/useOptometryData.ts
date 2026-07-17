@@ -12,6 +12,7 @@ import {
   fetchMedicalConditions,
   fetchVisionData,
   fetchCurrentSpecs,
+  fetchUnifiedExamination,
 } from "@/redux/optometryDataSlice";
 import {
   fetchPatientOptometryHistory,
@@ -64,12 +65,36 @@ export const useOptometryData = ({
         })
       );
 
-      // Fetch refraction data
-      dispatch(
-        fetchRefractionData({
-          patient_id: patientId,
-        })
-      );
+      // Fetch refraction, AR, vision, and current specs (unified if visitId is present)
+      if (visitId) {
+        dispatch(
+          fetchUnifiedExamination({
+            visit_id: visitId,
+            patient_id: patientId,
+          })
+        );
+      } else {
+        dispatch(
+          fetchRefractionData({
+            patient_id: patientId,
+          })
+        );
+        dispatch(
+          fetchARData({
+            patient_id: patientId,
+          })
+        );
+        dispatch(
+          fetchVisionData({
+            patient_id: patientId,
+          })
+        );
+        dispatch(
+          fetchCurrentSpecs({
+            patient_id: patientId,
+          })
+        );
+      }
 
       // Fetch IOP records and trends (last 6 months)
       dispatch(
@@ -83,13 +108,6 @@ export const useOptometryData = ({
         fetchIOPTrends({
           patient_id: patientId,
           days: 180,
-        })
-      );
-
-      // Fetch AR data
-      dispatch(
-        fetchARData({
-          patient_id: patientId,
         })
       );
 
@@ -113,22 +131,8 @@ export const useOptometryData = ({
           patient_id: patientId,
         })
       );
-
-      // Fetch vision data
-      dispatch(
-        fetchVisionData({
-          patient_id: patientId,
-        })
-      );
-
-      // Fetch current specs
-      dispatch(
-        fetchCurrentSpecs({
-          patient_id: patientId,
-        })
-      );
     }
-  }, [patientId, autoFetch, dispatch]);
+  }, [patientId, visitId, autoFetch, dispatch]);
 
   // Fetch complaints strictly for the current visit when visitId changes
   useEffect(() => {
@@ -262,6 +266,17 @@ export const useOptometryData = ({
     }
   }, [patientId, dispatch]);
 
+  const refreshUnifiedExam = useCallback(() => {
+    if (patientId && visitId) {
+      dispatch(
+        fetchUnifiedExamination({
+          visit_id: visitId,
+          patient_id: patientId,
+        })
+      );
+    }
+  }, [patientId, visitId, dispatch]);
+
   return {
     // Data
     refractionRecords,
@@ -294,5 +309,6 @@ export const useOptometryData = ({
     refreshDrugAllergies,
     refreshVision,
     refreshCurrentSpecs,
+    refreshUnifiedExam,
   };
 };

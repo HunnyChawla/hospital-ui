@@ -37,7 +37,8 @@ export function PrintPreviewModal({
         "Presenting Complaint",
         "Symptoms",
         "Vision",
-        "Refraction",
+        "Refraction (Dry)",
+        "Refraction (Dilated)",
         "Glasses Rx",
         "Optical Specs",
         "Diagnosis",
@@ -227,7 +228,8 @@ export function PrintPreviewModal({
                                         if (section === "Presenting Complaint") hasData = !!(visitData?.complaints?.length);
                                         if (section === "Symptoms") hasData = !!(prescription.symptoms?.length);
                                         if (section === "Vision") hasData = !!(visitData?.vision || visitData?.iop);
-                                        if (section === "Refraction") hasData = !!(visitData?.refraction);
+                                        if (section === "Refraction (Dry)") hasData = !!(visitData?.refraction?.od_sphere || visitData?.refraction?.os_sphere);
+                                        if (section === "Refraction (Dilated)") hasData = !!(visitData?.refraction?.od_dilated_sphere || visitData?.refraction?.os_dilated_sphere);
                                         if (section === "Glasses Rx") hasData = !!(prescription.items?.length);
                                         if (section === "Optical Specs") hasData = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0));
                                         if (section === "Diagnosis") hasData = !!(prescription.diagnosis);
@@ -261,7 +263,8 @@ export function PrintPreviewModal({
                                                         {section === "Presenting Complaint" && <MessageSquare className="h-3.5 w-3.5 text-slate-400" />}
                                                         {section === "Symptoms" && <Activity className="h-3.5 w-3.5 text-slate-400" />}
                                                         {section === "Vision" && <Eye className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Refraction" && <Compass className="h-3.5 w-3.5 text-slate-400" />}
+                                                        {section === "Refraction (Dry)" && <Compass className="h-3.5 w-3.5 text-slate-400" />}
+                                                        {section === "Refraction (Dilated)" && <Compass className="h-3.5 w-3.5 text-teal-600" />}
                                                         {section === "Glasses Rx" && <Glasses className="h-3.5 w-3.5 text-slate-400" />}
                                                         {section === "Optical Specs" && <Layers className="h-3.5 w-3.5 text-slate-400" />}
                                                         {section === "Diagnosis" && <ClipboardCheck className="h-3.5 w-3.5 text-slate-400" />}

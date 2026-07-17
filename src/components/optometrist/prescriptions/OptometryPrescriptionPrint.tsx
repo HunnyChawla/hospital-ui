@@ -63,6 +63,9 @@ export const OptometryPrescriptionPrint = forwardRef<
     return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
   };
 
+  const odHasDilated = refractionOD?.od_dilated_sphere !== undefined && refractionOD?.od_dilated_sphere !== null;
+  const osHasDilated = refractionOS?.os_dilated_sphere !== undefined && refractionOS?.os_dilated_sphere !== null;
+
   return (
     <div ref={ref} className="bg-white p-12 text-slate-900" style={{ width: "210mm", minHeight: "297mm" }}>
       {/* Header */}
@@ -174,37 +177,69 @@ export const OptometryPrescriptionPrint = forwardRef<
               {/* OD (Right Eye) */}
               <tr>
                 <td className="border border-slate-900 px-4 py-3 font-semibold">
-                  OD (Right Eye)
+                  OD (Right Eye) {odHasDilated && "(Dilated)"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOD ? formatValue(refractionOD.sphere, "sphere") : "-"}
+                  {odHasDilated
+                    ? formatValue(refractionOD.od_dilated_sphere, "sphere")
+                    : refractionOD
+                      ? formatValue(refractionOD.sphere, "sphere")
+                      : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOD ? formatValue(refractionOD.cylinder, "cylinder") : "-"}
+                  {odHasDilated
+                    ? formatValue(refractionOD.od_dilated_cylinder, "cylinder")
+                    : refractionOD
+                      ? formatValue(refractionOD.cylinder, "cylinder")
+                      : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOD ? formatValue(refractionOD.axis, "axis") : "-"}
+                  {odHasDilated
+                    ? formatValue(refractionOD.od_dilated_axis, "axis")
+                    : refractionOD
+                      ? formatValue(refractionOD.axis, "axis")
+                      : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOD ? formatValue(refractionOD.add_power, "add") : "-"}
+                  {odHasDilated
+                    ? "-"
+                    : refractionOD
+                      ? formatValue(refractionOD.add_power, "add")
+                      : "-"}
                 </td>
               </tr>
               {/* OS (Left Eye) */}
               <tr>
                 <td className="border border-slate-900 px-4 py-3 font-semibold">
-                  OS (Left Eye)
+                  OS (Left Eye) {osHasDilated && "(Dilated)"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOS ? formatValue(refractionOS.sphere, "sphere") : "-"}
+                  {osHasDilated
+                    ? formatValue(refractionOS.os_dilated_sphere, "sphere")
+                    : refractionOS
+                      ? formatValue(refractionOS.sphere, "sphere")
+                      : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOS ? formatValue(refractionOS.cylinder, "cylinder") : "-"}
+                  {osHasDilated
+                    ? formatValue(refractionOS.os_dilated_cylinder, "cylinder")
+                    : refractionOS
+                      ? formatValue(refractionOS.cylinder, "cylinder")
+                      : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOS ? formatValue(refractionOS.axis, "axis") : "-"}
+                  {osHasDilated
+                    ? formatValue(refractionOS.os_dilated_axis, "axis")
+                    : refractionOS
+                      ? formatValue(refractionOS.axis, "axis")
+                      : "-"}
                 </td>
                 <td className="border border-slate-900 px-4 py-3 text-center font-mono text-lg">
-                  {refractionOS ? formatValue(refractionOS.add_power, "add") : "-"}
+                  {osHasDilated
+                    ? "-"
+                    : refractionOS
+                      ? formatValue(refractionOS.add_power, "add")
+                      : "-"}
                 </td>
               </tr>
             </tbody>
