@@ -70,20 +70,30 @@ export const useOptometristPanel = () => {
     return doctorMappings.find(m => m.is_active) || doctorMappings[0] || null;
   }, [userRole, userId, selectedDoctorId, doctorMappings, doctorsList]);
 
-  // Auto-select first doctor when mappings load
+  // Auto-select first doctor or saved doctor when mappings load
   useEffect(() => {
     if (doctorMappings.length > 0 && !selectedDoctorId) {
-      const defaultDoctor = doctorMappings.find(m => m.is_active) || doctorMappings[0];
-      if (defaultDoctor) {
-        setSelectedDoctorId(defaultDoctor.doctor_id);
+      const savedDoctorId = userId ? localStorage.getItem(`optometrist_selected_doctor_${userId}`) : null;
+      const hasSavedDoctor = savedDoctorId && doctorMappings.some(m => m.doctor_id === savedDoctorId);
+
+      if (hasSavedDoctor) {
+        setSelectedDoctorId(savedDoctorId);
+      } else {
+        const defaultDoctor = doctorMappings.find(m => m.is_active) || doctorMappings[0];
+        if (defaultDoctor) {
+          setSelectedDoctorId(defaultDoctor.doctor_id);
+        }
       }
     }
-  }, [doctorMappings, selectedDoctorId]);
+  }, [doctorMappings, selectedDoctorId, userId]);
 
   // Handler to change selected doctor
   const handleSetSelectedDoctor = useCallback((doctorId: string) => {
     setSelectedDoctorId(doctorId);
-  }, []);
+    if (userId) {
+      localStorage.setItem(`optometrist_selected_doctor_${userId}`, doctorId);
+    }
+  }, [userId]);
 
   // Verify user is optometrist and fetch mappings
   useEffect(() => {
