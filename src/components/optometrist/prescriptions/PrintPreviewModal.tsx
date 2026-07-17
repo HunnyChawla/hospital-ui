@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, Printer, Loader2, CheckCircle, FileText, Layout, ZoomIn, ZoomOut, RotateCcw, Monitor, Settings2, Columns, MessageSquare, Activity, Eye, Compass, Glasses, Layers, ClipboardCheck, Pill, FlaskConical, Info, Stethoscope, Calendar } from "lucide-react";
+import { X, Printer, Loader2, CheckCircle, FileText, Layout, ZoomIn, ZoomOut, RotateCcw, Monitor, Settings2, Columns, MessageSquare, Activity, Eye, Compass, Glasses, Layers, ClipboardCheck, Pill, FlaskConical, Info, Stethoscope, Calendar, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import type { OptometryPrescription, PlannedSurgery } from "@/types";
@@ -51,7 +51,29 @@ export function PrintPreviewModal({
         "Signature Placeholder"
     ];
 
+    const defaultContentSections = [
+        "Presenting Complaint",
+        "Symptoms",
+        "Vision",
+        "Refraction (Dry)",
+        "Refraction (Dilated)",
+        "Glasses Rx",
+        "Optical Specs",
+        "Diagnosis",
+        "Meds",
+        "Lab Investigations",
+        "Advice",
+        "Planned Surgery",
+        "FollowUp"
+    ];
+
     const [visibleSections, setVisibleSections] = useState<string[]>(allSections);
+    const [contentOrder, setContentOrder] = useState<string[]>(defaultContentSections);
+
+    // Refs for drag and drop
+    const dragItemIndex = useRef<number | null>(null);
+    const dragOverItemIndex = useRef<number | null>(null);
+    const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
 
     // Load preferences from local storage on mount
     useEffect(() => {
@@ -63,6 +85,16 @@ export function PrintPreviewModal({
                     // Filter to ensure we only load sections that actually exist in the current version
                     const validSections = parsed.filter(s => allSections.includes(s));
                     setVisibleSections(validSections);
+                }
+            }
+
+            const savedOrder = localStorage.getItem("prescription_section_order");
+            if (savedOrder) {
+                const parsedOrder = JSON.parse(savedOrder);
+                if (Array.isArray(parsedOrder)) {
+                    const validOrder = parsedOrder.filter(s => defaultContentSections.includes(s));
+                    const missing = defaultContentSections.filter(s => !validOrder.includes(s));
+                    setContentOrder([...validOrder, ...missing]);
                 }
             }
         } catch (e) {
@@ -107,6 +139,109 @@ export function PrintPreviewModal({
 
             return next;
         });
+    };
+
+    // Filtered list of content sections that have data (visible to user in sidebar)
+    const filteredContentOrder = contentOrder.filter(section => {
+        let hasData = true;
+        if (section === "Presenting Complaint") hasData = !!(visitData?.complaints?.length);
+        if (section === "Symptoms") hasData = !!(prescription.symptoms?.length);
+        if (section === "Vision") hasData = !!(visitData?.vision || visitData?.iop);
+        if (section === "Refraction (Dry)") hasData = !!(visitData?.refraction?.od_sphere || visitData?.refraction?.os_sphere);
+        if (section === "Refraction (Dilated)") hasData = !!(visitData?.refraction?.od_dilated_sphere || visitData?.refraction?.os_dilated_sphere);
+        if (section === "Glasses Rx") hasData = !!(prescription.items?.length);
+        if (section === "Optical Specs") hasData = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0));
+        if (section === "Diagnosis") hasData = !!(prescription.diagnosis);
+        if (section === "Meds") hasData = !!(prescription.medicine_items?.length);
+        if (section === "Lab Investigations") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test" || a.advice_type === "lab-test"));
+        if (section === "Advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action);
+        if (section === "Planned Surgery") hasData = !!(plannedSurgeries?.length);
+        if (section === "FollowUp") hasData = !!(prescription.followup_date);
+        return hasData;
+    });
+
+    const moveSectionUp = (filteredIndex: number) => {
+        if (filteredIndex === 0) return;
+        const item1 = filteredContentOrder[filteredIndex];
+        const item2 = filteredContentOrder[filteredIndex - 1];
+        
+        setContentOrder(prev => {
+            const next = [...prev];
+            const idx1 = next.indexOf(item1);
+            const idx2 = next.indexOf(item2);
+            if (idx1 !== -1 && idx2 !== -1) {
+                next[idx1] = item2;
+                next[idx2] = item1;
+            }
+            localStorage.setItem("prescription_section_order", JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const moveSectionDown = (filteredIndex: number) => {
+        if (filteredIndex === filteredContentOrder.length - 1) return;
+        const item1 = filteredContentOrder[filteredIndex];
+        const item2 = filteredContentOrder[filteredIndex + 1];
+        
+        setContentOrder(prev => {
+            const next = [...prev];
+            const idx1 = next.indexOf(item1);
+            const idx2 = next.indexOf(item2);
+            if (idx1 !== -1 && idx2 !== -1) {
+                next[idx1] = item2;
+                next[idx2] = item1;
+            }
+            localStorage.setItem("prescription_section_order", JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const handleDragStart = (filteredIndex: number) => {
+        dragItemIndex.current = filteredIndex;
+    };
+
+    const handleDragOver = (e: React.DragEvent, filteredIndex: number) => {
+        e.preventDefault();
+        dragOverItemIndex.current = filteredIndex;
+        if (draggedOverIndex !== filteredIndex) {
+            setDraggedOverIndex(filteredIndex);
+        }
+    };
+
+    const handleDrop = () => {
+        if (dragItemIndex.current === null || dragOverItemIndex.current === null) return;
+        if (dragItemIndex.current === dragOverItemIndex.current) {
+            dragItemIndex.current = null;
+            dragOverItemIndex.current = null;
+            setDraggedOverIndex(null);
+            return;
+        }
+
+        const item1 = filteredContentOrder[dragItemIndex.current!];
+        const item2 = filteredContentOrder[dragOverItemIndex.current!];
+
+        setContentOrder(prev => {
+            const next = [...prev];
+            const idx1 = next.indexOf(item1);
+            const idx2 = next.indexOf(item2);
+            if (idx1 !== -1 && idx2 !== -1) {
+                next.splice(idx1, 1);
+                const newIdx2 = next.indexOf(item2);
+                next.splice(newIdx2, 0, item1);
+            }
+            localStorage.setItem("prescription_section_order", JSON.stringify(next));
+            return next;
+        });
+
+        dragItemIndex.current = null;
+        dragOverItemIndex.current = null;
+        setDraggedOverIndex(null);
+    };
+
+    const handleDragEnd = () => {
+        dragItemIndex.current = null;
+        dragOverItemIndex.current = null;
+        setDraggedOverIndex(null);
     };
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.05, 1.5));
@@ -217,71 +352,173 @@ export function PrintPreviewModal({
                     {/* Floating-style Configuration Sidebar (Collapsible feel, but fixed for now) */}
                     <div className="w-[300px] bg-white border-r border-slate-200 flex flex-col z-20 shrink-0">
                         <div className="p-5 flex-1 overflow-y-auto custom-scrollbar">
-                            <div className="mb-6">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Columns className="h-4 w-4 text-slate-400" />
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Page Sections</h4>
+                            {/* Document Layout Section */}
+                            <div className="mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Layout className="h-4 w-4 text-slate-400" />
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Document Layout</h4>
                                 </div>
-                                <div className="space-y-1.5">
-                                    {allSections.map(section => {
-                                        let hasData = true;
-                                        if (section === "Presenting Complaint") hasData = !!(visitData?.complaints?.length);
-                                        if (section === "Symptoms") hasData = !!(prescription.symptoms?.length);
-                                        if (section === "Vision") hasData = !!(visitData?.vision || visitData?.iop);
-                                        if (section === "Refraction (Dry)") hasData = !!(visitData?.refraction?.od_sphere || visitData?.refraction?.os_sphere);
-                                        if (section === "Refraction (Dilated)") hasData = !!(visitData?.refraction?.od_dilated_sphere || visitData?.refraction?.os_dilated_sphere);
-                                        if (section === "Glasses Rx") hasData = !!(prescription.items?.length);
-                                        if (section === "Optical Specs") hasData = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0));
-                                        if (section === "Diagnosis") hasData = !!(prescription.diagnosis);
-                                        if (section === "Meds") hasData = !!(prescription.medicine_items?.length);
-                                        if (section === "Lab Investigations") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test" || a.advice_type === "lab-test"));
-                                        if (section === "Advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action);
-                                        if (section === "Planned Surgery") hasData = !!(plannedSurgeries?.length);
-                                        if (section === "FollowUp") hasData = !!(prescription.followup_date);
-                                        if (section === "Digital Signature") hasData = !!doctorSignature;
-                                        if (section === "Signature Placeholder") hasData = true; // Always allow toggling placeholder
+                                <button
+                                    onClick={() => toggleSection("Header")}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all ${
+                                        visibleSections.includes("Header")
+                                            ? 'bg-sky-50 border-sky-100 text-sky-700 font-medium'
+                                            : 'bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className={`h-4 w-4 rounded flex items-center justify-center transition-all ${
+                                            visibleSections.includes("Header") ? 'bg-sky-600' : 'border border-slate-300'
+                                        }`}>
+                                            {visibleSections.includes("Header") && <CheckCircle className="h-3 w-3 text-white" />}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Layout className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                                            <span className="text-xs font-semibold">Print Header / Letterhead</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
 
-                                        if (!hasData) return null;
-
+                            {/* Clinical Sections Reordering list */}
+                            <div className="mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Columns className="h-4 w-4 text-slate-400" />
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Clinical Sections (Drag to Reorder)</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    {filteredContentOrder.map((section, index) => {
                                         const isSelected = visibleSections.includes(section);
-
                                         return (
-                                            <button
+                                            <div
                                                 key={section}
-                                                onClick={() => toggleSection(section)}
-                                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${isSelected
-                                                    ? 'bg-sky-50 border-sky-100 text-sky-700'
-                                                    : 'bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                                                    }`}
+                                                draggable
+                                                onDragStart={() => handleDragStart(index)}
+                                                onDragOver={(e) => handleDragOver(e, index)}
+                                                onDrop={handleDrop}
+                                                onDragEnd={handleDragEnd}
+                                                className={`group flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all duration-200 bg-white ${
+                                                    draggedOverIndex === index 
+                                                        ? 'border-sky-500 bg-sky-50/30 shadow-sm' 
+                                                        : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                                }`}
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`h-4 w-4 rounded flex items-center justify-center transition-all ${isSelected ? 'bg-sky-600' : 'border border-slate-300'
-                                                        }`}>
-                                                        {isSelected && <CheckCircle className="h-3 w-3 text-white" />}
+                                                {/* Left Controls: Drag Handle + Arrows */}
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <div 
+                                                        className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 p-1" 
+                                                        title="Drag to reorder"
+                                                    >
+                                                        <GripVertical className="h-3.5 w-3.5" />
                                                     </div>
-                                                    <div className="flex items-center gap-2 flex-1">
-                                                        {section === "Presenting Complaint" && <MessageSquare className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Symptoms" && <Activity className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Vision" && <Eye className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Refraction (Dry)" && <Compass className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Refraction (Dilated)" && <Compass className="h-3.5 w-3.5 text-teal-600" />}
-                                                        {section === "Glasses Rx" && <Glasses className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Optical Specs" && <Layers className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Diagnosis" && <ClipboardCheck className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Meds" && <Pill className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Lab Investigations" && <FlaskConical className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Advice" && <Info className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Planned Surgery" && <Stethoscope className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "FollowUp" && <Calendar className="h-3.5 w-3.5 text-slate-400" />}
-                                                        {section === "Header" && <Layout className="h-3.5 w-3.5 text-sky-500" />}
-                                                        {section === "Digital Signature" && <FileText className="h-3.5 w-3.5 text-emerald-500" />}
-                                                        {section === "Signature Placeholder" && <Layout className="h-3.5 w-3.5 text-slate-400" />}
-                                                        <span className="text-xs font-semibold">{section}</span>
+                                                    
+                                                    {/* Up / Down Arrow buttons */}
+                                                    <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button 
+                                                            disabled={index === 0}
+                                                            onClick={(e) => { e.stopPropagation(); moveSectionUp(index); }}
+                                                            className="p-0.5 rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-20 disabled:pointer-events-none"
+                                                            title="Move Up"
+                                                        >
+                                                            <ChevronUp className="h-3 w-3" />
+                                                        </button>
+                                                        <button 
+                                                            disabled={index === filteredContentOrder.length - 1}
+                                                            onClick={(e) => { e.stopPropagation(); moveSectionDown(index); }}
+                                                            className="p-0.5 rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-20 disabled:pointer-events-none"
+                                                            title="Move Down"
+                                                        >
+                                                            <ChevronDown className="h-3 w-3" />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            </button>
+
+                                                {/* Right Side Toggle */}
+                                                <button
+                                                    onClick={() => toggleSection(section)}
+                                                    className={`flex-1 flex items-center justify-between pl-2 py-1 rounded transition-all ${
+                                                        isSelected ? 'text-sky-700' : 'text-slate-500 hover:text-slate-700'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-2 text-left">
+                                                        <div className={`h-4 w-4 rounded flex items-center justify-center transition-all shrink-0 ${
+                                                            isSelected ? 'bg-sky-600 text-white' : 'border border-slate-300'
+                                                        }`}>
+                                                            {isSelected && <CheckCircle className="h-3 w-3 text-white" />}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {section === "Presenting Complaint" && <MessageSquare className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Symptoms" && <Activity className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Vision" && <Eye className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Refraction (Dry)" && <Compass className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Refraction (Dilated)" && <Compass className="h-3.5 w-3.5 text-teal-600 shrink-0" />}
+                                                            {section === "Glasses Rx" && <Glasses className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Optical Specs" && <Layers className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Diagnosis" && <ClipboardCheck className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Meds" && <Pill className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Lab Investigations" && <FlaskConical className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Advice" && <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "Planned Surgery" && <Stethoscope className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "FollowUp" && <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            <span className="text-xs font-semibold">{section}</span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </div>
                                         );
                                     })}
+                                </div>
+                            </div>
+
+                            {/* Signatures Section */}
+                            <div className="mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <FileText className="h-4 w-4 text-slate-400" />
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Signatures</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    {doctorSignature && (
+                                        <button
+                                            onClick={() => toggleSection("Digital Signature")}
+                                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-all ${
+                                                visibleSections.includes("Digital Signature")
+                                                    ? 'bg-sky-50 border-sky-100 text-sky-700 font-medium'
+                                                    : 'bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className={`h-4 w-4 rounded flex items-center justify-center transition-all shrink-0 ${
+                                                    visibleSections.includes("Digital Signature") ? 'bg-sky-600' : 'border border-slate-300'
+                                                }`}>
+                                                    {visibleSections.includes("Digital Signature") && <CheckCircle className="h-3 w-3 text-white" />}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                                    <span className="text-xs font-semibold">Digital Signature</span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => toggleSection("Signature Placeholder")}
+                                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-all ${
+                                            visibleSections.includes("Signature Placeholder")
+                                                ? 'bg-sky-50 border-sky-100 text-sky-700 font-medium'
+                                                : 'bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <div className={`h-4 w-4 rounded flex items-center justify-center transition-all shrink-0 ${
+                                                visibleSections.includes("Signature Placeholder") ? 'bg-sky-600' : 'border border-slate-300'
+                                            }`}>
+                                                {visibleSections.includes("Signature Placeholder") && <CheckCircle className="h-3 w-3 text-white" />}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Layout className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                                <span className="text-xs font-semibold">Signature Placeholder</span>
+                                            </div>
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
 
@@ -354,6 +591,7 @@ export function PrintPreviewModal({
                                             plannedSurgeries={plannedSurgeries}
                                             showHeader={visibleSections.includes("Header")}
                                             visibleSections={visibleSections}
+                                            sectionOrder={contentOrder}
                                         />
                                     </div>
                                 </div>

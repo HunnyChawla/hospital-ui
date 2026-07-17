@@ -33,10 +33,11 @@ interface DoctorPrescriptionPrintProps {
     visitData?: PrescriptionDataResponse | null;
     plannedSurgeries?: any[]; // Using any[] to avoid circular dependency issues if strict types are hard, but preferably PlannedSurgery[]
     visibleSections?: string[];
+    sectionOrder?: string[];
 }
 
 export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescriptionPrintProps>(
-    ({ prescription, showHeader = true, doctorSignature, visitData, plannedSurgeries, visibleSections }, ref) => {
+    ({ prescription, showHeader = true, doctorSignature, visitData, plannedSurgeries, visibleSections, sectionOrder }, ref) => {
         const { tenant } = useTenant();
 
         // Helper to format date
@@ -85,6 +86,514 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
         const sectionFontClass = isExtremelyCompact ? "text-[10px]" : isCompact ? "text-xs" : "text-sm";
         const labelWidth = isCompact ? "w-24" : "w-32";
         const cellPadding = isExtremelyCompact ? "p-0.5" : "p-1";
+
+        const renderSection = (sectionName: string) => {
+            switch (sectionName) {
+                case "Presenting Complaint":
+                    return (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <MessageSquare className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Presenting Complaint
+                                </span>
+                            </div>
+                            <div className="text-xs text-left">
+                                {visitData?.complaints && visitData.complaints.length > 0 ? (
+                                    <ul className="list-none m-0 p-0">
+                                        {visitData.complaints.map((c, idx) => (
+                                            <li key={idx}>
+                                                Both Eye: {c.complaint} {c.duration ? `[${c.duration}]` : ""}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <span>-</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                case "Symptoms":
+                    return prescription.symptoms && prescription.symptoms.length > 0 ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Activity className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Symptoms
+                                </span>
+                            </div>
+                            <div className="text-xs text-left">
+                                <p className="font-medium uppercase">
+                                    {prescription.symptoms.map(s => s.symptom_name).join(", ")}
+                                </p>
+                            </div>
+                        </div>
+                    ) : null;
+                case "Diagnosis":
+                    return (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <ClipboardCheck className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Diagnosis
+                                </span>
+                            </div>
+                            <div className="text-xs text-left">
+                                {prescription.diagnosis ? (
+                                    <p className="uppercase font-medium">{prescription.diagnosis}</p>
+                                ) : (
+                                    <span>-</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                case "Vision":
+                    return visionTableVisible ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2 pt-1">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Eye className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Vision
+                                </span>
+                            </div>
+                            <div>
+                                <table className="w-full text-xs border-collapse border border-slate-300">
+                                    <thead>
+                                        <tr className="bg-sky-50/50 text-center">
+                                            <th className={`border border-slate-300 ${cellPadding} w-12`} rowSpan={2}>Eye</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={2}>Distance Vision</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={1}>Near Vision</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={1}>IOP</th>
+                                        </tr>
+                                        <tr className="bg-slate-50 text-center text-[10px]">
+                                            <th className={`border border-slate-300 ${cellPadding}`}>UCVA</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>PH</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>UCVA</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>mmHg</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {/* Right Eye */}
+                                        <tr>
+                                            <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.vision?.od_ucva_distance || visitData?.refraction?.od_visual_acuity_uncorrected)}
+                                            </td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.vision?.od_ph_va)}
+                                            </td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.vision?.od_near_ucva)}
+                                            </td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.iop?.od_pressure)}
+                                            </td>
+                                        </tr>
+                                        {/* Left Eye */}
+                                        <tr>
+                                            <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.vision?.os_ucva_distance || visitData?.refraction?.os_visual_acuity_uncorrected)}
+                                            </td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.vision?.os_ph_va)}
+                                            </td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.vision?.os_near_ucva)}
+                                            </td>
+                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                {formatVal(visitData?.iop?.os_pressure)}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                {visitData?.iop?.measurement_method && (
+                                    <p className="text-[10px] text-slate-500 mt-1 text-right">
+                                        IOP Method: {visitData.iop.measurement_method} ({formatTime(visitData.iop.measurement_time)})
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ) : null;
+                case "Refraction (Dry)":
+                    return refractionDryVisible ? (
+                        <>
+                            <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                                <div className="flex items-center gap-1.5 pr-2">
+                                    <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                        <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                    </div>
+                                    <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                        Refraction (Dry)
+                                    </span>
+                                </div>
+                                <div>
+                                    <table className="w-full text-xs border-collapse border border-slate-300">
+                                        <thead>
+                                            <tr className="bg-amber-50/50">
+                                                <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Dist)</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Near)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_sphere)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                    {visitData?.refraction?.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
+                                                </td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_near_bcva)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_sphere)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                    {visitData?.refraction?.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
+                                                </td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_near_bcva)}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {visitData?.refraction?.notes && !refractionDilatedVisible && (
+                                <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
+                                    <div className="w-full"></div>
+                                    <p className="text-[10px] text-slate-500 italic text-left">
+                                        Refraction Notes: {visitData.refraction.notes}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    ) : null;
+                case "Refraction (Dilated)":
+                    return refractionDilatedVisible ? (
+                        <>
+                            <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                                <div className="flex items-center gap-1.5 pr-2">
+                                    <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                        <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                    </div>
+                                    <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                        Refraction (Dilated)
+                                    </span>
+                                </div>
+                                <div>
+                                    <table className="w-full text-xs border-collapse border border-slate-300">
+                                        <thead>
+                                            <tr className="bg-teal-50/50">
+                                                <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Dist)</th>
+                                                <th className={`border border-slate-300 ${cellPadding}`}>PH</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_sphere)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                    {visitData?.refraction?.od_dilated_axis ? `${visitData.refraction.od_dilated_axis}°` : "-"}
+                                                </td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_visual_acuity)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_pinhole)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_sphere)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>
+                                                    {visitData?.refraction?.os_dilated_axis ? `${visitData.refraction.os_dilated_axis}°` : "-"}
+                                                </td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_visual_acuity)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_pinhole)}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {visitData?.refraction?.notes && (
+                                <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
+                                    <div className="w-full"></div>
+                                    <p className="text-[10px] text-slate-500 italic text-left">
+                                        Refraction Notes: {visitData.refraction.notes}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    ) : null;
+                case "Glasses Rx":
+                    return glassesRxVisible ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Glasses className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Glasses Rx
+                                </span>
+                            </div>
+                            <div className="space-y-2">
+                                <table className="w-full text-xs border-collapse border border-slate-300">
+                                    <thead>
+                                        <tr className="bg-slate-100">
+                                            <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
+                                            <th className={`border border-slate-300 ${cellPadding}`}>VA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
+                                            <tr key={`od-${idx}`}>
+                                                <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.axis)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
+                                            </tr>
+                                        ))}
+                                        {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
+                                            <tr key={`os-${idx}`}>
+                                                <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.axis)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {(prescription.pupillary_distance || visitData?.ar_data?.pupillary_distance) && (
+                                    <div className="flex gap-2 text-xs">
+                                        <span className="text-slate-500 font-semibold">Pupillary Distance (PD):</span>
+                                        <span className="font-medium">{prescription.pupillary_distance || visitData?.ar_data?.pupillary_distance} mm</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : null;
+                case "Optical Specs":
+                    return opticalSpecsVisible ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Layers className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Optical Specs
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                {prescription.vision_type && (
+                                    <div className="flex gap-1">
+                                        <span className="text-slate-500 whitespace-nowrap">Vision:</span>
+                                        <span className="font-medium uppercase truncate">{prescription.vision_type}</span>
+                                    </div>
+                                )}
+                                {prescription.lens_type && (
+                                    <div className="flex gap-1">
+                                        <span className="text-slate-500 whitespace-nowrap">Lens:</span>
+                                        <span className="font-medium uppercase truncate">{prescription.lens_type}</span>
+                                    </div>
+                                )}
+                                {prescription.lens_material && (
+                                    <div className="flex gap-1">
+                                        <span className="text-slate-500 whitespace-nowrap">Material:</span>
+                                        <span className="font-medium uppercase truncate">{prescription.lens_material}</span>
+                                    </div>
+                                )}
+                                {prescription.coatings && prescription.coatings.length > 0 && (
+                                    <div className="flex gap-1">
+                                        <span className="text-slate-500 whitespace-nowrap">Coatings:</span>
+                                        <span className="font-medium uppercase truncate" title={prescription.coatings.join(", ")}>
+                                            {prescription.coatings.join(", ")}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : null;
+                case "Meds":
+                    return (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2 pt-1">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Pill className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Prescription
+                                </span>
+                            </div>
+                            <div>
+                                {prescription.medicine_items && prescription.medicine_items.length > 0 ? (
+                                    <div className={`${isCompact ? "space-y-1" : "space-y-2"}`}>
+                                        {prescription.medicine_items.map((med, idx) => (
+                                            <div key={idx} className={sectionFontClass}>
+                                                <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap items-center">
+                                                    <span>{idx + 1}. {med.medicine_name}</span>
+                                                    {med.applicable_eye && med.applicable_eye !== 'NA' && (
+                                                        <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-bold ml-1">
+                                                            {med.applicable_eye === 'BOTH' ? 'BOTH EYES' : med.applicable_eye}
+                                                        </span>
+                                                    )}
+                                                    {med.generic_name && <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">({med.generic_name})</span>}
+                                                </div>
+                                                <div className="pl-5 text-[10px] text-slate-600">
+                                                    {med.tapering_steps && med.tapering_steps.length > 0 ? (
+                                                        <div className="mt-1 bg-purple-50/30 border border-purple-100/50 rounded-md p-2 max-w-md">
+                                                            <span className="text-[9px] font-bold text-purple-800 uppercase block mb-1">📉 Tapering Dose Schedule:</span>
+                                                            <div className="space-y-1">
+                                                                {med.tapering_steps.map((step, sIdx) => (
+                                                                    <div key={sIdx} className="text-[9px] text-slate-700">
+                                                                        <span className="font-bold text-purple-950">Step {sIdx + 1}: </span>
+                                                                        <span>{step.dosage || med.dosage || ""}</span>
+                                                                        {step.frequency && <span> • {step.frequency}</span>}
+                                                                        {step.duration && <span> • {step.duration}</span>}
+                                                                        {step.instructions && <span className="italic text-slate-500"> ({step.instructions})</span>}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {med.instructions && <span className="mr-2">({med.instructions})</span>}
+                                                            <span className="uppercase font-medium">
+                                                                {med.frequency && `${med.frequency}, `}
+                                                                {med.duration && `${med.duration}`}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span>-</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                case "Lab Investigations":
+                    return prescription.advice_items?.some(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test") ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <FlaskConical className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Lab Invest.
+                                </span>
+                            </div>
+                            <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
+                                {prescription.advice_items
+                                    .filter(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test")
+                                    .map(a => a.description)
+                                    .join(", ")}
+                            </div>
+                        </div>
+                    ) : null;
+                case "Advice":
+                    return (prescription.advice_items?.some(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action) ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Info className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Advice
+                                </span>
+                            </div>
+                            <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
+                                {[
+                                    ...(prescription.plan_of_action ? [prescription.plan_of_action] : []),
+                                    ...((prescription.advice_items || [])
+                                        .filter(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test")
+                                        .map(a => a.description))
+                                ].join(", ")}
+                            </div>
+                        </div>
+                    ) : null;
+                case "Planned Surgery":
+                    return (plannedSurgeries && plannedSurgeries.length > 0) ? (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Stethoscope className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    Planned Surgery
+                                </span>
+                            </div>
+                            <div className={sectionFontClass}>
+                                <ul className="list-disc list-outside ml-4 text-xs text-left">
+                                    {plannedSurgeries.map((surgery, idx) => (
+                                        <li key={idx} className="mb-1">
+                                            <span className="font-medium">{surgery.surgery_name}</span>
+                                            <span className="text-slate-600 ml-1">
+                                                ({surgery.eye}) - Planned on {formatDate(surgery.planned_date)}
+                                            </span>
+                                            {surgery.notes && (
+                                                <div className="text-xs text-slate-500 mt-0.5 italic">
+                                                    Note: {surgery.notes}
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    ) : null;
+                case "FollowUp":
+                    return (
+                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="flex items-center gap-1.5 pr-2">
+                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                                    <Calendar className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                                </div>
+                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                    FollowUp
+                                </span>
+                            </div>
+                            <div className={`${sectionFontClass} font-medium text-xs text-left`}>
+                                {prescription.followup_date ? (
+                                    <span>Review at {formatDate(prescription.followup_date)} (to confirm with reception) or earlier in case of any problem.</span>
+                                ) : (
+                                    <span>-</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                default:
+                    return null;
+            }
+        };
 
         return (
             <div
@@ -181,519 +690,60 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
 
                 </div>
 
-                {/* Clinical Data Row */}
-                <div className={`${spacingClass} space-y-1`}>
-                    {/* Complaints */}
-                    {(!visibleSections || visibleSections.includes("Presenting Complaint")) && (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
-                            <div className="flex items-center gap-1.5 pr-2">
-                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                    <MessageSquare className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                                </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Presenting Complaint
-                                </span>
-                            </div>
-                            <div className="text-xs text-left">
-                                {visitData?.complaints && visitData.complaints.length > 0 ? (
-                                    <ul className="list-none m-0 p-0">
-                                        {visitData.complaints.map((c, idx) => (
-                                            <li key={idx}>
-                                                Both Eye: {c.complaint} {c.duration ? `[${c.duration}]` : ""}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <span>-</span>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                {/* Dynamic Content Sections */}
+                {(() => {
+                    const order = sectionOrder || [
+                        "Presenting Complaint",
+                        "Symptoms",
+                        "Vision",
+                        "Refraction (Dry)",
+                        "Refraction (Dilated)",
+                        "Glasses Rx",
+                        "Optical Specs",
+                        "Diagnosis",
+                        "Meds",
+                        "Lab Investigations",
+                        "Advice",
+                        "Planned Surgery",
+                        "FollowUp"
+                    ];
 
-                    {/* Symptoms */}
-                    {(!visibleSections || visibleSections.includes("Symptoms")) && prescription.symptoms && prescription.symptoms.length > 0 && (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
-                            <div className="flex items-center gap-1.5 pr-2">
-                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                    <Activity className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                                </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Symptoms
-                                </span>
-                            </div>
-                            <div className="text-xs text-left">
-                                <p className="font-medium uppercase">
-                                    {prescription.symptoms.map(s => s.symptom_name).join(", ")}
-                                </p>
-                            </div>
-                        </div>
-                    )}
+                    const visibleOrderedSections = order.filter(sectionName => {
+                        if (visibleSections && !visibleSections.includes(sectionName)) return false;
+                        
+                        // Check if section actually has data to render
+                        if (sectionName === "Presenting Complaint") return !!(visitData?.complaints?.length);
+                        if (sectionName === "Symptoms") return !!(prescription.symptoms?.length);
+                        if (sectionName === "Vision") return visionTableVisible;
+                        if (sectionName === "Refraction (Dry)") return refractionDryVisible;
+                        if (sectionName === "Refraction (Dilated)") return refractionDilatedVisible;
+                        if (sectionName === "Glasses Rx") return glassesRxVisible;
+                        if (sectionName === "Optical Specs") return opticalSpecsVisible;
+                        if (sectionName === "Diagnosis") return !!(prescription.diagnosis);
+                        if (sectionName === "Meds") return !!(prescription.medicine_items?.length);
+                        if (sectionName === "Lab Investigations") return !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test" || a.advice_type === "lab-test"));
+                        if (sectionName === "Advice") return !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action);
+                        if (sectionName === "Planned Surgery") return !!(plannedSurgeries?.length);
+                        if (sectionName === "FollowUp") return !!(prescription.followup_date);
+                        return false;
+                    });
 
-                    {/* Diagnosis */}
-                    {(!visibleSections || visibleSections.includes("Diagnosis")) && (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
-                            <div className="flex items-center gap-1.5 pr-2">
-                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                    <ClipboardCheck className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                                </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Diagnosis
-                                </span>
-                            </div>
-                            <div className="text-xs text-left">
-                                {prescription.diagnosis ? (
-                                    <p className="uppercase font-medium">{prescription.diagnosis}</p>
-                                ) : (
-                                    <span>-</span>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    return visibleOrderedSections.map((sectionName, index) => {
+                        const isLastSection = index === visibleOrderedSections.length - 1;
+                        const sectionMargin = sectionName === "FollowUp" && isLastSection 
+                            ? (isCompact ? "mb-4" : "mb-8") 
+                            : spacingClass;
 
-                    {/* Vision Table */}
-                    {visionTableVisible && (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
-                            <div className="flex items-center gap-1.5 pr-2 pt-1">
-                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                    <Eye className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                                </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Vision
-                                </span>
-                            </div>
-                            <div>
-                                <table className="w-full text-xs border-collapse border border-slate-300">
-                                    <thead>
-                                        <tr className="bg-sky-50/50 text-center">
-                                            <th className={`border border-slate-300 ${cellPadding} w-12`} rowSpan={2}>Eye</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={2}>Distance Vision</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={1}>Near Vision</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`} colSpan={1}>IOP</th>
-                                        </tr>
-                                        <tr className="bg-slate-50 text-center text-[10px]">
-                                            <th className={`border border-slate-300 ${cellPadding}`}>UCVA</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`}>PH</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`}>UCVA</th>
-                                            <th className={`border border-slate-300 ${cellPadding}`}>mmHg</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {/* Right Eye */}
-                                        <tr>
-                                            <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_ucva_distance || visitData?.refraction?.od_visual_acuity_uncorrected)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_ph_va)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.od_near_ucva)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.iop?.od_pressure)}
-                                            </td>
-                                        </tr>
-                                        {/* Left Eye */}
-                                        <tr>
-                                            <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_ucva_distance || visitData?.refraction?.os_visual_acuity_uncorrected)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_ph_va)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.vision?.os_near_ucva)}
-                                            </td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                                {formatVal(visitData?.iop?.os_pressure)}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                {visitData?.iop?.measurement_method && (
-                                    <p className="text-[10px] text-slate-500 mt-1 text-right">
-                                        IOP Method: {visitData.iop.measurement_method} ({formatTime(visitData.iop.measurement_time)})
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                        const content = renderSection(sectionName);
+                        if (!content) return null;
 
-                {/* Refraction (Dry) Details */}
-                {refractionDryVisible && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                        <div className="flex items-center gap-1.5 pr-2">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                        return (
+                            <div key={sectionName} className={`${sectionMargin} break-inside-avoid`}>
+                                {content}
                             </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Refraction (Dry)
-                            </span>
-                        </div>
-                        <div>
-                            <table className="w-full text-xs border-collapse border border-slate-300">
-                                <thead>
-                                    <tr className="bg-amber-50/50">
-                                        <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Dist)</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Near)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_sphere)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_cylinder)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                            {visitData?.refraction?.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
-                                        </td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_near_bcva)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_sphere)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_cylinder)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                            {visitData?.refraction?.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
-                                        </td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_near_bcva)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-
-                {/* Refraction (Dilated) Details */}
-                {refractionDilatedVisible && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                        <div className="flex items-center gap-1.5 pr-2">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                            </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Refraction (Dilated)
-                            </span>
-                        </div>
-                        <div>
-                            <table className="w-full text-xs border-collapse border border-slate-300">
-                                <thead>
-                                    <tr className="bg-teal-50/50">
-                                        <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>BCVA (Dist)</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>PH</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_sphere)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_cylinder)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                            {visitData?.refraction?.od_dilated_axis ? `${visitData.refraction.od_dilated_axis}°` : "-"}
-                                        </td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>-</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_visual_acuity)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_pinhole)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_sphere)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_cylinder)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>
-                                            {visitData?.refraction?.os_dilated_axis ? `${visitData.refraction.os_dilated_axis}°` : "-"}
-                                        </td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>-</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_visual_acuity)}</td>
-                                        <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_pinhole)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-
-                {(refractionDryVisible || refractionDilatedVisible) && visitData?.refraction?.notes && (
-                    <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
-                        <div className="w-full"></div>
-                        <p className="text-[10px] text-slate-500 italic text-left">
-                            Refraction Notes: {visitData.refraction.notes}
-                        </p>
-                    </div>
-                )}
-
-                {/* Additional Refraction Table (Glasses Prescription) if items exist */}
-                {glassesRxVisible && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                        <div className="flex items-center gap-1.5 pr-2">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Glasses className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                            </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Glasses Rx
-                            </span>
-                        </div>
-                        <div className="space-y-2">
-                            <table className="w-full text-xs border-collapse border border-slate-300">
-                                <thead>
-                                    <tr className="bg-slate-100">
-                                        <th className={`border border-slate-300 ${cellPadding} w-12`}>Eye</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Sph</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Cyl</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Axis</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>Add</th>
-                                        <th className={`border border-slate-300 ${cellPadding}`}>VA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
-                                        <tr key={`od-${idx}`}>
-                                            <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.axis)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
-                                        </tr>
-                                    ))}
-                                    {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
-                                        <tr key={`os-${idx}`}>
-                                            <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.axis)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power)}</td>
-                                            <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            {/* PD Move to Glasses Rx context */}
-                            {(prescription.pupillary_distance || visitData?.ar_data?.pupillary_distance) && (
-                                <div className="flex gap-2 text-xs">
-                                    <span className="text-slate-500 font-semibold">Pupillary Distance (PD):</span>
-                                    <span className="font-medium">{prescription.pupillary_distance || visitData?.ar_data?.pupillary_distance} mm</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Optical Specifications */}
-                {opticalSpecsVisible && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                        <div className="flex items-center gap-1.5 pr-2">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Layers className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                            </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Optical Specs
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                            {prescription.vision_type && (
-                                <div className="flex gap-1">
-                                    <span className="text-slate-500 whitespace-nowrap">Vision:</span>
-                                    <span className="font-medium uppercase truncate">{prescription.vision_type}</span>
-                                </div>
-                            )}
-                            {prescription.lens_type && (
-                                <div className="flex gap-1">
-                                    <span className="text-slate-500 whitespace-nowrap">Lens:</span>
-                                    <span className="font-medium uppercase truncate">{prescription.lens_type}</span>
-                                </div>
-                            )}
-                            {prescription.lens_material && (
-                                <div className="flex gap-1">
-                                    <span className="text-slate-500 whitespace-nowrap">Material:</span>
-                                    <span className="font-medium uppercase truncate">{prescription.lens_material}</span>
-                                </div>
-                            )}
-                            {prescription.coatings && prescription.coatings.length > 0 && (
-                                <div className="flex gap-1">
-                                    <span className="text-slate-500 whitespace-nowrap">Coatings:</span>
-                                    <span className="font-medium uppercase truncate" title={prescription.coatings.join(", ")}>
-                                        {prescription.coatings.join(", ")}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-
-                {/* Prescription (Meds) */}
-                {(!visibleSections || visibleSections.includes("Meds")) && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                        <div className="flex items-center gap-1.5 pr-2 pt-1">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Pill className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                            </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Prescription
-                            </span>
-                        </div>
-                        <div>
-                            {prescription.medicine_items && prescription.medicine_items.length > 0 ? (
-                                <div className={`${isCompact ? "space-y-1" : "space-y-2"}`}>
-                                    {prescription.medicine_items.map((med, idx) => (
-                                        <div key={idx} className={sectionFontClass}>
-                                            <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap items-center">
-                                                <span>{idx + 1}. {med.medicine_name}</span>
-                                                {med.applicable_eye && med.applicable_eye !== 'NA' && (
-                                                    <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-bold ml-1">
-                                                        {med.applicable_eye === 'BOTH' ? 'BOTH EYES' : med.applicable_eye}
-                                                    </span>
-                                                )}
-                                                {med.generic_name && <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">({med.generic_name})</span>}
-                                            </div>
-                                            <div className="pl-5 text-[10px] text-slate-600">
-                                                {med.tapering_steps && med.tapering_steps.length > 0 ? (
-                                                    <div className="mt-1 bg-purple-50/30 border border-purple-100/50 rounded-md p-2 max-w-md">
-                                                        <span className="text-[9px] font-bold text-purple-800 uppercase block mb-1">📉 Tapering Dose Schedule:</span>
-                                                        <div className="space-y-1">
-                                                            {med.tapering_steps.map((step, sIdx) => (
-                                                                <div key={sIdx} className="text-[9px] text-slate-700">
-                                                                    <span className="font-bold text-purple-950">Step {sIdx + 1}: </span>
-                                                                    <span>{step.dosage || med.dosage || ""}</span>
-                                                                    {step.frequency && <span> • {step.frequency}</span>}
-                                                                    {step.duration && <span> • {step.duration}</span>}
-                                                                    {step.instructions && <span className="italic text-slate-500"> ({step.instructions})</span>}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        {med.instructions && <span className="mr-2">({med.instructions})</span>}
-                                                        <span className="uppercase font-medium">
-                                                            {med.frequency && `${med.frequency}, `}
-                                                            {med.duration && `${med.duration}`}
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <span>-</span>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Advice & Lab Investigations */}
-                <div className="space-y-1">
-                    {/* Lab Investigations */}
-                    {prescription.advice_items?.some(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test") && (!visibleSections || visibleSections.includes("Lab Investigations")) && (
-                        <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start break-inside-avoid`}>
-                            <div className="flex items-center gap-1.5 pr-2">
-                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                    <FlaskConical className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                                </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Lab Invest.
-                                </span>
-                            </div>
-                            <div className={`${sectionFontClass} font-medium uppercase`}>
-                                {prescription.advice_items
-                                    .filter(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test")
-                                    .map(a => a.description)
-                                    .join(", ")}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Actual Advice */}
-                    {(prescription.advice_items?.some(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action) && (!visibleSections || visibleSections.includes("Advice")) && (
-                        <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                            <div className="flex items-center gap-1.5 pr-2">
-                                <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                    <Info className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                                </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Advice
-                                </span>
-                            </div>
-                            <div className={`${sectionFontClass} font-medium uppercase`}>
-                                {[
-                                    ...(prescription.plan_of_action ? [prescription.plan_of_action] : []),
-                                    ...((prescription.advice_items || [])
-                                        .filter(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test")
-                                        .map(a => a.description))
-                                ].join(", ")}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Planned Surgeries */}
-                {(plannedSurgeries && plannedSurgeries.length > 0) && (!visibleSections || visibleSections.includes("Planned Surgery")) && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${spacingClass} items-start`}>
-                        <div className="flex items-center gap-1.5 pr-2">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Stethoscope className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                            </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                Planned Surgery
-                            </span>
-                        </div>
-                        <div className={sectionFontClass}>
-                            <ul className="list-disc list-outside ml-4">
-                                {plannedSurgeries.map((surgery, idx) => (
-                                    <li key={idx} className="mb-1">
-                                        <span className="font-medium">{surgery.surgery_name}</span>
-                                        <span className="text-slate-600 ml-1">
-                                            ({surgery.eye}) - Planned on {formatDate(surgery.planned_date)}
-                                        </span>
-                                        {surgery.notes && (
-                                            <div className="text-xs text-slate-500 mt-0.5 italic">
-                                                Note: {surgery.notes}
-                                            </div>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                )}
-
-                {/* FollowUp */}
-                {(!visibleSections || visibleSections.includes("FollowUp")) && (
-                    <div className={`grid grid-cols-[120px_1fr] gap-2 ${isCompact ? "mb-4" : "mb-8"} items-start break-inside-avoid`}>
-                        <div className="flex items-center gap-1.5 pr-2">
-                            <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
-                                <Calendar className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
-                            </div>
-                            <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                FollowUp
-                            </span>
-                        </div>
-                        <div className={`${sectionFontClass} font-medium`}>
-                            {prescription.followup_date ? (
-                                <span>Review at {formatDate(prescription.followup_date)} (to confirm with reception) or earlier in case of any problem.</span>
-                            ) : (
-                                <span>-</span>
-                            )}
-                        </div>
-                    </div>
-                )}
+                        );
+                    });
+                })()}
 
                 {/* Footer Signature & Branding */}
                 <div className={`flex justify-between items-end ${isExtremelyCompact ? "mt-2" : isCompact ? "mt-4" : "mt-6"} pt-2 border-t border-slate-300 break-inside-avoid gap-4`}>
