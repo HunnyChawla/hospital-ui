@@ -173,6 +173,12 @@ export function EditableRefractionCard({
                 <span className="text-slate-600">Axis:</span>
                 <span className="font-medium">{data.od_axis ? `${data.od_axis}°` : "-"}</span>
               </div>
+              {data.od_prism && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Prism:</span>
+                  <span className="font-medium">{data.od_prism}</span>
+                </div>
+              )}
               {data.od_distance_bcva && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Dist. BCVA:</span>
@@ -192,6 +198,37 @@ export function EditableRefractionCard({
                 </div>
               )}
             </div>
+            {(data.od_dilated_sphere || data.od_dilated_cylinder || data.od_dilated_axis || data.od_dilated_visual_acuity || data.od_dilated_pinhole) && (
+              <div className="pt-2 border-t border-blue-200 mt-2">
+                <p className="text-[10px] font-semibold text-blue-700 uppercase mb-1">Dilated Acceptance</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Sphere:</span>
+                    <span className="font-medium">{formatValue(data.od_dilated_sphere)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Cylinder:</span>
+                    <span className="font-medium">{formatValue(data.od_dilated_cylinder)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Axis:</span>
+                    <span className="font-medium">{data.od_dilated_axis ? `${data.od_dilated_axis}°` : "-"}</span>
+                  </div>
+                  {data.od_dilated_visual_acuity && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Visual Acuity:</span>
+                      <span className="font-medium">{data.od_dilated_visual_acuity}</span>
+                    </div>
+                  )}
+                  {data.od_dilated_pinhole && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Pinhole:</span>
+                      <span className="font-medium">{data.od_dilated_pinhole}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="rounded bg-green-50 p-3">
             <p className="text-xs font-semibold text-green-700 mb-2">OS (Left Eye)</p>
@@ -208,6 +245,12 @@ export function EditableRefractionCard({
                 <span className="text-slate-600">Axis:</span>
                 <span className="font-medium">{data.os_axis ? `${data.os_axis}°` : "-"}</span>
               </div>
+              {data.os_prism && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Prism:</span>
+                  <span className="font-medium">{data.os_prism}</span>
+                </div>
+              )}
               {data.os_distance_bcva && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Dist. BCVA:</span>
@@ -227,6 +270,37 @@ export function EditableRefractionCard({
                 </div>
               )}
             </div>
+            {(data.os_dilated_sphere || data.os_dilated_cylinder || data.os_dilated_axis || data.os_dilated_visual_acuity || data.os_dilated_pinhole) && (
+              <div className="pt-2 border-t border-green-200 mt-2">
+                <p className="text-[10px] font-semibold text-green-700 uppercase mb-1">Dilated Acceptance</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Sphere:</span>
+                    <span className="font-medium">{formatValue(data.os_dilated_sphere)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Cylinder:</span>
+                    <span className="font-medium">{formatValue(data.os_dilated_cylinder)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Axis:</span>
+                    <span className="font-medium">{data.os_dilated_axis ? `${data.os_dilated_axis}°` : "-"}</span>
+                  </div>
+                  {data.os_dilated_visual_acuity && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Visual Acuity:</span>
+                      <span className="font-medium">{data.os_dilated_visual_acuity}</span>
+                    </div>
+                  )}
+                  {data.os_dilated_pinhole && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Pinhole:</span>
+                      <span className="font-medium">{data.os_dilated_pinhole}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-500 text-right">

@@ -4,6 +4,7 @@ import { useMemo, useEffect, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 // import { fetchMedicalConditions } from "@/redux/optometryDataSlice";
 import { useExaminationViewContext } from "@/context/ExaminationViewContext";
+import clsx from "clsx";
 import {
   MessageSquare,
   FileHeart,
@@ -34,6 +35,7 @@ import {
 // Import tab content components
 import { ComplaintsTab } from "./ComplaintsTab";
 import { VisionTab } from "./VisionTab";
+import { MergedVisionTab } from "./MergedVisionTab";
 import { CurrentSpecsTab } from "./CurrentSpecsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
@@ -93,6 +95,7 @@ interface ExaminationSingleViewProps {
   refreshIOP: () => void;
   refreshVision: () => void;
   refreshCurrentSpecs?: () => void;
+  refreshUnifiedExam?: () => void;
 }
 
 // Reordered according to user request
@@ -132,13 +135,28 @@ export function ExaminationSingleView({
   refreshIOP,
   refreshVision,
   refreshCurrentSpecs,
+  refreshUnifiedExam,
 }: ExaminationSingleViewProps) {
   const dispatch = useAppDispatch();
-  const { hiddenTabs, toggleSection, isSectionCollapsed } = useExaminationViewContext();
-  // internal state for medicalConditions removed in favor of prop
+  const {
+    hiddenTabs,
+    toggleSection,
+    isSectionCollapsed,
+    useMergedVisionView,
+    setUseMergedVisionView,
+  } = useExaminationViewContext();
 
+  // Dynamically compute sections list based on layout preference
+  const visibleSections = useMemo(() => {
+    if (useMergedVisionView) {
+      return sections
+        .filter((s) => s.id !== "ar_data" && s.id !== "refraction" && s.id !== "current_specs")
+        .map((s) => (s.id === "vision" ? { ...s, title: "Vision & Refraction" } : s));
+    }
+    return sections;
+  }, [useMergedVisionView]);
 
-  // Calculate section statuses
+  // Calculate base section statuses
   const sectionStatuses = useMemo(
     () => ({
       complaints: getComplaintsStatus(complaints),
@@ -165,15 +183,39 @@ export function ExaminationSingleView({
     ]
   );
 
+  // Compute final section statuses (including merged vision status if layout is merged)
+  const finalSectionStatuses = useMemo(() => {
+    const statuses = { ...sectionStatuses };
+    if (useMergedVisionView) {
+      const mergedFields = [
+        sectionStatuses.vision,
+        sectionStatuses.ar_data,
+        sectionStatuses.refraction,
+        sectionStatuses.current_specs,
+      ];
+      let combined: SectionStatus = "empty";
+      if (mergedFields.includes("partial")) {
+        combined = "partial";
+      } else if (mergedFields.includes("complete")) {
+        combined = "complete";
+      }
+      statuses.vision = combined;
+    }
+    return statuses;
+  }, [sectionStatuses, useMergedVisionView]);
+
   // Calculate overall progress based on visible sections
   const completedCount = useMemo(() => {
-    return sections
+    return visibleSections
       .filter((s) => !hiddenTabs.includes(s.id))
-      .filter((s) => sectionStatuses[s.id as keyof typeof sectionStatuses] === "complete")
+      .filter((s) => finalSectionStatuses[s.id as keyof typeof finalSectionStatuses] === "complete")
       .length;
-  }, [sectionStatuses, hiddenTabs]);
+  }, [finalSectionStatuses, hiddenTabs, visibleSections]);
 
-  const totalSections = sections.filter((s) => !hiddenTabs.includes(s.id)).length;
+  const totalSections = useMemo(() => {
+    return visibleSections.filter((s) => !hiddenTabs.includes(s.id)).length;
+  }, [visibleSections, hiddenTabs]);
+
   // Avoid division by zero
   const progressPercent = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
@@ -192,7 +234,24 @@ export function ExaminationSingleView({
           />
         );
       case "vision":
-        return (
+        return useMergedVisionView ? (
+          <MergedVisionTab
+            patientId={patientId}
+            visitId={visitId}
+            optometristId={optometristId}
+            visionRecords={visionRecords}
+            arDataRecords={arDataRecords}
+            refractionRecords={refractionRecords}
+            currentSpecsRecords={currentSpecsRecords || []}
+            loading={{
+              vision: loading.vision,
+              arData: loading.arData,
+              refraction: loading.refraction,
+              currentSpecs: loading.currentSpecs || false,
+            }}
+            onRefresh={refreshUnifiedExam || (() => {})}
+          />
+        ) : (
           <VisionTab
             patientId={patientId}
             visitId={visitId}
@@ -270,7 +329,7 @@ export function ExaminationSingleView({
             optometristId={optometristId}
             currentSpecsRecords={currentSpecsRecords || []}
             loading={loading.currentSpecs || false}
-            onRefresh={refreshCurrentSpecs || (() => { })}
+            onRefresh={refreshCurrentSpecs || (() => {})}
           />
         );
       default:
@@ -280,7 +339,7 @@ export function ExaminationSingleView({
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Sticky Header with Progress & Quick Jump */}
+      {/* Sticky Header with Progress, Quick Jump & Layout Toggle */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-3 mb-3">
         {/* Progress Header */}
         <div className="flex items-center justify-between mb-2">
@@ -292,7 +351,38 @@ export function ExaminationSingleView({
               </span>
             </div>
           </div>
-          <span className="text-xs font-bold text-sky-600">{progressPercent}%</span>
+          <div className="flex items-center gap-2">
+            {/* Layout Mode Toggle */}
+            <button
+              onClick={() => setUseMergedVisionView(!useMergedVisionView)}
+              className={clsx(
+                "flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold shadow-sm transition-all duration-200 border bg-white",
+                useMergedVisionView
+                  ? "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100"
+                  : "text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
+              title={useMergedVisionView ? "Switch to separate sections" : "Switch to merged vision & refraction"}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3 w-3"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M3 9h18" />
+                <path d="M9 21V9" />
+              </svg>
+              <span>{useMergedVisionView ? "Merged" : "Tabbed"}</span>
+            </button>
+            <span className="text-xs font-bold text-sky-600 ml-1">{progressPercent}%</span>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -305,11 +395,11 @@ export function ExaminationSingleView({
 
         {/* Quick Jump Links */}
         <div className="flex flex-wrap gap-2">
-          {sections.map((section) => {
+          {visibleSections.map((section) => {
             // Skip if section is hidden
             if (hiddenTabs.includes(section.id)) return null;
 
-            const status = sectionStatuses[section.id as keyof typeof sectionStatuses] as SectionStatus;
+            const status = finalSectionStatuses[section.id as keyof typeof finalSectionStatuses] as SectionStatus;
             const isComplete = status === "complete";
             const isPartial = status === "partial";
 
@@ -317,12 +407,13 @@ export function ExaminationSingleView({
               <a
                 key={section.id}
                 href={`#section-${section.id}`}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all shadow-sm ${isComplete
-                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
-                  : isPartial
+                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all shadow-sm ${
+                  isComplete
+                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
+                    : isPartial
                     ? "bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200"
                     : "bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600"
-                  }`}
+                }`}
                 onClick={(e) => {
                   e.preventDefault();
                   document.getElementById(`section-${section.id}`)?.scrollIntoView({
@@ -345,11 +436,11 @@ export function ExaminationSingleView({
         </div>
       </div>
 
-      {sections.map((section) => {
+      {visibleSections.map((section) => {
         // Skip if section is hidden
         if (hiddenTabs.includes(section.id)) return null;
 
-        const status = sectionStatuses[section.id as keyof typeof sectionStatuses] as SectionStatus;
+        const status = finalSectionStatuses[section.id as keyof typeof finalSectionStatuses] as SectionStatus;
 
         return (
           <div key={section.id} id={`section-${section.id}`} className="scroll-mt-24">
@@ -371,7 +462,9 @@ export function ExaminationSingleView({
       {/* End of Examination Indicator */}
       <div className="flex items-center justify-center py-8 opacity-60">
         <div className="h-px bg-slate-300 w-24"></div>
-        <span className="mx-4 text-xs font-medium text-slate-400 uppercase tracking-widest">End of Examination</span>
+        <span className="mx-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
+          End of Examination
+        </span>
         <div className="h-px bg-slate-300 w-24"></div>
       </div>
     </div>

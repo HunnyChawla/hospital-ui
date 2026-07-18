@@ -47,6 +47,22 @@ interface RefractionFormData {
     near_bcva: string;
     add_power: number | null;
   };
+  od_prism: string;
+  os_prism: string;
+  od_dilated: {
+    sphere: number | string | null;
+    cylinder: number | string | null;
+    axis: number | string | null;
+    visual_acuity: string;
+    pinhole: string;
+  };
+  os_dilated: {
+    sphere: number | string | null;
+    cylinder: number | string | null;
+    axis: number | string | null;
+    visual_acuity: string;
+    pinhole: string;
+  };
   pupillary_distance: number | null;
   notes: string;
 }
@@ -72,6 +88,22 @@ const initialFormData: RefractionFormData = {
     near_bcva: "",
     add_power: null,
   },
+  od_prism: "",
+  os_prism: "",
+  od_dilated: {
+    sphere: null,
+    cylinder: null,
+    axis: null,
+    visual_acuity: "",
+    pinhole: "",
+  },
+  os_dilated: {
+    sphere: null,
+    cylinder: null,
+    axis: null,
+    visual_acuity: "",
+    pinhole: "",
+  },
   pupillary_distance: null,
   notes: "",
 };
@@ -84,6 +116,7 @@ const initialFormData: RefractionFormData = {
 // const ADD_POWER_PRESETS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5];
 const PD_PRESETS = [54, 56, 58, 60, 61, 62, 63, 64, 65, 66, 68, 70];
 const NEAR_VA_OPTIONS = ["N5", "N6", "N8", "N10", "N12", "N14", "N18", "N24", "N36", "N48"];
+const PRISM_OPTIONS = ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
 
 export function RefractionTab({
   patientId,
@@ -147,6 +180,22 @@ export function RefractionTab({
         distance_bcva: hasNested ? r.os.distance_bcva ?? "" : r.os_distance_bcva ?? "",
         near_bcva: hasNested ? r.os.near_bcva ?? "" : r.os_near_bcva ?? "",
         add_power: hasNested ? toNumberOrNull(r.os.add_power) : toNumberOrNull(r.os_add_power),
+      },
+      od_prism: r.od_prism ?? "",
+      os_prism: r.os_prism ?? "",
+      od_dilated: {
+        sphere: toNumberOrNull(r.od_dilated_sphere),
+        cylinder: toNumberOrNull(r.od_dilated_cylinder),
+        axis: toNumberOrNull(r.od_dilated_axis),
+        visual_acuity: r.od_dilated_visual_acuity ?? "",
+        pinhole: r.od_dilated_pinhole ?? "",
+      },
+      os_dilated: {
+        sphere: toNumberOrNull(r.os_dilated_sphere),
+        cylinder: toNumberOrNull(r.os_dilated_cylinder),
+        axis: toNumberOrNull(r.os_dilated_axis),
+        visual_acuity: r.os_dilated_visual_acuity ?? "",
+        pinhole: r.os_dilated_pinhole ?? "",
       },
       pupillary_distance: toNumberOrNull(r.pupillary_distance),
     };
@@ -239,6 +288,20 @@ export function RefractionTab({
     });
   };
 
+  const updateDilatedField = (
+    eye: "od_dilated" | "os_dilated",
+    field: keyof RefractionFormData["od_dilated"],
+    value: number | string | null
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [eye]: {
+        ...prev[eye],
+        [field]: value,
+      },
+    }));
+  };
+
   // Apply template
 
 
@@ -297,6 +360,22 @@ export function RefractionTab({
           distance_bcva: visitCombined?.os?.distance_bcva ?? visitOS?.distance_bcva ?? "",
           near_bcva: visitCombined?.os?.near_bcva ?? visitOS?.near_bcva ?? "",
           add_power: visitCombined?.os?.add_power ?? visitOS?.add_power ?? null,
+        },
+        od_prism: visitCombined?.od_prism ?? visitOD?.od_prism ?? "",
+        os_prism: visitCombined?.os_prism ?? visitOS?.os_prism ?? "",
+        od_dilated: {
+          sphere: visitCombined?.od_dilated?.sphere ?? visitOD?.od_dilated_sphere ?? null,
+          cylinder: visitCombined?.od_dilated?.cylinder ?? visitOD?.od_dilated_cylinder ?? null,
+          axis: visitCombined?.od_dilated?.axis ?? visitOD?.od_dilated_axis ?? null,
+          visual_acuity: visitCombined?.od_dilated?.visual_acuity ?? visitOD?.od_dilated_visual_acuity ?? "",
+          pinhole: visitCombined?.od_dilated?.pinhole ?? visitOD?.od_dilated_pinhole ?? "",
+        },
+        os_dilated: {
+          sphere: visitCombined?.os_dilated?.sphere ?? visitOS?.os_dilated_sphere ?? null,
+          cylinder: visitCombined?.os_dilated?.cylinder ?? visitOS?.os_dilated_cylinder ?? null,
+          axis: visitCombined?.os_dilated?.axis ?? visitOS?.os_dilated_axis ?? null,
+          visual_acuity: visitCombined?.os_dilated?.visual_acuity ?? visitOS?.os_dilated_visual_acuity ?? "",
+          pinhole: visitCombined?.os_dilated?.pinhole ?? visitOS?.os_dilated_pinhole ?? "",
         },
         pupillary_distance: visitCombined?.pupillary_distance ?? visitOD?.pupillary_distance ?? visitOS?.pupillary_distance ?? null,
         notes: visitCombined?.notes ?? visitOD?.notes ?? visitOS?.notes ?? "",
@@ -362,6 +441,18 @@ export function RefractionTab({
                 near_bcva: formData.os.near_bcva,
                 add_power: formData.os.add_power,
               },
+              od_prism: formData.od_prism || null,
+              os_prism: formData.os_prism || null,
+              od_dilated_sphere: formData.od_dilated.sphere === "" || formData.od_dilated.sphere === null ? null : Number(formData.od_dilated.sphere),
+              od_dilated_cylinder: formData.od_dilated.cylinder === "" || formData.od_dilated.cylinder === null ? null : Number(formData.od_dilated.cylinder),
+              od_dilated_axis: formData.od_dilated.axis === "" || formData.od_dilated.axis === null ? null : Number(formData.od_dilated.axis),
+              od_dilated_visual_acuity: formData.od_dilated.visual_acuity || null,
+              od_dilated_pinhole: formData.od_dilated.pinhole || null,
+              os_dilated_sphere: formData.os_dilated.sphere === "" || formData.os_dilated.sphere === null ? null : Number(formData.os_dilated.sphere),
+              os_dilated_cylinder: formData.os_dilated.cylinder === "" || formData.os_dilated.cylinder === null ? null : Number(formData.os_dilated.cylinder),
+              os_dilated_axis: formData.os_dilated.axis === "" || formData.os_dilated.axis === null ? null : Number(formData.os_dilated.axis),
+              os_dilated_visual_acuity: formData.os_dilated.visual_acuity || null,
+              os_dilated_pinhole: formData.os_dilated.pinhole || null,
               pupillary_distance: formData.pupillary_distance,
               notes: formData.notes || null,
               recorded_at: new Date().toISOString(),
@@ -382,6 +473,12 @@ export function RefractionTab({
                 distance_bcva: formData.od.distance_bcva,
                 near_bcva: formData.od.near_bcva,
                 add_power: formData.od.add_power ?? undefined,
+                od_prism: formData.od_prism || null,
+                od_dilated_sphere: formData.od_dilated.sphere === "" || formData.od_dilated.sphere === null ? null : Number(formData.od_dilated.sphere),
+                od_dilated_cylinder: formData.od_dilated.cylinder === "" || formData.od_dilated.cylinder === null ? null : Number(formData.od_dilated.cylinder),
+                od_dilated_axis: formData.od_dilated.axis === "" || formData.od_dilated.axis === null ? null : Number(formData.od_dilated.axis),
+                od_dilated_visual_acuity: formData.od_dilated.visual_acuity || null,
+                od_dilated_pinhole: formData.od_dilated.pinhole || null,
                 pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
               },
@@ -401,6 +498,12 @@ export function RefractionTab({
                 distance_bcva: formData.os.distance_bcva,
                 near_bcva: formData.os.near_bcva,
                 add_power: formData.os.add_power ?? undefined,
+                os_prism: formData.os_prism || null,
+                os_dilated_sphere: formData.os_dilated.sphere === "" || formData.os_dilated.sphere === null ? null : Number(formData.os_dilated.sphere),
+                os_dilated_cylinder: formData.os_dilated.cylinder === "" || formData.os_dilated.cylinder === null ? null : Number(formData.os_dilated.cylinder),
+                os_dilated_axis: formData.os_dilated.axis === "" || formData.os_dilated.axis === null ? null : Number(formData.os_dilated.axis),
+                os_dilated_visual_acuity: formData.os_dilated.visual_acuity || null,
+                os_dilated_pinhole: formData.os_dilated.pinhole || null,
                 pupillary_distance: formData.pupillary_distance ?? undefined,
                 notes: formData.notes || null,
               },
@@ -434,6 +537,18 @@ export function RefractionTab({
                 near_bcva: formData.os.near_bcva,
                 add_power: formData.os.add_power,
               },
+              od_prism: formData.od_prism || null,
+              os_prism: formData.os_prism || null,
+              od_dilated_sphere: formData.od_dilated.sphere === "" || formData.od_dilated.sphere === null ? null : Number(formData.od_dilated.sphere),
+              od_dilated_cylinder: formData.od_dilated.cylinder === "" || formData.od_dilated.cylinder === null ? null : Number(formData.od_dilated.cylinder),
+              od_dilated_axis: formData.od_dilated.axis === "" || formData.od_dilated.axis === null ? null : Number(formData.od_dilated.axis),
+              od_dilated_visual_acuity: formData.od_dilated.visual_acuity || null,
+              od_dilated_pinhole: formData.od_dilated.pinhole || null,
+              os_dilated_sphere: formData.os_dilated.sphere === "" || formData.os_dilated.sphere === null ? null : Number(formData.os_dilated.sphere),
+              os_dilated_cylinder: formData.os_dilated.cylinder === "" || formData.os_dilated.cylinder === null ? null : Number(formData.os_dilated.cylinder),
+              os_dilated_axis: formData.os_dilated.axis === "" || formData.os_dilated.axis === null ? null : Number(formData.os_dilated.axis),
+              os_dilated_visual_acuity: formData.os_dilated.visual_acuity || null,
+              os_dilated_pinhole: formData.os_dilated.pinhole || null,
               pupillary_distance: formData.pupillary_distance,
               notes: formData.notes || null,
               recorded_at: new Date().toISOString(),
@@ -545,7 +660,7 @@ export function RefractionTab({
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 border-t border-blue-200 pt-3">
+                  <div className="grid grid-cols-3 gap-2 border-t border-blue-200 pt-3">
                     <div>
                       <p className="text-[10px] font-semibold uppercase text-slate-400">Dist. BCVA</p>
                       <p className="text-sm font-bold text-slate-700">
@@ -558,7 +673,45 @@ export function RefractionTab({
                         {visitCombined?.od?.near_bcva ?? visitOD?.near_bcva ?? "—"}
                       </p>
                     </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Prism</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {visitCombined?.od_prism ?? visitOD?.od_prism ?? "—"}
+                      </p>
+                    </div>
                   </div>
+                  {(visitCombined?.od_dilated?.sphere != null || visitOD?.od_dilated_sphere != null || visitCombined?.od_dilated?.visual_acuity || visitOD?.od_dilated_visual_acuity) && (
+                    <div className="border-t border-blue-200 pt-3 space-y-1">
+                      <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wide">Dilated Acceptance</p>
+                      <div className="grid grid-cols-4 gap-2 text-center bg-white/50 rounded-lg p-2 border border-blue-100">
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">SPH</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatValue(visitCombined?.od_dilated?.sphere ?? visitOD?.od_dilated_sphere, "sphere")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">CYL</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatValue(visitCombined?.od_dilated?.cylinder ?? visitOD?.od_dilated_cylinder, "cylinder")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">AXIS</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatValue(visitCombined?.od_dilated?.axis ?? visitOD?.od_dilated_axis, "axis")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">VA (PH)</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {visitCombined?.od_dilated?.visual_acuity ?? visitOD?.od_dilated_visual_acuity ?? "—"}
+                            {(visitCombined?.od_dilated?.pinhole || visitOD?.od_dilated_pinhole) && ` (${visitCombined?.od_dilated?.pinhole ?? visitOD?.od_dilated_pinhole})`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="border-t border-blue-200 pt-2">
                     <span className="text-xs text-slate-500">
                       {new Date(visitCombined?.recorded_at ?? visitOD?.recorded_at).toLocaleDateString()}
@@ -613,7 +766,7 @@ export function RefractionTab({
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 border-t border-green-200 pt-3">
+                  <div className="grid grid-cols-3 gap-2 border-t border-green-200 pt-3">
                     <div>
                       <p className="text-[10px] font-semibold uppercase text-slate-400">Dist. BCVA</p>
                       <p className="text-sm font-bold text-slate-700">
@@ -626,7 +779,45 @@ export function RefractionTab({
                         {visitCombined?.os?.near_bcva ?? visitOS?.near_bcva ?? "—"}
                       </p>
                     </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Prism</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {visitCombined?.os_prism ?? visitOS?.os_prism ?? "—"}
+                      </p>
+                    </div>
                   </div>
+                  {(visitCombined?.os_dilated?.sphere != null || visitOS?.os_dilated_sphere != null || visitCombined?.os_dilated?.visual_acuity || visitOS?.os_dilated_visual_acuity) && (
+                    <div className="border-t border-green-200 pt-3 space-y-1">
+                      <p className="text-[10px] font-bold text-green-800 uppercase tracking-wide">Dilated Acceptance</p>
+                      <div className="grid grid-cols-4 gap-2 text-center bg-white/50 rounded-lg p-2 border border-green-100">
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">SPH</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatValue(visitCombined?.os_dilated?.sphere ?? visitOS?.os_dilated_sphere, "sphere")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">CYL</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatValue(visitCombined?.os_dilated?.cylinder ?? visitOS?.os_dilated_cylinder, "cylinder")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">AXIS</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatValue(visitCombined?.os_dilated?.axis ?? visitOS?.os_dilated_axis, "axis")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 font-semibold">VA (PH)</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {visitCombined?.os_dilated?.visual_acuity ?? visitOS?.os_dilated_visual_acuity ?? "—"}
+                            {(visitCombined?.os_dilated?.pinhole || visitOS?.os_dilated_pinhole) && ` (${visitCombined?.os_dilated?.pinhole ?? visitOS?.os_dilated_pinhole})`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="border-t border-green-200 pt-2">
                     <span className="text-xs text-slate-500">
                       {new Date(visitCombined?.recorded_at ?? visitOS?.recorded_at).toLocaleDateString()}
@@ -822,6 +1013,37 @@ export function RefractionTab({
               </div>
             </div>
 
+            {/* Prism Section */}
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-slate-900">
+                Prism (optional)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                  <span className="text-xs font-semibold text-blue-700 w-16">OD (Right):</span>
+                  <select
+                    value={formData.od_prism || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, od_prism: e.target.value }))}
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-white"
+                  >
+                    <option value="">—</option>
+                    {PRISM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50/50 p-3">
+                  <span className="text-xs font-semibold text-green-700 w-16">OS (Left):</span>
+                  <select
+                    value={formData.os_prism || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, os_prism: e.target.value }))}
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-white"
+                  >
+                    <option value="">—</option>
+                    {PRISM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Pupillary Distance */}
             <div className="border-t border-slate-200 pt-6">
               <NumericStepper
@@ -838,6 +1060,118 @@ export function RefractionTab({
                 colorScheme="neutral"
                 placeholder="63.0"
               />
+            </div>
+
+            {/* Dilated Acceptance Section */}
+            <div className="border-t border-slate-200 pt-6 space-y-6">
+              <div>
+                <h5 className="text-sm font-semibold text-slate-800">Dilated Acceptance</h5>
+                <p className="text-xs text-slate-500">Record subjective refraction post-dilation</p>
+              </div>
+
+              <EyeValueInput
+                label="Dilated Sphere (SPH)"
+                odValue={formData.od_dilated.sphere === "" || formData.od_dilated.sphere === null ? null : Number(formData.od_dilated.sphere)}
+                osValue={formData.os_dilated.sphere === "" || formData.os_dilated.sphere === null ? null : Number(formData.os_dilated.sphere)}
+                onODChange={(v) => updateDilatedField("od_dilated", "sphere", v)}
+                onOSChange={(v) => updateDilatedField("os_dilated", "sphere", v)}
+                step={0.25}
+                min={-30}
+                max={30}
+                unit="D"
+                presets={spherePresets}
+              />
+
+              <EyeValueInput
+                label="Dilated Cylinder (CYL)"
+                odValue={formData.od_dilated.cylinder === "" || formData.od_dilated.cylinder === null ? null : Number(formData.od_dilated.cylinder)}
+                osValue={formData.os_dilated.cylinder === "" || formData.os_dilated.cylinder === null ? null : Number(formData.os_dilated.cylinder)}
+                onODChange={(v) => updateDilatedField("od_dilated", "cylinder", v)}
+                onOSChange={(v) => updateDilatedField("os_dilated", "cylinder", v)}
+                step={0.25}
+                min={-6}
+                max={6}
+                unit="D"
+                presets={cylinderPresets}
+              />
+
+              <EyeValueInput
+                label="Dilated Axis"
+                odValue={formData.od_dilated.axis === "" || formData.od_dilated.axis === null ? null : Number(formData.od_dilated.axis)}
+                osValue={formData.os_dilated.axis === "" || formData.os_dilated.axis === null ? null : Number(formData.os_dilated.axis)}
+                onODChange={(v) => updateDilatedField("od_dilated", "axis", v)}
+                onOSChange={(v) => updateDilatedField("os_dilated", "axis", v)}
+                step={1}
+                min={0}
+                max={180}
+                unit="°"
+                presets={axisPresets}
+              />
+
+              {/* Dilated VA and Pinhole */}
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-slate-900">
+                  Dilated Visual Acuity & Pinhole
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500" />
+                      <span className="text-xs font-semibold text-blue-700">OD (Right Eye)</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Visual Acuity</label>
+                        <VASelector
+                          value={formData.od_dilated.visual_acuity || null}
+                          onChange={(v) => updateDilatedField("od_dilated", "visual_acuity", v || "")}
+                          colorScheme="blue"
+                          placeholder="OD Dilated VA"
+                          mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Pinhole</label>
+                        <VASelector
+                          value={formData.od_dilated.pinhole || null}
+                          onChange={(v) => updateDilatedField("od_dilated", "pinhole", v || "")}
+                          colorScheme="blue"
+                          placeholder="OD Pinhole"
+                          mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-green-200 bg-green-50/50 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      <span className="text-xs font-semibold text-green-700">OS (Left Eye)</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Visual Acuity</label>
+                        <VASelector
+                          value={formData.os_dilated.visual_acuity || null}
+                          onChange={(v) => updateDilatedField("os_dilated", "visual_acuity", v || "")}
+                          colorScheme="green"
+                          placeholder="OS Dilated VA"
+                          mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Pinhole</label>
+                        <VASelector
+                          value={formData.os_dilated.pinhole || null}
+                          onChange={(v) => updateDilatedField("os_dilated", "pinhole", v || "")}
+                          colorScheme="green"
+                          placeholder="OS Pinhole"
+                          mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Notes */}

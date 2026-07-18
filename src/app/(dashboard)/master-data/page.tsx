@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { DiagnosesPanel } from "@/components/master-data/DiagnosesPanel";
 import { SymptomsPanel } from "@/components/master-data/SymptomsPanel";
 import { AdvicesPanel } from "@/components/master-data/AdvicesPanel";
+import { MedicinesPanel } from "@/components/master-data/MedicinesPanel";
 import { SeedDataPanel } from "@/components/master-data/SeedDataPanel";
 import { isPlatformOwner } from "@/utils/auth";
 import { Database } from "lucide-react";
 
-type Tab = "diagnoses" | "symptoms" | "advices" | "seed-data";
+type Tab = "diagnoses" | "symptoms" | "advices" | "medicines" | "seed-data";
 
 
 export default function MasterDataPage() {
@@ -71,6 +72,18 @@ export default function MasterDataPage() {
                             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
                         )}
                     </button>
+                    <button
+                        onClick={() => setActiveTab("medicines")}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors relative whitespace-nowrap ${activeTab === "medicines"
+                            ? "text-sky-600"
+                            : "text-slate-600 hover:text-slate-900"
+                            }`}
+                    >
+                        Medicines
+                        {activeTab === "medicines" && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
+                        )}
+                    </button>
 
                     {canSeed && (
                         <button
@@ -95,6 +108,7 @@ export default function MasterDataPage() {
                 {activeTab === "diagnoses" && <DiagnosesPanel />}
                 {activeTab === "symptoms" && <SymptomsPanel />}
                 {activeTab === "advices" && <AdvicesPanel />}
+                {activeTab === "medicines" && <MedicinesPanel />}
                 {activeTab === "seed-data" && canSeed && <SeedDataPanel />}
             </div>
         </div>

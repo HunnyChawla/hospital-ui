@@ -19,12 +19,14 @@ export interface ExaminationViewPreferences {
     viewMode: ExaminationViewMode;
     collapsedSections: string[];
     hiddenTabs: string[];
+    useMergedVisionView?: boolean;
 }
 
 interface ExaminationViewContextType {
     viewMode: ExaminationViewMode;
     collapsedSections: string[];
     hiddenTabs: string[];
+    useMergedVisionView: boolean;
     setViewMode: (mode: ExaminationViewMode) => void;
     toggleViewMode: () => void;
     toggleSection: (sectionId: string) => void;
@@ -32,6 +34,7 @@ interface ExaminationViewContextType {
     isSectionCollapsed: (sectionId: string) => boolean;
     expandAllSections: () => void;
     collapseAllSections: (sectionIds: string[]) => void;
+    setUseMergedVisionView: (enabled: boolean) => void;
 }
 
 export const SECTION_CONFIG = [
@@ -51,6 +54,7 @@ const DEFAULT_PREFERENCES: ExaminationViewPreferences = {
     viewMode: "tabs",
     collapsedSections: ["previous_history"],
     hiddenTabs: [],
+    useMergedVisionView: false,
 };
 
 const STORAGE_KEY = "examination_view_preferences";
@@ -80,7 +84,8 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
                         ...DEFAULT_PREFERENCES,
                         ...parsed,
                         // Ensure hiddenTabs is initialized if it doesn't exist in stored prefs
-                        hiddenTabs: parsed.hiddenTabs || []
+                        hiddenTabs: parsed.hiddenTabs || [],
+                        useMergedVisionView: typeof parsed.useMergedVisionView === "boolean" ? parsed.useMergedVisionView : false
                     });
                 } catch {
                     // Keep default preferences on error
@@ -134,6 +139,10 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
         savePreferences({ ...preferences, collapsedSections: sectionIds });
     }, [preferences, savePreferences]);
 
+    const setUseMergedVisionView = useCallback((enabled: boolean) => {
+        savePreferences({ ...preferences, useMergedVisionView: enabled });
+    }, [preferences, savePreferences]);
+
     // Don't render until initialized to avoid hydration mismatch
     if (!isInitialized) {
         return null;
@@ -143,6 +152,7 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
         viewMode: preferences.viewMode,
         collapsedSections: preferences.collapsedSections,
         hiddenTabs: preferences.hiddenTabs,
+        useMergedVisionView: preferences.useMergedVisionView ?? false,
         setViewMode,
         toggleViewMode,
         toggleSection,
@@ -150,7 +160,9 @@ export function ExaminationViewProvider({ children }: { children: React.ReactNod
         isSectionCollapsed,
         expandAllSections,
         collapseAllSections,
+        setUseMergedVisionView,
     };
+
 
     return (
         <ExaminationViewContext.Provider value={value}>

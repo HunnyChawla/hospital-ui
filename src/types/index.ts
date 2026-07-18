@@ -276,6 +276,20 @@ export type RefractionRecord = {
   created_at: string;
   updated_at: string;
   tenant_id: string;
+
+  // New DB fields
+  od_prism?: string | null;
+  os_prism?: string | null;
+  od_dilated_sphere?: number | null;
+  od_dilated_cylinder?: number | null;
+  od_dilated_axis?: number | null;
+  od_dilated_visual_acuity?: string | null;
+  od_dilated_pinhole?: string | null;
+  os_dilated_sphere?: number | null;
+  os_dilated_cylinder?: number | null;
+  os_dilated_axis?: number | null;
+  os_dilated_visual_acuity?: string | null;
+  os_dilated_pinhole?: string | null;
 };
 
 // IOP (Intraocular Pressure) Records
@@ -319,6 +333,14 @@ export type ARDataRecord = {
   created_at: string;
   updated_at: string;
   tenant_id: string;
+
+  // New DB fields
+  od_wet_sphere?: number | null;
+  od_wet_cylinder?: number | null;
+  od_wet_axis?: number | null;
+  os_wet_sphere?: number | null;
+  os_wet_cylinder?: number | null;
+  os_wet_axis?: number | null;
 };
 
 // Complaints Records

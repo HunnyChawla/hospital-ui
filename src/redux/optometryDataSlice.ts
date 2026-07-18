@@ -9,6 +9,7 @@ import { drugAllergyApi, CreateDrugAllergyRequest } from "@/services/drugAllergy
 import { optometryMedicalConditionsApi, CreateMedicalConditionRequest, UpdateMedicalConditionRequest } from "@/services/optometryMedicalConditionsApi";
 import { visionApi, CreateVisionRequest } from "@/services/visionApi";
 import { currentSpecsApi, CreateCurrentSpecsRequest, UpdateCurrentSpecsRequest } from "@/services/currentSpecsApi";
+import { examinationApi, SaveExaminationRequest, SaveExaminationResponse, GetExaminationResponse } from "@/services/examinationApi";
 import type {
   RefractionRecord,
   IOPRecord,
@@ -509,6 +510,41 @@ export const updateVisionRecord = createAsyncThunk(
 );
 
 // ============================================
+// UNIFIED EXAMINATION SAVE THUNK
+// ============================================
+
+export const saveExamination = createAsyncThunk(
+  "optometryData/saveExamination",
+  async (params: { data: SaveExaminationRequest; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const result: SaveExaminationResponse = await examinationApi.saveAll(
+        params.data,
+        params.tenant_id
+      );
+      return result;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const fetchUnifiedExamination = createAsyncThunk(
+  "optometryData/fetchUnifiedExamination",
+  async (params: { visit_id: string; patient_id: string; tenant_id?: string }, { rejectWithValue }) => {
+    try {
+      const result: GetExaminationResponse = await examinationApi.getAll(
+        params.visit_id,
+        params.patient_id,
+        params.tenant_id
+      );
+      return result;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// ============================================
 // CURRENT SPECS THUNKS
 // ============================================
 
@@ -814,6 +850,30 @@ const optometryDataSlice = createSlice({
         if (idx >= 0) {
           state.currentSpecsRecords[idx] = action.payload;
         }
+      })
+      // Unified Examination
+      .addCase(fetchUnifiedExamination.pending, (state) => {
+        state.loading.refraction = true;
+        state.loading.arData = true;
+        state.loading.vision = true;
+        state.loading.currentSpecs = true;
+      })
+      .addCase(fetchUnifiedExamination.fulfilled, (state, action) => {
+        state.loading.refraction = false;
+        state.loading.arData = false;
+        state.loading.vision = false;
+        state.loading.currentSpecs = false;
+        state.visionRecords = action.payload.vision ? [action.payload.vision] : [];
+        state.arDataRecords = action.payload.ar_data ? [action.payload.ar_data] : [];
+        state.currentSpecsRecords = action.payload.current_specs ? [action.payload.current_specs] : [];
+        state.refractionRecords = action.payload.refraction ? [action.payload.refraction] : [];
+      })
+      .addCase(fetchUnifiedExamination.rejected, (state, action) => {
+        state.loading.refraction = false;
+        state.loading.arData = false;
+        state.loading.vision = false;
+        state.loading.currentSpecs = false;
+        state.error = action.payload as string;
       });
   },
 });

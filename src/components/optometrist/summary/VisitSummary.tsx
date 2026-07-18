@@ -190,39 +190,83 @@ function VisitSummaryLayout({
       content: data.ar_data && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-lg bg-slate-50 p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">Right Eye (OD)</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Sphere:</span>
-                  <span className="font-medium">{data.ar_data.od_sphere}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Cylinder:</span>
-                  <span className="font-medium">{data.ar_data.od_cylinder}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Axis:</span>
-                  <span className="font-medium">{data.ar_data.od_axis}°</span>
+            <div className="rounded-lg bg-slate-50 p-4 space-y-3">
+              <h4 className="font-semibold text-slate-900 border-b border-slate-200 pb-1">Right Eye (OD)</h4>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Dry AR</p>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Sphere:</span>
+                    <span className="font-medium">{data.ar_data.od_sphere || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Cylinder:</span>
+                    <span className="font-medium">{data.ar_data.od_cylinder || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Axis:</span>
+                    <span className="font-medium">{data.ar_data.od_axis ? data.ar_data.od_axis + "°" : "—"}</span>
+                  </div>
                 </div>
               </div>
+              {(data.ar_data.od_wet_sphere || data.ar_data.od_wet_cylinder || data.ar_data.od_wet_axis) && (
+                <div>
+                  <p className="text-xs font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Sphere:</span>
+                      <span className="font-medium">{data.ar_data.od_wet_sphere || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Cylinder:</span>
+                      <span className="font-medium">{data.ar_data.od_wet_cylinder || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Axis:</span>
+                      <span className="font-medium">{data.ar_data.od_wet_axis ? data.ar_data.od_wet_axis + "°" : "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="rounded-lg bg-slate-50 p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">Left Eye (OS)</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Sphere:</span>
-                  <span className="font-medium">{data.ar_data.os_sphere}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Cylinder:</span>
-                  <span className="font-medium">{data.ar_data.os_cylinder}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Axis:</span>
-                  <span className="font-medium">{data.ar_data.os_axis}°</span>
+            <div className="rounded-lg bg-slate-50 p-4 space-y-3">
+              <h4 className="font-semibold text-slate-900 border-b border-slate-200 pb-1">Left Eye (OS)</h4>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Dry AR</p>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Sphere:</span>
+                    <span className="font-medium">{data.ar_data.os_sphere || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Cylinder:</span>
+                    <span className="font-medium">{data.ar_data.os_cylinder || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Axis:</span>
+                    <span className="font-medium">{data.ar_data.os_axis ? data.ar_data.os_axis + "°" : "—"}</span>
+                  </div>
                 </div>
               </div>
+              {(data.ar_data.os_wet_sphere || data.ar_data.os_wet_cylinder || data.ar_data.os_wet_axis) && (
+                <div>
+                  <p className="text-xs font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Sphere:</span>
+                      <span className="font-medium">{data.ar_data.os_wet_sphere || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Cylinder:</span>
+                      <span className="font-medium">{data.ar_data.os_wet_cylinder || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Axis:</span>
+                      <span className="font-medium">{data.ar_data.os_wet_axis ? data.ar_data.os_wet_axis + "°" : "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {data.ar_data.pupillary_distance && (
@@ -245,9 +289,9 @@ function VisitSummaryLayout({
       content: data.refraction && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-lg bg-slate-50 p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">Right Eye (OD)</h4>
-              <div className="space-y-2 text-sm">
+            <div className="rounded-lg bg-slate-50 p-4 space-y-3">
+              <h4 className="font-semibold text-slate-900 border-b border-slate-200 pb-1">Right Eye (OD)</h4>
+              <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Sphere:</span>
                   <span className="font-medium">{data.refraction.od_sphere}</span>
@@ -260,6 +304,12 @@ function VisitSummaryLayout({
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.refraction.od_axis}°</span>
                 </div>
+                {data.refraction.od_prism && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Prism:</span>
+                    <span className="font-medium">{data.refraction.od_prism}</span>
+                  </div>
+                )}
                 {data.refraction.od_distance_bcva && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Dist. BCVA:</span>
@@ -279,10 +329,41 @@ function VisitSummaryLayout({
                   </div>
                 )}
               </div>
+              {(data.refraction.od_dilated_sphere || data.refraction.od_dilated_cylinder || data.refraction.od_dilated_axis || data.refraction.od_dilated_visual_acuity || data.refraction.od_dilated_pinhole) && (
+                <div className="pt-2 border-t border-slate-200">
+                  <p className="text-xs font-semibold text-teal-700 uppercase mb-1">Dilated Acceptance</p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Sphere:</span>
+                      <span className="font-medium">{data.refraction.od_dilated_sphere || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Cylinder:</span>
+                      <span className="font-medium">{data.refraction.od_dilated_cylinder || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Axis:</span>
+                      <span className="font-medium">{data.refraction.od_dilated_axis ? data.refraction.od_dilated_axis + "°" : "—"}</span>
+                    </div>
+                    {data.refraction.od_dilated_visual_acuity && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Visual Acuity:</span>
+                        <span className="font-medium">{data.refraction.od_dilated_visual_acuity}</span>
+                      </div>
+                    )}
+                    {data.refraction.od_dilated_pinhole && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Pinhole:</span>
+                        <span className="font-medium">{data.refraction.od_dilated_pinhole}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="rounded-lg bg-slate-50 p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">Left Eye (OS)</h4>
-              <div className="space-y-2 text-sm">
+            <div className="rounded-lg bg-slate-50 p-4 space-y-3">
+              <h4 className="font-semibold text-slate-900 border-b border-slate-200 pb-1">Left Eye (OS)</h4>
+              <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Sphere:</span>
                   <span className="font-medium">{data.refraction.os_sphere}</span>
@@ -295,6 +376,12 @@ function VisitSummaryLayout({
                   <span className="text-slate-600">Axis:</span>
                   <span className="font-medium">{data.refraction.os_axis}°</span>
                 </div>
+                {data.refraction.os_prism && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Prism:</span>
+                    <span className="font-medium">{data.refraction.os_prism}</span>
+                  </div>
+                )}
                 {data.refraction.os_distance_bcva && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Dist. BCVA:</span>
@@ -314,6 +401,37 @@ function VisitSummaryLayout({
                   </div>
                 )}
               </div>
+              {(data.refraction.os_dilated_sphere || data.refraction.os_dilated_cylinder || data.refraction.os_dilated_axis || data.refraction.os_dilated_visual_acuity || data.refraction.os_dilated_pinhole) && (
+                <div className="pt-2 border-t border-slate-200">
+                  <p className="text-xs font-semibold text-teal-700 uppercase mb-1">Dilated Acceptance</p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Sphere:</span>
+                      <span className="font-medium">{data.refraction.os_dilated_sphere || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Cylinder:</span>
+                      <span className="font-medium">{data.refraction.os_dilated_cylinder || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Axis:</span>
+                      <span className="font-medium">{data.refraction.os_dilated_axis ? data.refraction.os_dilated_axis + "°" : "—"}</span>
+                    </div>
+                    {data.refraction.os_dilated_visual_acuity && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Visual Acuity:</span>
+                        <span className="font-medium">{data.refraction.os_dilated_visual_acuity}</span>
+                      </div>
+                    )}
+                    {data.refraction.os_dilated_pinhole && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Pinhole:</span>
+                        <span className="font-medium">{data.refraction.os_dilated_pinhole}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {data.refraction.notes && (

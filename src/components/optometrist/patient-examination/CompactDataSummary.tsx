@@ -564,3 +564,87 @@ export function CurrentSpecsSummary({ record }: { record: any }) {
         </div>
     );
 }
+
+// Merged Vision & Refraction Summary
+export function MergedVisionSummary({
+    visionRecord,
+    arRecord,
+    refractionRecord,
+    specsRecord,
+}: {
+    visionRecord: any;
+    arRecord: any;
+    refractionRecord: any;
+    specsRecord: any;
+}) {
+    const formatVA = (value: string | null | undefined) => value || "—";
+    const formatValue = (v: number | string | null | undefined) => {
+        if (v == null) return "—";
+        const num = typeof v === "number" ? v : parseFloat(v);
+        return isNaN(num) ? "—" : num.toFixed(2);
+    };
+
+    const hasVision = !!visionRecord;
+    const hasAR = arRecord && (arRecord.od_sphere != null || arRecord.os_sphere != null);
+    const hasRef = refractionRecord && (
+        (refractionRecord.od?.sphere != null || refractionRecord.od_sphere != null) ||
+        (refractionRecord.os?.sphere != null || refractionRecord.os_sphere != null)
+    );
+    const hasSpecs = specsRecord && (specsRecord.od_sph != null || specsRecord.os_sph != null);
+
+    return (
+        <div className="space-y-2 text-xs">
+            {hasVision && (
+                <div className="pb-1.5 border-b border-dashed border-slate-200/50">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">Vision (UCVA)</span>
+                    <div className="flex justify-between">
+                        <span className="text-slate-600"><span className="font-medium text-blue-900">OD:</span> {formatVA(visionRecord.od_ucva_distance)}</span>
+                        <span className="text-slate-600"><span className="font-medium text-green-900">OS:</span> {formatVA(visionRecord.os_ucva_distance)}</span>
+                    </div>
+                </div>
+            )}
+            
+            {hasRef && (
+                <div className="pb-1.5 border-b border-dashed border-slate-200/50">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">Subjective Refraction</span>
+                    <div className="flex justify-between">
+                        <span className="text-slate-600">
+                            <span className="font-medium text-blue-900">OD:</span> Sph {formatValue(refractionRecord.od?.sphere ?? refractionRecord.od_sphere)} / Cyl {formatValue(refractionRecord.od?.cylinder ?? refractionRecord.od_cylinder)}
+                        </span>
+                        <span className="text-slate-600">
+                            <span className="font-medium text-green-900">OS:</span> Sph {formatValue(refractionRecord.os?.sphere ?? refractionRecord.os_sphere)} / Cyl {formatValue(refractionRecord.os?.cylinder ?? refractionRecord.os_cylinder)}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {hasAR && (
+                <div className="pb-1.5 border-b border-dashed border-slate-200/50">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">AR Data (Auto-Refraction)</span>
+                    <div className="flex justify-between">
+                        <span className="text-slate-600">
+                            <span className="font-medium text-blue-900">OD:</span> Sph {formatValue(arRecord.od_sphere)} / Cyl {formatValue(arRecord.od_cylinder)}
+                        </span>
+                        <span className="text-slate-600">
+                            <span className="font-medium text-green-900">OS:</span> Sph {formatValue(arRecord.os_sphere)} / Cyl {formatValue(arRecord.os_cylinder)}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {hasSpecs && (
+                <div>
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">Presenting Specs (POG)</span>
+                    <div className="flex justify-between">
+                        <span className="text-slate-600">
+                            <span className="font-medium text-blue-900">OD:</span> Sph {formatValue(specsRecord.od_sph)} / Cyl {formatValue(specsRecord.od_cyl)}
+                        </span>
+                        <span className="text-slate-600">
+                            <span className="font-medium text-green-900">OS:</span> Sph {formatValue(specsRecord.os_sph)} / Cyl {formatValue(specsRecord.os_cyl)}
+                        </span>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

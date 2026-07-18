@@ -87,39 +87,83 @@ export function ExaminationSummarySection({
                         <h4 className="font-semibold text-slate-900">Auto Refraction (AR)</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="rounded bg-blue-50 p-3">
-                            <p className="text-xs font-semibold text-blue-700 mb-2">OD (Right Eye)</p>
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Sphere:</span>
-                                    <span className="font-medium">{data.ar_data.od_sphere}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Cylinder:</span>
-                                    <span className="font-medium">{data.ar_data.od_cylinder}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Axis:</span>
-                                    <span className="font-medium">{data.ar_data.od_axis}°</span>
+                        <div className="rounded bg-blue-50 p-3 space-y-3">
+                            <p className="text-xs font-semibold text-blue-700 border-b border-blue-100 pb-1">OD (Right Eye)</p>
+                            <div>
+                                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Dry AR</p>
+                                <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Sphere:</span>
+                                        <span className="font-medium">{data.ar_data.od_sphere || "—"}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Cylinder:</span>
+                                        <span className="font-medium">{data.ar_data.od_cylinder || "—"}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Axis:</span>
+                                        <span className="font-medium">{data.ar_data.od_axis ? `${data.ar_data.od_axis}°` : "—"}</span>
+                                    </div>
                                 </div>
                             </div>
+                            {(data.ar_data.od_wet_sphere || data.ar_data.od_wet_cylinder || data.ar_data.od_wet_axis) && (
+                                <div>
+                                    <p className="text-[10px] font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
+                                    <div className="space-y-1 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Sphere:</span>
+                                            <span className="font-medium">{data.ar_data.od_wet_sphere || "—"}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Cylinder:</span>
+                                            <span className="font-medium">{data.ar_data.od_wet_cylinder || "—"}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Axis:</span>
+                                            <span className="font-medium">{data.ar_data.od_wet_axis ? `${data.ar_data.od_wet_axis}°` : "—"}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <div className="rounded bg-green-50 p-3">
-                            <p className="text-xs font-semibold text-green-700 mb-2">OS (Left Eye)</p>
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Sphere:</span>
-                                    <span className="font-medium">{data.ar_data.os_sphere}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Cylinder:</span>
-                                    <span className="font-medium">{data.ar_data.os_cylinder}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600">Axis:</span>
-                                    <span className="font-medium">{data.ar_data.os_axis}°</span>
+                        <div className="rounded bg-green-50 p-3 space-y-3">
+                            <p className="text-xs font-semibold text-green-700 border-b border-green-100 pb-1">OS (Left Eye)</p>
+                            <div>
+                                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Dry AR</p>
+                                <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Sphere:</span>
+                                        <span className="font-medium">{data.ar_data.os_sphere || "—"}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Cylinder:</span>
+                                        <span className="font-medium">{data.ar_data.os_cylinder || "—"}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Axis:</span>
+                                        <span className="font-medium">{data.ar_data.os_axis ? `${data.ar_data.os_axis}°` : "—"}</span>
+                                    </div>
                                 </div>
                             </div>
+                            {(data.ar_data.os_wet_sphere || data.ar_data.os_wet_cylinder || data.ar_data.os_wet_axis) && (
+                                <div>
+                                    <p className="text-[10px] font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
+                                    <div className="space-y-1 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Sphere:</span>
+                                            <span className="font-medium">{data.ar_data.os_wet_sphere || "—"}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Cylinder:</span>
+                                            <span className="font-medium">{data.ar_data.os_wet_cylinder || "—"}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Axis:</span>
+                                            <span className="font-medium">{data.ar_data.os_wet_axis ? `${data.ar_data.os_wet_axis}°` : "—"}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     {data.ar_data.pupillary_distance && (

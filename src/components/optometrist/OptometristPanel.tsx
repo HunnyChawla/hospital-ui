@@ -179,6 +179,7 @@ export function OptometristPanel() {
     refreshDrugAllergies,
     refreshVision,
     refreshCurrentSpecs,
+    refreshUnifiedExam,
   } = useOptometryData({
     patientId: selectedPatientId,
     visitId: currentVisitId || null,
@@ -741,6 +742,7 @@ export function OptometristPanel() {
                     refreshIOP={refreshIOP}
                     refreshVision={refreshVision}
                     refreshCurrentSpecs={refreshCurrentSpecs}
+                    refreshUnifiedExam={refreshUnifiedExam}
                   />
                 )}
               </OptometristPanelVerticalLayout>
