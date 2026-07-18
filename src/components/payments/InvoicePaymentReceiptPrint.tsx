@@ -7,6 +7,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { formatDate, currency } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
 import { getTenantIdForApi } from "@/utils/auth";
+import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
 
 interface InvoicePaymentReceiptPrintProps {
   invoiceId: string;
@@ -16,6 +17,7 @@ export function InvoicePaymentReceiptPrint({ invoiceId }: InvoicePaymentReceiptP
   const { tenant } = useTenant();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [patient, setPatient] = useState<PatientApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +38,15 @@ export function InvoicePaymentReceiptPrint({ invoiceId }: InvoicePaymentReceiptP
         
         setPayments(paymentsData);
         setInvoice(invoiceData);
+
+        if (invoiceData?.patient_id) {
+          try {
+            const patientData = await patientsApi.getById(invoiceData.patient_id, apiTenantId);
+            setPatient(patientData);
+          } catch (patErr) {
+            console.error("Failed to fetch patient details:", patErr);
+          }
+        }
       } catch (err: any) {
         console.error("Failed to fetch payment receipt data:", err);
         setError(err?.response?.data?.detail || err?.message || "Failed to fetch payment receipt");
@@ -48,6 +59,7 @@ export function InvoicePaymentReceiptPrint({ invoiceId }: InvoicePaymentReceiptP
       fetchData();
     }
   }, [invoiceId]);
+
 
   if (loading) {
     return (
@@ -158,7 +170,14 @@ export function InvoicePaymentReceiptPrint({ invoiceId }: InvoicePaymentReceiptP
               <p className="font-semibold text-slate-900">{patientMobile}</p>
             </div>
           )}
+          {patient?.category && (
+            <div>
+              <p className="text-[10px] text-slate-600">Category</p>
+              <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
+            </div>
+          )}
         </div>
+
       </div>
 
       {/* Payment Transactions */}

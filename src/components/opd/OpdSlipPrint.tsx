@@ -88,7 +88,12 @@ export function OpdSlipPrint({
               })}
             </p>
           </div>
+          <div>
+            <p className="text-[10px] text-slate-600">Category</p>
+            <p className="font-semibold text-slate-900 capitalize">{patient.category || "General"}</p>
+          </div>
         </div>
+
       </div>
 
       {/* Visit Details */}

@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useCreatePatient, useUpdatePatient, usePatient } from "@/hooks/queries/usePatients";
 import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
+import { patientCategoriesApi } from "@/services/patientCategoriesApi";
 import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "lucide-react";
+
 
 interface PatientFormProps {
   defaultValues?: Patient;
@@ -28,11 +30,70 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const [dobValue, setDobValue] = useState<string>("");
   const [ageError, setAgeError] = useState<string>("");
   const [inputMode, setInputMode] = useState<'dob' | 'age'>('age');
+  const [isNewborn, setIsNewborn] = useState<boolean>(false);
+  const [parentName, setParentName] = useState<string>(defaultValues?.title === "Baby of" && defaultValues?.name ? (defaultValues.name.startsWith("Baby of ") ? defaultValues.name.substring(8) : defaultValues.name) : "");
+
+  const [categories, setCategories] = useState<string[]>([
+    "General",
+    "Staff",
+    "NFL",
+    "ECHS",
+    "Haryana Govt.",
+    "Central Govt.",
+    "Ayushman Bharat",
+    "ESI",
+    "EX_SERVICEMAN",
+    "STAFF_FAMILY",
+  ]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await patientCategoriesApi.list();
+        setCategories(data.map((c) => c.name));
+      } catch (err) {
+        console.error("Failed to load patient categories:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const { register, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<CreatePatientRequest>({
     mode: "onChange",
     reValidateMode: "onChange",
+    defaultValues: {
+      gender: "male",
+      category: "General",
+    }
   });
+
+
+
+  // Watch newborn state to autofill fields
+  useEffect(() => {
+    if (isNewborn) {
+      setValue("title", "Baby of");
+      // Set default DOB to today
+      const today = new Date().toISOString().split('T')[0];
+      setDobValue(today);
+      setValue("date_of_birth", today);
+      setAgeYears("0");
+      setAgeMonths("0");
+      setAgeDays("0");
+    } else {
+      // Only clear if not editing an existing patient
+      if (!defaultValues) {
+        setValue("title", "");
+        setValue("first_name", "");
+        setDobValue("");
+        setValue("date_of_birth", "");
+        setAgeYears("");
+        setAgeMonths("");
+        setAgeDays("");
+        setParentName("");
+      }
+    }
+  }, [isNewborn, setValue, defaultValues]);
 
   // Helper function: Calculate DOB from age
   const calculateDobFromAge = (years: number, months: number, days: number): string => {
@@ -182,8 +243,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       // fullPatientData is now PatientApiResponse with all fields preserved
       const apiData = fullPatientData as any;
       const dob = apiData.date_of_birth || "";
+      const isBabyOf = apiData.title === "Baby of";
 
       reset({
+        title: apiData.title || "",
         first_name: apiData.first_name || "",
         last_name: apiData.last_name || "",
         mobile: apiData.mobile || "",
@@ -195,7 +258,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         city: apiData.city || "",
         state: apiData.state || "",
         pincode: apiData.pincode || "",
+        category: apiData.category || "General",
       });
+
+
 
       // Populate age fields from DOB
       setDobValue(dob);
@@ -205,9 +271,21 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         setAgeMonths(age.months.toString());
         setAgeDays(age.days.toString());
       }
+
+      if (isBabyOf) {
+        setIsNewborn(true);
+        const namePart = apiData.first_name?.startsWith("Baby of ") 
+          ? apiData.first_name.substring(8) 
+          : apiData.first_name || "";
+        setParentName(namePart);
+      } else {
+        setIsNewborn(false);
+        setParentName("");
+      }
     } else if (!defaultValues) {
       // Reset form for new patient
       reset({
+        title: "",
         first_name: "",
         last_name: "",
         mobile: "",
@@ -219,7 +297,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         city: "",
         state: "",
         pincode: "",
+        category: "General",
       });
+
+
 
       // Clear age fields
       setDobValue("");
@@ -227,6 +308,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       setAgeMonths("");
       setAgeDays("");
       setAgeError("");
+      setIsNewborn(false);
+      setParentName("");
     }
   }, [fullPatientData, defaultValues, reset]);
 
@@ -243,19 +326,45 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     // Ensure gender is lowercase
     const gender = (values.gender || "male").toLowerCase() as "male" | "female" | "other";
 
-    const patientData = {
-      first_name: values.first_name,
-      last_name: values.last_name?.trim() || null,
-      mobile: values.mobile,
-      email: values.email?.trim() || null,
-      date_of_birth: values.date_of_birth,
-      gender,
-      abha_id: values.abha_id?.trim() || null,
-      address: values.address?.trim() || null,
-      city: values.city?.trim() || null,
-      state: values.state?.trim() || null,
-      pincode: values.pincode?.trim() || null,
-    };
+    let patientData: any;
+    if (isNewborn) {
+      if (!parentName.trim()) {
+        setAgeError("Mother's/Parent's name is required for a newborn baby.");
+        return;
+      }
+      patientData = {
+        title: "Baby of",
+        first_name: `Baby of ${parentName.trim()}`,
+        last_name: null,
+        mobile: values.mobile,
+        email: values.email?.trim() || null,
+        date_of_birth: dobValue,
+        gender,
+        abha_id: values.abha_id?.trim() || null,
+        address: values.address?.trim() || null,
+        city: values.city?.trim() || null,
+        state: values.state?.trim() || null,
+        pincode: values.pincode?.trim() || null,
+        category: values.category || "General",
+      };
+    } else {
+      patientData = {
+        title: values.title?.trim() || null,
+        first_name: values.first_name,
+        last_name: values.last_name?.trim() || null,
+        mobile: values.mobile,
+        email: values.email?.trim() || null,
+        date_of_birth: values.date_of_birth,
+        gender,
+        abha_id: values.abha_id?.trim() || null,
+        address: values.address?.trim() || null,
+        city: values.city?.trim() || null,
+        state: values.state?.trim() || null,
+        pincode: values.pincode?.trim() || null,
+        category: values.category || "General",
+      };
+    }
+
 
     if (defaultValues) {
       // Update existing patient
@@ -282,6 +391,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
 
       // React Query mutation already shows toast and invalidates cache!
       reset();
+      setIsNewborn(false);
+      setParentName("");
       onSuccess?.(newPatient);
     }
   };
@@ -305,28 +416,72 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         </div>
       )}
 
+      {/* Newborn Checkbox */}
+      <div className="flex items-center gap-2 pb-2">
+        <input
+          type="checkbox"
+          id="is_newborn"
+          checked={isNewborn}
+          onChange={(e) => setIsNewborn(e.target.checked)}
+          className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+        />
+        <label htmlFor="is_newborn" className="text-sm font-semibold text-slate-700 select-none cursor-pointer">
+          Newborn Baby (Name not decided yet)
+        </label>
+      </div>
+
       {/* Basic Information */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <label className="space-y-1">
-          <span className="text-slate-600">First Name <span className="text-rose-500">*</span></span>
-          <input
-            {...register("first_name", { required: "First name is required" })}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            placeholder="e.g. John"
-          />
-          {errors.first_name && (
-            <p className="text-xs text-rose-500">{errors.first_name.message}</p>
-          )}
-        </label>
+        {!isNewborn ? (
+          <div className="grid grid-cols-4 gap-2 col-span-1 md:col-span-2">
+            <label className="col-span-1 space-y-1">
+              <span className="text-slate-600 text-sm">Title</span>
+              <select
+                {...register("title")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+              >
+                <option value="">Select</option>
+                <option value="Mr.">Mr.</option>
+                <option value="Mrs.">Mrs.</option>
+                <option value="Ms.">Ms.</option>
+                <option value="Dr.">Dr.</option>
+                <option value="Baby">Baby</option>
+                <option value="Baby of">Baby of</option>
+              </select>
+            </label>
 
-        <label className="space-y-1">
-          <span className="text-slate-600">Last Name</span>
-          <input
-            {...register("last_name")}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            placeholder="e.g. Doe"
-          />
-        </label>
+            <label className="col-span-2 space-y-1">
+              <span className="text-slate-600 text-sm">First Name <span className="text-rose-500">*</span></span>
+              <input
+                {...register("first_name", { required: "First name is required" })}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+                placeholder="e.g. John"
+              />
+              {errors.first_name && (
+                <p className="text-xs text-rose-500">{errors.first_name.message}</p>
+              )}
+            </label>
+
+            <label className="col-span-1 space-y-1">
+              <span className="text-slate-600 text-sm">Last Name</span>
+              <input
+                {...register("last_name")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+                placeholder="e.g. Doe"
+              />
+            </label>
+          </div>
+        ) : (
+          <label className="col-span-1 md:col-span-2 space-y-1">
+            <span className="text-slate-600 text-sm">Mother's/Parent's Name <span className="text-rose-500">*</span></span>
+            <input
+              value={parentName}
+              onChange={(e) => setParentName(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+              placeholder="e.g. Jane Doe"
+            />
+          </label>
+        )}
 
         <label className="space-y-1">
           <span className="text-slate-600">Mobile Number <span className="text-rose-500">*</span></span>
@@ -497,16 +652,32 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         )}
       </label>
 
-      {/* Optional Fields */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">Optional Details</h3>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* Category */}
+          <label className="space-y-1">
+            <span className="text-slate-600">Category</span>
+            <select
+              {...register("category")}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm appearance-none"
+              style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 0.75rem center", backgroundSize: "1rem" }}
+            >
+              <option value="">Select Category</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="space-y-1">
             <span className="text-slate-600">ABHA/Health ID</span>
             <input
               {...register("abha_id")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Enter ABHA ID"
             />
           </label>
@@ -515,16 +686,17 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <span className="text-slate-600">Address</span>
             <input
               {...register("address")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Street address"
             />
           </label>
+
 
           <label className="space-y-1">
             <span className="text-slate-600">City</span>
             <input
               {...register("city")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="City name"
             />
           </label>
@@ -533,7 +705,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <span className="text-slate-600">State</span>
             <input
               {...register("state")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="State"
             />
           </label>
@@ -542,11 +714,12 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <span className="text-slate-600">Pincode</span>
             <input
               {...register("pincode")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Pincode"
             />
           </label>
         </div>
+
       </div>
 
       {/* Action Buttons */}

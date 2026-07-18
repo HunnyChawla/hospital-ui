@@ -1,9 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Payment } from "@/services/paymentsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate, currency } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
+import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
+import { getTenantIdForApi } from "@/utils/auth";
 
 interface PaymentReceiptPrintProps {
   payment: Payment;
@@ -14,6 +17,22 @@ interface PaymentReceiptPrintProps {
 
 export function PaymentReceiptPrint({ payment, patientName, patientMobile, invoiceNumber }: PaymentReceiptPrintProps) {
   const { tenant } = useTenant();
+  const [patient, setPatient] = useState<PatientApiResponse | null>(null);
+
+  useEffect(() => {
+    const fetchPatient = async () => {
+      if (!payment.patient_id) return;
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const apiTenantId = getTenantIdForApi(tenantId || undefined);
+        const data = await patientsApi.getById(payment.patient_id, apiTenantId);
+        setPatient(data);
+      } catch (err) {
+        console.error("Failed to fetch patient:", err);
+      }
+    };
+    fetchPatient();
+  }, [payment.patient_id]);
 
   const getPaymentMethodLabel = (method: string) => {
     return method.charAt(0).toUpperCase() + method.slice(1);
@@ -22,6 +41,7 @@ export function PaymentReceiptPrint({ payment, patientName, patientMobile, invoi
   const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
+
 
   return (
     <div className="mx-auto max-w-2xl bg-white p-4 print:p-2">
@@ -58,7 +78,14 @@ export function PaymentReceiptPrint({ payment, patientName, patientMobile, invoi
               <p className="font-semibold text-slate-900">{patientMobile}</p>
             </div>
           )}
+          {patient?.category && (
+            <div>
+              <p className="text-[10px] text-slate-600">Category</p>
+              <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
+            </div>
+          )}
         </div>
+
       </div>
 
       {/* Payment Details */}

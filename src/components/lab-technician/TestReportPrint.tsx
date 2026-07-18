@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { LabBooking, LabBookingTest } from "@/services/labBookingsApi";
 import { LabTestResult } from "@/services/labTestsApi";
-import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
+import { PatientApiResponse, patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
@@ -66,7 +66,7 @@ export function TestReportPrint({
 
   // Format full name
   const fullName = patient
-    ? `${patient.first_name} ${patient.last_name || ""}`.trim()
+    ? formatPatientName(patient)
     : patientName;
 
   // Format address
@@ -117,7 +117,14 @@ export function TestReportPrint({
               <p className="font-semibold text-slate-900">{patient?.mobile || patientMobile}</p>
             </div>
           )}
+          {patient?.category && (
+            <div>
+              <p className="text-[10px] text-slate-600">Category</p>
+              <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
+            </div>
+          )}
           {patient?.email && (
+
             <div>
               <p className="text-[10px] text-slate-600">Email</p>
               <p className="font-semibold text-slate-900">{patient.email}</p>

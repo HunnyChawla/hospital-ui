@@ -57,6 +57,7 @@ export interface ConsultationFee {
   shift: "morning" | "evening" | "night" | "emergency";
   fee: string;
   patient_type: "old" | "new" | null;
+  patient_category: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +67,7 @@ export interface ConsultationFeeRequest {
   shift: "morning" | "evening" | "night" | "emergency";
   fee: number;
   patient_type: "old" | "new" | null;
+  patient_category?: string | null;
 }
 
 export interface ConsultationFeeCalculation {
@@ -79,6 +81,8 @@ export interface ConsultationFeeCalculation {
   shift: "morning" | "evening" | "night" | "emergency";
   is_emergency: boolean;
   patient_type_used: "old" | "new";
+  patient_category: string | null;
+  patient_category_used: string | null;
   is_revisit?: boolean;
 }
 

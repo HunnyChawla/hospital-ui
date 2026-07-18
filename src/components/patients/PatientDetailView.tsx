@@ -14,7 +14,7 @@ import { opdVisitsApi, Visit, CreateVisitRequest } from "@/services/opdVisitsApi
 import { labBookingsApi, LabBooking, LabBookingTest } from "@/services/labBookingsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
@@ -567,7 +567,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         visit,
         patient: {
           id: patientData.id,
-          name: `${patientData.first_name} ${patientData.last_name || ""}`.trim(),
+          name: formatPatientName(patientData),
           mobile: patientData.mobile,
           healthId: patientData.abha_id || "",
           age: patientData.date_of_birth
@@ -752,7 +752,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   <span>{patient.mobile}</span>
                   <span>•</span>
                   <span className="capitalize">{patient.status}</span>
+                  {patient.category && (
+                    <>
+                      <span>•</span>
+                      <span className="bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded font-medium border border-sky-200 uppercase text-[10px] tracking-wider">
+                        {patient.category}
+                      </span>
+                    </>
+                  )}
                 </div>
+
                 {(patient.address || patient.city || patient.state || patient.pincode) && (
                   <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                     <MapPin className="h-3 w-3 text-slate-400" />

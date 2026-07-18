@@ -165,13 +165,19 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         </div>
                         <div className={cellPadding}>{formatDate(visitData?.checked_in_at || prescription.created_at)} {formatTime(visitData?.checked_in_at || prescription.created_at)}</div>
                     </div>
-                    <div className="grid grid-cols-[100px_1fr]">
+                    <div className="grid grid-cols-[100px_1fr_100px_1fr]">
                         <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
                             <MapPin className="h-2.5 w-2.5 text-slate-500" />
                             <span>Address</span>
                         </div>
-                        <div className={cellPadding}>{visitData?.address || "-"}</div>
+                        <div className={`${cellPadding} border-r border-slate-300`}>{visitData?.address || "-"}</div>
+                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                            <User className="h-2.5 w-2.5 text-slate-500" />
+                            <span>Category</span>
+                        </div>
+                        <div className={`${cellPadding} font-bold`}>{(visitData as any)?.category || (visitData as any)?.patient_category || "-"}</div>
                     </div>
+
                 </div>
 
                 {/* Clinical Data Row */}

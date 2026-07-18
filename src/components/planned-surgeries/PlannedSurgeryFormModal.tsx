@@ -7,7 +7,7 @@ import { X, Loader2, Calendar, User, Stethoscope, Eye, Clock, FileText, Building
 import { PlannedSurgery, CreatePlannedSurgeryRequest, UpdatePlannedSurgeryRequest, Surgery, PlannedSurgeryStatus } from "@/types";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
-import { patientsApi } from "@/services/patientsApi";
+import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useAppSelector } from "@/redux/hooks";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -131,8 +131,9 @@ export function PlannedSurgeryFormModal({
 
     const handlePatientSelect = (patient: any) => {
         setPatientId(patient.id);
-        setPatientName(`${patient.first_name} ${patient.last_name || ""}`.trim());
-        setPatientSearch(`${patient.first_name} ${patient.last_name || ""}`.trim());
+        const name = formatPatientName(patient);
+        setPatientName(name);
+        setPatientSearch(name);
         setShowPatientDropdown(false);
         setPatientResults([]);
     };

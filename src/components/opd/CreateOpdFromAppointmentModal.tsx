@@ -189,7 +189,7 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
                         <span className="text-lg font-bold text-slate-900 leading-none">{currency(parseFloat(consultationFee))}</span>
                         {feeCalculation && (
                           <span className="mt-1 text-[10px] text-slate-500 truncate">
-                            {feeCalculation.patient_type_used} • {feeCalculation.shift}
+                            {feeCalculation.patient_category_used || "General"} • {feeCalculation.patient_type_used} • {feeCalculation.shift}
                             {feeCalculation.is_revisit && <span className="ml-1 font-bold text-emerald-600">Revisit</span>}
                           </span>
                         )}
