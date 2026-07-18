@@ -89,7 +89,7 @@ export function TestReportPrint({
             @media print {
               @page {
                 size: A4;
-                margin: 0;
+                margin: 10mm 15mm 10mm 15mm !important;
               }
               .print-content {
                 position: static !important;
@@ -99,9 +99,8 @@ export function TestReportPrint({
                 display: block !important;
               }
               .lab-report-print-container {
-                width: 210mm !important;
-                min-height: 297mm !important;
-                padding: 15mm !important;
+                width: 100% !important;
+                padding: 0 !important;
                 margin: 0 !important;
                 max-width: none !important;
                 height: auto !important;
