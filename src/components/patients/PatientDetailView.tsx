@@ -1467,7 +1467,13 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                         key={test.id}
                                         className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
                                       >
-                                        {test.test_name} ({test.test_code})
+                                        {test.test_name}
+                                        {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
+                                          <span className="font-normal text-slate-500 text-[10px] ml-1">
+                                            ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                                          </span>
+                                        )}
+                                        {" "}({test.test_code})
                                       </span>
                                     ))}
                                   </div>

@@ -1178,7 +1178,14 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                     className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3"
                   >
                     <div className="flex-1">
-                      <p className="font-semibold text-slate-900">{test.test_name}</p>
+                      <p className="font-semibold text-slate-900">
+                        {test.test_name}
+                        {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
+                          <span className="font-normal text-slate-500 text-xs ml-1.5">
+                            ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-slate-500">Code: {test.test_code}</p>
                     </div>
                     <p className="ml-4 font-semibold text-slate-900">{currency(test.price)}</p>

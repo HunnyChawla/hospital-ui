@@ -12,7 +12,7 @@ import type { RefractionRecord } from "@/types";
 import { EyeValueInput, NumericStepper, VASelector } from "../shared";
 
 import { refractionApi } from "@/services/refractionApi";
-import { handleError } from "@/utils/errorHandler";
+import { handleError, getFieldErrors } from "@/utils/errorHandler";
 import { RefractionHistorySection } from "./RefractionHistorySection";
 import { useRefractionSettings } from "@/hooks/useRefractionSettings";
 import { RefractionSettingsModal } from "./RefractionSettingsModal";
@@ -300,6 +300,11 @@ export function RefractionTab({
         [field]: value,
       },
     }));
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[`${eye}_${field}`];
+      return newErrors;
+    });
   };
 
   // Apply template
@@ -565,11 +570,17 @@ export function RefractionTab({
         const res = await refractionApi.list({ visit_id: visitId });
         setVisitRefractions(res.items || []);
       } catch (e) { }
-    } catch (error) {
-      handleError(error, {
-        defaultMessage: "Failed to save refraction data",
-        logError: true,
-      });
+    } catch (error: any) {
+      const fieldErrors = getFieldErrors(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors(fieldErrors);
+        toast.error("Validation error: Please check the highlighted fields.");
+      } else {
+        handleError(error, {
+          defaultMessage: "Failed to save refraction data",
+          logError: true,
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -893,9 +904,10 @@ export function RefractionTab({
               step={0.25}
               min={-6}
               max={6}
-
               unit="D"
               presets={cylinderPresets}
+              odError={errors.od_cylinder}
+              osError={errors.os_cylinder}
             />
 
             {/* Axis */}
@@ -924,9 +936,10 @@ export function RefractionTab({
               step={0.25}
               min={0.5}
               max={4}
-
               unit="D"
               presets={addPowerPresets}
+              odError={errors.od_add_power}
+              osError={errors.os_add_power}
             />
 
             {/* Distance BCVA */}
@@ -935,20 +948,26 @@ export function RefractionTab({
                 Distance BCVA (Best Corrected)
               </label>
               <div className="grid grid-cols-2 gap-4">
-                <VASelector
-                  value={formData.od.distance_bcva || null}
-                  onChange={(v) => updateField("od", "distance_bcva", v)}
-                  colorScheme="blue"
-                  placeholder="OD BCVA"
-                  mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
-                />
-                <VASelector
-                  value={formData.os.distance_bcva || null}
-                  onChange={(v) => updateField("os", "distance_bcva", v)}
-                  colorScheme="green"
-                  placeholder="OS BCVA"
-                  mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
-                />
+                <div>
+                  <VASelector
+                    value={formData.od.distance_bcva || null}
+                    onChange={(v) => updateField("od", "distance_bcva", v)}
+                    colorScheme="blue"
+                    placeholder="OD BCVA"
+                    mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
+                  />
+                  {errors.od_distance_bcva && <p className="text-xs text-red-500 mt-1">{errors.od_distance_bcva}</p>}
+                </div>
+                <div>
+                  <VASelector
+                    value={formData.os.distance_bcva || null}
+                    onChange={(v) => updateField("os", "distance_bcva", v)}
+                    colorScheme="green"
+                    placeholder="OS BCVA"
+                    mode={settings.distance_bcva?.show_as_buttons ? "full" : "standard"}
+                  />
+                  {errors.os_distance_bcva && <p className="text-xs text-red-500 mt-1">{errors.os_distance_bcva}</p>}
+                </div>
               </div>
             </div>
 
@@ -983,6 +1002,7 @@ export function RefractionTab({
                       </button>
                     ))}
                   </div>
+                  {errors.od_near_bcva && <p className="text-xs text-red-500 mt-1">{errors.od_near_bcva}</p>}
                 </div>
                 <div className="space-y-2 rounded-lg border border-green-200 bg-green-50/50 p-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -1009,6 +1029,7 @@ export function RefractionTab({
                       </button>
                     ))}
                   </div>
+                  {errors.os_near_bcva && <p className="text-xs text-red-500 mt-1">{errors.os_near_bcva}</p>}
                 </div>
               </div>
             </div>
@@ -1019,27 +1040,47 @@ export function RefractionTab({
                 Prism (optional)
               </label>
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                  <span className="text-xs font-semibold text-blue-700 w-16">OD (Right):</span>
-                  <select
-                    value={formData.od_prism || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, od_prism: e.target.value }))}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-white"
-                  >
-                    <option value="">—</option>
-                    {PRISM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-blue-700 w-16">OD (Right):</span>
+                    <select
+                      value={formData.od_prism || ""}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, od_prism: e.target.value }));
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.od_prism;
+                          return newErrors;
+                        });
+                      }}
+                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-white"
+                    >
+                      <option value="">—</option>
+                      {PRISM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  {errors.od_prism && <p className="text-xs text-red-500 mt-1">{errors.od_prism}</p>}
                 </div>
-                <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50/50 p-3">
-                  <span className="text-xs font-semibold text-green-700 w-16">OS (Left):</span>
-                  <select
-                    value={formData.os_prism || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, os_prism: e.target.value }))}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-white"
-                  >
-                    <option value="">—</option>
-                    {PRISM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-green-700 w-16">OS (Left):</span>
+                    <select
+                      value={formData.os_prism || ""}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, os_prism: e.target.value }));
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.os_prism;
+                          return newErrors;
+                        });
+                      }}
+                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-white"
+                    >
+                      <option value="">—</option>
+                      {PRISM_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  {errors.os_prism && <p className="text-xs text-red-500 mt-1">{errors.os_prism}</p>}
                 </div>
               </div>
             </div>
@@ -1049,9 +1090,14 @@ export function RefractionTab({
               <NumericStepper
                 label="Pupillary Distance (PD)"
                 value={formData.pupillary_distance === null ? null : toNumberOrNull(formData.pupillary_distance)}
-                onChange={(v) =>
-                  setFormData((prev) => ({ ...prev, pupillary_distance: v }))
-                }
+                onChange={(v) => {
+                  setFormData((prev) => ({ ...prev, pupillary_distance: v }));
+                  setErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.pupillary_distance;
+                    return newErrors;
+                  });
+                }}
                 step={0.5}
                 min={50}
                 max={80}
@@ -1059,6 +1105,7 @@ export function RefractionTab({
                 presets={PD_PRESETS}
                 colorScheme="neutral"
                 placeholder="63.0"
+                error={errors.pupillary_distance}
               />
             </div>
 
@@ -1080,6 +1127,8 @@ export function RefractionTab({
                 max={30}
                 unit="D"
                 presets={spherePresets}
+                odError={errors.od_dilated_sphere}
+                osError={errors.os_dilated_sphere}
               />
 
               <EyeValueInput
@@ -1093,6 +1142,8 @@ export function RefractionTab({
                 max={6}
                 unit="D"
                 presets={cylinderPresets}
+                odError={errors.od_dilated_cylinder}
+                osError={errors.os_dilated_cylinder}
               />
 
               <EyeValueInput
@@ -1106,6 +1157,8 @@ export function RefractionTab({
                 max={180}
                 unit="°"
                 presets={axisPresets}
+                odError={errors.od_dilated_axis}
+                osError={errors.os_dilated_axis}
               />
 
               {/* Dilated VA and Pinhole */}
@@ -1181,13 +1234,19 @@ export function RefractionTab({
               </label>
               <textarea
                 value={formData.notes}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, notes: e.target.value }))
-                }
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, notes: e.target.value }));
+                  setErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.notes;
+                    return newErrors;
+                  });
+                }}
                 rows={2}
                 className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 placeholder="Any additional notes..."
               />
+              {errors.notes && <p className="text-xs text-red-500 mt-1">{errors.notes}</p>}
             </div>
 
             {/* Form Actions */}

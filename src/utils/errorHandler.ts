@@ -283,19 +283,31 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
 export function getFieldErrors(error: any): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
 
-  if (!error?.response?.data?.detail) {
+  // Support both axios error structure and unwrapped rejectWithValue payload
+  const detail = error?.response?.data?.detail || error?.detail;
+
+  if (!detail) {
     return fieldErrors;
   }
-
-  const detail = error.response.data.detail;
 
   // Handle array of error details
   if (Array.isArray(detail)) {
     detail.forEach((err: ErrorDetail) => {
       // Extract field name from location array
-      // loc format: ["body", "field_name"] or ["query", "param_name"]
+      // loc format: ["body", "field_name"] or ["query", "param_name"] or nested e.g. ["body", "refraction", "os", "add_power"]
       const location = err.loc || [];
-      const fieldName = location[location.length - 1]; // Get last element (field name)
+      // Clean prefixes to support nested UI state names (e.g. refraction_os_add_power -> os_add_power)
+      const cleanPath = location.filter(
+        (x) =>
+          x !== "body" &&
+          x !== "refraction" &&
+          x !== "current_specs" &&
+          x !== "ar_data" &&
+          x !== "vision" &&
+          x !== "existing_ids" &&
+          typeof x === "string"
+      );
+      const fieldName = cleanPath.join("_") || (location[location.length - 1] as string);
       
       if (fieldName && typeof fieldName === "string") {
         // Use the msg field for the error message

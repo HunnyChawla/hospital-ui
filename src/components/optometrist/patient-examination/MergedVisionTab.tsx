@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import { Save, Copy, RotateCcw, Import, FileClock } from "lucide-react";
 import { saveExamination } from "@/redux/optometryDataSlice";
-import { handleError } from "@/utils/errorHandler";
+import { handleError, getFieldErrors } from "@/utils/errorHandler";
 import type {
   VisionRecord,
   ARDataRecord,
@@ -207,6 +207,54 @@ export function MergedVisionTab({
   const dispatch = useAppDispatch();
   const [formState, setFormState] = useState<CombinedFormState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const mapLocToFormKey = (loc: (string | number)[]): string | null => {
+    const path = loc.filter((x): x is string => x !== "body" && typeof x === "string");
+    if (path.length === 0) return null;
+
+    const [section, ...rest] = path;
+
+    if (section === "vision") {
+      if (rest[0] === "notes") return "vision_notes";
+      return rest[0] || null;
+    }
+
+    if (section === "current_specs") {
+      if (rest.length === 2 && (rest[0] === "od" || rest[0] === "os")) {
+        return `${rest[0]}_${rest[1]}`;
+      }
+      if (rest[0] === "remarks") return "specs_remarks";
+      return rest[0] || null;
+    }
+
+    if (section === "ar_data") {
+      if (rest[0] === "pupillary_distance") return "ar_pd";
+      if (rest[0] === "notes") return "ar_notes";
+      return rest[0] || null;
+    }
+
+    if (section === "refraction") {
+      if (rest.length === 2 && (rest[0] === "od" || rest[0] === "os")) {
+        return `${rest[0]}_ref_${rest[1]}`;
+      }
+      if (rest[0] === "pupillary_distance") return "ref_pd";
+      if (rest[0] === "notes") return "ref_notes";
+      if (rest[0] === "od_prism" || rest[0] === "os_prism") {
+        return rest[0].replace("prism", "ref_prism");
+      }
+      return rest[0] || null;
+    }
+
+    return path.join("_");
+  };
+
+  const getFieldError = (key: keyof CombinedFormState) => {
+    if (errors[key]) {
+      return "border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50/20 text-red-900";
+    }
+    return "";
+  };
 
   // Find active records for this visit
   const visitVision = useMemo(() => visionRecords.find((r) => r.visit_id === visitId), [visionRecords, visitId]);
@@ -340,6 +388,7 @@ export function MergedVisionTab({
     }
 
     setFormState(newFormState);
+    setErrors({});
   }, [visitId, visitVision, visitSpecs, visitAR, visitRef]);
 
   // Handle single field update
@@ -348,6 +397,11 @@ export function MergedVisionTab({
       ...prev,
       [key]: value,
     }));
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[key];
+      return newErrors;
+    });
   };
 
   const handleInputBlur = (key: keyof CombinedFormState, type: string) => {
@@ -695,11 +749,28 @@ export function MergedVisionTab({
 
       toast.success("All measurements saved successfully.");
       onRefresh();
-    } catch (e) {
-      handleError(e, {
-        defaultMessage: "Failed to save measurements.",
-        logError: true,
-      });
+      setErrors({});
+    } catch (e: any) {
+      const fieldErrors = getFieldErrors(e);
+      if (Object.keys(fieldErrors).length > 0) {
+        const mappedErrors: Record<string, string> = {};
+        const detail = e?.detail || e?.response?.data?.detail;
+        if (Array.isArray(detail)) {
+          detail.forEach((err: any) => {
+            const formKey = mapLocToFormKey(err.loc || []);
+            if (formKey) {
+              mappedErrors[formKey] = err.msg || "Invalid value";
+            }
+          });
+        }
+        setErrors(mappedErrors);
+        toast.error("Validation error: Please check the highlighted fields.");
+      } else {
+        handleError(e, {
+          defaultMessage: "Failed to save measurements.",
+          logError: true,
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -753,55 +824,85 @@ export function MergedVisionTab({
               <select
                 value={formState[`${prefix}ucva_distance` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}ucva_distance` as keyof CombinedFormState, e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50"
+                className={clsx(
+                  "w-full rounded-lg border px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50",
+                  getFieldError(`${prefix}ucva_distance` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}ucva_distance`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ucva_distance`]}</span>
+              )}
             </div>
             <div>
               <label className="block text-[10px] font-semibold text-slate-400 mb-1">Near (UCVA)</label>
               <select
                 value={formState[`${prefix}near_ucva` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}near_ucva` as keyof CombinedFormState, e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50"
+                className={clsx(
+                  "w-full rounded-lg border px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50",
+                  getFieldError(`${prefix}near_ucva` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}near_ucva`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}near_ucva`]}</span>
+              )}
             </div>
             <div>
               <label className="block text-[10px] font-semibold text-slate-400 mb-1">With Glasses (Dist)</label>
               <select
                 value={formState[`${prefix}va_with_current_specs` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}va_with_current_specs` as keyof CombinedFormState, e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50"
+                className={clsx(
+                  "w-full rounded-lg border px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50",
+                  getFieldError(`${prefix}va_with_current_specs` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}va_with_current_specs`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}va_with_current_specs`]}</span>
+              )}
             </div>
             <div>
               <label className="block text-[10px] font-semibold text-slate-400 mb-1">With Glasses (Near)</label>
               <select
                 value={formState[`${prefix}near_with_current_specs` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}near_with_current_specs` as keyof CombinedFormState, e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50"
+                className={clsx(
+                  "w-full rounded-lg border px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50",
+                  getFieldError(`${prefix}near_with_current_specs` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}near_with_current_specs`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}near_with_current_specs`]}</span>
+              )}
             </div>
             <div className="col-span-2">
               <label className="block text-[10px] font-semibold text-slate-400 mb-1">With Pinhole (PH)</label>
               <select
                 value={formState[`${prefix}ph_va` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}ph_va` as keyof CombinedFormState, e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50"
+                className={clsx(
+                  "w-full rounded-lg border px-3 py-2 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50 hover:bg-slate-50",
+                  getFieldError(`${prefix}ph_va` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}ph_va`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ph_va`]}</span>
+              )}
             </div>
           </div>
         </div>
@@ -822,8 +923,14 @@ export function MergedVisionTab({
                   onChange={(e) => updateField(`${prefix}ar_sphere` as keyof CombinedFormState, e.target.value)}
                   onBlur={() => handleInputBlur(`${prefix}ar_sphere` as keyof CombinedFormState, "sphere")}
                   placeholder="0.00"
-                  className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                  className={clsx(
+                    "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                    getFieldError(`${prefix}ar_sphere` as keyof CombinedFormState)
+                  )}
                 />
+                {errors[`${prefix}ar_sphere`] && (
+                  <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ar_sphere`]}</span>
+                )}
               </div>
               <div>
                 <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Cylinder</label>
@@ -833,8 +940,14 @@ export function MergedVisionTab({
                   onChange={(e) => updateField(`${prefix}ar_cylinder` as keyof CombinedFormState, e.target.value)}
                   onBlur={() => handleInputBlur(`${prefix}ar_cylinder` as keyof CombinedFormState, "cylinder")}
                   placeholder="0.00"
-                  className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                  className={clsx(
+                    "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                    getFieldError(`${prefix}ar_cylinder` as keyof CombinedFormState)
+                  )}
                 />
+                {errors[`${prefix}ar_cylinder`] && (
+                  <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ar_cylinder`]}</span>
+                )}
               </div>
               <div>
                 <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Axis</label>
@@ -843,8 +956,14 @@ export function MergedVisionTab({
                   value={formState[`${prefix}ar_axis` as keyof CombinedFormState] as string}
                   onChange={(e) => updateField(`${prefix}ar_axis` as keyof CombinedFormState, e.target.value)}
                   placeholder="0"
-                  className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                  className={clsx(
+                    "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                    getFieldError(`${prefix}ar_axis` as keyof CombinedFormState)
+                  )}
                 />
+                {errors[`${prefix}ar_axis`] && (
+                  <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ar_axis`]}</span>
+                )}
               </div>
             </div>
           </div>
@@ -861,8 +980,14 @@ export function MergedVisionTab({
                   onChange={(e) => updateField(`${prefix}wet_sphere` as keyof CombinedFormState, e.target.value)}
                   onBlur={() => handleInputBlur(`${prefix}wet_sphere` as keyof CombinedFormState, "sphere")}
                   placeholder="0.00"
-                  className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                  className={clsx(
+                    "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                    getFieldError(`${prefix}wet_sphere` as keyof CombinedFormState)
+                  )}
                 />
+                {errors[`${prefix}wet_sphere`] && (
+                  <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}wet_sphere`]}</span>
+                )}
               </div>
               <div>
                 <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Cylinder</label>
@@ -872,8 +997,14 @@ export function MergedVisionTab({
                   onChange={(e) => updateField(`${prefix}wet_cylinder` as keyof CombinedFormState, e.target.value)}
                   onBlur={() => handleInputBlur(`${prefix}wet_cylinder` as keyof CombinedFormState, "cylinder")}
                   placeholder="0.00"
-                  className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                  className={clsx(
+                    "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                    getFieldError(`${prefix}wet_cylinder` as keyof CombinedFormState)
+                  )}
                 />
+                {errors[`${prefix}wet_cylinder`] && (
+                  <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}wet_cylinder`]}</span>
+                )}
               </div>
               <div>
                 <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Axis</label>
@@ -882,8 +1013,14 @@ export function MergedVisionTab({
                   value={formState[`${prefix}wet_axis` as keyof CombinedFormState] as string}
                   onChange={(e) => updateField(`${prefix}wet_axis` as keyof CombinedFormState, e.target.value)}
                   placeholder="0"
-                  className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                  className={clsx(
+                    "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                    getFieldError(`${prefix}wet_axis` as keyof CombinedFormState)
+                  )}
                 />
+                {errors[`${prefix}wet_axis`] && (
+                  <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}wet_axis`]}</span>
+                )}
               </div>
             </div>
           </div>
@@ -901,8 +1038,14 @@ export function MergedVisionTab({
                 onChange={(e) => updateField(`${prefix}sph` as keyof CombinedFormState, e.target.value)}
                 onBlur={() => handleInputBlur(`${prefix}sph` as keyof CombinedFormState, "sphere")}
                 placeholder="0.00"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}sph` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}sph`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}sph`]}</span>
+              )}
             </div>
             <div>
               <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Cylinder</label>
@@ -912,8 +1055,14 @@ export function MergedVisionTab({
                 onChange={(e) => updateField(`${prefix}cyl` as keyof CombinedFormState, e.target.value)}
                 onBlur={() => handleInputBlur(`${prefix}cyl` as keyof CombinedFormState, "cylinder")}
                 placeholder="0.00"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}cyl` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}cyl`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}cyl`]}</span>
+              )}
             </div>
             <div>
               <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Axis</label>
@@ -922,8 +1071,14 @@ export function MergedVisionTab({
                 value={formState[`${prefix}axis` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}axis` as keyof CombinedFormState, e.target.value)}
                 placeholder="0"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}axis` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}axis`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}axis`]}</span>
+              )}
             </div>
             <div>
               <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Add Power</label>
@@ -933,8 +1088,14 @@ export function MergedVisionTab({
                 onChange={(e) => updateField(`${prefix}add` as keyof CombinedFormState, e.target.value)}
                 onBlur={() => handleInputBlur(`${prefix}add` as keyof CombinedFormState, "add_power")}
                 placeholder="0.00"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}add` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}add`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}add`]}</span>
+              )}
             </div>
           </div>
         </div>
@@ -974,8 +1135,14 @@ export function MergedVisionTab({
                     onChange={(e) => updateField(`${prefix}ref_sphere` as keyof CombinedFormState, e.target.value)}
                     onBlur={() => handleInputBlur(`${prefix}ref_sphere` as keyof CombinedFormState, "sphere")}
                     placeholder="0.00"
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_sphere` as keyof CombinedFormState)
+                    )}
                   />
+                  {errors[`${prefix}ref_sphere`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_sphere`]}</span>
+                  )}
                 </div>
                 <div className="col-span-1">
                   <label className="block text-[8px] font-medium text-slate-400 mb-0.5">CYL</label>
@@ -985,8 +1152,14 @@ export function MergedVisionTab({
                     onChange={(e) => updateField(`${prefix}ref_cylinder` as keyof CombinedFormState, e.target.value)}
                     onBlur={() => handleInputBlur(`${prefix}ref_cylinder` as keyof CombinedFormState, "cylinder")}
                     placeholder="0.00"
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_cylinder` as keyof CombinedFormState)
+                    )}
                   />
+                  {errors[`${prefix}ref_cylinder`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_cylinder`]}</span>
+                  )}
                 </div>
                 <div className="col-span-1">
                   <label className="block text-[8px] font-medium text-slate-400 mb-0.5">AXIS</label>
@@ -995,30 +1168,48 @@ export function MergedVisionTab({
                     value={formState[`${prefix}ref_axis` as keyof CombinedFormState] as string}
                     onChange={(e) => updateField(`${prefix}ref_axis` as keyof CombinedFormState, e.target.value)}
                     placeholder="0"
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_axis` as keyof CombinedFormState)
+                    )}
                   />
+                  {errors[`${prefix}ref_axis`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_axis`]}</span>
+                  )}
                 </div>
                 <div className="col-span-1">
                   <label className="block text-[8px] font-medium text-slate-400 mb-0.5">PRISM</label>
                   <select
                     value={formState[`${prefix}ref_prism` as keyof CombinedFormState] as string}
                     onChange={(e) => updateField(`${prefix}ref_prism` as keyof CombinedFormState, e.target.value)}
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_prism` as keyof CombinedFormState)
+                    )}
                   >
                     <option value="">—</option>
                     {PRISM_OPTIONS.filter(Boolean).map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
+                  {errors[`${prefix}ref_prism`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_prism`]}</span>
+                  )}
                 </div>
                 <div className="col-span-1">
                   <label className="block text-[8px] font-medium text-slate-400 mb-0.5">BCVA (VA)</label>
                   <select
                     value={formState[`${prefix}ref_distance_bcva` as keyof CombinedFormState] as string}
                     onChange={(e) => updateField(`${prefix}ref_distance_bcva` as keyof CombinedFormState, e.target.value)}
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_distance_bcva` as keyof CombinedFormState)
+                    )}
                   >
                     <option value="">—</option>
                     {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
+                  {errors[`${prefix}ref_distance_bcva`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_distance_bcva`]}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1035,19 +1226,31 @@ export function MergedVisionTab({
                     onChange={(e) => updateField(`${prefix}ref_add_power` as keyof CombinedFormState, e.target.value)}
                     onBlur={() => handleInputBlur(`${prefix}ref_add_power` as keyof CombinedFormState, "add_power")}
                     placeholder="0.00"
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_add_power` as keyof CombinedFormState)
+                    )}
                   />
+                  {errors[`${prefix}ref_add_power`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_add_power`]}</span>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[9px] font-medium text-slate-400 mb-0.5">Near BCVA (N V)</label>
                   <select
                     value={formState[`${prefix}ref_near_bcva` as keyof CombinedFormState] as string}
                     onChange={(e) => updateField(`${prefix}ref_near_bcva` as keyof CombinedFormState, e.target.value)}
-                    className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                    className={clsx(
+                      "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                      getFieldError(`${prefix}ref_near_bcva` as keyof CombinedFormState)
+                    )}
                   >
                     <option value="">—</option>
                     {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
+                  {errors[`${prefix}ref_near_bcva`] && (
+                    <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_near_bcva`]}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1076,8 +1279,14 @@ export function MergedVisionTab({
                 onChange={(e) => updateField(`${prefix}dilated_sphere` as keyof CombinedFormState, e.target.value)}
                 onBlur={() => handleInputBlur(`${prefix}dilated_sphere` as keyof CombinedFormState, "sphere")}
                 placeholder="0.00"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}dilated_sphere` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}dilated_sphere`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_sphere`]}</span>
+              )}
             </div>
             <div className="col-span-1">
               <label className="block text-[8px] font-medium text-slate-400 mb-0.5">CYL</label>
@@ -1087,8 +1296,14 @@ export function MergedVisionTab({
                 onChange={(e) => updateField(`${prefix}dilated_cylinder` as keyof CombinedFormState, e.target.value)}
                 onBlur={() => handleInputBlur(`${prefix}dilated_cylinder` as keyof CombinedFormState, "cylinder")}
                 placeholder="0.00"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}dilated_cylinder` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}dilated_cylinder`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_cylinder`]}</span>
+              )}
             </div>
             <div className="col-span-1">
               <label className="block text-[8px] font-medium text-slate-400 mb-0.5">AXIS</label>
@@ -1097,30 +1312,48 @@ export function MergedVisionTab({
                 value={formState[`${prefix}dilated_axis` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}dilated_axis` as keyof CombinedFormState, e.target.value)}
                 placeholder="0"
-                className="w-full text-center rounded-lg border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-lg border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}dilated_axis` as keyof CombinedFormState)
+                )}
               />
+              {errors[`${prefix}dilated_axis`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_axis`]}</span>
+              )}
             </div>
             <div className="col-span-1">
               <label className="block text-[8px] font-medium text-slate-400 mb-0.5">V/A (Dist)</label>
               <select
                 value={formState[`${prefix}dilated_visual_acuity` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}dilated_visual_acuity` as keyof CombinedFormState, e.target.value)}
-                className="w-full text-center rounded-md border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-md border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}dilated_visual_acuity` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}dilated_visual_acuity`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_visual_acuity`]}</span>
+              )}
             </div>
             <div className="col-span-1">
               <label className="block text-[8px] font-medium text-slate-400 mb-0.5">PH (Pinhole)</label>
               <select
                 value={formState[`${prefix}dilated_pinhole` as keyof CombinedFormState] as string}
                 onChange={(e) => updateField(`${prefix}dilated_pinhole` as keyof CombinedFormState, e.target.value)}
-                className="w-full text-center rounded-md border border-slate-200 py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50"
+                className={clsx(
+                  "w-full text-center rounded-md border py-1.5 text-xs focus:border-sky-500 outline-none font-semibold text-slate-700 bg-slate-50/50",
+                  getFieldError(`${prefix}dilated_pinhole` as keyof CombinedFormState)
+                )}
               >
                 <option value="">—</option>
                 {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+              {errors[`${prefix}dilated_pinhole`] && (
+                <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_pinhole`]}</span>
+              )}
             </div>
           </div>
         </div>

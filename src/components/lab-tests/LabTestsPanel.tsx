@@ -6,6 +6,7 @@ import { fetchLabTests, updateLabTest } from "@/redux/labTestsSlice";
 import { LabTestForm } from "./LabTestForm";
 import { ParametersManagementModal } from "./ParametersManagementModal";
 import { PriceManagementModal } from "./PriceManagementModal";
+import { PrescriptionFieldsModal } from "./PrescriptionFieldsModal";
 import { currency } from "@/utils/format";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ import {
   Settings,
   Power,
   PowerOff,
+  ClipboardList,
 } from "lucide-react";
 
 const DEFAULT_QUERY = { page: 1, page_size: 20, is_active: true as boolean | undefined };
@@ -42,6 +44,10 @@ export function LabTestsPanel() {
     testCode: string;
     testName: string;
     currentPrice: number;
+  } | null>(null);
+  const [selectedTestForPrescriptionFields, setSelectedTestForPrescriptionFields] = useState<{
+    testCode: string;
+    testName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -260,6 +266,27 @@ export function LabTestsPanel() {
                       <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline-block">Parameters</span>
                     </button>
                     <button
+                      onClick={() => setSelectedTestForPrescriptionFields({ testCode: test.test_code, testName: test.test_name })}
+                      className="group relative flex items-center justify-center overflow-visible rounded-lg bg-gradient-to-r from-violet-500 to-indigo-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:from-violet-600 hover:to-indigo-600"
+                      style={{ width: "2rem", minWidth: "2rem" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.width = "auto";
+                        e.currentTarget.style.minWidth = "auto";
+                        e.currentTarget.style.paddingLeft = "0.75rem";
+                        e.currentTarget.style.paddingRight = "0.75rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.width = "2rem";
+                        e.currentTarget.style.minWidth = "2rem";
+                        e.currentTarget.style.paddingLeft = "0.5rem";
+                        e.currentTarget.style.paddingRight = "0.5rem";
+                      }}
+                      title="Manage Prescription Fields"
+                    >
+                      <ClipboardList className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline-block">Prescription</span>
+                    </button>
+                    <button
                       onClick={() => handleToggleActive(test.id, test.is_active)}
                       disabled={updatingId === test.id}
                       className={`group relative flex items-center justify-center overflow-visible rounded-lg p-2 text-xs font-semibold text-white transition-all duration-300 ${
@@ -341,6 +368,16 @@ export function LabTestsPanel() {
             refresh();
             setSelectedTestForPrice(null);
           }}
+        />
+      )}
+
+      {/* Prescription Fields Modal */}
+      {selectedTestForPrescriptionFields && (
+        <PrescriptionFieldsModal
+          isOpen={!!selectedTestForPrescriptionFields}
+          onClose={() => setSelectedTestForPrescriptionFields(null)}
+          testCode={selectedTestForPrescriptionFields.testCode}
+          testName={selectedTestForPrescriptionFields.testName}
         />
       )}
     </div>

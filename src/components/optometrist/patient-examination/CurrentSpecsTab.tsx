@@ -8,7 +8,7 @@ import type { CurrentSpecsRecord } from "@/types";
 
 import { EyeValueInput, NumericStepper } from "../shared";
 import { currentSpecsApi } from "@/services/currentSpecsApi";
-import { handleError } from "@/utils/errorHandler";
+import { handleError, getFieldErrors } from "@/utils/errorHandler";
 import { useRefractionSettings } from "@/hooks/useRefractionSettings";
 import { RefractionSettingsModal } from "./RefractionSettingsModal";
 
@@ -264,11 +264,17 @@ export function CurrentSpecsTab({
                 const res = await currentSpecsApi.list({ visit_id: visitId });
                 setVisitRecords(res.items || []);
             } catch (e) { }
-        } catch (error) {
-            handleError(error, {
-                defaultMessage: "Failed to save current specs data",
-                logError: true,
-            });
+        } catch (error: any) {
+            const fieldErrors = getFieldErrors(error);
+            if (Object.keys(fieldErrors).length > 0) {
+                setErrors(fieldErrors);
+                toast.error("Validation error: Please check the highlighted fields.");
+            } else {
+                handleError(error, {
+                    defaultMessage: "Failed to save current specs data",
+                    logError: true,
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -492,6 +498,8 @@ export function CurrentSpecsTab({
                             max={6}
                             unit="D"
                             presets={cylinderPresets}
+                            odError={errors.od_cyl}
+                            osError={errors.os_cyl}
                         />
 
                         {/* Axis */}
@@ -522,6 +530,8 @@ export function CurrentSpecsTab({
                             max={4}
                             unit="D"
                             presets={addPowerPresets}
+                            odError={errors.od_add}
+                            osError={errors.os_add}
                         />
 
                         {/* Additional Fields */}
@@ -659,13 +669,19 @@ export function CurrentSpecsTab({
                             </label>
                             <textarea
                                 value={formData.remarks}
-                                onChange={(e) =>
-                                    setFormData((prev) => ({ ...prev, remarks: e.target.value }))
-                                }
+                                onChange={(e) => {
+                                    setFormData((prev) => ({ ...prev, remarks: e.target.value }));
+                                    setErrors((prev) => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.remarks;
+                                        return newErrors;
+                                    });
+                                }}
                                 rows={2}
                                 className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                                 placeholder="Any additional notes about current glasses..."
                             />
+                            {errors.remarks && <p className="text-xs text-red-500 mt-1">{errors.remarks}</p>}
                         </div>
 
                         {/* Form Actions */}

@@ -33,6 +33,7 @@ import { symptomsApi, DiagnosisSymptomMap } from "@/services/symptomsApi";
 import { prescriptionDataApi } from "@/services/prescriptionDataApi";
 import { doctorsApi } from "@/services/doctorsApi";
 import { medicinesApi } from "@/services/medicinesApi";
+import { labTestsApi, PrescriptionField } from "@/services/labTestsApi";
 import { handleError } from "@/utils/errorHandler";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
@@ -63,7 +64,6 @@ import { PlannedSurgery } from "@/types";
 import { usersApi } from "@/services/usersApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
-import { labTestsApi } from "@/services/labTestsApi";
 import { usePrescriptionFlags } from "@/hooks/useFeatureFlags";
 
 interface PrescriptionFormSectionProps {
@@ -235,6 +235,7 @@ export function PrescriptionFormSection({
     const [pendingFinalizeAction, setPendingFinalizeAction] = useState<{ data: FormData; print: boolean } | null>(null);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
+    const [prescriptionFieldsByTestCode, setPrescriptionFieldsByTestCode] = useState<Record<string, PrescriptionField[]>>({});
 
     // Feature flags for prescription editing
     const { allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionFlags();
@@ -506,6 +507,35 @@ export function PrescriptionFormSection({
         control,
         name: "advice_items",
     });
+
+    // Load active prescription fields for prescribed lab tests
+    useEffect(() => {
+        const loadFields = async () => {
+            const labTests = adviceFields.filter((f: any) => (f.advice_type === "lab-test" || f.advice_type === "Lab Test") && f.test_code);
+            if (labTests.length === 0) return;
+
+            const newMap = { ...prescriptionFieldsByTestCode };
+            let hasChanges = false;
+
+            const promises = labTests.map(async (field: any) => {
+                if (newMap[field.test_code]) return; // already loaded
+                try {
+                    const fieldsList = await labTestsApi.listPrescriptionFields(field.test_code);
+                    newMap[field.test_code] = fieldsList.filter((f) => f.is_active);
+                    hasChanges = true;
+                } catch (error) {
+                    console.error(`Failed to fetch prescription fields for ${field.test_code}:`, error);
+                }
+            });
+
+            await Promise.all(promises);
+            if (hasChanges) {
+                setPrescriptionFieldsByTestCode(newMap);
+            }
+        };
+
+        loadFields();
+    }, [adviceFields]);
 
     // Sync added medicine IDs when medicine options or fields change
     useEffect(() => {
@@ -956,15 +986,26 @@ export function PrescriptionFormSection({
     };
 
     // Handle quick lab test add
-    const handleQuickLabTestAdd = (id: string) => {
+    const handleQuickLabTestAdd = async (id: string) => {
         if (addedLabTestIds.includes(id)) return;
         const template = labTestsOptions.find(l => l.id === id);
         if (template) {
+            let testCode = "";
+            if (template.lab_test_id) {
+                try {
+                    const testDetails = await labTestsApi.getById(template.lab_test_id);
+                    testCode = testDetails.test_code;
+                } catch (e) {
+                    console.error("Failed to fetch lab test details for code:", e);
+                }
+            }
             appendAdvice({
                 advice_type: "lab-test",
                 description: template.value,
                 lab_test_id: template.lab_test_id || null,
-                notes: ""
+                test_code: testCode,
+                notes: "",
+                prescription_metadata: {}
             });
             setAddedLabTestIds(prev => [...prev, id]);
             toast.success(`Added ${template.label}`);
@@ -1028,7 +1069,9 @@ export function PrescriptionFormSection({
             advice_type: "lab-test",
             description: test.value,
             lab_test_id: test.id,
-            notes: ""
+            test_code: test.code,
+            notes: "",
+            prescription_metadata: {}
         });
         setTestSearchQuery("");
         setTestSearchResults([]);
@@ -2201,31 +2244,107 @@ export function PrescriptionFormSection({
 
                                     {/* Added Tests List */}
                                     {adviceFields.some(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test") && (
-                                        <div className="space-y-2 mt-3">
-                                            {adviceFields.map((field, index) => {
+                                        <div className="space-y-3 mt-3">
+                                            {adviceFields.map((field: any, index) => {
                                                 if (field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") return null;
+                                                const fieldsForTest = prescriptionFieldsByTestCode[field.test_code] || [];
                                                 return (
-                                                    <div key={field.id} className="flex items-center gap-2 group/advice">
-                                                        <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
-                                                        <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
-                                                        <div className="flex-1 flex items-center gap-2">
-                                                            <input
-                                                                {...register(`advice_items.${index}.description`)}
-                                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                                                            />
-                                                            {field.lab_test_id && (
-                                                                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
-                                                                    <Link2 className="h-3.5 w-3.5" /> Catalog
-                                                                </span>
-                                                            )}
+                                                    <div key={field.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+                                                        <div className="flex items-center gap-2 group/advice">
+                                                            <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
+                                                            <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
+                                                            <input type="hidden" {...register(`advice_items.${index}.test_code`)} />
+                                                            <div className="flex-1 flex items-center gap-2">
+                                                                <input
+                                                                    {...register(`advice_items.${index}.description`)}
+                                                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                                />
+                                                                {field.lab_test_id && (
+                                                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+                                                                        <Link2 className="h-3.5 w-3.5" /> Catalog
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveAdvice(index)}
+                                                                className="rounded-lg p-2 text-slate-350 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
                                                         </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveAdvice(index)}
-                                                            className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
+
+                                                        {fieldsForTest.length > 0 && (
+                                                            <div className="bg-white rounded-lg border border-slate-100 p-3 space-y-2.5 ml-1">
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                                    Prescription Parameters / Clinical Context
+                                                                </p>
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    {fieldsForTest.map((fField) => (
+                                                                        <div key={fField.id} className="col-span-1 space-y-1">
+                                                                            <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                                                                                {fField.field_name}
+                                                                                {fField.is_required && <span className="text-rose-500">*</span>}
+                                                                            </label>
+                                                                            <Controller
+                                                                                control={control}
+                                                                                name={`advice_items.${index}.prescription_metadata.${fField.field_name}`}
+                                                                                rules={{ required: fField.is_required }}
+                                                                                render={({ field: controllerField, fieldState }) => {
+                                                                                    const val = controllerField.value ?? "";
+                                                                                    return (
+                                                                                        <div>
+                                                                                            {fField.field_type === "dropdown" ? (
+                                                                                                <select
+                                                                                                    value={val}
+                                                                                                    onChange={controllerField.onChange}
+                                                                                                    className={clsx(
+                                                                                                        "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
+                                                                                                        fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-emerald-500"
+                                                                                                    )}
+                                                                                                >
+                                                                                                    <option value="">Select option</option>
+                                                                                                    {fField.dropdown_options?.map((opt) => (
+                                                                                                        <option key={opt} value={opt}>
+                                                                                                            {opt}
+                                                                                                        </option>
+                                                                                                    ))}
+                                                                                                </select>
+                                                                                            ) : fField.field_type === "number" ? (
+                                                                                                <input
+                                                                                                    type="number"
+                                                                                                    value={val}
+                                                                                                    onChange={(e) => controllerField.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                                                                                                    placeholder="Enter number"
+                                                                                                    className={clsx(
+                                                                                                        "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
+                                                                                                        fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-emerald-500"
+                                                                                                    )}
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <input
+                                                                                                    type="text"
+                                                                                                    value={val}
+                                                                                                    onChange={controllerField.onChange}
+                                                                                                    placeholder="Enter details"
+                                                                                                    className={clsx(
+                                                                                                        "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
+                                                                                                        fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-emerald-500"
+                                                                                                    )}
+                                                                                                />
+                                                                                            )}
+                                                                                            {fieldState.invalid && (
+                                                                                                <span className="text-[10px] text-rose-500 block mt-0.5">Required field</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}

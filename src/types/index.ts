@@ -481,6 +481,8 @@ export type AdviceItem = {
   description: string;
   notes?: string;
   lab_test_id?: string | null;
+  test_code?: string;
+  prescription_metadata?: Record<string, any> | null;
   created_at?: string;
 };
 

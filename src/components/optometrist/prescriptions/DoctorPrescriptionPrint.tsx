@@ -514,7 +514,13 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
                                 {prescription.advice_items
                                     .filter(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test")
-                                    .map(a => a.description)
+                                    .map(a => {
+                                        const metaKeys = a.prescription_metadata ? Object.keys(a.prescription_metadata) : [];
+                                        const metaStr = metaKeys.length > 0 
+                                            ? ` (${metaKeys.map(k => `${k}: ${a.prescription_metadata?.[k]}`).join(", ")})`
+                                            : "";
+                                        return `${a.description}${metaStr}`;
+                                    })
                                     .join(", ")}
                             </div>
                         </div>

@@ -33,11 +33,29 @@ export function ParameterForm({ parameter, onSubmit, onCancel, isSubmitting = fa
     "min",
     "IU/L",
     "U/L",
+    "µm",
+    "mm²"
   ];
 
   const [customUnit, setCustomUnit] = useState(
     parameter && !predefinedUnits.includes(parameter.unit) ? parameter.unit : ""
   );
+
+  const [options, setOptions] = useState<string[]>(
+    parameter?.dropdown_options || []
+  );
+  const [newOption, setNewOption] = useState("");
+
+  const addOption = () => {
+    if (newOption.trim() && !options.includes(newOption.trim())) {
+      setOptions([...options, newOption.trim()]);
+      setNewOption("");
+    }
+  };
+
+  const removeOption = (index: number) => {
+    setOptions(options.filter((_, i) => i !== index));
+  };
 
   const {
     register,
@@ -48,51 +66,61 @@ export function ParameterForm({ parameter, onSubmit, onCancel, isSubmitting = fa
   } = useForm<CreateLabTestParameterRequest>({
     defaultValues: parameter
       ? {
-          parameter_code: parameter.parameter_code,
-          parameter_name: parameter.parameter_name,
-          unit: predefinedUnits.includes(parameter.unit) ? parameter.unit : "Other",
-          normal_min: parameter.normal_min ?? undefined,
-          normal_max: parameter.normal_max ?? undefined,
-          normal_text: parameter.normal_text ?? undefined,
-          gender: parameter.gender as "ALL" | "M" | "F",
-          age_min: parameter.age_min,
-          age_max: parameter.age_max,
-          method: parameter.method ?? undefined,
-          display_order: parameter.display_order,
-          is_active: parameter.is_active,
-        }
+        parameter_code: parameter.parameter_code,
+        parameter_name: parameter.parameter_name,
+        unit: predefinedUnits.includes(parameter.unit) ? parameter.unit : "Other",
+        normal_min: parameter.normal_min ?? undefined,
+        normal_max: parameter.normal_max ?? undefined,
+        normal_text: parameter.normal_text ?? undefined,
+        gender: parameter.gender as "ALL" | "M" | "F",
+        age_min: parameter.age_min,
+        age_max: parameter.age_max,
+        method: parameter.method ?? undefined,
+        display_order: parameter.display_order,
+        is_active: parameter.is_active,
+        section_name: parameter.section_name ?? "",
+        parameter_type: parameter.parameter_type ?? "number",
+      }
       : {
-          parameter_code: "",
-          parameter_name: "",
-          unit: "",
-          normal_min: undefined,
-          normal_max: undefined,
-          normal_text: undefined,
-          gender: "ALL",
-          age_min: 0,
-          age_max: 120,
-          method: undefined,
-          display_order: 1,
-          is_active: true,
-        },
+        parameter_code: "",
+        parameter_name: "",
+        unit: "",
+        normal_min: undefined,
+        normal_max: undefined,
+        normal_text: undefined,
+        gender: "ALL",
+        age_min: 0,
+        age_max: 120,
+        method: undefined,
+        display_order: 1,
+        is_active: true,
+        section_name: "",
+        parameter_type: "number",
+      },
   });
 
   const normalMin = watch("normal_min");
   const normalMax = watch("normal_max");
   const normalText = watch("normal_text");
   const unit = watch("unit");
+  const parameterType = watch("parameter_type");
 
   const isCustomUnit = unit === "Other";
 
   const handleFormSubmit = async (data: CreateLabTestParameterRequest) => {
-    // Auto-generate normal_text if not provided and both min/max are present
     const formData: CreateLabTestParameterRequest | UpdateLabTestParameterRequest = {
       ...data,
-      // Use custom unit if "Other" is selected, otherwise use the selected unit
       unit: data.unit === "Other" ? customUnit : data.unit,
-      normal_text: normalText || (normalMin !== undefined && normalMax !== undefined 
-        ? `${normalMin}-${normalMax}` 
-        : undefined),
+      section_name: data.section_name?.trim() || null,
+      parameter_type: data.parameter_type,
+      dropdown_options: data.parameter_type === "dropdown" ? options : null,
+      normal_min: data.parameter_type === "number" ? (data.normal_min !== undefined ? data.normal_min : null) : null,
+      normal_max: data.parameter_type === "number" ? (data.normal_max !== undefined ? data.normal_max : null) : null,
+      normal_text: data.parameter_type === "number"
+        ? (normalText || (normalMin !== undefined && normalMax !== undefined
+          ? `${normalMin}-${normalMax}`
+          : undefined))
+        : data.normal_text || undefined,
     };
 
     await onSubmit(formData);
@@ -134,11 +162,40 @@ export function ParameterForm({ parameter, onSubmit, onCancel, isSubmitting = fa
 
       <div className="grid grid-cols-2 gap-4">
         <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Section Name</label>
+          <input
+            type="text"
+            {...register("section_name")}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+            placeholder="e.g. Hematology, Lipid Profile"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Parameter Type <span className="text-rose-500">*</span>
+          </label>
+          <select
+            {...register("parameter_type", { required: "Parameter type is required" })}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+          >
+            <option value="number">Number</option>
+            <option value="dropdown">Dropdown</option>
+            <option value="text">Text</option>
+            <option value="image">Image</option>
+          </select>
+          {errors.parameter_type && (
+            <p className="mt-1 text-xs text-rose-500">{errors.parameter_type.message}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
             Unit <span className="text-rose-500">*</span>
           </label>
           <select
-            {...register("unit", { 
+            {...register("unit", {
               required: "Unit is required",
               validate: (value) => {
                 if (value === "Other" && !customUnit.trim()) {
@@ -198,57 +255,118 @@ export function ParameterForm({ parameter, onSubmit, onCancel, isSubmitting = fa
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Normal Min</label>
-          <input
-            type="number"
-            step="any"
-            {...register("normal_min", {
-              valueAsNumber: true,
-              validate: (val) => {
-                if (val !== undefined && isNaN(val)) return "Must be a valid number";
-                return true;
-              },
-            })}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-            placeholder="4.5"
-          />
-          {errors.normal_min && (
-            <p className="mt-1 text-xs text-rose-500">{errors.normal_min.message}</p>
+      {parameterType === "dropdown" && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+          <label className="block text-sm font-medium text-slate-700">Dropdown Options</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newOption}
+              onChange={(e) => setNewOption(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              placeholder="e.g. Positive"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addOption();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={addOption}
+              className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-600"
+            >
+              Add Option
+            </button>
+          </div>
+          {options.length > 0 ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {options.map((opt, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 border border-sky-100"
+                >
+                  {opt}
+                  <button
+                    type="button"
+                    onClick={() => removeOption(idx)}
+                    className="text-sky-400 hover:text-sky-600 focus:outline-none"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic">No options added yet. Add at least one option.</p>
           )}
         </div>
+      )}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Normal Max</label>
-          <input
-            type="number"
-            step="any"
-            {...register("normal_max", {
-              valueAsNumber: true,
-              validate: (val) => {
-                if (val !== undefined && isNaN(val)) return "Must be a valid number";
-                return true;
-              },
-            })}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-            placeholder="5.5"
-          />
-          {errors.normal_max && (
-            <p className="mt-1 text-xs text-rose-500">{errors.normal_max.message}</p>
-          )}
+      {parameterType === "number" ? (
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Normal Min</label>
+            <input
+              type="number"
+              step="any"
+              {...register("normal_min", {
+                valueAsNumber: true,
+                validate: (val) => {
+                  if (val !== undefined && isNaN(val)) return "Must be a valid number";
+                  return true;
+                },
+              })}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              placeholder="4.5"
+            />
+            {errors.normal_min && (
+              <p className="mt-1 text-xs text-rose-500">{errors.normal_min.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Normal Max</label>
+            <input
+              type="number"
+              step="any"
+              {...register("normal_max", {
+                valueAsNumber: true,
+                validate: (val) => {
+                  if (val !== undefined && isNaN(val)) return "Must be a valid number";
+                  return true;
+                },
+              })}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              placeholder="5.5"
+            />
+            {errors.normal_max && (
+              <p className="mt-1 text-xs text-rose-500">{errors.normal_max.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Normal Text</label>
+            <input
+              type="text"
+              {...register("normal_text")}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+              placeholder="4.5-5.5 (auto-generated if empty)"
+            />
+          </div>
         </div>
-
+      ) : (
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Normal Text</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Expected Normal Value / Text</label>
           <input
             type="text"
             {...register("normal_text")}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-            placeholder="4.5-5.5 (auto-generated if empty)"
+            placeholder="e.g. Negative or Clear"
           />
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         <div>
