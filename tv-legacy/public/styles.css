@@ -443,6 +443,9 @@ body {
 .panel-header {
     padding: 20px 25px;
     color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .optometrist-header {
@@ -459,11 +462,11 @@ body {
 
 .panel-header h2 {
     font-size: 22px;
-    margin: 0 0 10px 0;
+    margin: 0;
 }
 
 .stats-row {
-    margin-top: 10px;
+    margin: 0;
 }
 
 .stat-badge {

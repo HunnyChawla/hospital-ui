@@ -69,6 +69,51 @@
         }
     }
 
+    window.toggleFullscreen = function (fullscreen) {
+        if (fullscreen) {
+            var docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen();
+            } else if (docEl.mozRequestFullScreen) { /* Firefox */
+                docEl.mozRequestFullScreen();
+            } else if (docEl.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                docEl.webkitRequestFullscreen();
+            } else if (docEl.msRequestFullscreen) { /* IE/Edge */
+                docEl.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) { /* Firefox */
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { /* IE/Edge */
+                document.msExitFullscreen();
+            }
+        }
+    };
+
+    // Keep fullscreen checkbox in sync when user exits fullscreen with Escape key
+    function setupFullscreenListener() {
+        var events = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+        for (var i = 0; i < events.length; i++) {
+            document.addEventListener(events[i], function () {
+                var checkbox = document.getElementById('toggle-fullscreen');
+                if (checkbox) {
+                    checkbox.checked = !!(
+                        document.fullscreenElement ||
+                        document.webkitFullscreenElement ||
+                        document.mozFullScreenElement ||
+                        document.msFullscreenElement
+                    );
+                }
+            });
+        }
+    }
+
+    setupFullscreenListener();
+
     function removeItem(key) {
         try {
             localStorage.removeItem(key);
@@ -333,12 +378,15 @@
         timerEl.innerHTML = '';
         qrSessionCode = null;
 
+        var requestData = {};
+        if (hospitalId) {
+            requestData.hospital_id = hospitalId;
+        }
+
         ajax({
             method: 'POST',
             url: apiUrl.replace(/\/$/, '') + '/auth/tv/session',
-            data: {
-                hospital_id: hospitalId
-            },
+            data: requestData,
             success: function (response) {
                 qrSessionCode = response.session_code;
                 qrExpiryTime = new Date(response.expires_at).getTime();
@@ -1331,7 +1379,18 @@
     };
 
     // Load config on page load
-    loadConfig();
+    loadConfig(function () {
+        // If we are already authenticated, redirect to display.html
+        if (getAuthToken() && document.getElementById('qr-login-container')) {
+            window.location.href = 'display.html';
+            return;
+        }
+
+        // Automatically start QR login if we are on the login page (index.html) and not logged in
+        if (!getAuthToken() && document.getElementById('qr-login-container')) {
+            initQRLogin(null);
+        }
+    });
     updateCurrentYear();
     initLogin();
 
