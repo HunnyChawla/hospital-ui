@@ -79,247 +79,335 @@ export function TestReportPrint({
   const address = formatAddress();
 
   return (
-    <div className="mx-auto max-w-2xl bg-white p-4 print:p-2">
-      {/* Header */}
-      <PrintHeader tenant={tenant} documentType="Lab Test Report" />
-
-      {/* Patient Information */}
-      <div className="mb-4 space-y-1">
-        <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-          Patient Information
-        </h2>
-        <div className="grid grid-cols-4 gap-2 text-xs">
-          <div>
-            <p className="text-[10px] text-slate-600">Patient Name</p>
-            <p className="font-semibold text-slate-900">{fullName}</p>
-          </div>
-          {patient?.uhid && (
-            <div>
-              <p className="text-[10px] text-slate-600">UHID</p>
-              <p className="font-semibold text-slate-900">{patient.uhid}</p>
-            </div>
-          )}
-          {patient?.date_of_birth && (
-            <div>
-              <p className="text-[10px] text-slate-600">Age</p>
-              <p className="font-semibold text-slate-900">{calculateAge(patient.date_of_birth)} years</p>
-            </div>
-          )}
-          {patient?.gender && (
-            <div>
-              <p className="text-[10px] text-slate-600">Gender</p>
-              <p className="font-semibold text-slate-900 capitalize">{patient.gender}</p>
-            </div>
-          )}
-          {(patient?.mobile || patientMobile) && (
-            <div>
-              <p className="text-[10px] text-slate-600">Mobile</p>
-              <p className="font-semibold text-slate-900">{patient?.mobile || patientMobile}</p>
-            </div>
-          )}
-          {patient?.category && (
-            <div>
-              <p className="text-[10px] text-slate-600">Category</p>
-              <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
-            </div>
-          )}
-          {patient?.email && (
-
-            <div>
-              <p className="text-[10px] text-slate-600">Email</p>
-              <p className="font-semibold text-slate-900">{patient.email}</p>
-            </div>
-          )}
-          {address && (
-            <div className="col-span-4">
-              <p className="text-[10px] text-slate-600">Address</p>
-              <p className="font-semibold text-slate-900">{address}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Booking Details */}
-      <div className="mb-4 space-y-1">
-        <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-          Booking Details
-        </h2>
-        <div className="grid grid-cols-4 gap-2 text-xs">
-          <div>
-            <p className="text-[10px] text-slate-600">Booking Number</p>
-            <p className="font-semibold text-slate-900">{booking.booking_number}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-600">Scheduled Date</p>
-            <p className="font-semibold text-slate-900">{formatDate(booking.scheduled_date)}</p>
-          </div>
-          {booking.scheduled_time && (
-            <div>
-              <p className="text-[10px] text-slate-600">Scheduled Time</p>
-              <p className="font-semibold text-slate-900">{booking.scheduled_time}</p>
-            </div>
-          )}
-          <div>
-            <p className="text-[10px] text-slate-600">Priority</p>
-            <p className="font-semibold text-slate-900 capitalize">{booking.priority}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-600">Status</p>
-            <p className="font-semibold text-slate-900 capitalize">{booking.status.replace("_", " ")}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Test Results */}
-      <div className="mb-4 space-y-4">
-        <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-          Test Results
-        </h2>
-
-        {testResults.map(({ test, results }) => {
-          // Group results by section name
-          const resultsBySection = results.reduce<Record<string, LabTestResult[]>>((acc, res) => {
-            const sectionName = res.section_name || "General Parameters";
-            if (!acc[sectionName]) {
-              acc[sectionName] = [];
+    <div className="lab-report-print-container mx-auto max-w-2xl bg-white p-4 print:p-0">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .print-tfoot {
+              display: none;
             }
-            acc[sectionName].push(res);
-            return acc;
-          }, {});
+            @media print {
+              @page {
+                size: A4;
+                margin: 0;
+              }
+              .print-content {
+                position: static !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+              }
+              .lab-report-print-container {
+                width: 210mm !important;
+                min-height: 297mm !important;
+                padding: 15mm !important;
+                margin: 0 !important;
+                max-width: none !important;
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+                background: white !important;
+                box-sizing: border-box !important;
+              }
+              .print-break-inside-avoid {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+              .print-break-after-avoid {
+                break-after: avoid !important;
+                page-break-after: avoid !important;
+              }
+              .print-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                border: 0 !important;
+              }
+              .print-table tr, .print-table td {
+                border: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+              }
+              .print-thead {
+                display: table-header-group !important;
+              }
+              .print-tfoot {
+                display: table-footer-group !important;
+              }
+            }
+          `,
+        }}
+      />
 
-          return (
-            <div key={test.id} className="rounded-lg border border-slate-200 bg-white p-3 print:border-slate-300">
-              {/* Test Header */}
-              <div className="mb-3 border-b border-slate-200 pb-2">
-                <h3 className="text-sm font-bold text-slate-900">
-                  {test.test_name}
-                  {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
-                    <span className="font-normal text-slate-600 text-xs ml-1.5">
-                      ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
-                    </span>
+      <table className="print-table w-full">
+        <thead className="print-thead">
+          <tr>
+            <td>
+              {/* Header */}
+              <PrintHeader tenant={tenant} documentType="Lab Test Report" />
+            </td>
+          </tr>
+        </thead>
+        <tfoot className="print-tfoot">
+          <tr>
+            <td>
+              <div className="flex justify-between border-t border-slate-300 pt-2 text-[10px] text-slate-500 mt-2">
+                <div>
+                  <span className="font-semibold text-slate-600">Booking ID:</span> {booking.booking_number}
+                  <span className="mx-2 text-slate-400">|</span>
+                  <span className="font-semibold text-slate-600">Patient:</span> {fullName}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-600">Test Date:</span> {formatDate(booking.scheduled_date)}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+        <tbody>
+          <tr>
+            <td>
+              {/* Patient Information */}
+              <div className="mb-4 space-y-1 print-break-inside-avoid">
+                <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
+                  Patient Information
+                </h2>
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <p className="text-[10px] text-slate-600">Patient Name</p>
+                    <p className="font-semibold text-slate-900">{fullName}</p>
+                  </div>
+                  {patient?.uhid && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">UHID</p>
+                      <p className="font-semibold text-slate-900">{patient.uhid}</p>
+                    </div>
                   )}
-                </h3>
-                <p className="text-xs text-slate-600">Test Code: {test.test_code}</p>
+                  {patient?.date_of_birth && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">Age</p>
+                      <p className="font-semibold text-slate-900">{calculateAge(patient.date_of_birth)} years</p>
+                    </div>
+                  )}
+                  {patient?.gender && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">Gender</p>
+                      <p className="font-semibold text-slate-900 capitalize">{patient.gender}</p>
+                    </div>
+                  )}
+                  {(patient?.mobile || patientMobile) && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">Mobile</p>
+                      <p className="font-semibold text-slate-900">{patient?.mobile || patientMobile}</p>
+                    </div>
+                  )}
+                  {patient?.category && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">Category</p>
+                      <p className="font-semibold text-slate-900 capitalize">{patient.category}</p>
+                    </div>
+                  )}
+                  {patient?.email && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">Email</p>
+                      <p className="font-semibold text-slate-900">{patient.email}</p>
+                    </div>
+                  )}
+                  {address && (
+                    <div className="col-span-4">
+                      <p className="text-[10px] text-slate-600">Address</p>
+                      <p className="font-semibold text-slate-900">{address}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Grouped Results */}
-              {results.length > 0 ? (
-                <div className="space-y-4">
-                  {Object.entries(resultsBySection).map(([sectionName, sectionResults]) => {
-                    const imageResults = sectionResults.filter((r) => r.parameter_type === "image");
-                    const nonImageResults = sectionResults.filter((r) => r.parameter_type !== "image");
-
-                    return (
-                      <div key={sectionName} className="space-y-2">
-                        <h4 className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200/50 rounded px-2 py-1">
-                          {sectionName}
-                        </h4>
-
-                        {nonImageResults.length > 0 && (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="border-b border-slate-300 bg-slate-50/50">
-                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Parameter</th>
-                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Result</th>
-                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Unit</th>
-                                  <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Normal Range</th>
-                                  <th className="pb-1 pt-1 text-center font-semibold text-slate-800">Status</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {nonImageResults.map((result) => (
-                                  <tr
-                                    key={result.id}
-                                    className={`border-b border-slate-100 ${
-                                      result.is_abnormal ? "bg-rose-50 print:bg-slate-50" : ""
-                                    }`}
-                                  >
-                                    <td className="py-1.5 text-slate-900">
-                                      <div>
-                                        <p className="font-semibold">{result.parameter_name}</p>
-                                        <p className="text-[10px] text-slate-600">{result.parameter_code}</p>
-                                      </div>
-                                    </td>
-                                    <td className="py-1.5 font-semibold text-slate-900">{result.result_value}</td>
-                                    <td className="py-1.5 text-slate-600">{result.unit || "-"}</td>
-                                    <td className="py-1.5 text-slate-600">
-                                      {result.normal_text || (result.normal_min !== null && result.normal_max !== null
-                                        ? `${result.normal_min} - ${result.normal_max}`
-                                        : "-")}
-                                    </td>
-                                    <td className="py-1.5 text-center">
-                                      {result.parameter_type === "number" && (
-                                        result.is_abnormal ? (
-                                          <span className="inline-block rounded bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 print:bg-slate-200 print:text-slate-700">
-                                            Abnormal
-                                          </span>
-                                        ) : (
-                                          <span className="inline-block rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 print:bg-slate-200 print:text-slate-700">
-                                            Normal
-                                          </span>
-                                        )
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-
-                        {imageResults.length > 0 && (
-                          <div className="grid grid-cols-2 gap-3 pt-2">
-                            {imageResults.map((result) => (
-                              <div key={result.id} className="border border-slate-200 rounded p-2 bg-slate-50/50 flex flex-col items-center">
-                                <p className="text-[10px] font-semibold text-slate-700 mb-1">{result.parameter_name}</p>
-                                <div className="h-36 w-full overflow-hidden flex items-center justify-center bg-white rounded border border-slate-200">
-                                  <MRDImage documentId={result.result_value} className="max-h-full max-w-full object-contain" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 italic">No results available for this test.</p>
-              )}
-
-              {/* Notes Section */}
-              {results.some((r) => r.notes) && (
-                <div className="mt-3 border-t border-slate-200 pt-2">
-                  <p className="text-[10px] font-semibold text-slate-600">Notes:</p>
-                  <div className="mt-1 space-y-1">
-                    {results
-                      .filter((r) => r.notes)
-                      .map((result) => (
-                        <div key={result.id} className="text-xs text-slate-700">
-                          <span className="font-medium">{result.parameter_name}:</span> {result.notes}
-                        </div>
-                      ))}
+              {/* Booking Details */}
+              <div className="mb-4 space-y-1 print-break-inside-avoid">
+                <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
+                  Booking Details
+                </h2>
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <p className="text-[10px] text-slate-600">Booking Number</p>
+                    <p className="font-semibold text-slate-900">{booking.booking_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-600">Scheduled Date</p>
+                    <p className="font-semibold text-slate-900">{formatDate(booking.scheduled_date)}</p>
+                  </div>
+                  {booking.scheduled_time && (
+                    <div>
+                      <p className="text-[10px] text-slate-600">Scheduled Time</p>
+                      <p className="font-semibold text-slate-900">{booking.scheduled_time}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] text-slate-600">Priority</p>
+                    <p className="font-semibold text-slate-900 capitalize">{booking.priority}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-600">Status</p>
+                    <p className="font-semibold text-slate-900 capitalize">{booking.status.replace("_", " ")}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Verification Info */}
-              {results.some((r) => r.verified_at) && (
-                <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500">
-                  <p>
-                    Verified on:{" "}
-                    {new Date(results.find((r) => r.verified_at)?.verified_at || "").toLocaleString()}
-                  </p>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              {/* Test Results */}
+              <div className="mb-4 space-y-4">
+                <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
+                  Test Results
+                </h2>
+
+                {testResults.map(({ test, results }) => {
+                  // Group results by section name
+                  const resultsBySection = results.reduce<Record<string, LabTestResult[]>>((acc, res) => {
+                    const sectionName = res.section_name || "General Parameters";
+                    if (!acc[sectionName]) {
+                      acc[sectionName] = [];
+                    }
+                    acc[sectionName].push(res);
+                    return acc;
+                  }, {});
+
+                  return (
+                    <div key={test.id} className="rounded-lg border border-slate-200 bg-white p-3 print:border-slate-300 mb-4">
+                      {/* Test Header */}
+                      <div className="mb-3 border-b border-slate-200 pb-2 print-break-after-avoid">
+                        <h3 className="text-sm font-bold text-slate-900">
+                          {test.test_name}
+                          {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
+                            <span className="font-normal text-slate-600 text-xs ml-1.5">
+                              ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                            </span>
+                          )}
+                        </h3>
+                        <p className="text-xs text-slate-600">Test Code: {test.test_code}</p>
+                      </div>
+
+                      {/* Grouped Results */}
+                      {results.length > 0 ? (
+                        <div className="space-y-4">
+                          {Object.entries(resultsBySection).map(([sectionName, sectionResults]) => {
+                            const imageResults = sectionResults.filter((r) => r.parameter_type === "image");
+                            const nonImageResults = sectionResults.filter((r) => r.parameter_type !== "image");
+
+                            return (
+                              <div key={sectionName} className="space-y-2">
+                                <h4 className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200/50 rounded px-2 py-1 print-break-after-avoid">
+                                  {sectionName}
+                                </h4>
+
+                                {nonImageResults.length > 0 && (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="border-b border-slate-300 bg-slate-50/50">
+                                          <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Parameter</th>
+                                          <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Result</th>
+                                          <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Unit</th>
+                                          <th className="pb-1 pt-1 text-left font-semibold text-slate-800">Normal Range</th>
+                                          <th className="pb-1 pt-1 text-center font-semibold text-slate-800">Status</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {nonImageResults.map((result) => (
+                                          <tr
+                                            key={result.id}
+                                            className={`border-b border-slate-100 print-break-inside-avoid ${
+                                              result.is_abnormal ? "bg-rose-50 print:bg-slate-50" : ""
+                                            }`}
+                                          >
+                                            <td className="py-1.5 text-slate-900">
+                                              <div>
+                                                <p className="font-semibold">{result.parameter_name}</p>
+                                                <p className="text-[10px] text-slate-600">{result.parameter_code}</p>
+                                              </div>
+                                            </td>
+                                            <td className="py-1.5 font-semibold text-slate-900">{result.result_value}</td>
+                                            <td className="py-1.5 text-slate-600">{result.unit || "-"}</td>
+                                            <td className="py-1.5 text-slate-600">
+                                              {result.normal_text || (result.normal_min !== null && result.normal_max !== null
+                                                ? `${result.normal_min} - ${result.normal_max}`
+                                                : "-")}
+                                            </td>
+                                            <td className="py-1.5 text-center">
+                                              {result.parameter_type === "number" && (
+                                                result.is_abnormal ? (
+                                                  <span className="inline-block rounded bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 print:bg-slate-200 print:text-slate-700">
+                                                    Abnormal
+                                                  </span>
+                                                ) : (
+                                                  <span className="inline-block rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 print:bg-slate-200 print:text-slate-700">
+                                                    Normal
+                                                  </span>
+                                                )
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+
+                                {imageResults.length > 0 && (
+                                  <div className="grid grid-cols-2 gap-3 pt-2">
+                                    {imageResults.map((result) => (
+                                      <div key={result.id} className="border border-slate-200 rounded p-2 bg-slate-50/50 flex flex-col items-center print-break-inside-avoid">
+                                        <p className="text-[10px] font-semibold text-slate-700 mb-1">{result.parameter_name}</p>
+                                        <div className="h-36 w-full overflow-hidden flex items-center justify-center bg-white rounded border border-slate-200">
+                                          <MRDImage documentId={result.result_value} className="max-h-full max-w-full object-contain" />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 italic">No results available for this test.</p>
+                      )}
+
+                      {/* Notes Section */}
+                      {results.some((r) => r.notes) && (
+                        <div className="mt-3 border-t border-slate-200 pt-2 print-break-inside-avoid">
+                          <p className="text-[10px] font-semibold text-slate-600">Notes:</p>
+                          <div className="mt-1 space-y-1">
+                            {results
+                              .filter((r) => r.notes)
+                              .map((result) => (
+                                <div key={result.id} className="text-xs text-slate-700">
+                                  <span className="font-medium">{result.parameter_name}:</span> {result.notes}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Verification Info */}
+                      {results.some((r) => r.verified_at) && (
+                        <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500 print-break-inside-avoid">
+                          <p>
+                            Verified on:{" "}
+                            {new Date(results.find((r) => r.verified_at)?.verified_at || "").toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       {/* Footer */}
-      <div className="mt-6 border-t border-slate-300 pt-3 text-center text-[10px] text-slate-600">
+      <div className="mt-6 border-t border-slate-300 pt-3 text-center text-[10px] text-slate-600 print-break-inside-avoid">
         <p>This is a computer-generated test report. No signature required.</p>
         <p className="mt-1">Report Generated on: {new Date().toLocaleString("en-IN")}</p>
         {booking.notes && (
