@@ -265,58 +265,16 @@ export function PrescribedLabBookingPanel({
           </div>
         </div>
 
-        {/* Custom Prescription Fields Inline Form */}
-        {showMetadataForm && (
-          <div className="bg-slate-50 border-t border-slate-100 px-4 py-3 space-y-3 pl-10 text-left">
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Required Information for {test.test_name}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {fieldsForTest.map((field) => {
-                const value = metadataValues[test.lab_test_id]?.[field.field_name] || "";
-                return (
-                  <div key={field.id} className="col-span-1 space-y-1">
-                    <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-                      {field.field_name}
-                      {field.is_required && <span className="text-rose-500">*</span>}
-                    </label>
-
-                    {field.field_type === "dropdown" ? (
-                      <select
-                        value={value}
-                        onChange={(e) => handleMetadataChange(test.lab_test_id, field.field_name, e.target.value)}
-                        required={field.is_required}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 transition"
-                      >
-                        <option value="">Select option</option>
-                        {field.dropdown_options?.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    ) : field.field_type === "number" ? (
-                      <input
-                        type="number"
-                        value={value}
-                        onChange={(e) => handleMetadataChange(test.lab_test_id, field.field_name, e.target.value)}
-                        required={field.is_required}
-                        placeholder="Enter number"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 transition"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => handleMetadataChange(test.lab_test_id, field.field_name, e.target.value)}
-                        required={field.is_required}
-                        placeholder="Enter details"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 transition"
-                      />
-                    )}
-                  </div>
-                );
-              })}
+        {/* Custom Prescription Fields Inline Display */}
+        {isChecked && !test.already_booked && test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
+          <div className="bg-slate-50 border-t border-slate-100 px-4 py-2.5 pl-10 text-left">
+            <div className="flex flex-wrap gap-2 text-xs">
+              {Object.entries(test.prescription_metadata).map(([key, val]) => (
+                <span key={key} className="inline-flex items-center gap-1 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 text-sky-850 font-medium">
+                  <span className="text-slate-500 font-semibold">{key}:</span>
+                  <span>{String(val)}</span>
+                </span>
+              ))}
             </div>
           </div>
         )}
@@ -356,30 +314,14 @@ export function PrescribedLabBookingPanel({
         return;
       }
 
-      // Build and validate test_metadata
+      // Build test_metadata from advised tests directly (technician does not edit these)
       const testMetadata: Array<{ lab_test_id: string; metadata: Record<string, any> }> = [];
       for (const testId of selectedTestIds) {
         const test = advisedTests.find((t) => t.lab_test_id === testId);
-        if (!test) continue;
-        const fields = prescriptionFieldsByTestCode[test.test_code] || [];
-        const testMeta: Record<string, any> = {};
-
-        for (const field of fields) {
-          const val = metadataValues[testId]?.[field.field_name]?.trim();
-          if (field.is_required && (!val || val === "")) {
-            toast.error(`"${field.field_name}" is required for test "${test.test_name}"`);
-            setIsSubmitting(false);
-            return;
-          }
-          if (val) {
-            testMeta[field.field_name] = field.field_type === "number" ? Number(val) : val;
-          }
-        }
-
-        if (Object.keys(testMeta).length > 0) {
+        if (test && test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0) {
           testMetadata.push({
             lab_test_id: testId,
-            metadata: testMeta,
+            metadata: test.prescription_metadata,
           });
         }
       }

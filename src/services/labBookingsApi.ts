@@ -12,6 +12,7 @@ export interface LabBookingTest {
   test_code: string;
   test_name: string;
   price: number;
+  prescription_metadata?: Record<string, any> | null;
 }
 
 export interface LabBooking {

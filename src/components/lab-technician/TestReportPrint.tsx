@@ -191,7 +191,14 @@ export function TestReportPrint({
             <div key={test.id} className="rounded-lg border border-slate-200 bg-white p-3 print:border-slate-300">
               {/* Test Header */}
               <div className="mb-3 border-b border-slate-200 pb-2">
-                <h3 className="text-sm font-bold text-slate-900">{test.test_name}</h3>
+                <h3 className="text-sm font-bold text-slate-900">
+                  {test.test_name}
+                  {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
+                    <span className="font-normal text-slate-600 text-xs ml-1.5">
+                      ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                    </span>
+                  )}
+                </h3>
                 <p className="text-xs text-slate-600">Test Code: {test.test_code}</p>
               </div>
 
