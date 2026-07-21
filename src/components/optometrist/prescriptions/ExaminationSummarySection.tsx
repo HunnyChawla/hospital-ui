@@ -48,6 +48,13 @@ export function ExaminationSummarySection({
         });
     };
 
+    const formatDiopter = (val: string | number | null | undefined): string => {
+        if (val === null || val === undefined || val === "") return "—";
+        const num = typeof val === "number" ? val : parseFloat(String(val));
+        if (isNaN(num)) return String(val);
+        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+    };
+
     return (
         <div className="p-4 space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
@@ -94,11 +101,11 @@ export function ExaminationSummarySection({
                                 <div className="space-y-1 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Sphere:</span>
-                                        <span className="font-medium">{data.ar_data.od_sphere || "—"}</span>
+                                        <span className="font-medium">{formatDiopter(data.ar_data.od_sphere)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Cylinder:</span>
-                                        <span className="font-medium">{data.ar_data.od_cylinder || "—"}</span>
+                                        <span className="font-medium">{formatDiopter(data.ar_data.od_cylinder)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Axis:</span>
@@ -112,11 +119,11 @@ export function ExaminationSummarySection({
                                     <div className="space-y-1 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-slate-600">Sphere:</span>
-                                            <span className="font-medium">{data.ar_data.od_wet_sphere || "—"}</span>
+                                            <span className="font-medium">{formatDiopter(data.ar_data.od_wet_sphere)}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-slate-600">Cylinder:</span>
-                                            <span className="font-medium">{data.ar_data.od_wet_cylinder || "—"}</span>
+                                            <span className="font-medium">{formatDiopter(data.ar_data.od_wet_cylinder)}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-slate-600">Axis:</span>
@@ -133,11 +140,11 @@ export function ExaminationSummarySection({
                                 <div className="space-y-1 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Sphere:</span>
-                                        <span className="font-medium">{data.ar_data.os_sphere || "—"}</span>
+                                        <span className="font-medium">{formatDiopter(data.ar_data.os_sphere)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Cylinder:</span>
-                                        <span className="font-medium">{data.ar_data.os_cylinder || "—"}</span>
+                                        <span className="font-medium">{formatDiopter(data.ar_data.os_cylinder)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Axis:</span>
@@ -151,11 +158,11 @@ export function ExaminationSummarySection({
                                     <div className="space-y-1 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-slate-600">Sphere:</span>
-                                            <span className="font-medium">{data.ar_data.os_wet_sphere || "—"}</span>
+                                            <span className="font-medium">{formatDiopter(data.ar_data.os_wet_sphere)}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-slate-600">Cylinder:</span>
-                                            <span className="font-medium">{data.ar_data.os_wet_cylinder || "—"}</span>
+                                            <span className="font-medium">{formatDiopter(data.ar_data.os_wet_cylinder)}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-slate-600">Axis:</span>

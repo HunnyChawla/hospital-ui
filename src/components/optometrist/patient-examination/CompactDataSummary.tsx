@@ -308,9 +308,10 @@ export function ARDataSummary({ record }: { record: any }) {
     if (!record) return null;
 
     const formatValue = (v: number | string | null | undefined) => {
-        if (v == null) return "—";
-        const num = typeof v === "number" ? v : parseFloat(v);
-        return isNaN(num) ? "—" : num.toFixed(2);
+        if (v == null || v === "") return "—";
+        const num = typeof v === "number" ? v : parseFloat(String(v));
+        if (isNaN(num)) return String(v);
+        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     return (
@@ -342,9 +343,10 @@ export function RefractionSummary({ record }: { record: any }) {
     if (!record) return null;
 
     const formatValue = (v: number | string | null | undefined) => {
-        if (v == null) return "—";
-        const num = typeof v === "number" ? v : parseFloat(v);
-        return isNaN(num) ? "—" : num.toFixed(2);
+        if (v == null || v === "") return "—";
+        const num = typeof v === "number" ? v : parseFloat(String(v));
+        if (isNaN(num)) return String(v);
+        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     // Handle different record structures
@@ -536,9 +538,10 @@ export function CurrentSpecsSummary({ record }: { record: any }) {
     if (!record) return null;
 
     const formatValue = (v: number | string | null | undefined) => {
-        if (v == null) return "—";
-        const num = typeof v === "number" ? v : parseFloat(v);
-        return isNaN(num) ? "—" : num.toFixed(2);
+        if (v == null || v === "") return "—";
+        const num = typeof v === "number" ? v : parseFloat(String(v));
+        if (isNaN(num)) return String(v);
+        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     return (
@@ -579,9 +582,10 @@ export function MergedVisionSummary({
 }) {
     const formatVA = (value: string | null | undefined) => value || "—";
     const formatValue = (v: number | string | null | undefined) => {
-        if (v == null) return "—";
-        const num = typeof v === "number" ? v : parseFloat(v);
-        return isNaN(num) ? "—" : num.toFixed(2);
+        if (v == null || v === "") return "—";
+        const num = typeof v === "number" ? v : parseFloat(String(v));
+        if (isNaN(num)) return String(v);
+        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     const hasVision = !!visionRecord;

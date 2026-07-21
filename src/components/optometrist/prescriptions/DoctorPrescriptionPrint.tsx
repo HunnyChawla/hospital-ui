@@ -59,9 +59,12 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
         };
 
         // Helper to formatting values
-        const formatVal = (val: string | number | null | undefined) => {
-            if (val === 0 || val === "0") return "0";
-            return val || "-";
+        const formatVal = (val: string | number | null | undefined, isDiopter: boolean = false) => {
+            if (val === null || val === undefined || val === "") return "-";
+            if (!isDiopter) return val;
+            const num = typeof val === "number" ? val : parseFloat(String(val));
+            if (isNaN(num)) return String(val);
+            return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
         };
 
         // Determine layout density based on content length
@@ -251,24 +254,24 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         <tbody>
                                             <tr>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_sphere)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_sphere, true)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_cylinder, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                     {visitData?.refraction?.od_axis ? `${visitData.refraction.od_axis}°` : "-"}
                                                 </td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_distance_bcva || visitData?.refraction?.od_visual_acuity_corrected)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_add_power, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_near_bcva)}</td>
                                             </tr>
                                             <tr>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_sphere)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_sphere, true)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_cylinder, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                     {visitData?.refraction?.os_axis ? `${visitData.refraction.os_axis}°` : "-"}
                                                 </td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_distance_bcva || visitData?.refraction?.os_visual_acuity_corrected)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_add_power, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_near_bcva)}</td>
                                             </tr>
                                         </tbody>
@@ -312,8 +315,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         <tbody>
                                             <tr>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_sphere)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_sphere, true)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.od_dilated_cylinder, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                     {visitData?.refraction?.od_dilated_axis ? `${visitData.refraction.od_dilated_axis}°` : "-"}
                                                 </td>
@@ -322,8 +325,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             </tr>
                                             <tr>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_sphere)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_sphere, true)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(visitData?.refraction?.os_dilated_cylinder, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>
                                                     {visitData?.refraction?.os_dilated_axis ? `${visitData.refraction.os_dilated_axis}°` : "-"}
                                                 </td>
@@ -371,20 +374,20 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
                                             <tr key={`od-${idx}`}>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere, true)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.axis)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
                                             </tr>
                                         ))}
                                         {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
                                             <tr key={`os-${idx}`}>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere, true)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.cylinder, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.axis)}</td>
-                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power)}</td>
+                                                <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.add_power, true)}</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
                                             </tr>
                                         ))}

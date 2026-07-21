@@ -6,6 +6,14 @@ import { X, Eye, Activity, Pill, AlertCircle, FileText, Gauge, Glasses } from "l
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { Footer } from "@/components/layout/Footer";
 
+// Helper to format diopter values with explicit + and - signs
+const formatDiopter = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === "") return "—";
+  const num = typeof val === "number" ? val : parseFloat(String(val));
+  if (isNaN(num)) return String(val);
+  return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+};
+
 // Dynamic layout component that balances content across columns
 function VisitSummaryLayout({
   data,
@@ -132,19 +140,19 @@ function VisitSummaryLayout({
             <div className="rounded-lg bg-white border border-slate-200 p-3">
               <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Right Eye (OD)</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{spec.od_sph || "—"}</span></div>
-                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{spec.od_cyl || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{formatDiopter(spec.od_sph)}</span></div>
+                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{formatDiopter(spec.od_cyl)}</span></div>
                 <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.od_axis ? spec.od_axis + "°" : "—"}</span></div>
-                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{spec.od_add || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{formatDiopter(spec.od_add)}</span></div>
               </div>
             </div>
             <div className="rounded-lg bg-white border border-slate-200 p-3">
               <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Left Eye (OS)</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{spec.os_sph || "—"}</span></div>
-                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{spec.os_cyl || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{formatDiopter(spec.os_sph)}</span></div>
+                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{formatDiopter(spec.os_cyl)}</span></div>
                 <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.os_axis ? spec.os_axis + "°" : "—"}</span></div>
-                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{spec.os_add || "—"}</span></div>
+                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{formatDiopter(spec.os_add)}</span></div>
               </div>
             </div>
           </div>
@@ -197,11 +205,11 @@ function VisitSummaryLayout({
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-600">Sphere:</span>
-                    <span className="font-medium">{data.ar_data.od_sphere || "—"}</span>
+                    <span className="font-medium">{formatDiopter(data.ar_data.od_sphere)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Cylinder:</span>
-                    <span className="font-medium">{data.ar_data.od_cylinder || "—"}</span>
+                    <span className="font-medium">{formatDiopter(data.ar_data.od_cylinder)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Axis:</span>
@@ -215,11 +223,11 @@ function VisitSummaryLayout({
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Sphere:</span>
-                      <span className="font-medium">{data.ar_data.od_wet_sphere || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.ar_data.od_wet_sphere)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Cylinder:</span>
-                      <span className="font-medium">{data.ar_data.od_wet_cylinder || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.ar_data.od_wet_cylinder)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Axis:</span>
@@ -236,11 +244,11 @@ function VisitSummaryLayout({
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-600">Sphere:</span>
-                    <span className="font-medium">{data.ar_data.os_sphere || "—"}</span>
+                    <span className="font-medium">{formatDiopter(data.ar_data.os_sphere)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Cylinder:</span>
-                    <span className="font-medium">{data.ar_data.os_cylinder || "—"}</span>
+                    <span className="font-medium">{formatDiopter(data.ar_data.os_cylinder)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Axis:</span>
@@ -254,11 +262,11 @@ function VisitSummaryLayout({
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Sphere:</span>
-                      <span className="font-medium">{data.ar_data.os_wet_sphere || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.ar_data.os_wet_sphere)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Cylinder:</span>
-                      <span className="font-medium">{data.ar_data.os_wet_cylinder || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.ar_data.os_wet_cylinder)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Axis:</span>
@@ -294,15 +302,15 @@ function VisitSummaryLayout({
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Sphere:</span>
-                  <span className="font-medium">{data.refraction.od_sphere}</span>
+                  <span className="font-medium">{formatDiopter(data.refraction.od_sphere)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Cylinder:</span>
-                  <span className="font-medium">{data.refraction.od_cylinder}</span>
+                  <span className="font-medium">{formatDiopter(data.refraction.od_cylinder)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Axis:</span>
-                  <span className="font-medium">{data.refraction.od_axis}°</span>
+                  <span className="font-medium">{data.refraction.od_axis ? data.refraction.od_axis + "°" : "—"}</span>
                 </div>
                 {data.refraction.od_prism && (
                   <div className="flex justify-between">
@@ -322,10 +330,10 @@ function VisitSummaryLayout({
                     <span className="font-medium">{data.refraction.od_near_bcva}</span>
                   </div>
                 )}
-                {data.refraction.od_add_power && (
+                {data.refraction.od_add_power !== undefined && data.refraction.od_add_power !== null && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Add Power:</span>
-                    <span className="font-medium">{data.refraction.od_add_power}</span>
+                    <span className="font-medium">{formatDiopter(data.refraction.od_add_power)}</span>
                   </div>
                 )}
               </div>
@@ -335,11 +343,11 @@ function VisitSummaryLayout({
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Sphere:</span>
-                      <span className="font-medium">{data.refraction.od_dilated_sphere || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.refraction.od_dilated_sphere)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Cylinder:</span>
-                      <span className="font-medium">{data.refraction.od_dilated_cylinder || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.refraction.od_dilated_cylinder)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Axis:</span>
@@ -366,15 +374,15 @@ function VisitSummaryLayout({
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Sphere:</span>
-                  <span className="font-medium">{data.refraction.os_sphere}</span>
+                  <span className="font-medium">{formatDiopter(data.refraction.os_sphere)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Cylinder:</span>
-                  <span className="font-medium">{data.refraction.os_cylinder}</span>
+                  <span className="font-medium">{formatDiopter(data.refraction.os_cylinder)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Axis:</span>
-                  <span className="font-medium">{data.refraction.os_axis}°</span>
+                  <span className="font-medium">{data.refraction.os_axis ? data.refraction.os_axis + "°" : "—"}</span>
                 </div>
                 {data.refraction.os_prism && (
                   <div className="flex justify-between">
@@ -394,10 +402,10 @@ function VisitSummaryLayout({
                     <span className="font-medium">{data.refraction.os_near_bcva}</span>
                   </div>
                 )}
-                {data.refraction.os_add_power && (
+                {data.refraction.os_add_power !== undefined && data.refraction.os_add_power !== null && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Add Power:</span>
-                    <span className="font-medium">{data.refraction.os_add_power}</span>
+                    <span className="font-medium">{formatDiopter(data.refraction.os_add_power)}</span>
                   </div>
                 )}
               </div>
@@ -407,11 +415,11 @@ function VisitSummaryLayout({
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Sphere:</span>
-                      <span className="font-medium">{data.refraction.os_dilated_sphere || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.refraction.os_dilated_sphere)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Cylinder:</span>
-                      <span className="font-medium">{data.refraction.os_dilated_cylinder || "—"}</span>
+                      <span className="font-medium">{formatDiopter(data.refraction.os_dilated_cylinder)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Axis:</span>
