@@ -19,6 +19,9 @@ export interface LabBooking {
   id: string;
   tenant_id: string;
   patient_id: string;
+  visit_id?: string | null;
+  prescription_id?: string | null;
+  sample_id?: string | null;
   booking_number: string;
   scheduled_date: string; // YYYY-MM-DD
   scheduled_time: string | null; // HH:MM
@@ -35,6 +38,8 @@ export interface LabBooking {
 
 export interface CreateLabBookingRequest {
   patient_id: string;
+  visit_id?: string;
+  prescription_id?: string;
   scheduled_date: string; // YYYY-MM-DD
   scheduled_time?: string; // HH:MM
   priority?: TestPriority;
@@ -74,6 +79,10 @@ export interface AdvisedTest {
   test_name: string;
   advice_type: string;
   already_booked: boolean;
+  existing_booking_id?: string | null;
+  existing_booking_number?: string | null;
+  existing_booking_status?: BookingStatus | null;
+  existing_booking_date?: string | null;
   price?: number | null;
   prescription_metadata?: Record<string, any> | null;
 }
@@ -210,6 +219,8 @@ export interface PatientWithPendingTests {
   visit_date: string;
   doctor_name: string | null;
   pending_test_count: number;
+  total_advised_count?: number;
+  booked_count?: number;
 }
 
 export interface PatientWithPendingTestsResponse {

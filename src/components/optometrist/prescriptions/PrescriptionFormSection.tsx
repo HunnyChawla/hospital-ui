@@ -25,6 +25,8 @@ import {
     Activity,
     Plus,
     TrendingDown,
+    FlaskConical,
+    RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -65,6 +67,11 @@ import { usersApi } from "@/services/usersApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
 import { usePrescriptionFlags } from "@/hooks/useFeatureFlags";
+import { labBookingsApi } from "@/services/labBookingsApi";
+import type { LabBooking } from "@/services/labBookingsApi";
+import type { LabTestResultItem } from "@/types";
+import { NormalRangeIndicator } from "@/components/doctors/shared/NormalRangeIndicator";
+import { PreviousLabReportModal } from "./PreviousLabReportModal";
 
 interface PrescriptionFormSectionProps {
     patientId: string;
@@ -233,12 +240,32 @@ export function PrescriptionFormSection({
     const [optometristDetails, setOptometristDetails] = useState<any>(null);
     const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
     const [pendingFinalizeAction, setPendingFinalizeAction] = useState<{ data: FormData; print: boolean } | null>(null);
+
+    // Lab Test History & Results State
+    const [previousLabBookings, setPreviousLabBookings] = useState<LabBooking[]>([]);
+    const [showHistoryExpanded, setShowHistoryExpanded] = useState(false);
+    const [loadingLabBookings, setLoadingLabBookings] = useState(false);
+    const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
+
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
     const [prescriptionFieldsByTestCode, setPrescriptionFieldsByTestCode] = useState<Record<string, PrescriptionField[]>>({});
-
     // Feature flags for prescription editing
     const { allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionFlags();
+
+    // Fetch patient lab test bookings
+    const fetchPatientLabBookings = async (pId: string) => {
+        if (!pId) return;
+        setLoadingLabBookings(true);
+        try {
+            const bookingsRes = await labBookingsApi.list({ patient_id: pId, page_size: 10 });
+            setPreviousLabBookings(bookingsRes.items || []);
+        } catch (e) {
+            console.error("Failed to fetch patient lab bookings", e);
+        } finally {
+            setLoadingLabBookings(false);
+        }
+    };
 
     // Fetch additional details
     useEffect(() => {
@@ -247,7 +274,8 @@ export function PrescriptionFormSection({
                 try {
                     const [surgs, pat] = await Promise.all([
                         plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
-                        patientsApi.getById(patientId)
+                        patientsApi.getById(patientId),
+                        fetchPatientLabBookings(patientId)
                     ]);
                     setPlannedSurgeries(surgs.items || []);
                     setPatientDetails(pat);
@@ -2242,12 +2270,149 @@ export function PrescriptionFormSection({
                                         )}
                                     </div>
 
+                                    {/* Previous Lab Test History */}
+                                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm mb-6">
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => setShowHistoryExpanded(!showHistoryExpanded)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    setShowHistoryExpanded(!showHistoryExpanded);
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer select-none"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <FlaskConical className="h-5 w-5 text-emerald-600 animate-pulse" />
+                                                <div>
+                                                    <span className="font-bold text-sm text-slate-800">Previous Test History & Reports</span>
+                                                    {previousLabBookings.length > 0 && (
+                                                        <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800">
+                                                            {previousLabBookings.length} {previousLabBookings.length === 1 ? 'Booking' : 'Bookings'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        fetchPatientLabBookings(patientId);
+                                                    }}
+                                                    disabled={loadingLabBookings}
+                                                    className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                                                    title="Refresh history"
+                                                >
+                                                    <RefreshCw className={`h-4 w-4 ${loadingLabBookings ? 'animate-spin' : ''}`} />
+                                                </button>
+                                                {showHistoryExpanded ? (
+                                                    <ChevronUp className="h-5 w-5 text-slate-500" />
+                                                ) : (
+                                                    <ChevronDown className="h-5 w-5 text-slate-500" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {showHistoryExpanded && (
+                                            <div className="border-t border-slate-200">
+                                                {loadingLabBookings ? (
+                                                    <div className="p-4 space-y-3">
+                                                        {[1, 2].map((i) => (
+                                                            <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100 border border-slate-200/60" />
+                                                        ))}
+                                                    </div>
+                                                ) : (() => {
+                                                    const pastVisitsBookings = previousLabBookings.filter(b => !visitId || b.visit_id !== visitId);
+                                                    if (pastVisitsBookings.length === 0) {
+                                                        return (
+                                                            <div className="p-6 text-center bg-white">
+                                                                <FlaskConical className="mx-auto h-12 w-12 text-slate-350" />
+                                                                <h5 className="mt-2 text-sm font-semibold text-slate-800">No Past Visit Bookings</h5>
+                                                                <p className="mt-1 text-xs text-slate-500">This patient has no recorded laboratory bookings from previous visits.</p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto scrollbar-hide bg-white">
+                                                            {pastVisitsBookings.map((booking) => {
+                                                                const getStatusStyles = (status: string) => {
+                                                                    switch ((status || "").toLowerCase()) {
+                                                                        case "completed":
+                                                                            return "bg-emerald-50 text-emerald-700 border-emerald-250 hover:bg-emerald-100";
+                                                                        case "in_progress":
+                                                                            return "bg-blue-50 text-blue-700 border-blue-250 hover:bg-blue-100";
+                                                                        case "sample_collected":
+                                                                            return "bg-amber-50 text-amber-700 border-amber-250 hover:bg-amber-100";
+                                                                        case "scheduled":
+                                                                            return "bg-slate-50 text-slate-700 border-slate-250 hover:bg-slate-100";
+                                                                        default:
+                                                                            return "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100";
+                                                                    }
+                                                                };
+
+                                                                return (
+                                                                    <div
+                                                                        key={booking.id}
+                                                                        onClick={() => setSelectedReportBooking(booking)}
+                                                                        className="p-4 hover:bg-slate-50/50 transition-colors flex items-center justify-between cursor-pointer"
+                                                                    >
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                                <span className="font-semibold text-slate-900 text-sm truncate">
+                                                                                    {booking.booking_number}
+                                                                                </span>
+                                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border tracking-wide uppercase ${getStatusStyles(booking.status)}`}>
+                                                                                    {booking.status.replace(/_/g, " ")}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                                                                <span className="flex items-center gap-1 font-medium text-slate-600 shrink-0">
+                                                                                    <Calendar className="h-3.5 w-3.5" />
+                                                                                    {new Date(booking.scheduled_date).toLocaleDateString("en-US", {
+                                                                                        month: "short",
+                                                                                        day: "numeric",
+                                                                                        year: "numeric",
+                                                                                    })}
+                                                                                </span>
+                                                                                <span className="truncate max-w-[200px]" title={booking.tests.map(t => t.test_name).join(", ")}>
+                                                                                    {booking.tests.length} {booking.tests.length === 1 ? 'Test' : 'Tests'}: {booking.tests.map(t => t.test_name).join(", ")}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <span className="ml-4 shrink-0 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline underline-offset-2 select-none">
+                                                                            View Report
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {/* Added Tests List */}
                                     {adviceFields.some(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test") && (
                                         <div className="space-y-3 mt-3">
                                             {adviceFields.map((field: any, index) => {
                                                 if (field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") return null;
                                                 const fieldsForTest = prescriptionFieldsByTestCode[field.test_code] || [];
+                                                const isCatalogTest = Boolean(field.lab_test_id || watch(`advice_items.${index}.lab_test_id`));
+                                                
+                                                // Find if a lab booking has been created for this test in the current visit
+                                                const currentVisitBooking = previousLabBookings.find(
+                                                    b => b.visit_id === visitId && b.tests.some(t => t.test_code === field.test_code || (field.lab_test_id && t.lab_test_id === field.lab_test_id))
+                                                );
+
+                                                // Find if a lab booking exists for this test from a past visit
+                                                const pastVisitBooking = previousLabBookings.find(
+                                                    b => (!visitId || b.visit_id !== visitId) && b.tests.some(t => t.test_code === field.test_code || (field.lab_test_id && t.lab_test_id === field.lab_test_id))
+                                                );
+
                                                 return (
                                                     <div key={field.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
                                                         <div className="flex items-center gap-2 group/advice">
@@ -2257,12 +2422,64 @@ export function PrescriptionFormSection({
                                                             <div className="flex-1 flex items-center gap-2">
                                                                 <input
                                                                     {...register(`advice_items.${index}.description`)}
-                                                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                                    readOnly={isCatalogTest}
+                                                                    className={clsx(
+                                                                        "w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                                                                        isCatalogTest
+                                                                            ? "border-emerald-200 bg-emerald-50/40 text-emerald-950 cursor-not-allowed font-semibold"
+                                                                            : "border-slate-200 bg-white text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+                                                                    )}
                                                                 />
-                                                                {field.lab_test_id && (
-                                                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
-                                                                        <Link2 className="h-3.5 w-3.5" /> Catalog
+                                                                {isCatalogTest ? (
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
+                                                                            <Link2 className="h-3.5 w-3.5 text-emerald-600" /> Catalog ({field.test_code || 'Linked'})
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 border border-slate-200">
+                                                                        Custom Test
                                                                     </span>
+                                                                )}
+
+                                                                {/* Current Visit Booking & Past Booking Indicators */}
+                                                                {(currentVisitBooking || pastVisitBooking) && (
+                                                                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                                                        {/* Current Visit Booking Status */}
+                                                                        {currentVisitBooking && (
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <span className="inline-flex items-center gap-1 rounded-md bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-900 border border-sky-200 capitalize">
+                                                                                    Today: {currentVisitBooking.status.replace(/_/g, " ")}
+                                                                                </span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setSelectedReportBooking(currentVisitBooking)}
+                                                                                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                                                                                >
+                                                                                    View Report
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* Past Visit Booking / Historical Report */}
+                                                                        {pastVisitBooking && (
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <span
+                                                                                    className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 border border-amber-200"
+                                                                                    title={`Booked on ${new Date(pastVisitBooking.scheduled_date).toLocaleDateString()} (${pastVisitBooking.booking_number})`}
+                                                                                >
+                                                                                    Prev Booking (#{pastVisitBooking.booking_number})
+                                                                                </span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setSelectedReportBooking(pastVisitBooking)}
+                                                                                    className="text-xs font-bold text-sky-600 hover:text-sky-700 underline cursor-pointer"
+                                                                                >
+                                                                                    View Past Report ({new Date(pastVisitBooking.scheduled_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                             <button
@@ -2799,6 +3016,12 @@ export function PrescriptionFormSection({
                     onFinalize={handlePreviewFinalize}
                 />
             )}
+
+            <PreviousLabReportModal
+                isOpen={selectedReportBooking !== null}
+                onClose={() => setSelectedReportBooking(null)}
+                booking={selectedReportBooking}
+            />
         </div>
     );
 }

@@ -953,6 +953,11 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                       <span className={`pill px-2 py-0.5 text-xs font-normal ${getPriorityColor(booking.priority)}`}>
                         {booking.priority}
                       </span>
+                      {booking.sample_id && (
+                        <span className="pill bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 text-xs font-mono font-medium">
+                          Sample ID: {booking.sample_id}
+                        </span>
+                      )}
                       <span className="pill bg-slate-50 text-slate-700 px-2 py-0.5 text-xs font-normal">
                         {booking.tests.length} test{booking.tests.length !== 1 ? "s" : ""}
                       </span>
