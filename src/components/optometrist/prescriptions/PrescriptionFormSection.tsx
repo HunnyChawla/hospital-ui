@@ -2881,24 +2881,8 @@ export function PrescriptionFormSection({
                         {/* Sticky Action Footer Bar */}
                         <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t-2 border-slate-200 shadow-2xl p-4 -mx-6 -mb-6 mt-8 rounded-b-2xl transition-all">
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                {/* Left Side: Print Header Checkbox & Status */}
+                                {/* Left Side: Status */}
                                 <div className="flex items-center gap-4 px-1 flex-wrap">
-                                    <label className="flex items-center gap-2 cursor-pointer group select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={printWithHeader}
-                                            onChange={(e) => {
-                                                const val = e.target.checked;
-                                                setPrintWithHeader(val);
-                                                localStorage.setItem("prescription_print_with_header", JSON.stringify(val));
-                                            }}
-                                            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 transition-all cursor-pointer"
-                                        />
-                                        <span className="text-xs font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">
-                                            Include Hospital Letterhead
-                                        </span>
-                                    </label>
-
                                     {isFinalized && (
                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
                                             canEdit 
