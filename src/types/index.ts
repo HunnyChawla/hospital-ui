@@ -190,6 +190,8 @@ export type LabTestParameter = {
   created_by: string;
   created_at: string;
   updated_at: string;
+  section_name?: string | null;
+  parameter_type?: "number" | "dropdown" | "text" | "image";
 };
 
 export type LabTestResultItem = {
