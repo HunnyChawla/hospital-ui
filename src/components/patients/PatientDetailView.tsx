@@ -170,7 +170,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         start_date,
         end_date,
       });
-      const patientVisits = (res.items || []).filter((item) => item.patient_id === patientId);
+      const patientVisits = (res.items || []).filter(
+        (item) => item.patient_id === patientId && (item.pending_test_count || 0) > 0
+      );
       setPendingPrescribedVisits(patientVisits);
     } catch (error) {
       console.error("Failed to fetch patient prescribed visits:", error);
