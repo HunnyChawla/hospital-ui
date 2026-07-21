@@ -13,6 +13,7 @@ import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePayment
 import { InvoiceCreateModal } from "@/components/invoices/InvoiceCreateModal";
 import { Modal } from "@/components/common/Modal";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
+import { PaymentReportModal } from "@/components/payments/PaymentReportModal";
 import { useReactToPrint } from "react-to-print";
 import { useRef } from "react";
 import {
@@ -34,6 +35,7 @@ import {
   Download,
   Eye,
   PlusCircle,
+  BarChart3,
 } from "lucide-react";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
 
@@ -86,6 +88,9 @@ export function BillingManagement({
 
   // Invoice creation state
   const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
+
+  // Payment report state
+  const [showPaymentReportModal, setShowPaymentReportModal] = useState(false);
 
   // Print state
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
@@ -493,13 +498,23 @@ export function BillingManagement({
       {/* Filters Section */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button
-            onClick={() => setShowCreateInvoiceModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Create Invoice
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateInvoiceModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Create Invoice
+            </button>
+
+            <button
+              onClick={() => setShowPaymentReportModal(true)}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300"
+            >
+              <BarChart3 className="h-4 w-4 text-sky-600" />
+              Payment Report
+            </button>
+          </div>
 
           <div className="flex items-center gap-3">
             {!renderSearchInHeader && searchBox}
@@ -992,6 +1007,12 @@ export function BillingManagement({
         onSuccess={() => {
           fetchInvoices();
         }}
+      />
+
+      {/* Payment Report Modal */}
+      <PaymentReportModal
+        isOpen={showPaymentReportModal}
+        onClose={() => setShowPaymentReportModal(false)}
       />
 
       {/* Payment Collection Modal */}

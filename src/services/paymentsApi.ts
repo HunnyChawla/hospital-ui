@@ -49,6 +49,30 @@ export interface PaymentsSearchResponse {
   total_pages: number;
 }
 
+export interface PaymentMethodSummaryItem {
+  payment_method: string;
+  transaction_count: number;
+  total_amount: number;
+  percentage: number;
+}
+
+export interface PaymentReportSummaryResponse {
+  start_date: string | null;
+  end_date: string | null;
+  total_collected: number;
+  total_transactions: number;
+  by_payment_method: PaymentMethodSummaryItem[];
+  items: Payment[];
+}
+
+export interface PaymentReportParams {
+  start_date?: string;
+  end_date?: string;
+  payment_method?: string;
+  status?: string;
+  tenant_id?: string;
+}
+
 export const paymentsApi = {
   async create(payment: CreatePaymentRequest, tenantId?: string): Promise<Payment> {
     const apiTenantId = getTenantIdForApi(tenantId);
@@ -88,5 +112,36 @@ export const paymentsApi = {
     const response = await apiClient.get<Payment[]>(`/payments/invoice/${invoiceId}`, { params });
     return response.data;
   },
+
+  async getPaymentMethodReport(params?: PaymentReportParams): Promise<PaymentReportSummaryResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (params?.payment_method) queryParams.append("payment_method", params.payment_method);
+    if (params?.status) queryParams.append("status", params.status);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
+
+    const queryString = queryParams.toString();
+    const url = `/payments/reports/by-payment-method${queryString ? `?${queryString}` : ""}`;
+    const response = await apiClient.get<PaymentReportSummaryResponse>(url);
+    return response.data;
+  },
+
+  async downloadPaymentReportCsv(params?: PaymentReportParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (params?.payment_method) queryParams.append("payment_method", params.payment_method);
+    if (params?.status) queryParams.append("status", params.status);
+    const apiTenantId = getTenantIdForApi(params?.tenant_id);
+    if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
+
+    const queryString = queryParams.toString();
+    const url = `/payments/reports/export-csv${queryString ? `?${queryString}` : ""}`;
+    const response = await apiClient.get<Blob>(url, { responseType: "blob" });
+    return response.data;
+  },
 };
+
 
