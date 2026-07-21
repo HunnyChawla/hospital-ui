@@ -1444,8 +1444,6 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
               {activeTab === "tests" && (
                 <div className="space-y-6">
-              {activeTab === "tests" && (
-                <div className="space-y-6">
                   {/* Prescribed Lab Tests Section */}
                   {(() => {
                     const pendingVisits = patientPrescribedVisits.filter((v) => (v.pending_test_count || 0) > 0);
