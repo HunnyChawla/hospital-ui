@@ -2432,17 +2432,6 @@ export function PrescriptionFormSection({
                                                                             : "border-slate-200 bg-white text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
                                                                     )}
                                                                 />
-                                                                {isCatalogTest ? (
-                                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
-                                                                            <Link2 className="h-3.5 w-3.5 text-emerald-600" /> Catalog ({field.test_code || 'Linked'})
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 border border-slate-200">
-                                                                        Custom Test
-                                                                    </span>
-                                                                )}
                                                                  {/* Current Visit Booking & Past Booking Status Pills */}
                                                                  {(currentVisitBooking || pastVisitBooking) && (
                                                                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
