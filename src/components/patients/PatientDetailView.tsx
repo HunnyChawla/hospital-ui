@@ -159,9 +159,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     if (!patientId) return;
     setLoadingPrescribedVisits(true);
     try {
+      const today = new Date();
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(today.getDate() - 90);
+
+      const start_date = ninetyDaysAgo.toISOString().split("T")[0];
+      const end_date = today.toISOString().split("T")[0];
+
       const res = await labBookingsApi.getPatientsWithPendingTests({
-        start_date: "2020-01-01",
-        end_date: "2030-12-31",
+        start_date,
+        end_date,
       });
       const patientVisits = (res.items || []).filter((item) => item.patient_id === patientId);
       setPendingPrescribedVisits(patientVisits);
