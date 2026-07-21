@@ -18,6 +18,10 @@ export interface Payment {
   payment_date: string; // ISO 8601
   status: PaymentStatus;
   notes: string | null;
+  invoice_number?: string | null;
+  invoice_type?: string | null;
+  service_category?: string | null;
+  invoice_amount?: number | null;
   created_at: string;
   updated_at: string;
 }

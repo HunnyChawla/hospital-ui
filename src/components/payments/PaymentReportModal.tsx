@@ -370,16 +370,17 @@ export function PaymentReportModal({ isOpen, onClose }: PaymentReportModalProps)
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
                 Payment Transactions ({report.items.length})
               </h4>
-              <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200">
+              <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200">
                 <table className="min-w-full text-xs">
                   <thead className="sticky top-0 bg-slate-100 font-semibold text-slate-700">
                     <tr className="border-b border-slate-200">
-                      <th className="px-3 py-2 text-left">Payment #</th>
+                      <th className="px-3 py-2 text-left">Payment / Invoice #</th>
+                      <th className="px-3 py-2 text-left">Service / Category</th>
                       <th className="px-3 py-2 text-left">Date</th>
                       <th className="px-3 py-2 text-left">Patient</th>
                       <th className="px-3 py-2 text-center">Method</th>
-                      <th className="px-3 py-2 text-left">Reference</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
+                      <th className="px-3 py-2 text-right">Inv Amount</th>
+                      <th className="px-3 py-2 text-right">Paid Amount</th>
                       <th className="px-3 py-2 text-center">Status</th>
                     </tr>
                   </thead>
@@ -388,8 +389,18 @@ export function PaymentReportModal({ isOpen, onClose }: PaymentReportModalProps)
                       <tr key={payment.id} className="hover:bg-slate-50">
                         <td className="px-3 py-2 font-mono font-semibold text-slate-900">
                           {payment.payment_number}
+                          {payment.invoice_number && (
+                            <span className="block text-[10px] font-normal text-slate-500">
+                              Inv: {payment.invoice_number}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">
+                        <td className="px-3 py-2">
+                          <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-800 border border-sky-100">
+                            {payment.service_category || payment.invoice_type?.toUpperCase() || "General"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
                           {formatDate(payment.payment_date)}
                         </td>
                         <td className="px-3 py-2 font-medium text-slate-900">
@@ -403,11 +414,17 @@ export function PaymentReportModal({ isOpen, onClose }: PaymentReportModalProps)
                         <td className="px-3 py-2 text-center font-bold uppercase text-slate-800">
                           {payment.payment_method}
                         </td>
-                        <td className="px-3 py-2 font-mono text-[10px] text-slate-500">
-                          {payment.payment_reference || "—"}
+                        <td className="px-3 py-2 text-right font-medium text-slate-600">
+                          {currency(payment.invoice_amount ?? payment.amount)}
                         </td>
                         <td className="px-3 py-2 text-right font-bold text-slate-900">
-                          {currency(payment.amount)}
+                          {payment.amount === 0 ? (
+                            <span className="inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                              ₹0 (Free / Follow-up)
+                            </span>
+                          ) : (
+                            currency(payment.amount)
+                          )}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <span

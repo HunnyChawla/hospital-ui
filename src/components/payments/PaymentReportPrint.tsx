@@ -117,27 +117,42 @@ export function PaymentReportPrint({ report, startDate, endDate }: PaymentReport
           <table className="w-full text-left text-[11px] border-collapse">
             <thead>
               <tr className="border-b border-slate-300 bg-slate-100 print:bg-slate-200 font-semibold text-slate-700">
-                <th className="py-1.5 px-2">Payment #</th>
+                <th className="py-1.5 px-2">Payment / Inv #</th>
+                <th className="py-1.5 px-2">Service / Category</th>
                 <th className="py-1.5 px-2">Date</th>
                 <th className="py-1.5 px-2">Patient</th>
                 <th className="py-1.5 px-2">Method</th>
-                <th className="py-1.5 px-2">Reference</th>
-                <th className="py-1.5 px-2 text-right">Amount (₹)</th>
+                <th className="py-1.5 px-2 text-right">Inv Amt (₹)</th>
+                <th className="py-1.5 px-2 text-right">Paid Amt (₹)</th>
                 <th className="py-1.5 px-2 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {report.items.map((payment) => (
                 <tr key={payment.id} className="hover:bg-slate-50">
-                  <td className="py-1.5 px-2 font-mono font-medium text-slate-900">{payment.payment_number}</td>
+                  <td className="py-1.5 px-2 font-mono font-medium text-slate-900">
+                    {payment.payment_number}
+                    {payment.invoice_number && (
+                      <span className="block text-[9px] font-normal text-slate-500">
+                        Inv: {payment.invoice_number}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-1.5 px-2 font-semibold text-sky-800">
+                    {payment.service_category || payment.invoice_type?.toUpperCase() || "General"}
+                  </td>
                   <td className="py-1.5 px-2 text-slate-700">{formatDate(payment.payment_date)}</td>
                   <td className="py-1.5 px-2 font-semibold text-slate-900">
                     {payment.patient_name || "N/A"}
                     {payment.patient_mobile && <span className="block text-[10px] font-normal text-slate-500">{payment.patient_mobile}</span>}
                   </td>
                   <td className="py-1.5 px-2 font-semibold uppercase text-slate-800">{payment.payment_method}</td>
-                  <td className="py-1.5 px-2 text-slate-600 font-mono text-[10px]">{payment.payment_reference || "—"}</td>
-                  <td className="py-1.5 px-2 text-right font-bold text-slate-900">{currency(payment.amount)}</td>
+                  <td className="py-1.5 px-2 text-right font-medium text-slate-600">
+                    {currency(payment.invoice_amount ?? payment.amount)}
+                  </td>
+                  <td className="py-1.5 px-2 text-right font-bold text-slate-900">
+                    {payment.amount === 0 ? "₹0 (Follow-up)" : currency(payment.amount)}
+                  </td>
                   <td className="py-1.5 px-2 text-center capitalize text-slate-700">{payment.status}</td>
                 </tr>
               ))}

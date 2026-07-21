@@ -69,12 +69,20 @@ export interface InvoicesSearchParams {
   tenant_id?: string; // PlatformOwner only
 }
 
+export interface InvoiceSummaryMetrics {
+  total_revenue: number;
+  total_paid: number;
+  total_pending: number;
+  total_invoices: number;
+}
+
 export interface InvoicesSearchResponse {
   items: Invoice[];
   total: number;
   page: number;
   page_size: number;
   total_pages: number;
+  summary?: InvoiceSummaryMetrics;
 }
 
 export const invoicesApi = {
@@ -91,6 +99,8 @@ export const invoicesApi = {
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
     if (params?.status) queryParams.append("status", params.status);
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
     

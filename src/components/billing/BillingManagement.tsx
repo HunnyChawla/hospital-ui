@@ -58,8 +58,8 @@ export function BillingManagement({
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Date filter state
-  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month" | "custom">("all");
+  // Date filter state - default to "today" for daily operational visibility
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month" | "custom">("today");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -212,19 +212,28 @@ export function BillingManagement({
       setInvoicesTotalPages(response.total_pages);
       setInvoicesTotal(response.total);
 
-      // Calculate stats
-      const totalRevenue = response.items.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-      const paidAmount = response.items.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
-      const pendingAmount = response.items
-        .filter(inv => inv.status === "pending" || inv.status === "partial")
-        .reduce((sum, inv) => sum + (inv.balance_amount || inv.total_amount || 0), 0);
+      // Use server-side DB summary metrics if available, fallback to page sum
+      if (response.summary) {
+        setStats({
+          totalRevenue: response.summary.total_revenue,
+          pendingAmount: response.summary.total_pending,
+          paidAmount: response.summary.total_paid,
+          totalInvoices: response.summary.total_invoices,
+        });
+      } else {
+        const totalRevenue = response.items.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+        const paidAmount = response.items.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+        const pendingAmount = response.items
+          .filter(inv => inv.status === "pending" || inv.status === "partial")
+          .reduce((sum, inv) => sum + (inv.balance_amount || inv.total_amount || 0), 0);
 
-      setStats({
-        totalRevenue,
-        pendingAmount,
-        paidAmount,
-        totalInvoices: response.total,
-      });
+        setStats({
+          totalRevenue,
+          pendingAmount,
+          paidAmount,
+          totalInvoices: response.total,
+        });
+      }
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage || "Failed to fetch invoices");
