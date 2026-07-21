@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, FileText, Image as ImageIcon, Download, ExternalLink, Printer } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import type { LabBooking } from "@/services/labBookingsApi";
 import type { LabTestResultItem } from "@/types";
 import { mrdApi, MRDDocument } from "@/services/mrdApi";
 import { NormalRangeIndicator } from "@/components/doctors/shared/NormalRangeIndicator";
+import { TestReportPrint } from "@/components/lab-technician/TestReportPrint";
 import { handleError } from "@/utils/errorHandler";
 
 interface PreviousLabReportModalProps {
@@ -26,6 +28,12 @@ export function PreviousLabReportModal({
     const [loadingAttachments, setLoadingAttachments] = useState(false);
 
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+    const printReportRef = useRef<HTMLDivElement>(null);
+
+    const handlePrintReport = useReactToPrint({
+        contentRef: printReportRef,
+        documentTitle: booking ? `LabReport_${booking.booking_number}` : "Lab_Report",
+    });
 
     useEffect(() => {
         if (isOpen && booking) {
@@ -56,17 +64,14 @@ export function PreviousLabReportModal({
         if (!booking) return;
         setLoadingAttachments(true);
         try {
-            const res = await mrdApi.list({ patient_id: booking.patient_id, limit: 20 });
-            const relevant = (res.items || []).filter(
-                (d) =>
-                    d.lab_booking_id === booking.id ||
-                    (booking.visit_id && d.visit_id === booking.visit_id) ||
-                    d.category === "LAB_REPORT" ||
-                    d.category === "PATHOLOGY_REPORT"
-            );
-            setAttachments(relevant);
+            const docs = await mrdApi.listDocuments({
+                entity_type: "lab_booking",
+                entity_id: booking.id,
+            });
+            setAttachments(docs);
         } catch (error) {
-            console.error("Failed to load attachments:", error);
+            console.error("Failed to fetch lab attachments:", error);
+            setAttachments([]);
         } finally {
             setLoadingAttachments(false);
         }
@@ -324,7 +329,7 @@ export function PreviousLabReportModal({
                 <div className="no-print px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex items-center justify-between">
                     <button
                         type="button"
-                        onClick={() => window.print()}
+                        onClick={() => handlePrintReport()}
                         className="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border border-sky-200"
                     >
                         <Printer className="h-4 w-4" /> Print Report
@@ -353,6 +358,49 @@ export function PreviousLabReportModal({
                             src={previewImageUrl}
                             alt="Diagnostic Full View"
                             className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-white/10"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Hidden Printable Report for react-to-print (bypasses parent modal clipping) */}
+            {booking && (
+                <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+                    <div ref={printReportRef} className="print-content">
+                        <TestReportPrint
+                            booking={booking}
+                            patientName={booking.patient_name || "Patient"}
+                            patientMobile={booking.patient_mobile}
+                            testResults={results.map((r) => ({
+                                test: {
+                                    id: r.booking_item_id,
+                                    lab_test_id: r.booking_item_id,
+                                    test_name: r.test_name,
+                                    test_code: r.test_code,
+                                    price: 0,
+                                    is_prescribed: true,
+                                },
+                                results: r.results.map((p) => ({
+                                    id: p.id,
+                                    tenant_id: "",
+                                    booking_id: booking.id,
+                                    booking_item_id: r.booking_item_id,
+                                    lab_test_id: "",
+                                    parameter_name: p.parameter_name,
+                                    result_value: p.result_value,
+                                    result_numeric: p.result_numeric,
+                                    unit: p.unit,
+                                    normal_min: p.normal_min,
+                                    normal_max: p.normal_max,
+                                    normal_text: p.normal_text,
+                                    is_abnormal: p.is_abnormal,
+                                    notes: p.notes,
+                                    verified_by: p.verified_by,
+                                    verified_at: p.verified_at,
+                                    created_at: "",
+                                    updated_at: "",
+                                })),
+                            }))}
                         />
                     </div>
                 </div>
