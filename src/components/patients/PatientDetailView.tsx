@@ -106,7 +106,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const [showPrescribedBookingModal, setShowPrescribedBookingModal] = useState(false);
   const [selectedPrescribedVisitId, setSelectedPrescribedVisitId] = useState<string>("");
-  const [pendingPrescribedVisits, setPendingPrescribedVisits] = useState<any[]>([]);
+  const [patientPrescribedVisits, setPatientPrescribedVisits] = useState<any[]>([]);
+  const [showOnlyPendingPrescribed, setShowOnlyPendingPrescribed] = useState(true);
   const [loadingPrescribedVisits, setLoadingPrescribedVisits] = useState(false);
 
   const handlePrint = useReactToPrint({
@@ -154,7 +155,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     }
   }, [patientId, labBookingsPage, labBookingsPageSize]);
 
-  // Fetch pending prescribed visits for the patient
+  // Fetch prescribed visits for the patient
   const fetchPatientPrescribedVisits = useCallback(async () => {
     if (!patientId) return;
     setLoadingPrescribedVisits(true);
@@ -170,10 +171,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         start_date,
         end_date,
       });
-      const patientVisits = (res.items || []).filter(
-        (item) => item.patient_id === patientId && (item.pending_test_count || 0) > 0
-      );
-      setPendingPrescribedVisits(patientVisits);
+      const patientVisits = (res.items || []).filter((item) => item.patient_id === patientId);
+      setPatientPrescribedVisits(patientVisits);
     } catch (error) {
       console.error("Failed to fetch patient prescribed visits:", error);
     } finally {
@@ -1445,57 +1444,114 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
               {activeTab === "tests" && (
                 <div className="space-y-6">
-                  {/* Pending Prescribed Lab Tests Section */}
-                  {pendingPrescribedVisits.length > 0 && (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Beaker className="h-5 w-5 text-amber-600 animate-pulse" />
-                          <div>
-                            <h4 className="font-bold text-slate-900 text-sm">
-                              Pending Prescribed Lab Tests ({pendingPrescribedVisits.reduce((acc, v) => acc + (v.pending_test_count || 0), 0)})
-                            </h4>
-                            <p className="text-xs text-slate-500">
-                              Prescribed by doctor during OPD visit but not yet booked
-                            </p>
+              {activeTab === "tests" && (
+                <div className="space-y-6">
+                  {/* Prescribed Lab Tests Section */}
+                  {(() => {
+                    const pendingVisits = patientPrescribedVisits.filter((v) => (v.pending_test_count || 0) > 0);
+                    const visitsToRender = showOnlyPendingPrescribed ? pendingVisits : patientPrescribedVisits;
+
+                    if (patientPrescribedVisits.length === 0) return null;
+
+                    // If showOnlyPendingPrescribed is true and all tests are booked (0 pending visits)
+                    if (showOnlyPendingPrescribed && pendingVisits.length === 0) {
+                      return (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-center justify-between shadow-2xs">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                              <CheckCircle2 className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                All Prescribed Tests Booked
+                                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  ✓ 0 Pending
+                                </span>
+                              </h4>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                All doctor-prescribed lab tests for this patient have been booked. View status & reports below.
+                              </p>
+                            </div>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowOnlyPendingPrescribed(false)}
+                            className="px-3 py-1.5 rounded-xl border border-emerald-300 bg-white text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition cursor-pointer shrink-0 shadow-2xs"
+                          >
+                            Show All Prescribed Visits
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Beaker className="h-5 w-5 text-amber-600 animate-pulse" />
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-sm">
+                                Prescribed Lab Tests ({visitsToRender.reduce((acc, v) => acc + (v.pending_test_count || 0), 0)} Pending)
+                              </h4>
+                              <p className="text-xs text-slate-500">
+                                Doctor-prescribed lab tests for this patient
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowOnlyPendingPrescribed(!showOnlyPendingPrescribed)}
+                            className="px-3 py-1 rounded-xl border border-amber-300 bg-white text-slate-700 text-xs font-bold hover:bg-amber-100/50 transition cursor-pointer"
+                          >
+                            {showOnlyPendingPrescribed ? "Show All Visits" : "Pending Only"}
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {visitsToRender.map((visitItem) => {
+                            const isFullyBooked = (visitItem.pending_test_count || 0) === 0;
+
+                            return (
+                              <div
+                                key={visitItem.visit_id}
+                                className="bg-white rounded-xl p-3 border border-amber-200/80 flex items-center justify-between text-left hover:border-amber-300 transition shadow-2xs"
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900 text-sm">Visit #{visitItem.visit_number}</span>
+                                    <span className="text-xs text-slate-500 font-medium">({visitItem.visit_date})</span>
+                                  </div>
+                                  <p className="text-xs text-slate-600 mt-0.5">
+                                    Prescribed by: <span className="font-semibold">{visitItem.doctor_name || "OPD Doctor"}</span>
+                                  </p>
+                                  {isFullyBooked ? (
+                                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      ✓ All Booked
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                      {visitItem.pending_test_count} Pending Test{visitItem.pending_test_count !== 1 ? "s" : ""}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPrescribedVisitId(visitItem.visit_id);
+                                    setShowPrescribedBookingModal(true);
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Beaker className="h-4 w-4" /> {isFullyBooked ? "View / Re-book Tests" : "Book Prescribed Tests"}
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-
-                      <div className="space-y-2">
-                        {pendingPrescribedVisits.map((visitItem) => (
-                          <div
-                            key={visitItem.visit_id}
-                            className="bg-white rounded-xl p-3 border border-amber-200/80 flex items-center justify-between text-left hover:border-amber-300 transition shadow-2xs"
-                          >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-slate-900 text-sm">Visit #{visitItem.visit_number}</span>
-                                <span className="text-xs text-slate-500 font-medium">({visitItem.visit_date})</span>
-                              </div>
-                              <p className="text-xs text-slate-600 mt-0.5">
-                                Prescribed by: <span className="font-semibold">{visitItem.doctor_name || "OPD Doctor"}</span>
-                              </p>
-                              <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                {visitItem.pending_test_count} Pending Test{visitItem.pending_test_count !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedPrescribedVisitId(visitItem.visit_id);
-                                setShowPrescribedBookingModal(true);
-                              }}
-                              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Beaker className="h-4 w-4" /> Book Prescribed Tests
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <div className="flex items-center justify-between">
                     <div>
