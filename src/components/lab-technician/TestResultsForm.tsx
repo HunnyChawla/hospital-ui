@@ -6,7 +6,7 @@ import { mrdApi } from "@/services/mrdApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Modal } from "../common/Modal";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, ZoomIn, ZoomOut, RotateCw, Download, X } from "lucide-react";
 
 interface TestResultsFormProps {
   isOpen: boolean;
@@ -29,9 +29,20 @@ interface ParameterResult {
   image_url?: string;
 }
 
-export function MRDImage({ documentId, className, alt }: { documentId: string; className?: string; alt?: string }) {
+interface MRDImageProps {
+  documentId: string;
+  className?: string;
+  alt?: string;
+  clickable?: boolean;
+  onClick?: () => void;
+}
+
+export function MRDImage({ documentId, className, alt, clickable = false, onClick }: MRDImageProps) {
   const [src, setSrc] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
 
   useEffect(() => {
     if (!documentId) return;
@@ -58,6 +69,39 @@ export function MRDImage({ documentId, className, alt }: { documentId: string; c
     };
   }, [documentId]);
 
+  const handleImageClick = () => {
+    if (onClick) {
+      onClick();
+      return;
+    }
+    if (clickable) {
+      setZoom(1);
+      setRotation(0);
+      setIsOpen(true);
+    }
+  };
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setZoom((z) => Math.min(z + 0.25, 4));
+  };
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setZoom((z) => Math.max(z - 0.25, 0.5));
+  };
+
+  const handleResetZoom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setZoom(1);
+    setRotation(0);
+  };
+
+  const handleRotate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRotation((r) => (r + 90) % 360);
+  };
+
   if (loading) {
     return (
       <div className={`flex items-center justify-center bg-slate-50 text-slate-400 text-xs ${className || ""}`}>
@@ -74,7 +118,110 @@ export function MRDImage({ documentId, className, alt }: { documentId: string; c
     );
   }
 
-  return <img src={src} className={className} alt={alt} />;
+  return (
+    <>
+      <div
+        className={`relative inline-flex items-center justify-center ${clickable || onClick ? "cursor-pointer group" : ""}`}
+        onClick={handleImageClick}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} className={`${className || ""} ${(clickable || onClick) ? "transition-transform group-hover:scale-[1.02]" : ""}`} alt={alt} />
+        {(clickable || onClick) && (
+          <div className="no-print absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center pointer-events-none">
+            <span className="bg-slate-900/80 text-white text-[11px] font-semibold px-2 py-1 rounded-md shadow flex items-center gap-1">
+              <ZoomIn className="h-3.5 w-3.5" /> Click to Zoom
+            </span>
+          </div>
+        )}
+      </div>
+
+      {isOpen && (
+        <div
+          className="no-print fixed inset-0 z-[300] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none"
+          onClick={() => setIsOpen(false)}
+        >
+          {/* Controls Bar */}
+          <div
+            className="absolute top-4 right-4 flex items-center gap-2 bg-slate-900/80 border border-slate-700/80 p-2 rounded-xl shadow-2xl z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= 0.5}
+              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition disabled:opacity-40 cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="h-5 w-5" />
+            </button>
+            <span className="text-xs font-mono font-bold text-white px-2 min-w-[50px] text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= 4}
+              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition disabled:opacity-40 cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleRotate}
+              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              title="Rotate 90°"
+            >
+              <RotateCw className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleResetZoom}
+              className="px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              title="Reset Zoom"
+            >
+              Reset
+            </button>
+            <div className="h-5 w-px bg-slate-700 mx-1" />
+            <a
+              href={src}
+              download="diagnostic-image"
+              onClick={(e) => e.stopPropagation()}
+              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              title="Download Image"
+            >
+              <Download className="h-5 w-5" />
+            </a>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="p-2 text-rose-400 hover:text-rose-200 hover:bg-rose-900/40 rounded-lg transition cursor-pointer ml-1"
+              title="Close Preview"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Image Container with Smooth Scaling */}
+          <div
+            className="max-w-[90vw] max-h-[85vh] overflow-auto flex items-center justify-center p-4 transition-transform duration-200 ease-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt || "Diagnostic Image Full Preview"}
+              className="max-w-none transition-transform duration-150 ease-out rounded-lg shadow-2xl object-contain"
+              style={{
+                transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                maxHeight: "80vh",
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function TestResultsForm({

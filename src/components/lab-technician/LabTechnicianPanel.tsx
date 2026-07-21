@@ -13,6 +13,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { TestResultsForm } from "./TestResultsForm";
 import { TestResultsView } from "./TestResultsView";
 import { TestReportPrint } from "./TestReportPrint";
+import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -61,6 +62,7 @@ export function LabTechnicianPanel() {
   } | null>(null);
   const [testsWithResults, setTestsWithResults] = useState<Set<string>>(new Set()); // Track bookingItemId of tests with results
   const [loadingResults, setLoadingResults] = useState<Set<string>>(new Set()); // Track which tests are loading results
+  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const [printReportData, setPrintReportData] = useState<{
     booking: LabBookingWithPatient;
     patientName: string;
@@ -750,59 +752,8 @@ export function LabTechnicianPanel() {
     }
   }, [printReportData, shouldPrintReport, handlePrintReport]);
 
-  const handleDownloadReport = async (booking: LabBookingWithPatient) => {
-    try {
-      // Check if all tests have results
-      if (!allTestsHaveResults(booking)) {
-        toast.error("Cannot download report: Not all tests have published results");
-        return;
-      }
-
-      // Fetch patient details
-      let patientName = booking.patient_name || "Unknown";
-      let patientMobile = booking.patient_mobile;
-
-      if (!booking.patient_name || !booking.patient_mobile) {
-        try {
-          const patient = await patientsApi.getById(booking.patient_id);
-          patientName = formatPatientName(patient);
-          patientMobile = patient.mobile;
-        } catch (error) {
-          console.error("Failed to fetch patient details:", error);
-        }
-      }
-
-      // Fetch results for all tests
-      const testResultsPromises = booking.tests.map(async (test) => {
-        try {
-          const results = await labTestsApi.getResults(booking.id, test.id);
-          return {
-            test,
-            results: Array.isArray(results) ? results : [],
-          };
-        } catch (error) {
-          console.error(`Failed to fetch results for test ${test.id}:`, error);
-          return {
-            test,
-            results: [],
-          };
-        }
-      });
-
-      const testResults = await Promise.all(testResultsPromises);
-
-      // Set up print data
-      setPrintReportData({
-        booking,
-        patientName,
-        patientMobile,
-        testResults,
-      });
-      setShouldPrintReport(true);
-    } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to prepare report for download");
-    }
+  const handleDownloadReport = (booking: LabBookingWithPatient) => {
+    setSelectedReportBooking(booking);
   };
 
   const handleResultsPublished = async () => {
@@ -1070,11 +1021,11 @@ export function LabTechnicianPanel() {
                       {booking.status === "completed" && (
                         <button
                           onClick={() => handleDownloadReport(booking)}
-                          title="Download Test Report as PDF"
-                          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:from-sky-600 hover:to-teal-600"
+                          title="View Test Report"
+                          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:from-sky-600 hover:to-teal-600 cursor-pointer"
                         >
-                          <Download className="h-3 w-3" />
-                          Download Report
+                          <Eye className="h-3 w-3" />
+                          View Report
                         </button>
                       )}
                     </div>
@@ -1308,6 +1259,12 @@ export function LabTechnicianPanel() {
         itemNumber={pendingCancellation?.bookingNumber}
         amount={pendingCancellation?.paymentAmount}
         loading={cancelling}
+      />
+
+      <PreviousLabReportModal
+        isOpen={selectedReportBooking !== null}
+        onClose={() => setSelectedReportBooking(null)}
+        booking={selectedReportBooking}
       />
     </div>
   );

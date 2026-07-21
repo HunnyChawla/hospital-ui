@@ -7,12 +7,13 @@ import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2 } from "lucide-react";
+import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2, Eye } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "../invoices/InvoicePrint";
 import { TestReportPrint } from "../lab-technician/TestReportPrint";
+import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 import { Modal } from "../common/Modal";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
@@ -29,7 +30,7 @@ interface LabBookingsListProps {
   patientId?: string;
 }
 
-export function LabBookingsList({ patientId }: LabBookingsListProps) {
+export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const dispatch = useAppDispatch();
   const patientsCache = useAppSelector((s) => s.patients.list);
@@ -49,6 +50,7 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string; tests?: LabBookingTest[]; bookingNumber?: string } | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<LabBookingWithPatient | null>(null);
+  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [printReportData, setPrintReportData] = useState<{
     booking: LabBookingWithPatient;
@@ -641,60 +643,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
     }
   };
 
-  const handleDownloadReport = async (booking: LabBookingWithPatient) => {
-    try {
-      // Check if all tests have results
-      const allHaveResults = await allTestsHaveResults(booking);
-      if (!allHaveResults) {
-        toast.error("Cannot download report: Not all tests have published results");
-        return;
-      }
-
-      // Fetch patient details
-      let patientName = booking.patient_name || "Unknown";
-      let patientMobile = booking.patient_mobile;
-
-      if (!booking.patient_name || !booking.patient_mobile) {
-        try {
-          const patient = await patientsApi.getById(booking.patient_id);
-          patientName = formatPatientName(patient);
-          patientMobile = patient.mobile;
-        } catch (error) {
-          console.error("Failed to fetch patient details:", error);
-        }
-      }
-
-      // Fetch results for all tests
-      const testResultsPromises = booking.tests.map(async (test) => {
-        try {
-          const results = await labTestsApi.getResults(booking.id, test.id);
-          return {
-            test,
-            results: Array.isArray(results) ? results : [],
-          };
-        } catch (error) {
-          console.error(`Failed to fetch results for test ${test.id}:`, error);
-          return {
-            test,
-            results: [],
-          };
-        }
-      });
-
-      const testResults = await Promise.all(testResultsPromises);
-
-      // Set up print data
-      setPrintReportData({
-        booking,
-        patientName,
-        patientMobile,
-        testResults,
-      });
-      setShouldPrintReport(true);
-    } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to prepare report for download");
-    }
+  const handleDownloadReport = (booking: LabBookingWithPatient) => {
+    setSelectedReportBooking(booking);
   };
 
   // Trigger print when printInvoiceData is set and shouldPrint is true
@@ -986,10 +936,10 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                         e.currentTarget.style.paddingLeft = "0.5rem";
                         e.currentTarget.style.paddingRight = "0.5rem";
                       }}
-                      title="Download Report"
+                      title="View Report"
                     >
-                      <Download className="h-4 w-4 shrink-0" />
-                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Download Report</span>
+                      <Eye className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">View Report</span>
                     </button>
                   )}
                   {booking.invoice_id && (
@@ -1231,14 +1181,20 @@ export function LabBookingsList({ patientId }: LabBookingsListProps) {
                   onClick={() => handleDownloadReport(selectedBooking)}
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-sky-600 hover:to-teal-600"
                 >
-                  <Download className="h-4 w-4" />
-                  Download Report
+                  <Eye className="h-4 w-4" />
+                  View Report
                 </button>
               )}
             </div>
           </div>
         )}
       </Modal>
+
+      <PreviousLabReportModal
+        isOpen={selectedReportBooking !== null}
+        onClose={() => setSelectedReportBooking(null)}
+        booking={selectedReportBooking}
+      />
     </div>
   );
 }

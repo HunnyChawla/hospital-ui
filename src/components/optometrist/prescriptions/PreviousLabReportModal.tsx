@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, FileText, Image as ImageIcon, Download, ExternalLink, Printer } from "lucide-react";
+import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import type { LabBooking } from "@/services/labBookingsApi";
 import type { LabTestResultItem } from "@/types";
-import { mrdApi, MRDDocument } from "@/services/mrdApi";
 import { NormalRangeIndicator } from "@/components/doctors/shared/NormalRangeIndicator";
 import { TestReportPrint } from "@/components/lab-technician/TestReportPrint";
+import { MRDImage } from "@/components/lab-technician/TestResultsForm";
 import { handleError } from "@/utils/errorHandler";
 
 interface PreviousLabReportModalProps {
@@ -24,8 +24,6 @@ export function PreviousLabReportModal({
 }: PreviousLabReportModalProps) {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<LabTestResultItem[]>([]);
-    const [attachments, setAttachments] = useState<MRDDocument[]>([]);
-    const [loadingAttachments, setLoadingAttachments] = useState(false);
 
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const printReportRef = useRef<HTMLDivElement>(null);
@@ -38,7 +36,6 @@ export function PreviousLabReportModal({
     useEffect(() => {
         if (isOpen && booking) {
             fetchResults();
-            fetchAttachments();
         } else {
             setPreviewImageUrl(null);
         }
@@ -57,27 +54,6 @@ export function PreviousLabReportModal({
             });
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchAttachments = async () => {
-        if (!booking) return;
-        setLoadingAttachments(true);
-        try {
-            const res = await mrdApi.list({ patient_id: booking.patient_id, limit: 20 });
-            const relevant = (res.items || []).filter(
-                (d) =>
-                    d.lab_booking_id === booking.id ||
-                    (booking.visit_id && d.visit_id === booking.visit_id) ||
-                    d.category === "LAB_REPORT" ||
-                    d.category === "PATHOLOGY_REPORT"
-            );
-            setAttachments(relevant);
-        } catch (error) {
-            console.error("Failed to load attachments:", error);
-            setAttachments([]);
-        } finally {
-            setLoadingAttachments(false);
         }
     };
 
@@ -174,18 +150,29 @@ export function PreviousLabReportModal({
                                                         </span>
                                                     </div>
                                                 )}
-                                                <NormalRangeIndicator
-                                                    label={parameter.parameter_name}
-                                                    value={parameter.result_numeric ?? parameter.result_value}
-                                                    normalMin={parameter.normal_min}
-                                                    normalMax={parameter.normal_max}
-                                                    unit={parameter.unit || ""}
-                                                    size="md"
-                                                />
-                                                {parameter.normal_text && (
-                                                    <p className="mt-2 text-xs text-slate-550">
-                                                        Reference Normal: <span className="font-medium text-slate-700">{parameter.normal_text}</span>
-                                                    </p>
+                                                {parameter.parameter_type === "image" ? (
+                                                    <div className="space-y-2">
+                                                        <p className="font-semibold text-xs text-slate-800">{parameter.parameter_name}</p>
+                                                        <div className="h-44 w-full overflow-hidden flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 p-2">
+                                                            <MRDImage documentId={parameter.result_value} clickable className="max-h-full max-w-full object-contain rounded" />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <NormalRangeIndicator
+                                                            label={parameter.parameter_name}
+                                                            value={parameter.result_numeric ?? parameter.result_value}
+                                                            normalMin={parameter.normal_min}
+                                                            normalMax={parameter.normal_max}
+                                                            unit={parameter.unit || ""}
+                                                            size="md"
+                                                        />
+                                                        {parameter.normal_text && (
+                                                            <p className="mt-2 text-xs text-slate-550">
+                                                                Reference Normal: <span className="font-medium text-slate-700">{parameter.normal_text}</span>
+                                                            </p>
+                                                        )}
+                                                    </>
                                                 )}
                                                 {parameter.notes && (
                                                     <p className="mt-1 text-xs italic text-slate-500">
@@ -211,85 +198,6 @@ export function PreviousLabReportModal({
                         </div>
                     )}
 
-                    {/* Uploaded Lab Images & Document Attachments */}
-                    {attachments.length > 0 && (
-                        <div className="space-y-3 pt-4 border-t border-slate-200">
-                            <div className="flex items-center gap-2">
-                                <ImageIcon className="h-4 w-4 text-sky-600" />
-                                <span className="font-bold text-sm text-slate-800">
-                                    Uploaded Lab Images & Attachments ({attachments.length})
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {attachments.map((doc) => {
-                                    const isImage = doc.document_type === "IMAGE" || doc.mime_type?.startsWith("image/");
-                                    const fileUrl = doc.download_url || doc.file_path;
-
-                                    return (
-                                        <div
-                                            key={doc.id}
-                                            className="group p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-sky-300 hover:shadow-sm transition text-left flex flex-col justify-between"
-                                        >
-                                            {isImage && fileUrl ? (
-                                                <div
-                                                    className="mb-2 relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 aspect-video cursor-pointer"
-                                                    onClick={() => setPreviewImageUrl(fileUrl)}
-                                                >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img
-                                                        src={fileUrl}
-                                                        alt={doc.document_name}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                                    />
-                                                    <div className="no-print absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                        <ImageIcon className="h-6 w-6 text-white drop-shadow" />
-                                                    </div>
-                                                </div>
-                                            ) : null}
-
-                                            <div className="flex items-start gap-2">
-                                                {isImage ? (
-                                                    <ImageIcon className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
-                                                ) : (
-                                                    <FileText className="h-5 w-5 text-teal-600 shrink-0 mt-0.5" />
-                                                )}
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-sky-600">
-                                                        {doc.document_name}
-                                                    </p>
-                                                    <p className="text-[10px] text-slate-400">
-                                                        {doc.document_type} • {(doc.file_size / 1024).toFixed(1)} KB
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="no-print mt-2 flex items-center justify-between text-[10px] font-semibold text-sky-600 pt-1 border-t border-slate-100">
-                                                {isImage && fileUrl ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setPreviewImageUrl(fileUrl)}
-                                                        className="hover:underline font-bold cursor-pointer"
-                                                    >
-                                                        Preview Photo
-                                                    </button>
-                                                ) : (
-                                                    <span />
-                                                )}
-                                                <a
-                                                    href={fileUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 hover:underline"
-                                                >
-                                                    <ExternalLink className="h-3 w-3" /> Open
-                                                </a>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* Modal Footer */}
@@ -336,8 +244,8 @@ export function PreviousLabReportModal({
                     <div ref={printReportRef} className="print-content">
                         <TestReportPrint
                             booking={booking}
-                            patientName={booking.patient_id || "Patient"}
-                            patientMobile=""
+                            patientName={(booking as any).patient_name || booking.patient_id || "Patient"}
+                            patientMobile={(booking as any).patient_mobile || ""}
                             testResults={results.map((r) => ({
                                 test: {
                                     id: r.booking_item_id,
@@ -366,7 +274,8 @@ export function PreviousLabReportModal({
                                     created_by: "",
                                     created_at: "",
                                     updated_at: "",
-                                    parameter_type: "number" as const,
+                                    section_name: p.section_name || null,
+                                    parameter_type: p.parameter_type || "number",
                                 })),
                             }))}
                         />
