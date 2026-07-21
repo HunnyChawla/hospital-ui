@@ -64,13 +64,17 @@ export function PreviousLabReportModal({
         if (!booking) return;
         setLoadingAttachments(true);
         try {
-            const docs = await mrdApi.listDocuments({
-                entity_type: "lab_booking",
-                entity_id: booking.id,
-            });
-            setAttachments(docs);
+            const res = await mrdApi.list({ patient_id: booking.patient_id, limit: 20 });
+            const relevant = (res.items || []).filter(
+                (d) =>
+                    d.lab_booking_id === booking.id ||
+                    (booking.visit_id && d.visit_id === booking.visit_id) ||
+                    d.category === "LAB_REPORT" ||
+                    d.category === "PATHOLOGY_REPORT"
+            );
+            setAttachments(relevant);
         } catch (error) {
-            console.error("Failed to fetch lab attachments:", error);
+            console.error("Failed to load attachments:", error);
             setAttachments([]);
         } finally {
             setLoadingAttachments(false);
@@ -369,8 +373,8 @@ export function PreviousLabReportModal({
                     <div ref={printReportRef} className="print-content">
                         <TestReportPrint
                             booking={booking}
-                            patientName={booking.patient_name || "Patient"}
-                            patientMobile={booking.patient_mobile}
+                            patientName={booking.patient_id || "Patient"}
+                            patientMobile=""
                             testResults={results.map((r) => ({
                                 test: {
                                     id: r.booking_item_id,
@@ -382,23 +386,24 @@ export function PreviousLabReportModal({
                                 },
                                 results: r.results.map((p) => ({
                                     id: p.id,
-                                    tenant_id: "",
-                                    booking_id: booking.id,
                                     booking_item_id: r.booking_item_id,
-                                    lab_test_id: "",
+                                    parameter_id: p.id,
                                     parameter_name: p.parameter_name,
-                                    result_value: p.result_value,
+                                    parameter_code: p.parameter_name,
+                                    unit: p.unit || "",
+                                    result_value: p.result_value || "",
                                     result_numeric: p.result_numeric,
-                                    unit: p.unit,
+                                    is_abnormal: Boolean(p.is_abnormal),
                                     normal_min: p.normal_min,
                                     normal_max: p.normal_max,
                                     normal_text: p.normal_text,
-                                    is_abnormal: p.is_abnormal,
                                     notes: p.notes,
                                     verified_by: p.verified_by,
                                     verified_at: p.verified_at,
+                                    created_by: "",
                                     created_at: "",
                                     updated_at: "",
+                                    parameter_type: "number" as const,
                                 })),
                             }))}
                         />
