@@ -2435,38 +2435,43 @@ export function PrescriptionFormSection({
                                                                  {/* Current Visit Booking & Past Booking Status Pills */}
                                                                  {(currentVisitBooking || pastVisitBooking) && (
                                                                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                                                                         {/* Current Visit Booking Status */}
+                                                                         {/* Today's Booking Status Pill */}
                                                                          {currentVisitBooking && (
                                                                              <button
                                                                                  type="button"
                                                                                  onClick={() => setSelectedReportBooking(currentVisitBooking)}
                                                                                  className={clsx(
-                                                                                     "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0",
+                                                                                     "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0 capitalize",
                                                                                      currentVisitBooking.status === "completed"
                                                                                          ? "bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-300"
                                                                                          : "bg-sky-100/80 hover:bg-sky-200/80 text-sky-900 border-sky-300"
                                                                                  )}
-                                                                                 title="Click to view today's lab report"
+                                                                                 title="Click to view today's lab test status / report"
                                                                              >
                                                                                  {currentVisitBooking.status === "completed" ? (
-                                                                                     <FileText className="h-3.5 w-3.5 text-emerald-700" />
+                                                                                     <FileText className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
                                                                                  ) : (
-                                                                                     <Clock className="h-3.5 w-3.5 text-sky-700" />
+                                                                                     <Clock className="h-3.5 w-3.5 text-sky-700 shrink-0" />
                                                                                  )}
                                                                                  Today: {currentVisitBooking.status.replace(/_/g, " ")}
                                                                              </button>
                                                                          )}
 
-                                                                         {/* Past Visit Booking Report */}
+                                                                         {/* Past Visit Booking Status Pill */}
                                                                          {pastVisitBooking && (
                                                                              <button
                                                                                  type="button"
                                                                                  onClick={() => setSelectedReportBooking(pastVisitBooking)}
-                                                                                 className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100/80 hover:bg-amber-200/80 text-amber-900 border border-amber-300 px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0"
-                                                                                 title={`Booked on ${new Date(pastVisitBooking.scheduled_date).toLocaleDateString()} (#${pastVisitBooking.booking_number})`}
+                                                                                 className={clsx(
+                                                                                     "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0 capitalize",
+                                                                                     pastVisitBooking.status === "completed"
+                                                                                         ? "bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-300"
+                                                                                         : "bg-amber-100/80 hover:bg-amber-200/80 text-amber-900 border-amber-300"
+                                                                                 )}
+                                                                                 title={`Click to view past test status / report (${pastVisitBooking.booking_number})`}
                                                                              >
-                                                                                 <Calendar className="h-3.5 w-3.5 text-amber-700" />
-                                                                                 Past Report ({new Date(pastVisitBooking.scheduled_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
+                                                                                 <Calendar className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                                                                                 Past: {pastVisitBooking.status.replace(/_/g, " ")} ({new Date(pastVisitBooking.scheduled_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
                                                                              </button>
                                                                          )}
                                                                      </div>
