@@ -39,6 +39,7 @@ import { doctorsApi } from "@/services/doctorsApi";
 import { medicinesApi } from "@/services/medicinesApi";
 import { labTestsApi, PrescriptionField } from "@/services/labTestsApi";
 import { handleError } from "@/utils/errorHandler";
+import { formatDate } from "@/utils/format";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import { PrintPreviewModal } from "./PrintPreviewModal";
@@ -68,7 +69,7 @@ import { PlannedSurgery } from "@/types";
 import { usersApi } from "@/services/usersApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi } from "@/services/advicesApi";
-import { usePrescriptionFlags } from "@/hooks/useFeatureFlags";
+import { usePrescriptionFlags, usePrescriptionPermissions } from "@/hooks/useFeatureFlags";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import type { LabBooking } from "@/services/labBookingsApi";
 import type { LabTestResultItem } from "@/types";
@@ -252,8 +253,11 @@ export function PrescriptionFormSection({
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
     const [prescriptionFieldsByTestCode, setPrescriptionFieldsByTestCode] = useState<Record<string, PrescriptionField[]>>({});
-    // Feature flags for prescription editing
-    const { allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionFlags();
+    // Feature flags & permission calculations for prescription editing
+    const { canEdit, isFinalized, allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionPermissions({
+        prescriptionStatus: savedPrescription?.status,
+        isReadOnlyProp: readOnly,
+    });
 
     // Fetch patient lab test bookings
     const fetchPatientLabBookings = async (pId: string) => {
@@ -1330,8 +1334,8 @@ export function PrescriptionFormSection({
                 });
             }
 
-            // Handle Finalization
-            if (options.finalize && result.id) {
+            // Handle Finalization (only if not already finalized)
+            if (options.finalize && result.id && savedPrescription?.status !== 'finalized') {
                 result = await optometryPrescriptionApi.finalize(result.id);
             }
 
@@ -1480,23 +1484,8 @@ export function PrescriptionFormSection({
                 </div>
             )}
 
-            {/* Read-Only View - Show only if editing is not allowed by feature flags */}
-            {(() => {
-                // Determine if we should show read-only view based on feature flags
-                const isPrescriptionFinalized = savedPrescription?.status === 'finalized';
-                const isVisitCompleted = readOnly;
-
-                // Check if editing should be allowed despite finalization/completion
-                const shouldAllowEdit =
-                    (isPrescriptionFinalized && allowEditAfterFinalize) ||
-                    (isVisitCompleted && allowEditAfterVisitCompleted);
-
-                // Show read-only view only if prescription/visit is locked AND editing is not allowed
-                const shouldShowReadOnly =
-                    (isPrescriptionFinalized || isVisitCompleted) && !shouldAllowEdit;
-
-                return shouldShowReadOnly;
-            })() ? (
+            {/* Read-Only View - Show only if editing is not allowed by permissions */}
+            {!canEdit ? (
                 <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-slate-200">
                     <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                         <h3 className="font-semibold text-slate-700">Prescription View</h3>
@@ -1555,7 +1544,23 @@ export function PrescriptionFormSection({
                 </div>
             ) : (
 
-                <div className="space-y-6">
+                <div className="space-y-6 bg-slate-100/70 rounded-2xl p-4 border border-slate-200 shadow-inner">
+                    {isFinalized && canEdit && (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="flex items-start gap-3">
+                                <div className="p-1 rounded-lg bg-amber-100 text-amber-700">
+                                    <AlertCircle className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-amber-900">Editing Finalized Prescription</h4>
+                                    <p className="text-xs text-amber-800/90 mt-0.5 font-medium">
+                                        This prescription was already finalized on <span className="font-bold">{savedPrescription?.updated_at ? formatDate(savedPrescription.updated_at) : savedPrescription?.created_at ? formatDate(savedPrescription.created_at) : "a previous date"}</span>.
+                                        You have permission to edit finalized prescriptions. Saving changes will update the official medical record.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <form className="space-y-5">
                         {/* Modern Rx Header */}
                         <div className="flex items-center gap-4 pb-4 border-b-2 border-slate-100">
@@ -1588,8 +1593,8 @@ export function PrescriptionFormSection({
                         </div>
 
                         {/* CARD 1: Diagnosis */}
-                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-sky-300/60 transition-all duration-300">
-                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-sky-50 via-blue-50/30 to-white px-6 py-4">
+                        <div className="rounded-2xl border-2 border-sky-200 bg-white shadow-xl shadow-sky-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-sky-300 transition-all duration-300">
+                            <div className="border-b-2 border-sky-200/70 bg-gradient-to-r from-sky-100 via-blue-50/60 to-white px-6 py-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 border-2 border-white text-white shadow-lg shadow-sky-500/30">
@@ -1692,17 +1697,6 @@ export function PrescriptionFormSection({
                                                 const diagId = diagnosesOptions.find(o => o.value === diagName)?.id || resolvedDiagnoses[diagName]?.id;
                                                 const symptoms = diagId ? availableSymptoms[diagId] : null;
 
-                                                console.log("=== DIAGNOSIS RENDERING ===", {
-                                                    diagName,
-                                                    diagId,
-                                                    diagnosesOptionsHasIt: diagnosesOptions.find(o => o.value === diagName),
-                                                    resolvedDiagnosesHasIt: resolvedDiagnoses[diagName],
-                                                    symptomsCount: symptoms?.length,
-                                                    selectedSymptomsTotal: selectedSymptoms.length,
-                                                    selectedSymptomsForThisDiagnosis: selectedSymptoms.filter(s =>
-                                                        s.diagnosis_id === diagId || s.diagnosis_name === diagName
-                                                    )
-                                                });
 
                                                 return (
                                                     <div key={diagName} className="space-y-2">
@@ -1789,8 +1783,8 @@ export function PrescriptionFormSection({
                         </div>
 
                         {/* CARD 2: Medicines */}
-                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-purple-300/60 transition-all duration-300">
-                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-purple-50 via-pink-50/30 to-white px-6 py-4">
+                        <div className="rounded-2xl border-2 border-purple-200 bg-white shadow-xl shadow-purple-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-purple-300 transition-all duration-300">
+                            <div className="border-b-2 border-purple-200/70 bg-gradient-to-r from-purple-100 via-pink-50/60 to-white px-6 py-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-white text-white shadow-lg shadow-purple-500/30">
@@ -2167,20 +2161,444 @@ export function PrescriptionFormSection({
                             </div>
                         </div>
 
-                        {/* CARD 3: Treatment Plan */}
-                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-emerald-300/60 transition-all duration-300">
-                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-emerald-50 via-green-50/30 to-white px-6 py-4">
+                        {/* CARD 3: Lab Tests & Investigations */}
+                        <div className="rounded-2xl border-2 border-teal-200 bg-white shadow-xl shadow-teal-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-teal-300 transition-all duration-300">
+                            <div className="border-b-2 border-teal-200/70 bg-gradient-to-r from-teal-100 via-emerald-50/60 to-white px-6 py-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 border-2 border-white text-white shadow-lg shadow-emerald-500/30">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 border-2 border-white text-white shadow-lg shadow-teal-500/30">
+                                            <FlaskConical className="h-5 w-5" />
+                                        </span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Lab Tests & Investigations</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-teal-100 text-[10px] font-black text-teal-700">3</span>
+                                                {adviceFields.filter(f => f.advice_type === "Lab Test" || f.advice_type === "lab-test").length > 0 && (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 text-xs font-black text-white shadow-md">
+                                                        {adviceFields.filter(f => f.advice_type === "Lab Test" || f.advice_type === "lab-test").length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Order diagnostic laboratory investigations and clinical tests</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettingsModal(true)}
+                                        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white hover:text-teal-600 border-2 border-transparent hover:border-teal-200 transition-all shadow-sm hover:shadow"
+                                        title="Configure Presets"
+                                    >
+                                        <Settings className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Settings</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-5">
+                                {/* Search Lab Tests */}
+                                <div className="relative group/search mb-3">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-teal-500 transition-colors">
+                                        {searchingTests ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Stethoscope className="h-5 w-5" />
+                                        )}
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={testSearchQuery}
+                                        onChange={(e) => setTestSearchQuery(e.target.value)}
+                                        placeholder="Search lab tests..."
+                                        className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/20 transition-all shadow-sm hover:border-slate-300"
+                                    />
+                                    {testSearchQuery.length >= 2 && !searchingTests && testSearchResults.length === 0 && (
+                                        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
+                                            <p className="text-sm text-slate-500">No lab tests found matching "{testSearchQuery}"</p>
+                                        </div>
+                                    )}
+                                    {testSearchResults.length > 0 && (
+                                        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-teal-200 bg-white shadow-2xl">
+                                            <ul className="max-h-60 overflow-y-auto py-1 scrollbar-hide">
+                                                {testSearchResults.map((test) => (
+                                                    <li
+                                                        key={test.id || test.value}
+                                                        onClick={() => handleAddTestFromSearch(test)}
+                                                        className="cursor-pointer px-4 py-3 hover:bg-teal-50 active:bg-teal-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                    >
+                                                        <div className="font-bold text-slate-900 text-sm group-hover:text-teal-700 transition-colors">{test.label}</div>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{test.code}</span>
+                                                            {test.category && (
+                                                                <span className="text-xs text-slate-500 capitalize">{test.category}</span>
+                                                            )}
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Quick Presets */}
+                                <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner mb-6">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                                            <Sparkles className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Selection</p>
+                                    </div>
+                                    {labTestsOptions.length > 0 ? (
+                                        <LabTestQuickChips
+                                            options={labTestsOptions}
+                                            addedIds={addedLabTestIds}
+                                            onAdd={handleQuickLabTestAdd}
+                                        />
+                                    ) : (
+                                        <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
+                                            <p className="text-xs text-slate-500">No lab test presets configured.</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSettingsModal(true)}
+                                                className="text-xs text-teal-600 hover:text-teal-700 font-medium mt-1"
+                                            >
+                                                Configure in Settings
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Previous Lab Test History */}
+                                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm mb-6">
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setShowHistoryExpanded(!showHistoryExpanded)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setShowHistoryExpanded(!showHistoryExpanded);
+                                            }
+                                        }}
+                                        className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer select-none"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <FlaskConical className="h-5 w-5 text-teal-600 animate-pulse" />
+                                            <div>
+                                                <span className="font-bold text-sm text-slate-800">Previous Test History & Reports</span>
+                                                {previousLabBookings.length > 0 && (
+                                                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold rounded-full bg-teal-100 text-teal-800">
+                                                        {previousLabBookings.length} {previousLabBookings.length === 1 ? 'Booking' : 'Bookings'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    fetchPatientLabBookings(patientId);
+                                                }}
+                                                disabled={loadingLabBookings}
+                                                className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                                                title="Refresh history"
+                                            >
+                                                <RefreshCw className={`h-4 w-4 ${loadingLabBookings ? 'animate-spin' : ''}`} />
+                                            </button>
+                                            {showHistoryExpanded ? (
+                                                <ChevronUp className="h-5 w-5 text-slate-500" />
+                                            ) : (
+                                                <ChevronDown className="h-5 w-5 text-slate-500" />
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {showHistoryExpanded && (
+                                        <div className="border-t border-slate-200">
+                                            {loadingLabBookings ? (
+                                                <div className="p-4 space-y-3">
+                                                    {[1, 2].map((i) => (
+                                                        <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100 border border-slate-200/60" />
+                                                    ))}
+                                                </div>
+                                            ) : (() => {
+                                                const pastVisitsBookings = previousLabBookings.filter(b => !visitId || b.visit_id !== visitId);
+                                                if (pastVisitsBookings.length === 0) {
+                                                    return (
+                                                        <div className="p-6 text-center bg-white">
+                                                            <FlaskConical className="mx-auto h-12 w-12 text-slate-350" />
+                                                            <h5 className="mt-2 text-sm font-semibold text-slate-800">No Past Visit Bookings</h5>
+                                                            <p className="mt-1 text-xs text-slate-500">This patient has no recorded laboratory bookings from previous visits.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto scrollbar-hide bg-white">
+                                                        {pastVisitsBookings.map((booking) => {
+                                                            const getStatusStyles = (status: string) => {
+                                                                switch ((status || "").toLowerCase()) {
+                                                                    case "completed":
+                                                                        return "bg-emerald-50 text-emerald-700 border-emerald-250 hover:bg-emerald-100";
+                                                                    case "in_progress":
+                                                                        return "bg-blue-50 text-blue-700 border-blue-250 hover:bg-blue-100";
+                                                                    case "sample_collected":
+                                                                        return "bg-amber-50 text-amber-700 border-amber-250 hover:bg-amber-100";
+                                                                    case "scheduled":
+                                                                        return "bg-slate-50 text-slate-700 border-slate-250 hover:bg-slate-100";
+                                                                    default:
+                                                                        return "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100";
+                                                                }
+                                                            };
+
+                                                            return (
+                                                                <div
+                                                                    key={booking.id}
+                                                                    onClick={() => setSelectedReportBooking(booking)}
+                                                                    className="p-4 hover:bg-slate-50/50 transition-colors flex items-center justify-between cursor-pointer"
+                                                                >
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <span className="font-semibold text-slate-900 text-sm truncate">
+                                                                                {booking.booking_number}
+                                                                            </span>
+                                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border tracking-wide uppercase ${getStatusStyles(booking.status)}`}>
+                                                                                {booking.status.replace(/_/g, " ")}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                                                            <span className="flex items-center gap-1 font-medium text-slate-600 shrink-0">
+                                                                                <Calendar className="h-3.5 w-3.5" />
+                                                                                {new Date(booking.scheduled_date).toLocaleDateString("en-US", {
+                                                                                    month: "short",
+                                                                                    day: "numeric",
+                                                                                    year: "numeric",
+                                                                                })}
+                                                                            </span>
+                                                                            <span className="truncate max-w-[200px]" title={booking.tests.map(t => t.test_name).join(", ")}>
+                                                                                {booking.tests.length} {booking.tests.length === 1 ? 'Test' : 'Tests'}: {booking.tests.map(t => t.test_name).join(", ")}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="ml-4 shrink-0 text-xs font-bold text-teal-600 hover:text-teal-700 underline underline-offset-2 select-none">
+                                                                        View Report
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Added Tests List */}
+                                {adviceFields.some(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test") && (
+                                    <div className="space-y-3 mt-3">
+                                        {adviceFields.map((field: any, index) => {
+                                            if (field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") return null;
+                                            const fieldsForTest = prescriptionFieldsByTestCode[field.test_code] || [];
+                                            const isCatalogTest = Boolean(field.lab_test_id || watch(`advice_items.${index}.lab_test_id`));
+                                            
+                                            // Find if a lab booking has been created for this test in the current visit
+                                            const currentVisitBooking = previousLabBookings.find(
+                                                b => b.visit_id === visitId && b.tests.some(t => t.test_code === field.test_code || (field.lab_test_id && t.lab_test_id === field.lab_test_id))
+                                            );
+
+                                            // Find if a lab booking exists for this test from a past visit
+                                            const pastVisitBooking = previousLabBookings.find(
+                                                b => (!visitId || b.visit_id !== visitId) && b.tests.some(t => t.test_code === field.test_code || (field.lab_test_id && t.lab_test_id === field.lab_test_id))
+                                            );
+
+                                            return (
+                                                <div key={field.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+                                                    <div className="flex items-center gap-2 group/advice">
+                                                        <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
+                                                        <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
+                                                        <input type="hidden" {...register(`advice_items.${index}.test_code`)} />
+                                                        <div className="flex-1 flex items-center gap-2">
+                                                            <input
+                                                                {...register(`advice_items.${index}.description`)}
+                                                                readOnly={isCatalogTest}
+                                                                className={clsx(
+                                                                    "w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                                                                    isCatalogTest
+                                                                        ? "border-teal-200 bg-teal-50/40 text-teal-950 cursor-not-allowed font-semibold"
+                                                                        : "border-slate-200 bg-white text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/10"
+                                                                )}
+                                                            />
+                                                             {/* Current Visit Booking & Past Booking Status Pills */}
+                                                             {(currentVisitBooking || pastVisitBooking) && (
+                                                                 <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                                                                     {/* Today's Booking Status Pill */}
+                                                                     {currentVisitBooking && (
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => setSelectedReportBooking(currentVisitBooking)}
+                                                                             className={clsx(
+                                                                                 "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0 capitalize",
+                                                                                 currentVisitBooking.status === "completed"
+                                                                                     ? "bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-300"
+                                                                                     : "bg-sky-100/80 hover:bg-sky-200/80 text-sky-900 border-sky-300"
+                                                                             )}
+                                                                             title="Click to view today's lab test status / report"
+                                                                         >
+                                                                             {currentVisitBooking.status === "completed" ? (
+                                                                                 <FileText className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                                                                             ) : (
+                                                                                 <Clock className="h-3.5 w-3.5 text-sky-700 shrink-0" />
+                                                                             )}
+                                                                             Today: {currentVisitBooking.status.replace(/_/g, " ")}
+                                                                         </button>
+                                                                     )}
+
+                                                                     {/* Past Visit Booking Status Pill */}
+                                                                     {pastVisitBooking && (
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => setSelectedReportBooking(pastVisitBooking)}
+                                                                             className={clsx(
+                                                                                 "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0 capitalize",
+                                                                                 pastVisitBooking.status === "completed"
+                                                                                     ? "bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-300"
+                                                                                     : "bg-amber-100/80 hover:bg-amber-200/80 text-amber-900 border-amber-300"
+                                                                             )}
+                                                                             title={`Click to view past test status / report (${pastVisitBooking.booking_number})`}
+                                                                         >
+                                                                             <Calendar className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                                                                             Past: {pastVisitBooking.status.replace(/_/g, " ")} ({new Date(pastVisitBooking.scheduled_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
+                                                                         </button>
+                                                                     )}
+                                                                 </div>
+                                                             )}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveAdvice(index)}
+                                                            className="rounded-lg p-2 text-slate-350 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+
+                                                    {fieldsForTest.length > 0 && (
+                                                        <div className="bg-white rounded-lg border border-slate-100 p-3 space-y-2.5 ml-1">
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                                Prescription Parameters / Clinical Context
+                                                            </p>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                {fieldsForTest.map((fField) => (
+                                                                    <div key={fField.id} className="col-span-1 space-y-1">
+                                                                        <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                                                                            {fField.field_name}
+                                                                            {fField.is_required && <span className="text-rose-500">*</span>}
+                                                                        </label>
+                                                                        <Controller
+                                                                            control={control}
+                                                                            name={`advice_items.${index}.prescription_metadata.${fField.field_name}`}
+                                                                            rules={{ required: fField.is_required }}
+                                                                            render={({ field: controllerField, fieldState }) => {
+                                                                                const val = controllerField.value ?? "";
+                                                                                return (
+                                                                                    <div>
+                                                                                        {fField.field_type === "dropdown" ? (
+                                                                                            <select
+                                                                                                value={val}
+                                                                                                onChange={controllerField.onChange}
+                                                                                                className={clsx(
+                                                                                                    "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
+                                                                                                    fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-teal-500"
+                                                                                                )}
+                                                                                            >
+                                                                                                <option value="">Select option</option>
+                                                                                                {fField.dropdown_options?.map((opt) => (
+                                                                                                    <option key={opt} value={opt}>
+                                                                                                        {opt}
+                                                                                                    </option>
+                                                                                                ))}
+                                                                                            </select>
+                                                                                        ) : fField.field_type === "number" ? (
+                                                                                            <input
+                                                                                                type="number"
+                                                                                                value={val}
+                                                                                                onChange={(e) => controllerField.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                                                                                                placeholder="Enter number"
+                                                                                                className={clsx(
+                                                                                                    "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
+                                                                                                    fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-teal-500"
+                                                                                                )}
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={val}
+                                                                                                onChange={controllerField.onChange}
+                                                                                                placeholder="Enter details"
+                                                                                                className={clsx(
+                                                                                                    "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
+                                                                                                    fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-teal-500"
+                                                                                                )}
+                                                                                            />
+                                                                                        )}
+                                                                                        {fieldState.invalid && (
+                                                                                            <span className="text-[10px] text-rose-500 block mt-0.5">Required field</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                );
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* CARD 4: Surgical & Special Procedures */}
+                        <div className="rounded-2xl border-2 border-amber-200 bg-white shadow-xl shadow-amber-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-amber-300 transition-all duration-300">
+                            <div className="border-b-2 border-amber-200/70 bg-gradient-to-r from-amber-100 via-orange-50/60 to-white px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 border-2 border-white text-white shadow-lg shadow-amber-500/30">
+                                        <Activity className="h-5 w-5" />
+                                    </span>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Surgical & Special Procedures</h3>
+                                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-100 text-[10px] font-black text-amber-800">4</span>
+                                        </div>
+                                        <p className="text-xs text-slate-600 font-medium mt-0.5">Schedule surgical interventions and specialized procedures</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                <PlannedSurgerySection
+                                    patientId={patientId}
+                                    surgeonId={doctorId}
+                                    visitId={visitId}
+                                />
+                            </div>
+                        </div>
+
+                        {/* CARD 5: General Advice & Instructions */}
+                        <div className="rounded-2xl border-2 border-emerald-200 bg-white shadow-xl shadow-emerald-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-emerald-300 transition-all duration-300">
+                            <div className="border-b-2 border-emerald-200/70 bg-gradient-to-r from-emerald-100 via-teal-50/60 to-white px-6 py-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white text-white shadow-lg shadow-emerald-500/30">
                                             <CheckCircle className="h-5 w-5" />
                                         </span>
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Treatment Plan</h3>
-                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">3</span>
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">General Advice & Patient Instructions</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-emerald-100 text-[10px] font-black text-emerald-800">5</span>
                                             </div>
-                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Define care plan, advice, and procedures</p>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Provide clinical instructions and care recommendations</p>
                                         </div>
                                     </div>
                                     <button
@@ -2194,524 +2612,135 @@ export function PrescriptionFormSection({
                                     </button>
                                 </div>
                             </div>
+
                             <div className="p-6 space-y-5">
-                                {/* Lab Tests Section */}
-                                <div className="mb-6">
-                                    <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 flex items-center gap-2">
-                                        <Stethoscope className="h-4 w-4 text-emerald-600" />
-                                        Lab Tests & Investigations
-                                    </h4>
-
-                                    <div className="relative group/search mb-3">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
-                                            {searchingTests ? (
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                            ) : (
-                                                <Stethoscope className="h-5 w-5" />
-                                            )}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={testSearchQuery}
-                                            onChange={(e) => setTestSearchQuery(e.target.value)}
-                                            placeholder="Search lab tests..."
-                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
-                                        />
-                                        {testSearchQuery.length >= 2 && !searchingTests && testSearchResults.length === 0 && (
-                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                                <p className="text-sm text-slate-500">No lab tests found matching "{testSearchQuery}"</p>
-                                            </div>
-                                        )}
-                                        {testSearchResults.length > 0 && (
-                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
-                                                <ul className="max-h-60 overflow-y-auto py-1 scrollbar-hide">
-                                                    {testSearchResults.map((test) => (
-                                                        <li
-                                                            key={test.id || test.value}
-                                                            onClick={() => handleAddTestFromSearch(test)}
-                                                            className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
-                                                        >
-                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{test.label}</div>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="text-xs font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{test.code}</span>
-                                                                {test.category && (
-                                                                    <span className="text-xs text-slate-500 capitalize">{test.category}</span>
-                                                                )}
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner mb-6">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
-                                                <Sparkles className="h-3.5 w-3.5 text-white" />
-                                            </div>
-                                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Selection</p>
-                                        </div>
-                                        {labTestsOptions.length > 0 ? (
-                                            <LabTestQuickChips
-                                                options={labTestsOptions}
-                                                addedIds={addedLabTestIds}
-                                                onAdd={handleQuickLabTestAdd}
-                                            />
+                                <div className="relative group/search mb-3">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
+                                        {searchingAdvices ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
                                         ) : (
-                                            <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
-                                                <p className="text-xs text-slate-500">No lab test presets configured.</p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowSettingsModal(true)}
-                                                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
-                                                >
-                                                    Configure in Settings
-                                                </button>
-                                            </div>
+                                            <CheckCircle className="h-5 w-5" />
                                         )}
                                     </div>
-
-                                    {/* Previous Lab Test History */}
-                                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm mb-6">
-                                        <div
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={() => setShowHistoryExpanded(!showHistoryExpanded)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    setShowHistoryExpanded(!showHistoryExpanded);
-                                                }
-                                            }}
-                                            className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer select-none"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <FlaskConical className="h-5 w-5 text-emerald-600 animate-pulse" />
-                                                <div>
-                                                    <span className="font-bold text-sm text-slate-800">Previous Test History & Reports</span>
-                                                    {previousLabBookings.length > 0 && (
-                                                        <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800">
-                                                            {previousLabBookings.length} {previousLabBookings.length === 1 ? 'Booking' : 'Bookings'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        fetchPatientLabBookings(patientId);
-                                                    }}
-                                                    disabled={loadingLabBookings}
-                                                    className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition-colors"
-                                                    title="Refresh history"
-                                                >
-                                                    <RefreshCw className={`h-4 w-4 ${loadingLabBookings ? 'animate-spin' : ''}`} />
-                                                </button>
-                                                {showHistoryExpanded ? (
-                                                    <ChevronUp className="h-5 w-5 text-slate-500" />
-                                                ) : (
-                                                    <ChevronDown className="h-5 w-5 text-slate-500" />
-                                                )}
-                                            </div>
+                                    <input
+                                        type="text"
+                                        value={adviceSearchQuery}
+                                        onChange={(e) => setAdviceSearchQuery(e.target.value)}
+                                        placeholder="Search clinical advice..."
+                                        className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
+                                    />
+                                    {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
+                                        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
+                                            <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
                                         </div>
-
-                                        {showHistoryExpanded && (
-                                            <div className="border-t border-slate-200">
-                                                {loadingLabBookings ? (
-                                                    <div className="p-4 space-y-3">
-                                                        {[1, 2].map((i) => (
-                                                            <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100 border border-slate-200/60" />
-                                                        ))}
-                                                    </div>
-                                                ) : (() => {
-                                                    const pastVisitsBookings = previousLabBookings.filter(b => !visitId || b.visit_id !== visitId);
-                                                    if (pastVisitsBookings.length === 0) {
-                                                        return (
-                                                            <div className="p-6 text-center bg-white">
-                                                                <FlaskConical className="mx-auto h-12 w-12 text-slate-350" />
-                                                                <h5 className="mt-2 text-sm font-semibold text-slate-800">No Past Visit Bookings</h5>
-                                                                <p className="mt-1 text-xs text-slate-500">This patient has no recorded laboratory bookings from previous visits.</p>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto scrollbar-hide bg-white">
-                                                            {pastVisitsBookings.map((booking) => {
-                                                                const getStatusStyles = (status: string) => {
-                                                                    switch ((status || "").toLowerCase()) {
-                                                                        case "completed":
-                                                                            return "bg-emerald-50 text-emerald-700 border-emerald-250 hover:bg-emerald-100";
-                                                                        case "in_progress":
-                                                                            return "bg-blue-50 text-blue-700 border-blue-250 hover:bg-blue-100";
-                                                                        case "sample_collected":
-                                                                            return "bg-amber-50 text-amber-700 border-amber-250 hover:bg-amber-100";
-                                                                        case "scheduled":
-                                                                            return "bg-slate-50 text-slate-700 border-slate-250 hover:bg-slate-100";
-                                                                        default:
-                                                                            return "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100";
-                                                                    }
-                                                                };
-
-                                                                return (
-                                                                    <div
-                                                                        key={booking.id}
-                                                                        onClick={() => setSelectedReportBooking(booking)}
-                                                                        className="p-4 hover:bg-slate-50/50 transition-colors flex items-center justify-between cursor-pointer"
-                                                                    >
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                                <span className="font-semibold text-slate-900 text-sm truncate">
-                                                                                    {booking.booking_number}
-                                                                                </span>
-                                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border tracking-wide uppercase ${getStatusStyles(booking.status)}`}>
-                                                                                    {booking.status.replace(/_/g, " ")}
-                                                                                </span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
-                                                                                <span className="flex items-center gap-1 font-medium text-slate-600 shrink-0">
-                                                                                    <Calendar className="h-3.5 w-3.5" />
-                                                                                    {new Date(booking.scheduled_date).toLocaleDateString("en-US", {
-                                                                                        month: "short",
-                                                                                        day: "numeric",
-                                                                                        year: "numeric",
-                                                                                    })}
-                                                                                </span>
-                                                                                <span className="truncate max-w-[200px]" title={booking.tests.map(t => t.test_name).join(", ")}>
-                                                                                    {booking.tests.length} {booking.tests.length === 1 ? 'Test' : 'Tests'}: {booking.tests.map(t => t.test_name).join(", ")}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <span className="ml-4 shrink-0 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline underline-offset-2 select-none">
-                                                                            View Report
-                                                                        </span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Added Tests List */}
-                                    {adviceFields.some(field => field.advice_type === "Lab Test" || field.advice_type === "lab-test") && (
-                                        <div className="space-y-3 mt-3">
-                                            {adviceFields.map((field: any, index) => {
-                                                if (field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") return null;
-                                                const fieldsForTest = prescriptionFieldsByTestCode[field.test_code] || [];
-                                                const isCatalogTest = Boolean(field.lab_test_id || watch(`advice_items.${index}.lab_test_id`));
-                                                
-                                                // Find if a lab booking has been created for this test in the current visit
-                                                const currentVisitBooking = previousLabBookings.find(
-                                                    b => b.visit_id === visitId && b.tests.some(t => t.test_code === field.test_code || (field.lab_test_id && t.lab_test_id === field.lab_test_id))
-                                                );
-
-                                                // Find if a lab booking exists for this test from a past visit
-                                                const pastVisitBooking = previousLabBookings.find(
-                                                    b => (!visitId || b.visit_id !== visitId) && b.tests.some(t => t.test_code === field.test_code || (field.lab_test_id && t.lab_test_id === field.lab_test_id))
-                                                );
-
-                                                return (
-                                                    <div key={field.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
-                                                        <div className="flex items-center gap-2 group/advice">
-                                                            <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
-                                                            <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
-                                                            <input type="hidden" {...register(`advice_items.${index}.test_code`)} />
-                                                            <div className="flex-1 flex items-center gap-2">
-                                                                <input
-                                                                    {...register(`advice_items.${index}.description`)}
-                                                                    readOnly={isCatalogTest}
-                                                                    className={clsx(
-                                                                        "w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-                                                                        isCatalogTest
-                                                                            ? "border-emerald-200 bg-emerald-50/40 text-emerald-950 cursor-not-allowed font-semibold"
-                                                                            : "border-slate-200 bg-white text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
-                                                                    )}
-                                                                />
-                                                                 {/* Current Visit Booking & Past Booking Status Pills */}
-                                                                 {(currentVisitBooking || pastVisitBooking) && (
-                                                                     <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                                                                         {/* Today's Booking Status Pill */}
-                                                                         {currentVisitBooking && (
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={() => setSelectedReportBooking(currentVisitBooking)}
-                                                                                 className={clsx(
-                                                                                     "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0 capitalize",
-                                                                                     currentVisitBooking.status === "completed"
-                                                                                         ? "bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-300"
-                                                                                         : "bg-sky-100/80 hover:bg-sky-200/80 text-sky-900 border-sky-300"
-                                                                                 )}
-                                                                                 title="Click to view today's lab test status / report"
-                                                                             >
-                                                                                 {currentVisitBooking.status === "completed" ? (
-                                                                                     <FileText className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                                                                                 ) : (
-                                                                                     <Clock className="h-3.5 w-3.5 text-sky-700 shrink-0" />
-                                                                                 )}
-                                                                                 Today: {currentVisitBooking.status.replace(/_/g, " ")}
-                                                                             </button>
-                                                                         )}
-
-                                                                         {/* Past Visit Booking Status Pill */}
-                                                                         {pastVisitBooking && (
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={() => setSelectedReportBooking(pastVisitBooking)}
-                                                                                 className={clsx(
-                                                                                     "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer shadow-2xs shrink-0 capitalize",
-                                                                                     pastVisitBooking.status === "completed"
-                                                                                         ? "bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-300"
-                                                                                         : "bg-amber-100/80 hover:bg-amber-200/80 text-amber-900 border-amber-300"
-                                                                                 )}
-                                                                                 title={`Click to view past test status / report (${pastVisitBooking.booking_number})`}
-                                                                             >
-                                                                                 <Calendar className="h-3.5 w-3.5 text-amber-700 shrink-0" />
-                                                                                 Past: {pastVisitBooking.status.replace(/_/g, " ")} ({new Date(pastVisitBooking.scheduled_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
-                                                                             </button>
-                                                                         )}
-                                                                     </div>
-                                                                 )}
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveAdvice(index)}
-                                                                className="rounded-lg p-2 text-slate-350 hover:bg-red-50 hover:text-red-500 transition-colors"
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-
-                                                        {fieldsForTest.length > 0 && (
-                                                            <div className="bg-white rounded-lg border border-slate-100 p-3 space-y-2.5 ml-1">
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                                    Prescription Parameters / Clinical Context
-                                                                </p>
-                                                                <div className="grid grid-cols-2 gap-3">
-                                                                    {fieldsForTest.map((fField) => (
-                                                                        <div key={fField.id} className="col-span-1 space-y-1">
-                                                                            <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-                                                                                {fField.field_name}
-                                                                                {fField.is_required && <span className="text-rose-500">*</span>}
-                                                                            </label>
-                                                                            <Controller
-                                                                                control={control}
-                                                                                name={`advice_items.${index}.prescription_metadata.${fField.field_name}`}
-                                                                                rules={{ required: fField.is_required }}
-                                                                                render={({ field: controllerField, fieldState }) => {
-                                                                                    const val = controllerField.value ?? "";
-                                                                                    return (
-                                                                                        <div>
-                                                                                            {fField.field_type === "dropdown" ? (
-                                                                                                <select
-                                                                                                    value={val}
-                                                                                                    onChange={controllerField.onChange}
-                                                                                                    className={clsx(
-                                                                                                        "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
-                                                                                                        fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-emerald-500"
-                                                                                                    )}
-                                                                                                >
-                                                                                                    <option value="">Select option</option>
-                                                                                                    {fField.dropdown_options?.map((opt) => (
-                                                                                                        <option key={opt} value={opt}>
-                                                                                                            {opt}
-                                                                                                        </option>
-                                                                                                    ))}
-                                                                                                </select>
-                                                                                            ) : fField.field_type === "number" ? (
-                                                                                                <input
-                                                                                                    type="number"
-                                                                                                    value={val}
-                                                                                                    onChange={(e) => controllerField.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                                                                                                    placeholder="Enter number"
-                                                                                                    className={clsx(
-                                                                                                        "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
-                                                                                                        fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-emerald-500"
-                                                                                                    )}
-                                                                                                />
-                                                                                            ) : (
-                                                                                                <input
-                                                                                                    type="text"
-                                                                                                    value={val}
-                                                                                                    onChange={controllerField.onChange}
-                                                                                                    placeholder="Enter details"
-                                                                                                    className={clsx(
-                                                                                                        "w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition bg-white",
-                                                                                                        fieldState.invalid ? "border-rose-400 focus:border-rose-500" : "border-slate-200 focus:border-emerald-500"
-                                                                                                    )}
-                                                                                                />
-                                                                                            )}
-                                                                                            {fieldState.invalid && (
-                                                                                                <span className="text-[10px] text-rose-500 block mt-0.5">Required field</span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    );
-                                                                                }}
-                                                                            />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
+                                    )}
+                                    {adviceSearchResults.length > 0 && (
+                                        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
+                                            <ul className="max-h-60 overflow-y-auto py-1 scrollbar-hide">
+                                                {adviceSearchResults.map((advice) => (
+                                                    <li
+                                                        key={advice.id || advice.value}
+                                                        onClick={() => handleAddAdviceFromSearch(advice)}
+                                                        className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
+                                                    >
+                                                        <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{advice.label}</div>
+                                                        {advice.category && (
+                                                            <div className="text-xs text-slate-500 mt-1 capitalize">{advice.category}</div>
                                                         )}
-                                                    </div>
-                                                );
-                                            })}
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="h-px bg-slate-100 my-6" />
-
-                                {/* Advice Section */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-2">
-                                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                                            General Advice
-                                        </h4>
-                                    </div>
-
-                                    <div className="relative group/search mb-3">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-emerald-500 transition-colors">
-                                            {searchingAdvices ? (
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                            ) : (
-                                                <CheckCircle className="h-5 w-5" />
-                                            )}
+                                <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                                            <Sparkles className="h-3.5 w-3.5 text-white" />
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={adviceSearchQuery}
-                                            onChange={(e) => setAdviceSearchQuery(e.target.value)}
-                                            placeholder="Search advice..."
-                                            className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 placeholder:font-normal focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm hover:border-slate-300"
+                                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Selection</p>
+                                    </div>
+                                    {advicesOptions.length > 0 ? (
+                                        <AdviceQuickChips
+                                            options={advicesOptions}
+                                            addedIds={addedAdviceIds}
+                                            onAdd={handleQuickAdviceAdd}
                                         />
-                                        {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
-                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                                <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
-                                            </div>
-                                        )}
-                                        {adviceSearchResults.length > 0 && (
-                                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-emerald-200 bg-white shadow-2xl">
-                                                <ul className="max-h-60 overflow-y-auto py-1 scrollbar-hide">
-                                                    {adviceSearchResults.map((advice) => (
-                                                        <li
-                                                            key={advice.id || advice.value}
-                                                            onClick={() => handleAddAdviceFromSearch(advice)}
-                                                            className="cursor-pointer px-4 py-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b border-slate-100 last:border-0 group"
-                                                        >
-                                                            <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">{advice.label}</div>
-                                                            {advice.category && (
-                                                                <div className="text-xs text-slate-500 mt-1 capitalize">{advice.category}</div>
-                                                            )}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-5 border-2 border-slate-200/60 shadow-inner">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
-                                                <Sparkles className="h-3.5 w-3.5 text-white" />
-                                            </div>
-                                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quick Selection</p>
-                                        </div>
-                                        {advicesOptions.length > 0 ? (
-                                            <AdviceQuickChips
-                                                options={advicesOptions}
-                                                addedIds={addedAdviceIds}
-                                                onAdd={handleQuickAdviceAdd}
-                                            />
-                                        ) : (
-                                            <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
-                                                <p className="text-xs text-slate-500">No advice presets configured.</p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowSettingsModal(true)}
-                                                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
-                                                >
-                                                    Configure in Settings
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Added Advice List */}
-                                    {adviceFields.some(field => field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") && (
-                                        <div className="space-y-2 mt-3">
-                                            {adviceFields.map((field, index) => {
-                                                if (field.advice_type === "Lab Test" || field.advice_type === "lab-test") return null;
-                                                return (
-                                                    <div key={field.id} className="flex items-center gap-2 group/advice">
-                                                        <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
-                                                        <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
-                                                        <div className="flex-1">
-                                                            <input
-                                                                {...register(`advice_items.${index}.description`)}
-                                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                                                            />
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveAdvice(index)}
-                                                            className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover/advice:opacity-100"
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
+                                    ) : (
+                                        <div className="text-center py-4 px-4 bg-white rounded-lg border border-slate-200">
+                                            <p className="text-xs text-slate-500">No advice presets configured.</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSettingsModal(true)}
+                                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1"
+                                            >
+                                                Configure in Settings
+                                            </button>
                                         </div>
                                     )}
                                 </div>
 
+                                {/* Added Advice List */}
+                                {adviceFields.some(field => field.advice_type !== "Lab Test" && field.advice_type !== "lab-test") && (
+                                    <div className="space-y-2 mt-3">
+                                        {adviceFields.map((field, index) => {
+                                            if (field.advice_type === "Lab Test" || field.advice_type === "lab-test") return null;
+                                            return (
+                                                <div key={field.id} className="flex items-center gap-2 group/advice">
+                                                    <input type="hidden" {...register(`advice_items.${index}.lab_test_id`)} />
+                                                    <input type="hidden" {...register(`advice_items.${index}.advice_type`)} />
+                                                    <div className="flex-1">
+                                                        <input
+                                                            {...register(`advice_items.${index}.description`)}
+                                                            className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 font-medium focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveAdvice(index)}
+                                                        className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
 
-
-                                {/* Plan of Action */}
                                 <div>
-                                    <label className="text-xs font-medium text-slate-600 mb-2 block">
-                                        Detailed Plan of Action
+                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2 block">
+                                        Detailed Plan of Action & Additional Instructions
                                     </label>
                                     <textarea
                                         {...register("plan_of_action")}
-                                        rows={2}
-                                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 resize-none transition-all placeholder:text-slate-400"
-                                        placeholder="Describe the treatment plan..."
+                                        rows={3}
+                                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 font-medium focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 resize-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300"
+                                        placeholder="Describe the clinical treatment plan or patient recommendations..."
                                     />
                                 </div>
-
-                                <PlannedSurgerySection
-                                    patientId={patientId}
-                                    surgeonId={doctorId}
-                                    visitId={visitId}
-                                />
                             </div>
                         </div>
 
-                        {/* CARD 4: Optical Details */}
-                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-slate-300/60 transition-all duration-300">
+                        {/* CARD 6: Optical / Refraction Details */}
+                        <div className="rounded-2xl border-2 border-indigo-200 bg-white shadow-xl shadow-indigo-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-indigo-300 transition-all duration-300">
                             <button
                                 type="button"
                                 onClick={() => setShowOpticalDetails(!showOpticalDetails)}
-                                className="w-full border-b-2 border-slate-100 bg-gradient-to-r from-slate-50 via-gray-50/30 to-white px-6 py-4 flex items-center justify-between hover:from-slate-100 transition-all"
+                                className="w-full border-b-2 border-indigo-200/70 bg-gradient-to-r from-indigo-100/60 via-slate-50/80 to-white px-6 py-4 flex items-center justify-between hover:from-indigo-100 transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 border-2 border-white text-white shadow-lg shadow-slate-500/30">
+                                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 border-2 border-white text-white shadow-lg shadow-slate-600/30">
                                         <Eye className="h-5 w-5" />
                                     </span>
                                     <div className="text-left">
                                         <div className="flex items-center gap-2">
-                                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Optical Details</h3>
-                                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">4</span>
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Optional</span>
+                                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Optical & Spectacles Advice</h3>
+                                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-700">6</span>
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 border border-slate-200 uppercase tracking-wider">Optional</span>
                                         </div>
-                                        <p className="text-xs text-slate-600 font-medium mt-0.5">Lens specifications and coatings</p>
+                                        <p className="text-xs text-slate-600 font-medium mt-0.5">Lens type, vision distance, material, and coatings</p>
                                     </div>
                                 </div>
                                 {showOpticalDetails ? (
@@ -2724,46 +2753,46 @@ export function PrescriptionFormSection({
                             {showOpticalDetails && (
                                 <div className="p-6 space-y-5 animate-in slide-in-from-top-2 duration-200">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             <div>
-                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Type</label>
+                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Lens Type</label>
                                                 <div className="grid grid-cols-1 gap-2">
                                                     {LENS_TYPES.map((type) => (
-                                                        <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                        <label key={type} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all hover:border-slate-300">
                                                             <input
                                                                 type="radio"
                                                                 value={type}
                                                                 {...register("lens_type")}
-                                                                className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                                                className="h-4 w-4 text-slate-700 border-slate-300 focus:ring-slate-500"
                                                             />
-                                                            <span className="text-sm text-slate-700">{type}</span>
+                                                            <span className="text-sm font-medium text-slate-800">{type}</span>
                                                         </label>
                                                     ))}
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Vision Distance</label>
+                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Vision Distance</label>
                                                 <div className="grid grid-cols-1 gap-2">
                                                     {VISION_TYPES.map((type) => (
-                                                        <label key={type} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                                        <label key={type} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all hover:border-slate-300">
                                                             <input
                                                                 type="radio"
                                                                 value={type}
                                                                 {...register("vision_type")}
-                                                                className="h-4 w-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                                                className="h-4 w-4 text-slate-700 border-slate-300 focus:ring-slate-500"
                                                             />
-                                                            <span className="text-sm text-slate-700">{type}</span>
+                                                            <span className="text-sm font-medium text-slate-800">{type}</span>
                                                         </label>
                                                     ))}
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             <div>
-                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Lens Material</label>
+                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Lens Material</label>
                                                 <select
                                                     {...register("lens_material")}
-                                                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all"
+                                                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 font-medium focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all shadow-sm hover:border-slate-300"
                                                 >
                                                     <option value="">Select Material...</option>
                                                     {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
@@ -2771,7 +2800,7 @@ export function PrescriptionFormSection({
                                             </div>
 
                                             <div>
-                                                <label className="text-xs font-medium text-slate-600 mb-2 block">Coatings</label>
+                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Coatings</label>
                                                 <div className="flex flex-wrap gap-2">
                                                     {COATINGS.map((coating) => (
                                                         <button
@@ -2779,10 +2808,10 @@ export function PrescriptionFormSection({
                                                             type="button"
                                                             onClick={() => handleToggleCoating(coating)}
                                                             className={clsx(
-                                                                "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
+                                                                "rounded-xl px-3.5 py-2 text-xs font-bold transition-all border shadow-2xs",
                                                                 selectedCoatings?.includes(coating)
-                                                                    ? "bg-slate-800 text-white border-slate-900"
-                                                                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                                                    ? "bg-slate-800 text-white border-slate-900 shadow-sm"
+                                                                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                                                             )}
                                                         >
                                                             {coating}
@@ -2796,28 +2825,31 @@ export function PrescriptionFormSection({
                             )}
                         </div>
 
-                        {/* CARD 5: Follow-up & Remarks */}
-                        <div className="rounded-2xl border-2 border-slate-200/60 bg-white shadow-lg shadow-slate-200/50 overflow-hidden group/card hover:shadow-xl hover:border-indigo-300/60 transition-all duration-300">
-                            <div className="border-b-2 border-slate-100 bg-gradient-to-r from-indigo-50 via-blue-50/30 to-white px-6 py-4">
+                        {/* CARD 7: Follow-up & Clinical Remarks */}
+                        <div className="rounded-2xl border-2 border-rose-200 bg-white shadow-xl shadow-rose-100/60 overflow-hidden group/card hover:shadow-2xl hover:border-rose-300 transition-all duration-300">
+                            <div className="border-b-2 border-rose-200/70 bg-gradient-to-r from-rose-100 via-pink-50/60 to-white px-6 py-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 border-2 border-white text-white shadow-lg shadow-indigo-500/30">
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 border-2 border-white text-white shadow-lg shadow-rose-500/30">
                                             <Calendar className="h-5 w-5" />
                                         </span>
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Follow-up & Remarks</h3>
-                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-600">5</span>
+                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Follow-up & Clinical Remarks</h3>
+                                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 text-[10px] font-black text-rose-700">7</span>
                                             </div>
-                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Schedule next visit and add notes</p>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">Schedule next visit date and record clinical notes</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3 block">Follow Up In</label>
+                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 block flex items-center gap-1.5">
+                                        <Calendar className="h-4 w-4 text-rose-600" />
+                                        Follow Up In <span className="text-rose-500">*</span>
+                                    </label>
                                     <FollowupQuickChips
                                         options={QUICK_FOLLOWUPS}
                                         selectedDays={selectedFollowupDays}
@@ -2830,28 +2862,28 @@ export function PrescriptionFormSection({
                                             <input
                                                 type="date"
                                                 {...register("followup_date")}
-                                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                                                className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 font-medium focus:border-rose-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/20 transition-all shadow-sm"
                                             />
                                         </div>
                                     )}
                                 </div>
                                 <div>
-                                    <label className="text-xs font-medium text-slate-600 mb-2 block">Internal Remarks</label>
+                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 block">Internal Remarks & Notes</label>
                                     <textarea
                                         {...register("remarks")}
                                         rows={3}
-                                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none transition-all placeholder:text-slate-400"
-                                        placeholder="Private notes..."
+                                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 font-medium focus:border-rose-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/20 resize-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300"
+                                        placeholder="Add internal medical notes or patient advice..."
                                     />
                                 </div>
                             </div>
                         </div>
-                        {/* Action Footer */}
-                        <div className="pt-5 border-t border-slate-200 mt-6 bg-slate-50/30 rounded-b-2xl p-4 -mx-6 -mb-6">
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                {/* Left Side: Print Header Checkbox */}
-                                <div className="flex items-center px-1">
-                                    <label className="flex items-center gap-2 cursor-pointer group">
+                        {/* Sticky Action Footer Bar */}
+                        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t-2 border-slate-200 shadow-2xl p-4 -mx-6 -mb-6 mt-8 rounded-b-2xl transition-all">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                {/* Left Side: Print Header Checkbox & Status */}
+                                <div className="flex items-center gap-4 px-1 flex-wrap">
+                                    <label className="flex items-center gap-2 cursor-pointer group select-none">
                                         <input
                                             type="checkbox"
                                             checked={printWithHeader}
@@ -2862,44 +2894,125 @@ export function PrescriptionFormSection({
                                             }}
                                             className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 transition-all cursor-pointer"
                                         />
-                                        <span className="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">
-                                            Hospital Header
+                                        <span className="text-xs font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">
+                                            Include Hospital Letterhead
                                         </span>
                                     </label>
+
+                                    {isFinalized && (
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                                            canEdit 
+                                                ? "bg-amber-100 text-amber-800 border border-amber-300" 
+                                                : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                        }`}>
+                                            <CheckCircle className="h-3.5 w-3.5" />
+                                            {canEdit ? "Finalized (Editing Allowed)" : "Finalized & Locked"}
+                                        </span>
+                                    )}
                                 </div>
 
-                                {/* Right Side: Buttons */}
-                                <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 md:pb-0 w-full md:w-auto scrollbar-hide">
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/50 rounded-lg transition-all border border-slate-200 bg-white whitespace-nowrap"
-                                    >
-                                        Cancel
-                                    </button>
+                                {/* Right Side: Action Buttons */}
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-end">
+                                    {!canEdit ? (
+                                        /* READ-ONLY MODE ACTIONS */
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={onClose}
+                                                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-200 bg-white shadow-2xs"
+                                            >
+                                                Close
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handlePrintClick}
+                                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 text-white font-bold rounded-xl hover:from-sky-700 hover:to-blue-700 transition-all text-xs shadow-md shadow-sky-600/20 hover:scale-[1.02] active:scale-[0.98]"
+                                            >
+                                                <Printer className="h-4 w-4" />
+                                                <span>Print Prescription</span>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        /* EDITABLE MODE ACTIONS */
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={onClose}
+                                                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-200 bg-white shadow-2xs"
+                                            >
+                                                Cancel
+                                            </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSaveTemplateModal(true)}
-                                        className="flex items-center gap-1.5 px-3 py-2 border border-purple-200 bg-purple-50/30 text-purple-700 font-bold rounded-lg hover:bg-purple-50 transition-all text-xs whitespace-nowrap"
-                                    >
-                                        <Sparkles className="h-3.5 w-3.5" />
-                                        <span>Template</span>
-                                    </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSaveTemplateModal(true)}
+                                                className="flex items-center gap-1.5 px-3.5 py-2.5 border border-purple-200 bg-purple-50 text-purple-700 font-bold rounded-xl hover:bg-purple-100 transition-all text-xs shadow-2xs"
+                                            >
+                                                <Sparkles className="h-4 w-4" />
+                                                <span>Save as Template</span>
+                                            </button>
 
-                                    <button
-                                        type="button"
-                                        disabled={isSubmitting}
-                                        onClick={handleSubmit((data) => processSubmit(data, { print: true, finalize: false }))}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black rounded-lg hover:from-sky-600 hover:to-blue-700 transition-all text-sm shadow-md hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
-                                    >
-                                        {isSubmitting ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Layout className="h-4 w-4" />
-                                        )}
-                                        <span>Draft & Preview</span>
-                                    </button>
+                                            {isFinalized ? (
+                                                /* Finalized Prescription Editing Actions */
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isSubmitting}
+                                                        onClick={handleSubmit((data) => executeSubmit(data, { print: false }))}
+                                                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all text-xs shadow-md shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98]"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle className="h-4 w-4" />
+                                                        )}
+                                                        <span>Save Changes</span>
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                /* Draft / New Prescription Actions */
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isSubmitting}
+                                                        onClick={handleSubmit(onSaveDraft)}
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all text-xs shadow-sm hover:scale-[1.01] active:scale-[0.99]"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle className="h-4 w-4" />
+                                                        )}
+                                                        <span>{savedPrescription ? "Update Draft" : "Save Draft"}</span>
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={isSubmitting}
+                                                        onClick={handleSubmit((data) => processSubmit(data, { print: false, finalize: true }))}
+                                                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all text-xs shadow-md shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98]"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle className="h-4 w-4" />
+                                                        )}
+                                                        <span>Finalize Prescription</span>
+                                                    </button>
+                                                </>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                disabled={isSubmitting}
+                                                onClick={handlePrintClick}
+                                                className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all text-xs shadow-sm hover:scale-[1.01] active:scale-[0.99]"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                                <span>Preview & Print</span>
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -3017,6 +3130,66 @@ export function PrescriptionFormSection({
                 onClose={() => setSelectedReportBooking(null)}
                 booking={selectedReportBooking}
             />
+
+            {showFinalizeConfirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+                        <div className="flex items-center gap-3 text-amber-600 mb-3">
+                            <div className="p-2 rounded-xl bg-amber-50 border border-amber-200">
+                                <AlertCircle className="h-6 w-6 text-amber-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900">
+                                {isFinalized ? "Update Finalized Prescription?" : "Finalize Prescription?"}
+                            </h3>
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed font-medium mb-6">
+                            {isFinalized ? (
+                                <>
+                                    This prescription was previously finalized. Saving changes will modify the official clinical record and re-stamp the modification time. Are you sure you want to proceed?
+                                </>
+                            ) : (
+                                <>
+                                    Finalizing will lock the prescription from further edits (unless permitted by settings) and notify relevant lab/pharmacy departments.
+                                </>
+                            )}
+                        </p>
+                        <div className="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowFinalizeConfirm(false);
+                                    setPendingFinalizeAction(null);
+                                }}
+                                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isSubmitting}
+                                onClick={async () => {
+                                    if (pendingFinalizeAction) {
+                                        setShowFinalizeConfirm(false);
+                                        await executeSubmit(pendingFinalizeAction.data, {
+                                            print: pendingFinalizeAction.print,
+                                            finalize: true,
+                                        });
+                                        setPendingFinalizeAction(null);
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all text-xs shadow-md disabled:opacity-50 cursor-pointer"
+                            >
+                                {isSubmitting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <CheckCircle className="h-4 w-4" />
+                                )}
+                                <span>{isFinalized ? "Confirm & Update Record" : "Confirm & Finalize"}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

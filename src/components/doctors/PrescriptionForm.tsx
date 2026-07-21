@@ -30,6 +30,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { formatDate } from "@/utils/format";
+import { usePrescriptionPermissions } from "@/hooks/useFeatureFlags";
 
 interface PrescriptionFormProps {
   visitId: string;
@@ -89,6 +90,10 @@ export function PrescriptionForm({
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
   const [draftPrescriptionId, setDraftPrescriptionId] = useState<string | null>(null);
+
+  const { canEdit } = usePrescriptionPermissions({
+    prescriptionStatus: draftPrescriptionId ? "draft" : null,
+  });
 
   const medicineSearchRef = useRef<HTMLDivElement>(null);
   const { register, handleSubmit, setValue, watch, reset } = useForm<FormData>();
@@ -820,29 +825,41 @@ export function PrescriptionForm({
               )}
             </div>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit(onSubmit)}
-                disabled={loading || medicines.length === 0}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? "Saving..." : "Save Draft"}
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit(handleFinalize)}
-                disabled={loading || medicines.length === 0}
-                className="rounded-lg bg-sky-500 px-5 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? "Finalizing..." : "Finalize"}
-              </button>
+              {!canEdit ? (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmit(onSubmit)}
+                    disabled={loading || medicines.length === 0}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? "Saving..." : draftPrescriptionId ? "Update Draft" : "Save Draft"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmit(handleFinalize)}
+                    disabled={loading || medicines.length === 0}
+                    className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 font-semibold shadow-xs"
+                  >
+                    {loading ? "Finalizing..." : "Finalize Prescription"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

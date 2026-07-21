@@ -142,15 +142,23 @@ export function PrescribedLabBookingPanel({
     setLoadingTests(true);
     try {
       const tests = await labBookingsApi.getAdvisedTests(vId);
-      setAdvisedTests(tests || []);
+      // Sort: unbooked tests (already_booked === false) on top
+      const sortedTests = [...(tests || [])].sort((a, b) => {
+        if (a.already_booked !== b.already_booked) {
+          return a.already_booked ? 1 : -1;
+        }
+        return 0;
+      });
+
+      setAdvisedTests(sortedTests);
       // Default checked: all tests where already_booked is false
-      const toCheck = (tests || [])
+      const toCheck = sortedTests
         .filter((t) => !t.already_booked)
         .map((t) => t.lab_test_id);
       setSelectedTestIds(toCheck);
       
       const initialMetadata: Record<string, Record<string, any>> = {};
-      (tests || []).forEach((t) => {
+      sortedTests.forEach((t) => {
         if (t.prescription_metadata) {
           initialMetadata[t.lab_test_id] = t.prescription_metadata;
         }

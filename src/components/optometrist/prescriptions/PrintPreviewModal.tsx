@@ -289,48 +289,60 @@ export function PrintPreviewModal({
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {prescription.status !== 'finalized' && onFinalize && (
+                            {prescription.status !== 'finalized' && (
                                 <>
                                     <button
-                                        onClick={() => {
-                                            if (onFinalize) {
-                                                setIsFinalizing(true);
-                                                onFinalize(true).then(() => {
-                                                    // Small delay to ensure state updates before print
-                                                    setTimeout(() => handlePrint(), 100);
-                                                }).finally(() => setIsFinalizing(false));
-                                            }
-                                        }}
-                                        disabled={isFinalizing}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all text-sm shadow-md disabled:opacity-50"
+                                        onClick={() => handlePrint()}
+                                        className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-all text-xs shadow-2xs"
+                                        title="Print a draft preview copy without finalizing"
                                     >
-                                        {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                                        <span>Finalize & Print</span>
+                                        <Printer className="h-4 w-4 text-slate-500" />
+                                        <span>Print Draft</span>
                                     </button>
 
-                                    <button
-                                        onClick={() => {
-                                            if (onFinalize) {
-                                                setIsFinalizing(true);
-                                                onFinalize(false).finally(() => setIsFinalizing(false));
-                                            }
-                                        }}
-                                        disabled={isFinalizing}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-lg hover:from-sky-600 hover:to-blue-700 transition-all text-sm shadow-md disabled:opacity-50"
-                                    >
-                                        {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                                        <span>Finalize Only</span>
-                                    </button>
+                                    {onFinalize && (
+                                        <>
+                                            <button
+                                                onClick={() => {
+                                                    if (onFinalize) {
+                                                        setIsFinalizing(true);
+                                                        onFinalize(false).finally(() => setIsFinalizing(false));
+                                                    }
+                                                }}
+                                                disabled={isFinalizing}
+                                                className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-all text-xs shadow-sm disabled:opacity-50"
+                                            >
+                                                {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                                                <span>Finalize Only</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    if (onFinalize) {
+                                                        setIsFinalizing(true);
+                                                        onFinalize(true).then(() => {
+                                                            setTimeout(() => handlePrint(), 100);
+                                                        }).finally(() => setIsFinalizing(false));
+                                                    }
+                                                }}
+                                                disabled={isFinalizing}
+                                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all text-xs shadow-md disabled:opacity-50"
+                                            >
+                                                {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                                                <span>Finalize & Print</span>
+                                            </button>
+                                        </>
+                                    )}
                                 </>
                             )}
 
                             {prescription.status === 'finalized' && (
                                 <button
                                     onClick={() => handlePrint()}
-                                    className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-all text-sm shadow-sm"
+                                    className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-all text-xs shadow-sm"
                                 >
                                     <Printer className="h-4 w-4" />
-                                    <span>Print Now</span>
+                                    <span>Print Document</span>
                                 </button>
                             )}
 

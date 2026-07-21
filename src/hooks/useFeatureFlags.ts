@@ -84,3 +84,38 @@ export function usePrescriptionFlags() {
         isUpdating,
     };
 }
+
+/**
+ * Hook to calculate permissions for editing a prescription based on status and feature flags
+ */
+export function usePrescriptionPermissions(options?: {
+    prescriptionStatus?: string | null;
+    isVisitCompleted?: boolean;
+    isReadOnlyProp?: boolean;
+}) {
+    const { allowEditAfterFinalize, allowEditAfterVisitCompleted, isLoading } = usePrescriptionFlags();
+
+    const isFinalized = options?.prescriptionStatus === 'finalized';
+    const isVisitCompleted = options?.isVisitCompleted ?? false;
+    const isReadOnlyProp = options?.isReadOnlyProp ?? false;
+
+    let canEdit = true;
+
+    if (isVisitCompleted && !allowEditAfterVisitCompleted) {
+        canEdit = false;
+    } else if (isFinalized && !allowEditAfterFinalize) {
+        canEdit = false;
+    } else if (isReadOnlyProp && !((isFinalized && allowEditAfterFinalize) || (isVisitCompleted && allowEditAfterVisitCompleted))) {
+        canEdit = false;
+    }
+
+    return {
+        canEdit,
+        isFinalized,
+        isVisitCompleted,
+        allowEditAfterFinalize,
+        allowEditAfterVisitCompleted,
+        isLoading,
+    };
+}
+
