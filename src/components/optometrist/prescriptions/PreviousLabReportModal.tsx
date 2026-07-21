@@ -84,45 +84,8 @@ export function PreviousLabReportModal({
     if (!isOpen || !booking) return null;
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:p-0 print:bg-white print:static">
-            <style>{`
-                @media print {
-                    body {
-                        background: white !important;
-                        color: black !important;
-                    }
-                    body * {
-                        visibility: hidden !important;
-                    }
-                    .printable-report-card,
-                    .printable-report-card * {
-                        visibility: visible !important;
-                    }
-                    .printable-report-card {
-                        position: absolute !important;
-                        left: 0 !important;
-                        top: 0 !important;
-                        width: 100% !important;
-                        max-height: none !important;
-                        height: auto !important;
-                        overflow: visible !important;
-                        box-shadow: none !important;
-                        border: none !important;
-                        background: white !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                    }
-                    .report-body-scroll {
-                        max-height: none !important;
-                        overflow: visible !important;
-                    }
-                    .no-print {
-                        display: none !important;
-                    }
-                }
-            `}</style>
-
-            <div className="printable-report-card bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] border border-slate-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] border border-slate-200">
                 {/* Modal Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-2xl">
                     <div>
