@@ -107,19 +107,21 @@ const optometristPanelSlice = createSlice({
         state.loading = false;
         state.todaySchedule = action.payload;
 
-        // Calculate today's stats from schedule
+        // Calculate today's stats from schedule with OPD status support
         const slots = action.payload.slots;
+        const sentToDoctor = slots.filter(
+          (s) => s.status === "optometrist_investigation_completed" || s.status === "awaiting_doctor" || s.status === "doctor_assigned" || s.status === "consultation_in_progress" || s.status === "completed"
+        ).length;
         state.todayStats = {
           todayTotal: slots.length,
           todayPending: slots.filter(
-            (s) => s.status === "scheduled" || s.status === "checked_in"
+            (s) => s.status === "awaiting_optometrist" || s.status === "optometrist_assigned" || s.status === "scheduled" || s.status === "checked_in" || s.status === "waiting"
           ).length,
           todayInProgress: slots.filter(
-            (s) => s.status === "in_consultation"
+            (s) => s.status === "optometrist_investigation_in_progress" || s.status === "dilation_in_progress" || s.status === "in_consultation"
           ).length,
-          todayCompleted: slots.filter(
-            (s) => s.status === "completed"
-          ).length,
+          sentToDoctor,
+          todayCompleted: sentToDoctor,
           todayNoShow: slots.filter(
             (s) => s.status === "no_show" || s.status === "cancelled"
           ).length,

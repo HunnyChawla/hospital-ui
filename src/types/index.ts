@@ -219,9 +219,14 @@ export type LabResult = {
 // Doctor Panel - Stats
 export type DoctorStats = {
   todayTotal: number;
-  todayPending: number;
-  todayInProgress: number;
+  pendingOptometrist: number;
+  inProgressOptometrist: number;
+  pendingDoctor: number;
+  inProgressDoctor: number;
   todayCompleted: number;
+  todayNoShow?: number;
+  todayPending?: number;
+  todayInProgress?: number;
 };
 
 // ============================================
@@ -252,6 +257,7 @@ export type OptometristStats = {
   todayTotal: number;
   todayPending: number;
   todayInProgress: number;
+  sentToDoctor?: number;
   todayCompleted: number;
   todayNoShow: number;
 };

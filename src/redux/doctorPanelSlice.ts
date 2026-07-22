@@ -97,19 +97,40 @@ const doctorPanelSlice = createSlice({
         state.loading = false;
         state.todaySchedule = action.payload;
 
-        // Calculate today's stats from schedule
+        // Calculate today's stats from schedule with detailed OPD pipeline breakdown
         const slots = action.payload.slots;
+        const pendingOptometrist = slots.filter((s) =>
+          s.status === "awaiting_optometrist" || s.status === "optometrist_assigned"
+        ).length;
+        const inProgressOptometrist = slots.filter((s) =>
+          s.status === "optometrist_investigation_in_progress" || s.status === "dilation_in_progress"
+        ).length;
+        const pendingDoctor = slots.filter((s) =>
+          s.status === "optometrist_investigation_completed" ||
+          s.status === "awaiting_doctor" ||
+          s.status === "doctor_assigned" ||
+          s.status === "dilation_completed" ||
+          s.status === "scheduled" ||
+          s.status === "checked_in"
+        ).length;
+        const inProgressDoctor = slots.filter((s) =>
+          s.status === "in_consultation" || s.status === "consultation_in_progress"
+        ).length;
+        const todayCompleted = slots.filter((s) =>
+          s.status === "consultation_completed" || s.status === "completed"
+        ).length;
+        const todayNoShow = slots.filter((s) => s.status === "no_show").length;
+
         state.todayStats = {
           todayTotal: slots.length,
-          todayPending: slots.filter(
-            (s) => s.status === "scheduled" || s.status === "checked_in"
-          ).length,
-          todayInProgress: slots.filter(
-            (s) => s.status === "in_consultation"
-          ).length,
-          todayCompleted: slots.filter(
-            (s) => s.status === "completed"
-          ).length,
+          pendingOptometrist,
+          inProgressOptometrist,
+          pendingDoctor,
+          inProgressDoctor,
+          todayCompleted,
+          todayNoShow,
+          todayPending: pendingDoctor + pendingOptometrist,
+          todayInProgress: inProgressDoctor + inProgressOptometrist,
         };
         state.error = null;
       })

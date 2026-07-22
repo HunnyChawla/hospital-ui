@@ -199,89 +199,51 @@ export function OptometristPanel() {
 
   // Calculate stats from live queue data using new status values
   const liveStats: OptometristStats = useMemo(() => {
-    const stats = {
+    const stats: OptometristStats = {
       todayTotal: queuePatients.length,
       todayPending: 0,
       todayInProgress: 0,
+      sentToDoctor: 0,
       todayCompleted: 0,
       todayNoShow: 0,
     };
 
     queuePatients.forEach((patient) => {
-      if (isDoctor) {
-        // Doctor Status Logic
-        switch (patient.status) {
-          case "awaiting_doctor":
-          case "doctor_assigned":
-          case "optometrist_investigation_completed": // Ready for doctor
-            stats.todayPending++;
-            break;
-
-          case "consultation_in_progress":
-          case "dilation_in_progress":
-          case "dilation_completed": // Still in progress till final consultation done
-            stats.todayInProgress++;
-            break;
-
-          case "consultation_completed":
-          case "completed":
-            stats.todayCompleted++;
-            break;
-
-          case "no_show":
-            stats.todayNoShow++;
-            break;
-
-          default:
-            stats.todayPending++;
-        }
-      } else {
-        // Optometrist Status Logic
-        switch (patient.status) {
-          // Pending statuses
-          case "awaiting_optometrist":
-          case "optometrist_assigned":
-            stats.todayPending++;
-            break;
-          // In progress statuses
-          case "optometrist_investigation_in_progress":
-            stats.todayInProgress++;
-            break;
-          // Completed statuses
-          case "optometrist_investigation_completed":
-          case "awaiting_doctor":
-          case "doctor_assigned":
-          case "consultation_in_progress":
-          case "dilation_in_progress":
-          case "dilation_completed":
-          case "consultation_completed":
-            stats.todayCompleted++;
-            break;
-          // Legacy statuses (for backward compatibility)
-          case "scheduled":
-          case "waiting":
-          case "checked_in":
-            stats.todayPending++;
-            break;
-          case "in_consultation":
-          case "start_consultation": // Doctor status
-            stats.todayInProgress++;
-            break;
-          case "completed":
-          case "consultation_completed": // Doctor status
-            stats.todayCompleted++;
-            break;
-          case "no_show":
-            stats.todayNoShow++;
-            break;
-          default:
-            stats.todayPending++;
-        }
+      switch (patient.status) {
+        // Pending statuses
+        case "awaiting_optometrist":
+        case "optometrist_assigned":
+        case "scheduled":
+        case "waiting":
+        case "checked_in":
+          stats.todayPending++;
+          break;
+        // In progress statuses
+        case "optometrist_investigation_in_progress":
+        case "dilation_in_progress":
+          stats.todayInProgress++;
+          break;
+        // Completed Optometry & Sent to Doctor
+        case "optometrist_investigation_completed":
+        case "awaiting_doctor":
+        case "doctor_assigned":
+        case "consultation_in_progress":
+        case "dilation_completed":
+        case "consultation_completed":
+        case "completed":
+          stats.sentToDoctor = (stats.sentToDoctor || 0) + 1;
+          stats.todayCompleted++;
+          break;
+        case "no_show":
+          stats.todayNoShow++;
+          break;
+        default:
+          stats.todayPending++;
       }
     });
 
     return stats;
-  }, [queuePatients, isDoctor]);
+  }, [queuePatients]);
 
   const fetchPatientDetails = useCallback(async (patientId: string) => {
     try {
