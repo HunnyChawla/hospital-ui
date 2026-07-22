@@ -27,13 +27,20 @@ interface VASelectorProps {
 // Standard visual acuity values (Snellen 6m notation)
 const vaOptions: VAOption[] = [
   { value: "6/6", label: "6/6 (Normal)", isCommon: true },
+  { value: "6/6p", label: "6/6p (6/6 Partial)", isCommon: true },
   { value: "6/5", label: "6/5 (Better than normal)", isCommon: false },
   { value: "6/9", label: "6/9", isCommon: true },
+  { value: "6/9p", label: "6/9p", isCommon: false },
   { value: "6/12", label: "6/12", isCommon: true },
+  { value: "6/12p", label: "6/12p", isCommon: false },
   { value: "6/18", label: "6/18", isCommon: true },
+  { value: "6/18p", label: "6/18p", isCommon: false },
   { value: "6/24", label: "6/24", isCommon: false },
+  { value: "6/24p", label: "6/24p", isCommon: false },
   { value: "6/36", label: "6/36", isCommon: true },
+  { value: "6/36p", label: "6/36p", isCommon: false },
   { value: "6/60", label: "6/60", isCommon: true },
+  { value: "6/60p", label: "6/60p", isCommon: false },
   { value: "5/60", label: "5/60", isCommon: false },
   { value: "4/60", label: "4/60", isCommon: false },
   { value: "3/60", label: "3/60", isCommon: false },
@@ -46,9 +53,14 @@ const vaOptions: VAOption[] = [
   { value: "CF 2m", label: "Counting Finger 2m", isCommon: false },
   { value: "CF 1m", label: "Counting Finger 1m", isCommon: false },
   { value: "CF", label: "CF (Counting Fingers)", isCommon: false },
+  { value: "CFCF", label: "CFCF (Counting Fingers Close to Face)", isCommon: false },
   { value: "HM", label: "HM (Hand Movements)", isCommon: false },
   { value: "PL", label: "PL (Perception of Light)", isCommon: false },
+  { value: "PL+", label: "PL+ (Perception of Light Present)", isCommon: false },
+  { value: "PL-", label: "PL- (No Perception of Light)", isCommon: false },
+  { value: "PL PR", label: "PL PR (Perception of Light with Projection)", isCommon: false },
   { value: "NPL", label: "NPL (No Perception of Light)", isCommon: false },
+  { value: "FFL", label: "FFL (Fixing & Following Light)", isCommon: false },
 ];
 
 const quickSelectValues = ["6/6", "6/9", "6/12", "6/18", "6/36", "6/60"];
