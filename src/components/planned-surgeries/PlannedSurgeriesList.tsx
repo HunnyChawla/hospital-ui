@@ -43,6 +43,7 @@ export function PlannedSurgeriesList() {
     const [fromDate, setFromDate] = useState<string>("");
     const [toDate, setToDate] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<PlannedSurgeryStatus | "all">("all");
+    const [dateStatusFilter, setDateStatusFilter] = useState<"all" | "planned" | "not_planned">("all");
     const [sortBy, setSortBy] = useState<"advised_date" | "planned_date" | "created_at">("advised_date");
 
     // Pagination
@@ -65,6 +66,7 @@ export function PlannedSurgeriesList() {
                 from_date: fromDate || undefined,
                 to_date: toDate || undefined,
                 status: statusFilter !== "all" ? statusFilter : undefined,
+                date_status: dateStatusFilter !== "all" ? dateStatusFilter : undefined,
                 sort_by: sortBy,
             };
 
@@ -82,11 +84,11 @@ export function PlannedSurgeriesList() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, pageSize, surgeonId, fromDate, toDate, statusFilter, sortBy]);
+    }, [currentPage, pageSize, surgeonId, fromDate, toDate, statusFilter, dateStatusFilter, sortBy]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [surgeonId, fromDate, toDate, statusFilter, sortBy]);
+    }, [surgeonId, fromDate, toDate, statusFilter, dateStatusFilter, sortBy]);
 
     useEffect(() => {
         fetchSurgeries();
@@ -390,9 +392,10 @@ export function PlannedSurgeriesList() {
         setFromDate("");
         setToDate("");
         setStatusFilter("all");
+        setDateStatusFilter("all");
     };
 
-    const hasActiveFilters = patientSearch || surgeonId || fromDate || toDate || statusFilter !== "all";
+    const hasActiveFilters = patientSearch || surgeonId || fromDate || toDate || statusFilter !== "all" || dateStatusFilter !== "all";
 
     return (
         <div className="space-y-6">
@@ -444,7 +447,7 @@ export function PlannedSurgeriesList() {
                     )}
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
                     {/* Surgeon Filter */}
                     <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
@@ -462,6 +465,23 @@ export function PlannedSurgeriesList() {
                                     {doctor.name || doctor.user?.name || `Dr. ${doctor.id.slice(0, 8)}`}
                                 </option>
                             ))}
+                        </select>
+                    </div>
+
+                    {/* Planning Status Filter */}
+                    <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                            Planning Status
+                        </label>
+                        <select
+                            value={dateStatusFilter}
+                            onChange={(e) => setDateStatusFilter(e.target.value as any)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        >
+                            <option value="all">All (Planned & Advised)</option>
+                            <option value="planned">Planned (Date Set)</option>
+                            <option value="not_planned">Not Planned (Advised Only)</option>
                         </select>
                     </div>
 
