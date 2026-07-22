@@ -21,6 +21,7 @@ import { Modal } from "@/components/common/Modal";
 import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
 import { PreviousLabReportModal } from "@/components/optometrist/prescriptions/PreviousLabReportModal";
 import { PrescribedLabBookingModal } from "@/components/lab-bookings/PrescribedLabBookingModal";
+import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -48,6 +49,7 @@ import {
   CheckCircle,
   Edit2,
   MapPin,
+  FileText,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -109,6 +111,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [patientPrescribedVisits, setPatientPrescribedVisits] = useState<any[]>([]);
   const [showOnlyPendingPrescribed, setShowOnlyPendingPrescribed] = useState(true);
   const [loadingPrescribedVisits, setLoadingPrescribedVisits] = useState(false);
+
+  // State for the read-only prescription view modal
+  const [prescriptionModalVisitId, setPrescriptionModalVisitId] = useState<string | null>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -1059,6 +1064,27 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                     <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
                                   </button>
                                 )}
+                                {appointment.visit_id && (
+                                  <button
+                                    onClick={() => setPrescriptionModalVisitId(appointment.visit_id!)}
+                                    className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-violet-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-violet-600"
+                                    style={{ width: "2rem" }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.width = "auto";
+                                      e.currentTarget.style.paddingLeft = "0.75rem";
+                                      e.currentTarget.style.paddingRight = "0.75rem";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.width = "2rem";
+                                      e.currentTarget.style.paddingLeft = "0.5rem";
+                                      e.currentTarget.style.paddingRight = "0.5rem";
+                                    }}
+                                    title="View Prescription"
+                                  >
+                                    <FileText className="h-4 w-4 shrink-0" />
+                                    <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Prescription</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                             {appointment.notes && (
@@ -1350,6 +1376,26 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                     <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
                                   </button>
                                 )}
+                                {/* View Prescription button - always visible for any visit */}
+                                <button
+                                  onClick={() => setPrescriptionModalVisitId(visit.id)}
+                                  className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-violet-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-violet-600"
+                                  style={{ width: "2rem" }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.width = "auto";
+                                    e.currentTarget.style.paddingLeft = "0.75rem";
+                                    e.currentTarget.style.paddingRight = "0.75rem";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.width = "2rem";
+                                    e.currentTarget.style.paddingLeft = "0.5rem";
+                                    e.currentTarget.style.paddingRight = "0.5rem";
+                                  }}
+                                  title="View Prescription"
+                                >
+                                  <FileText className="h-4 w-4 shrink-0" />
+                                  <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Prescription</span>
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -1961,6 +2007,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
             fetchLabBookings();
             fetchPatientPrescribedVisits();
           }}
+        />
+      )}
+
+      {/* Read-only Prescription Preview Modal */}
+      {prescriptionModalVisitId && (
+        <HistoryPrescriptionModal
+          isOpen={true}
+          onClose={() => setPrescriptionModalVisitId(null)}
+          visitId={prescriptionModalVisitId}
+          patientId={patientId}
         />
       )}
     </div>
