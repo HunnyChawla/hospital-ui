@@ -14,6 +14,7 @@ import {
     Eye,
     Clock,
     FileText,
+    FileEdit,
 
     Layout,
     Loader2,
@@ -253,11 +254,15 @@ export function PrescriptionFormSection({
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const printRef = React.useRef<HTMLDivElement>(null);
     const [prescriptionFieldsByTestCode, setPrescriptionFieldsByTestCode] = useState<Record<string, PrescriptionField[]>>({});
+    const [allowCreateOverride, setAllowCreateOverride] = useState(false);
     // Feature flags & permission calculations for prescription editing
     const { canEdit, isFinalized, allowEditAfterFinalize, allowEditAfterVisitCompleted } = usePrescriptionPermissions({
         prescriptionStatus: savedPrescription?.status,
         isReadOnlyProp: readOnly,
+        isVisitCompleted: readOnly,
+        hasPrescription: !!savedPrescription,
     });
+    const effectiveCanEdit = canEdit || allowCreateOverride || !savedPrescription;
 
     // Fetch patient lab test bookings
     const fetchPatientLabBookings = async (pId: string) => {
@@ -1485,7 +1490,7 @@ export function PrescriptionFormSection({
             )}
 
             {/* Read-Only View - Show only if editing is not allowed by permissions */}
-            {!canEdit ? (
+            {!effectiveCanEdit ? (
                 <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-slate-200">
                     <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                         <h3 className="font-semibold text-slate-700">Prescription View</h3>
@@ -1535,10 +1540,20 @@ export function PrescriptionFormSection({
                             Loading prescription details...
                         </div>
                     ) : (
-                        <div className="p-12 text-center text-slate-500">
-                            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                            <p className="font-medium">No prescription found</p>
-                            <p className="text-sm mt-1">No prescription was created for this visit.</p>
+                        <div className="p-12 text-center text-slate-500 flex flex-col items-center">
+                            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+                            <p className="font-semibold text-slate-800 text-base">No Prescription Found</p>
+                            <p className="text-sm mt-1 text-slate-500 max-w-sm text-center">
+                                No prescription was created for this visit yet. You can create a new prescription now.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setAllowCreateOverride(true)}
+                                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:from-emerald-700 hover:to-teal-700 transition"
+                            >
+                                <FileEdit className="h-4 w-4" />
+                                Create Prescription
+                            </button>
                         </div>
                     )}
                 </div>
@@ -2897,7 +2912,7 @@ export function PrescriptionFormSection({
 
                                 {/* Right Side: Action Buttons */}
                                 <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-end">
-                                    {!canEdit ? (
+                                    {!effectiveCanEdit ? (
                                         /* READ-ONLY MODE ACTIONS */
                                         <>
                                             <button

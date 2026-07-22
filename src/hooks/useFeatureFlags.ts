@@ -92,20 +92,22 @@ export function usePrescriptionPermissions(options?: {
     prescriptionStatus?: string | null;
     isVisitCompleted?: boolean;
     isReadOnlyProp?: boolean;
+    hasPrescription?: boolean;
 }) {
     const { allowEditAfterFinalize, allowEditAfterVisitCompleted, isLoading } = usePrescriptionFlags();
 
+    const hasPrescription = options?.hasPrescription ?? (options?.prescriptionStatus != null);
     const isFinalized = options?.prescriptionStatus === 'finalized';
-    const isVisitCompleted = options?.isVisitCompleted ?? false;
-    const isReadOnlyProp = options?.isReadOnlyProp ?? false;
+    const isVisitCompleted = (options?.isVisitCompleted ?? false) || (options?.isReadOnlyProp ?? false);
 
     let canEdit = true;
 
-    if (isVisitCompleted && !allowEditAfterVisitCompleted) {
-        canEdit = false;
+    if (!hasPrescription) {
+        // When no prescription exists for the visit yet, allow creating one
+        canEdit = true;
     } else if (isFinalized && !allowEditAfterFinalize) {
         canEdit = false;
-    } else if (isReadOnlyProp && !((isFinalized && allowEditAfterFinalize) || (isVisitCompleted && allowEditAfterVisitCompleted))) {
+    } else if (isVisitCompleted && !allowEditAfterVisitCompleted) {
         canEdit = false;
     }
 

@@ -93,13 +93,11 @@ export function DoctorPrescriptionModal({
     useEffect(() => {
         setMounted(true);
         document.body.style.overflow = "hidden";
-        if (!isCompleted) {
-            loadVisitData();
-        }
+        loadVisitData();
         return () => {
             document.body.style.overflow = "unset";
         };
-    }, [isCompleted, visitId]);
+    }, [visitId]);
 
     const handleStartDilation = async (minutes: number) => {
         try {
