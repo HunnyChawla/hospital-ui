@@ -144,12 +144,43 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
     }
 
     return filtered;
-  }, [queuePatients, activeFilter, isDoctor]);
+  }, [queuePatients, activeFilter, isDoctor, optometristId, allowOptometristPickAny]);
 
   // Get counts for each filter
+  // For optometrists: counts respect isolation (in-progress by others are excluded from pending count)
   const queueCounts = React.useMemo(() => {
     if (!isDoctor) {
-      return getOptometristQueueCounts(queuePatients);
+      // Build per-tab counts using the same isolation logic as filtering
+      const counts = { pending: 0, completed: 0, no_show: 0 };
+      queuePatients.forEach((patient) => {
+        const status = patient.status;
+        // no_show is always visible to all
+        if (status === "no_show") {
+          counts.no_show++;
+          return;
+        }
+        // Completed (optometry done, sent to doctor) - always visible globally
+        if (["optometrist_investigation_completed", "awaiting_doctor", "doctor_assigned",
+             "consultation_in_progress", "dilation_in_progress", "dilation_completed",
+             "consultation_completed"].includes(status)) {
+          counts.completed++;
+          return;
+        }
+        // Pending: awaiting_optometrist is visible to all
+        if (status === "awaiting_optometrist") {
+          counts.pending++;
+          return;
+        }
+        // In-progress (optometrist_assigned, optometrist_investigation_in_progress):
+        // only count for the assigned optometrist (unless allowPickAny)
+        if (status === "optometrist_assigned" || status === "optometrist_investigation_in_progress") {
+          if (allowOptometristPickAny || !optometristId || patient.optometrist_id === optometristId) {
+            counts.pending++;
+          }
+          // else: don't count — it belongs to another optometrist
+        }
+      });
+      return counts;
     } else {
       // Simple count for doctor
       const counts = { pending: 0, dilation: 0, completed: 0, no_show: 0 };
@@ -161,7 +192,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       });
       return counts;
     }
-  }, [queuePatients, isDoctor]);
+  }, [queuePatients, isDoctor, optometristId, allowOptometristPickAny]);
 
   const filters = isDoctor
     ? [
