@@ -11,7 +11,7 @@ const formatDiopter = (val: string | number | null | undefined): string => {
   if (val === null || val === undefined || val === "") return "—";
   const num = typeof val === "number" ? val : parseFloat(String(val));
   if (isNaN(num)) return String(val);
-  return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+  return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
 };
 
 // Helper component to render Prescription details in a clean UI layout

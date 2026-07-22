@@ -108,7 +108,7 @@ export function NumericStepper({
     if (step >= 1) {
       return num.toString();
     }
-    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+    return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   }
 
   function parseInputValue(val: string): number | null {

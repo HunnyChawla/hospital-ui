@@ -96,7 +96,7 @@ export function ARDataTab({
     const num = typeof value === "number" ? value : Number(value);
     if (Number.isNaN(num)) return `${value}`;
     if (type === "axis") return `${Math.round(num)}°`;
-    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+    return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   }  // Update form field
   const updateField = (
     eye: "od" | "os" | "od_wet" | "os_wet",

@@ -45,7 +45,7 @@ export function ARDataHistorySection({
         const num = typeof value === "number" ? value : Number(value);
         if (Number.isNaN(num)) return `${value}`;
         if (type === "axis") return `${Math.round(num)}°`;
-        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+        return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     const normalizeRecord = (record: any): ARDataHistoryItem | null => {

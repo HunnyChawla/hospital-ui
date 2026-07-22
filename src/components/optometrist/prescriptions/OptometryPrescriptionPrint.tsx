@@ -62,7 +62,7 @@ export const OptometryPrescriptionPrint = forwardRef<
     if (type === "va") return String(value);
     const num = typeof value === "number" ? value : parseFloat(String(value));
     if (isNaN(num)) return String(value);
-    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+    return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   };
 
   const odHasDilated = refractionOD?.od_dilated_sphere !== undefined && refractionOD?.od_dilated_sphere !== null;

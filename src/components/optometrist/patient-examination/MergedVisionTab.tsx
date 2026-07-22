@@ -290,6 +290,9 @@ export function MergedVisionTab({
       if (str === "") return "";
       const num = parseFloat(str);
       if (isNaN(num)) return str;
+      if (num === 0 || Math.abs(num) < 0.0001) {
+        return str.replace(/^\+/, "");
+      }
       if (num > 0 && !str.startsWith("+")) {
         return `+${str}`;
       }
@@ -432,7 +435,7 @@ export function MergedVisionTab({
       if (val !== "" && val !== "-" && val !== "+") {
         const num = parseFloat(val);
         if (!isNaN(num)) {
-          const formatted = num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+          const formatted = num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
           updateField(key, formatted);
         }
       }
