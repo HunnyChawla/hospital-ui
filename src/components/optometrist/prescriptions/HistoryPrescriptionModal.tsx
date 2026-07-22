@@ -138,8 +138,24 @@ export function HistoryPrescriptionModal({
                 }
             }
 
+            let surgeries = surgeriesRes.items || [];
+            const rxDateStr = prescription?.created_at || (visitDataRes as any)?.created_at || (visitDataRes as any)?.visit_date;
+
+            if (rxDateStr) {
+                const rxDate = new Date(rxDateStr);
+                const endOfRxDay = new Date(rxDate);
+                endOfRxDay.setHours(23, 59, 59, 999);
+
+                surgeries = surgeries.filter((s) => {
+                    const surgeryDateStr = s.created_at || s.advised_date;
+                    if (!surgeryDateStr) return true;
+                    const sDate = new Date(surgeryDateStr);
+                    return sDate <= endOfRxDay;
+                });
+            }
+
             setVisitData(visitDataRes);
-            setPlannedSurgeries(surgeriesRes.items || []);
+            setPlannedSurgeries(surgeries);
         } catch (error) {
             handleError(error, {
                 defaultMessage: "Failed to load prescription history",
