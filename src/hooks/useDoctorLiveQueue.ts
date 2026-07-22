@@ -130,13 +130,21 @@ export function useDoctorLiveQueue({
     // dilation_completed, consultation_completed, no_show
     const statusQuery = useMemo(() => {
         const statuses = [
+            "awaiting_optometrist",
+            "optometrist_assigned",
+            "optometrist_investigation_in_progress",
+            "optometrist_investigation_completed",
             "awaiting_doctor",
             "doctor_assigned",
             "consultation_in_progress",
             "dilation_in_progress",
             "dilation_completed",
             "consultation_completed",
+            "completed",
             "no_show",
+            "checked_in",
+            "checked_in_opd",
+            "scheduled",
         ];
         return statuses.join(",");
     }, []);

@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Stethoscope, RefreshCw, FileText } from "lucide-react";
 import { useDoctorPanel } from "@/hooks/useDoctorPanel";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
+import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
+import { DoctorStats } from "@/types";
 import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
 import { PatientHistoryTimeline } from "./patient-details/PatientHistoryTimeline";
 import { VitalSignsPanel } from "./patient-details/VitalSignsPanel";
@@ -110,6 +112,80 @@ export function DoctorPanel() {
     };
   } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Doctor live queue SSE hook
+  const { queuePatients: doctorLiveQueue } = useDoctorLiveQueue({
+    doctorId: currentDoctor?.id || null,
+    autoConnect: !!currentDoctor?.id,
+  });
+
+  // Calculate live stats from SSE queue with fallback to todayStats
+  const liveDoctorStats: DoctorStats | null = useMemo(() => {
+    if (!doctorLiveQueue || doctorLiveQueue.length === 0) {
+      return todayStats;
+    }
+
+    const stats: DoctorStats = {
+      todayTotal: doctorLiveQueue.length,
+      pendingOptometrist: 0,
+      inProgressOptometrist: 0,
+      pendingDoctor: 0,
+      inProgressDoctor: 0,
+      todayCompleted: 0,
+      todayNoShow: 0,
+      todayPending: 0,
+      todayInProgress: 0,
+    };
+
+    doctorLiveQueue.forEach((patient) => {
+      switch (patient.status) {
+        case "awaiting_optometrist":
+        case "checked_in":
+        case "checked_in_opd":
+        case "waiting":
+        case "scheduled":
+          stats.pendingOptometrist++;
+          break;
+
+        case "optometrist_assigned":
+        case "optometrist_investigation_in_progress":
+        case "dilation_in_progress":
+          stats.inProgressOptometrist++;
+          break;
+
+        case "optometrist_investigation_completed":
+        case "awaiting_doctor":
+        case "doctor_assigned":
+        case "dilation_completed":
+          stats.pendingDoctor++;
+          break;
+
+        case "in_consultation":
+        case "consultation_in_progress":
+        case "start_consultation":
+          stats.inProgressDoctor++;
+          break;
+
+        case "consultation_completed":
+        case "completed":
+          stats.todayCompleted++;
+          break;
+
+        case "no_show":
+        case "cancelled":
+          stats.todayNoShow = (stats.todayNoShow || 0) + 1;
+          break;
+
+        default:
+          stats.pendingOptometrist++;
+      }
+    });
+
+    stats.todayPending = stats.pendingDoctor + stats.pendingOptometrist;
+    stats.todayInProgress = stats.inProgressDoctor + stats.inProgressOptometrist;
+
+    return stats;
+  }, [doctorLiveQueue, todayStats]);
 
   // Mock queue data (you can replace this with actual queue API)
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
@@ -471,7 +547,7 @@ export function DoctorPanel() {
 
       {/* Dashboard Layout */}
       <DoctorPanelVerticalLayout
-        stats={todayStats}
+        stats={liveDoctorStats}
         statsLoading={panelLoading}
         statsVisible={preferences.statsVisible}
         onToggleStats={toggleStats}
