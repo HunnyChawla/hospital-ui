@@ -195,7 +195,8 @@ export function Sidebar() {
           start_date: today,
           end_date: today,
         });
-        setPendingCount(res.total);
+        const pendingVisitsCount = (res.items || []).filter((item) => item.pending_test_count > 0).length;
+        setPendingCount(pendingVisitsCount);
       } catch (error) {
         console.error("Failed to fetch pending lab tests count in sidebar", error);
       }

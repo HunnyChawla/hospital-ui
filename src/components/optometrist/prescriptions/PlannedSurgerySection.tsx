@@ -7,6 +7,7 @@ import clsx from "clsx";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { handleError } from "@/utils/errorHandler";
+import { getTodayDateLocal } from "@/utils/format";
 import type { Surgery, PlannedSurgery } from "@/types";
 
 interface PlannedSurgerySectionProps {
@@ -35,11 +36,13 @@ export function PlannedSurgerySection({
     const [loadingPlanned, setLoadingPlanned] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const minDate = getTodayDateLocal();
+
     // Form state
     const [selectedSurgeryId, setSelectedSurgeryId] = useState("");
     const [selectedSurgeryName, setSelectedSurgeryName] = useState("");
     const [selectedEye, setSelectedEye] = useState<EyeType>("OD");
-    const [plannedDate, setPlannedDate] = useState("");
+    const [plannedDate, setPlannedDate] = useState(getTodayDateLocal());
     const [notes, setNotes] = useState("");
 
     // Load surgeries master list
@@ -111,7 +114,7 @@ export function PlannedSurgerySection({
             setSelectedSurgeryId("");
             setSelectedSurgeryName("");
             setSelectedEye("OD");
-            setPlannedDate("");
+            setPlannedDate(getTodayDateLocal());
             setNotes("");
         } catch (error) {
             handleError(error, { defaultMessage: "Failed to plan surgery", logError: true });
@@ -151,11 +154,6 @@ export function PlannedSurgerySection({
             default: return "bg-slate-100 text-slate-700 border-slate-200";
         }
     };
-
-    // Get tomorrow's date as minimum
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const minDate = tomorrow.toISOString().split("T")[0];
 
     return (
         <div className="border border-slate-200 rounded-lg overflow-hidden">

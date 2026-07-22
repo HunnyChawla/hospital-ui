@@ -11,6 +11,7 @@ import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useAppSelector } from "@/redux/hooks";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTodayDateLocal } from "@/utils/format";
 
 interface PlannedSurgeryFormModalProps {
     isOpen: boolean;
@@ -36,7 +37,7 @@ export function PlannedSurgeryFormModal({
     const [surgeryName, setSurgeryName] = useState("");
     const [surgeonId, setSurgeonId] = useState("");
     const [eye, setEye] = useState<"OD" | "OS" | "OU">("OD");
-    const [plannedDate, setPlannedDate] = useState("");
+    const [plannedDate, setPlannedDate] = useState(getTodayDateLocal());
     const [plannedTime, setPlannedTime] = useState("");
     const [hospitalName, setHospitalName] = useState("");
     const [notes, setNotes] = useState("");
@@ -94,7 +95,7 @@ export function PlannedSurgeryFormModal({
             setSurgeryName("");
             setSurgeonId("");
             setEye("OD");
-            setPlannedDate("");
+            setPlannedDate(getTodayDateLocal());
             setPlannedTime("");
             setHospitalName("");
             setNotes("");
@@ -374,6 +375,7 @@ export function PlannedSurgeryFormModal({
                                                 type="date"
                                                 value={plannedDate}
                                                 onChange={(e) => setPlannedDate(e.target.value)}
+                                                min={getTodayDateLocal()}
                                                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                             />
                                         </div>

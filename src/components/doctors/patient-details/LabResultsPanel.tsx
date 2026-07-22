@@ -1,14 +1,21 @@
 "use client";
 
 import React, { useState } from "react";
-import { FlaskConical, ChevronDown, ChevronUp, Download, RefreshCw } from "lucide-react";
+import { FlaskConical, ChevronDown, ChevronUp, Download, RefreshCw, Eye } from "lucide-react";
 import { NormalRangeIndicator } from "../shared/NormalRangeIndicator";
+import { PreviousLabReportModal } from "@/components/optometrist/prescriptions/PreviousLabReportModal";
+import { MRDImage } from "@/components/lab-technician/TestResultsForm";
 
 interface LabBooking {
   id: string;
   booking_number: string;
   scheduled_date: string;
   status: string;
+  patient_id?: string;
+  patient_name?: string;
+  patient_mobile?: string;
+  priority?: string;
+  sample_id?: string;
 }
 
 interface LabTestParameter {
@@ -30,6 +37,8 @@ interface LabTestParameter {
   created_by: string;
   created_at: string;
   updated_at: string;
+  section_name?: string | null;
+  parameter_type?: "number" | "dropdown" | "text" | "image";
 }
 
 interface LabTestResultItem {
@@ -60,6 +69,7 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
   const [expandedBooking, setExpandedBooking] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, LabTestResultItem[]>>({});
   const [loadingResults, setLoadingResults] = useState<Record<string, boolean>>({});
+  const [selectedReportBooking, setSelectedReportBooking] = useState<any | null>(null);
 
   const getStatusColor = (status: string) => {
     switch ((status || "").toLowerCase()) {
@@ -225,18 +235,29 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
                               key={parameter.id}
                               className="rounded-lg border border-slate-200 bg-white p-4"
                             >
-                              <NormalRangeIndicator
-                                label={parameter.parameter_name}
-                                value={parameter.result_numeric ?? parameter.result_value}
-                                normalMin={parameter.normal_min}
-                                normalMax={parameter.normal_max}
-                                unit={parameter.unit}
-                                size="md"
-                              />
-                              {parameter.normal_text && (
-                                <p className="mt-2 text-xs text-slate-600">
-                                  Normal: {parameter.normal_text}
-                                </p>
+                              {parameter.parameter_type === "image" ? (
+                                <div className="space-y-2">
+                                  <p className="font-semibold text-xs text-slate-800">{parameter.parameter_name}</p>
+                                  <div className="h-44 w-full overflow-hidden flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 p-2">
+                                    <MRDImage documentId={parameter.result_value} clickable className="max-h-full max-w-full object-contain rounded" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <NormalRangeIndicator
+                                    label={parameter.parameter_name}
+                                    value={parameter.result_numeric ?? parameter.result_value}
+                                    normalMin={parameter.normal_min}
+                                    normalMax={parameter.normal_max}
+                                    unit={parameter.unit}
+                                    size="md"
+                                  />
+                                  {parameter.normal_text && (
+                                    <p className="mt-2 text-xs text-slate-600">
+                                      Normal: {parameter.normal_text}
+                                    </p>
+                                  )}
+                                </>
                               )}
                               {parameter.notes && (
                                 <p className="mt-1 text-xs italic text-slate-500">
@@ -253,10 +274,14 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
                         </div>
                       ))}
 
-                      {/* Download button */}
-                      <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700">
-                        <Download className="h-4 w-4" />
-                        Download Report
+                      {/* View Report button */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReportBooking(booking)}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 cursor-pointer"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Report
                       </button>
                     </div>
                   ) : (
@@ -270,6 +295,12 @@ export const LabResultsPanel: React.FC<LabResultsPanelProps> = ({
           );
         })}
       </div>
+
+      <PreviousLabReportModal
+        isOpen={selectedReportBooking !== null}
+        onClose={() => setSelectedReportBooking(null)}
+        booking={selectedReportBooking}
+      />
     </div>
   );
 };

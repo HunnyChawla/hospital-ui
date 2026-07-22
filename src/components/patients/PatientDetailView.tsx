@@ -19,6 +19,8 @@ import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
 import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { PreviousLabReportModal } from "@/components/optometrist/prescriptions/PreviousLabReportModal";
+import { PrescribedLabBookingModal } from "@/components/lab-bookings/PrescribedLabBookingModal";
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -101,6 +103,13 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; paymentAmount?: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
+  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
+  const [showPrescribedBookingModal, setShowPrescribedBookingModal] = useState(false);
+  const [selectedPrescribedVisitId, setSelectedPrescribedVisitId] = useState<string>("");
+  const [patientPrescribedVisits, setPatientPrescribedVisits] = useState<any[]>([]);
+  const [showOnlyPendingPrescribed, setShowOnlyPendingPrescribed] = useState(true);
+  const [loadingPrescribedVisits, setLoadingPrescribedVisits] = useState(false);
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
@@ -146,11 +155,142 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     }
   }, [patientId, labBookingsPage, labBookingsPageSize]);
 
+  // Fetch prescribed visits for the patient
+  const fetchPatientPrescribedVisits = useCallback(async () => {
+    if (!patientId) return;
+    setLoadingPrescribedVisits(true);
+    try {
+      const today = new Date();
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(today.getDate() - 90);
+
+      const start_date = ninetyDaysAgo.toISOString().split("T")[0];
+      const end_date = today.toISOString().split("T")[0];
+
+      const res = await labBookingsApi.getPatientsWithPendingTests({
+        start_date,
+        end_date,
+      });
+      const patientVisits = (res.items || []).filter((item) => item.patient_id === patientId);
+      setPatientPrescribedVisits(patientVisits);
+    } catch (error) {
+      console.error("Failed to fetch patient prescribed visits:", error);
+    } finally {
+      setLoadingPrescribedVisits(false);
+    }
+  }, [patientId]);
+
   useEffect(() => {
     if (activeTab === "tests") {
       fetchLabBookings();
+      fetchPatientPrescribedVisits();
     }
-  }, [activeTab, fetchLabBookings]);
+  }, [activeTab, fetchLabBookings, fetchPatientPrescribedVisits]);
+
+  const renderPrescribedVisitsSection = () => {
+    const pendingVisits = patientPrescribedVisits.filter((v) => (v.pending_test_count || 0) > 0);
+    const visitsToRender = showOnlyPendingPrescribed ? pendingVisits : patientPrescribedVisits;
+
+    if (patientPrescribedVisits.length === 0) return null;
+
+    if (showOnlyPendingPrescribed && pendingVisits.length === 0) {
+      return (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                All Prescribed Tests Booked
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  ✓ 0 Pending
+                </span>
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                All doctor-prescribed lab tests for this patient have been booked. View status & reports below.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowOnlyPendingPrescribed(false)}
+            className="px-3 py-1.5 rounded-xl border border-emerald-300 bg-white text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition cursor-pointer shrink-0 shadow-2xs"
+          >
+            Show All Prescribed Tests
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Beaker className="h-5 w-5 text-amber-600 animate-pulse" />
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm">
+                Prescribed Lab Tests ({visitsToRender.reduce((acc, v) => acc + (v.pending_test_count || 0), 0)} Pending)
+              </h4>
+              <p className="text-xs text-slate-500">
+                Doctor-prescribed lab tests for this patient
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowOnlyPendingPrescribed(!showOnlyPendingPrescribed)}
+            className="px-3 py-1 rounded-xl border border-amber-300 bg-white text-slate-700 text-xs font-bold hover:bg-amber-100/50 transition cursor-pointer"
+          >
+            {showOnlyPendingPrescribed ? "Show All Prescribed Tests" : "Pending Only"}
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {visitsToRender.map((visitItem) => {
+            const isFullyBooked = (visitItem.pending_test_count || 0) === 0;
+
+            return (
+              <div
+                key={visitItem.visit_id}
+                className="bg-white rounded-xl p-3 border border-amber-200/80 flex items-center justify-between text-left hover:border-amber-300 transition shadow-2xs"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 text-sm">Visit #{visitItem.visit_number}</span>
+                    <span className="text-xs text-slate-500 font-medium">({visitItem.visit_date})</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Prescribed by: <span className="font-semibold">{visitItem.doctor_name || "OPD Doctor"}</span>
+                  </p>
+                  {isFullyBooked ? (
+                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      ✓ All Booked
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                      {visitItem.pending_test_count} Pending Test{visitItem.pending_test_count !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPrescribedVisitId(visitItem.visit_id);
+                    setShowPrescribedBookingModal(true);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Beaker className="h-4 w-4" /> {isFullyBooked ? "View or Re-book Tests" : "Book Prescribed Tests"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   // Fetch appointments for the patient (for appointment tab)
   const fetchAppointments = useCallback(async () => {
@@ -1408,7 +1548,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
               )}
 
               {activeTab === "tests" && (
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Prescribed Lab Tests Section */}
+                  {renderPrescribedVisitsSection()}
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Lab Test Bookings</p>
@@ -1483,13 +1626,36 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                 )}
                               </div>
                               <div className="absolute right-4 top-4 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedReportBooking(booking);
+                                  }}
+                                  className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-600 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-700 cursor-pointer shadow-xs"
+                                  style={{ width: "2rem" }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.width = "auto";
+                                    e.currentTarget.style.paddingLeft = "0.75rem";
+                                    e.currentTarget.style.paddingRight = "0.75rem";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.width = "2rem";
+                                    e.currentTarget.style.paddingLeft = "0.5rem";
+                                    e.currentTarget.style.paddingRight = "0.5rem";
+                                  }}
+                                  title="View Lab Report"
+                                >
+                                  <Eye className="h-4 w-4 shrink-0" />
+                                  <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">View Report</span>
+                                </button>
                                 {booking.invoice_id && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handlePrintInvoiceFromBooking(booking.invoice_id!, booking);
                                     }}
-                                    className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                                    className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600 cursor-pointer"
                                     style={{ width: "2rem" }}
                                     onMouseEnter={(e) => {
                                       e.currentTarget.style.width = "auto";
@@ -1509,12 +1675,12 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                 )}
                                 <span
                                   className={`pill px-3 py-1 text-xs font-normal capitalize ${booking.status === "completed"
-                                    ? "bg-emerald-50 text-emerald-700"
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                     : booking.status === "in_progress" || booking.status === "sample_collected"
-                                      ? "bg-sky-50 text-sky-700"
+                                      ? "bg-sky-50 text-sky-700 border border-sky-200"
                                       : booking.status === "scheduled"
-                                        ? "bg-amber-50 text-amber-700"
-                                        : "bg-slate-50 text-slate-700"
+                                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                        : "bg-slate-50 text-slate-700 border"
                                     }`}
                                 >
                                   {booking.status.replace("_", " ")}
@@ -1775,6 +1941,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         amount={pendingCancellation?.paymentAmount}
         loading={cancelling}
       />
+
+      {/* Lab Report Viewer Modal */}
+      <PreviousLabReportModal
+        isOpen={selectedReportBooking !== null}
+        onClose={() => setSelectedReportBooking(null)}
+        booking={selectedReportBooking}
+      />
+
+      {/* Prescribed Lab Tests Booking Modal */}
+      {selectedPrescribedVisitId && (
+        <PrescribedLabBookingModal
+          isOpen={showPrescribedBookingModal}
+          onClose={() => setShowPrescribedBookingModal(false)}
+          visitId={selectedPrescribedVisitId}
+          patientId={patientId}
+          patientName={patient ? formatPatientName(patient) : undefined}
+          onBookingCreated={() => {
+            fetchLabBookings();
+            fetchPatientPrescribedVisits();
+          }}
+        />
+      )}
     </div>
   );
 }
