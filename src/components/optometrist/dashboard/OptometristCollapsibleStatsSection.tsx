@@ -60,20 +60,17 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
       iconColor: "text-emerald-600",
       textColor: "text-emerald-700",
     },
-  ];
-
-  if (stats?.todayNoShow && stats.todayNoShow > 0) {
-    statItems.push({
+    {
       label: "No Show",
-      value: stats.todayNoShow,
+      value: stats?.todayNoShow || 0,
       icon: AlertTriangle,
       color: "rose",
       bgGradient: "from-rose-50 to-rose-50/50",
       iconBg: "bg-rose-100",
       iconColor: "text-rose-600",
       textColor: "text-rose-700",
-    });
-  }
+    },
+  ];
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

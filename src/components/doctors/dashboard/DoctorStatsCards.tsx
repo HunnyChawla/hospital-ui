@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Users, Clock, Activity, CheckCircle2 } from "lucide-react";
+import { Users, Clock, Activity, CheckCircle2, AlertTriangle } from "lucide-react";
 import { DoctorStats } from "@/types";
 
 interface DoctorStatsCardsProps {
@@ -76,12 +76,22 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       iconColor: "text-emerald-600",
       textColor: "text-emerald-700",
     },
+    {
+      label: "No Show",
+      value: stats?.todayNoShow || 0,
+      icon: AlertTriangle,
+      color: "rose",
+      bgGradient: "from-rose-50 to-rose-50/50",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-600",
+      textColor: "text-rose-700",
+    },
   ];
 
   if (loading) {
     return (
-      <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"}>
-        {[1, 2, 3, 4, 5, 6].map((i) => (
+      <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"}>
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
           <div
             key={i}
             className={compact ? "h-20 animate-pulse rounded-lg bg-slate-100" : "h-24 animate-pulse rounded-xl bg-slate-100"}
@@ -92,7 +102,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   }
 
   return (
-    <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"}>
+    <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"}>
       {statItems.map((item) => {
         const Icon = item.icon;
         return (
