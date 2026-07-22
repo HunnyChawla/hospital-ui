@@ -31,8 +31,16 @@ export function ExaminationSummarySection({
     onDataChange,
     isReadOnly = false,
 }: ExaminationSummarySectionProps) {
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString("en-US", {
+    const formatDate = (dateString: string | null | undefined) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        if (date.getDate() === 1 && month === 0) {
+            return String(year);
+        }
+        return date.toLocaleDateString("en-US", {
             year: "numeric",
             month: "short",
             day: "numeric",
@@ -264,11 +272,17 @@ export function ExaminationSummarySection({
                         {data.ophthalmic_history.map((history) => (
                             <div key={history.id} className="rounded bg-slate-50 p-2.5">
                                 <p className="font-medium text-slate-800">{history.surgery_name}</p>
-                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 mt-1">
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
                                     <span>Eye: {history.eye}</span>
-                                    <span>Date: {formatDate(history.surgery_date)}</span>
-                                    <span>Surgeon: {history.surgeon_name}</span>
-                                    <span>Hospital: {history.hospital_name}</span>
+                                    {history.surgery_date && formatDate(history.surgery_date) && (
+                                        <span>Date: {formatDate(history.surgery_date)}</span>
+                                    )}
+                                    {history.surgeon_name && (
+                                        <span>Surgeon: {history.surgeon_name}</span>
+                                    )}
+                                    {history.hospital_name && (
+                                        <span>Hospital: {history.hospital_name}</span>
+                                    )}
                                 </div>
                                 {history.complications && history.complications !== "None" && (
                                     <p className="text-xs text-rose-600 mt-1">Complications: {history.complications}</p>

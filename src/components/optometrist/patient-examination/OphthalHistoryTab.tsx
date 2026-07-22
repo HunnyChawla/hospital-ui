@@ -128,7 +128,7 @@ export function OphthalHistoryTab({
             patient_id: patientId,
             surgery_name: activeSurgery || data.surgery_name,
             eye: data.eye,
-            surgery_date: surgeryDate || new Date().toISOString().split('T')[0],
+            surgery_date: surgeryDate || undefined,
             surgeon_name: data.surgeon_name || null,
             hospital_name: data.hospital_name || null,
             complications: data.complications || null,

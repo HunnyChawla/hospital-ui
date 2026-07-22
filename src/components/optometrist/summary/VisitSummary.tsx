@@ -399,12 +399,20 @@ function VisitSummaryLayout({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <p className="font-medium text-slate-900">{history.surgery_name}</p>
-              <div className="mt-1 grid grid-cols-2 gap-2 text-sm text-slate-600">
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
                 <span>Eye: <span className="font-medium">{history.eye}</span></span>
-                <span>Date: <span className="font-medium">{formatDate(history.surgery_date)}</span></span>
-                <span>Surgeon: <span className="font-medium">{history.surgeon_name}</span></span>
-                <span>Hospital: <span className="font-medium">{history.hospital_name}</span></span>
-                <span className="col-span-2">Complications: <span className="font-medium">{history.complications}</span></span>
+                {history.surgery_date && (
+                  <span>Date: <span className="font-medium">{formatDate(history.surgery_date)}</span></span>
+                )}
+                {history.surgeon_name && (
+                  <span>Surgeon: <span className="font-medium">{history.surgeon_name}</span></span>
+                )}
+                {history.hospital_name && (
+                  <span>Hospital: <span className="font-medium">{history.hospital_name}</span></span>
+                )}
+                {history.complications && (
+                  <span className="w-full">Complications: <span className="font-medium">{history.complications}</span></span>
+                )}
               </div>
               {history.notes && (
                 <p className="mt-2 text-sm text-slate-600">Notes: {history.notes}</p>
@@ -911,8 +919,16 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
     };
   }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    if (date.getDate() === 1 && month === 0) {
+      return String(year);
+    }
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
