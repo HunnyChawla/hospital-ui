@@ -79,16 +79,20 @@ export function filterOptometristQueuePatients(
       return false;
     }
 
-    // For pending tab: hide patients currently picked/in-progress by OTHER optometrists
+    // For pending tab: hide patients picked/in-progress by ANOTHER optometrist
+    // A patient with optometrist_assigned/in_progress and a set optometrist_id belongs
+    // exclusively to that optometrist unless allowPickAny is enabled.
     if (
+      !allowPickAny &&
       filter === "pending" &&
       (patient.status === "optometrist_assigned" || patient.status === "optometrist_investigation_in_progress") &&
-      patient.optometrist_id &&
-      currentOptometristId &&
-      patient.optometrist_id !== currentOptometristId &&
-      !allowPickAny
+      patient.optometrist_id  // patient is assigned to someone
     ) {
-      return false;
+      // If we know who the current user is, only show if it matches
+      // If we don't know the current user (no ID), hide all picked patients to be safe
+      if (!currentOptometristId || patient.optometrist_id !== currentOptometristId) {
+        return false;
+      }
     }
 
     return true;

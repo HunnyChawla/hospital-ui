@@ -174,10 +174,16 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
         // In-progress (optometrist_assigned, optometrist_investigation_in_progress):
         // only count for the assigned optometrist (unless allowPickAny)
         if (status === "optometrist_assigned" || status === "optometrist_investigation_in_progress") {
-          if (allowOptometristPickAny || !optometristId || patient.optometrist_id === optometristId) {
+          if (!allowOptometristPickAny && patient.optometrist_id) {
+            // Only count if this is MY patient (same isolation logic as filter)
+            if (optometristId && patient.optometrist_id === optometristId) {
+              counts.pending++;
+            }
+            // else: belongs to another optometrist, don't count
+          } else {
+            // No assigned optometrist yet, or allowPickAny — count for everyone
             counts.pending++;
           }
-          // else: don't count — it belongs to another optometrist
         }
       });
       return counts;
