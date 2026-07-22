@@ -118,19 +118,18 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   const filteredPatients = React.useMemo(() => {
     let filtered = [...queuePatients];
 
-    // Manual filtering if needed based on the filter type passed
-    // Assuming the parent component passes pre-filtered or raw queuePatients,
-    // but typically filter logic happens here or in parent. 
-    // To support both, let's defer filtering to parent OR maintain existing logic if we import filters.
-    // For now, let's assume the parent handles the filtering logic based on the queuePatients passed,
-    // OR we use a generic filter function if we can.
-
     if (!isDoctor) {
+      // Debug: log current optometristId and each patient's optometrist_id
+      console.log("[QueueFilter] currentOptometristId (my user_id):", optometristId);
+      console.log("[QueueFilter] activeFilter:", activeFilter);
+      console.log("[QueueFilter] allowOptometristPickAny:", allowOptometristPickAny);
+      queuePatients.forEach(p => {
+        if (p.status === "optometrist_assigned" || p.status === "optometrist_investigation_in_progress") {
+          console.log(`[QueueFilter] Patient ${p.patient_name}: optometrist_id=${p.optometrist_id}, match=${p.optometrist_id === optometristId}, will hide=${!allowOptometristPickAny && !!p.optometrist_id && (!optometristId || p.optometrist_id !== optometristId)}`);
+        }
+      });
       filtered = filterOptometristQueuePatients(queuePatients, activeFilter as any, optometristId, allowOptometristPickAny);
     } else {
-      // For doctor, we can use the doctor filter function or assume parent filtered it.
-      // Let's import the doctor filter function dynamically or just filter simple status match here
-      // To avoid complex imports, let's rely on status mapping
       const DOCTOR_STATUS_MAP: Record<string, string[]> = {
         pending: ["awaiting_doctor", "doctor_assigned", "consultation_in_progress"],
         dilation: ["dilation_in_progress"],
