@@ -274,6 +274,18 @@ export function MergedVisionTab({
   useEffect(() => {
     if (!visitId) return;
 
+    const formatDiopterVal = (val: string | number | null | undefined): string => {
+      if (val === null || val === undefined || val === "") return "";
+      const str = String(val).trim();
+      if (str === "") return "";
+      const num = parseFloat(str);
+      if (isNaN(num)) return str;
+      if (num > 0 && !str.startsWith("+")) {
+        return `+${str}`;
+      }
+      return str;
+    };
+
     const newFormState = { ...initialFormState };
 
     // 1. Load Vision
@@ -293,14 +305,14 @@ export function MergedVisionTab({
 
     // 2. Load Specs (POG)
     if (visitSpecs) {
-      newFormState.od_sph = visitSpecs.od_sph != null ? visitSpecs.od_sph.toString() : "";
-      newFormState.od_cyl = visitSpecs.od_cyl != null ? visitSpecs.od_cyl.toString() : "";
+      newFormState.od_sph = formatDiopterVal(visitSpecs.od_sph);
+      newFormState.od_cyl = formatDiopterVal(visitSpecs.od_cyl);
       newFormState.od_axis = visitSpecs.od_axis != null ? visitSpecs.od_axis.toString() : "";
-      newFormState.od_add = visitSpecs.od_add != null ? visitSpecs.od_add.toString() : "";
-      newFormState.os_sph = visitSpecs.os_sph != null ? visitSpecs.os_sph.toString() : "";
-      newFormState.os_cyl = visitSpecs.os_cyl != null ? visitSpecs.os_cyl.toString() : "";
+      newFormState.od_add = formatDiopterVal(visitSpecs.od_add);
+      newFormState.os_sph = formatDiopterVal(visitSpecs.os_sph);
+      newFormState.os_cyl = formatDiopterVal(visitSpecs.os_cyl);
       newFormState.os_axis = visitSpecs.os_axis != null ? visitSpecs.os_axis.toString() : "";
-      newFormState.os_add = visitSpecs.os_add != null ? visitSpecs.os_add.toString() : "";
+      newFormState.os_add = formatDiopterVal(visitSpecs.os_add);
       newFormState.specs_lens_type = visitSpecs.lens_type ?? "SINGLE";
       newFormState.specs_usage = visitSpecs.usage ?? "BOTH";
       newFormState.specs_measured_by = visitSpecs.measured_by ?? "LENSOMETER";
@@ -310,21 +322,21 @@ export function MergedVisionTab({
 
     // 3. Load AR (DRY & WET)
     if (visitAR) {
-      newFormState.od_ar_sphere = visitAR.od_sphere !== null ? visitAR.od_sphere.toString() : "";
-      newFormState.od_ar_cylinder = visitAR.od_cylinder !== null ? visitAR.od_cylinder.toString() : "";
-      newFormState.od_ar_axis = visitAR.od_axis !== null ? visitAR.od_axis.toString() : "";
-      newFormState.os_ar_sphere = visitAR.os_sphere !== null ? visitAR.os_sphere.toString() : "";
-      newFormState.os_ar_cylinder = visitAR.os_cylinder !== null ? visitAR.os_cylinder.toString() : "";
-      newFormState.os_ar_axis = visitAR.os_axis !== null ? visitAR.os_axis.toString() : "";
-      newFormState.ar_pd = visitAR.pupillary_distance !== null ? visitAR.pupillary_distance.toString() : "";
+      newFormState.od_ar_sphere = formatDiopterVal(visitAR.od_sphere);
+      newFormState.od_ar_cylinder = formatDiopterVal(visitAR.od_cylinder);
+      newFormState.od_ar_axis = visitAR.od_axis !== null && visitAR.od_axis !== undefined ? visitAR.od_axis.toString() : "";
+      newFormState.os_ar_sphere = formatDiopterVal(visitAR.os_sphere);
+      newFormState.os_ar_cylinder = formatDiopterVal(visitAR.os_cylinder);
+      newFormState.os_ar_axis = visitAR.os_axis !== null && visitAR.os_axis !== undefined ? visitAR.os_axis.toString() : "";
+      newFormState.ar_pd = visitAR.pupillary_distance !== null && visitAR.pupillary_distance !== undefined ? visitAR.pupillary_distance.toString() : "";
       newFormState.ar_notes = visitAR.notes ?? "";
 
       // Load WET AR from columns
-      newFormState.od_wet_sphere = visitAR.od_wet_sphere !== null && visitAR.od_wet_sphere !== undefined ? visitAR.od_wet_sphere.toString() : "";
-      newFormState.od_wet_cylinder = visitAR.od_wet_cylinder !== null && visitAR.od_wet_cylinder !== undefined ? visitAR.od_wet_cylinder.toString() : "";
+      newFormState.od_wet_sphere = formatDiopterVal(visitAR.od_wet_sphere);
+      newFormState.od_wet_cylinder = formatDiopterVal(visitAR.od_wet_cylinder);
       newFormState.od_wet_axis = visitAR.od_wet_axis !== null && visitAR.od_wet_axis !== undefined ? visitAR.od_wet_axis.toString() : "";
-      newFormState.os_wet_sphere = visitAR.os_wet_sphere !== null && visitAR.os_wet_sphere !== undefined ? visitAR.os_wet_sphere.toString() : "";
-      newFormState.os_wet_cylinder = visitAR.os_wet_cylinder !== null && visitAR.os_wet_cylinder !== undefined ? visitAR.os_wet_cylinder.toString() : "";
+      newFormState.os_wet_sphere = formatDiopterVal(visitAR.os_wet_sphere);
+      newFormState.os_wet_cylinder = formatDiopterVal(visitAR.os_wet_cylinder);
       newFormState.os_wet_axis = visitAR.os_wet_axis !== null && visitAR.os_wet_axis !== undefined ? visitAR.os_wet_axis.toString() : "";
     }
 
@@ -333,10 +345,10 @@ export function MergedVisionTab({
       const getRefVal = (eye: "od" | "os", fieldName: string, flatName: string) => {
         const eyeObj = visitRef[eye];
         if (eyeObj && eyeObj[fieldName] !== undefined && eyeObj[fieldName] !== null) {
-          return eyeObj[fieldName].toString();
+          return formatDiopterVal(eyeObj[fieldName]);
         }
         if (visitRef[flatName] !== undefined && visitRef[flatName] !== null) {
-          return visitRef[flatName].toString();
+          return formatDiopterVal(visitRef[flatName]);
         }
         return "";
       };
@@ -354,7 +366,7 @@ export function MergedVisionTab({
 
       newFormState.od_ref_sphere = getRefVal("od", "sphere", "od_sphere");
       newFormState.od_ref_cylinder = getRefVal("od", "cylinder", "od_cylinder");
-      newFormState.od_ref_axis = getRefVal("od", "axis", "od_axis");
+      newFormState.od_ref_axis = visitRef.od?.axis != null ? visitRef.od.axis.toString() : visitRef.od_axis != null ? visitRef.od_axis.toString() : "";
       newFormState.od_ref_add_power = getRefVal("od", "add_power", "od_add_power");
       newFormState.od_ref_visual_acuity_uncorrected = getRefStr("od", "visual_acuity_uncorrected", "od_visual_acuity_uncorrected");
       newFormState.od_ref_visual_acuity_corrected = getRefStr("od", "visual_acuity_corrected", "od_visual_acuity_corrected");
@@ -368,20 +380,20 @@ export function MergedVisionTab({
       newFormState.os_ref_prism = visitRef.os_prism ?? "";
       newFormState.os_ref_sphere = getRefVal("os", "sphere", "os_sphere");
       newFormState.os_ref_cylinder = getRefVal("os", "cylinder", "os_cylinder");
-      newFormState.os_ref_axis = getRefVal("os", "axis", "os_axis");
+      newFormState.os_ref_axis = visitRef.os?.axis != null ? visitRef.os.axis.toString() : visitRef.os_axis != null ? visitRef.os_axis.toString() : "";
       newFormState.os_ref_add_power = getRefVal("os", "add_power", "os_add_power");
       newFormState.os_ref_visual_acuity_uncorrected = getRefStr("os", "visual_acuity_uncorrected", "os_visual_acuity_uncorrected");
       newFormState.os_ref_visual_acuity_corrected = getRefStr("os", "visual_acuity_corrected", "os_visual_acuity_corrected");
       newFormState.os_ref_distance_bcva = getRefStr("os", "distance_bcva", "os_distance_bcva");
       newFormState.os_ref_near_bcva = getRefStr("os", "near_bcva", "os_near_bcva");
 
-      newFormState.od_dilated_sphere = visitRef.od_dilated_sphere !== null && visitRef.od_dilated_sphere !== undefined ? visitRef.od_dilated_sphere.toString() : "";
-      newFormState.od_dilated_cylinder = visitRef.od_dilated_cylinder !== null && visitRef.od_dilated_cylinder !== undefined ? visitRef.od_dilated_cylinder.toString() : "";
+      newFormState.od_dilated_sphere = formatDiopterVal(visitRef.od_dilated_sphere);
+      newFormState.od_dilated_cylinder = formatDiopterVal(visitRef.od_dilated_cylinder);
       newFormState.od_dilated_axis = visitRef.od_dilated_axis !== null && visitRef.od_dilated_axis !== undefined ? visitRef.od_dilated_axis.toString() : "";
       newFormState.od_dilated_visual_acuity = visitRef.od_dilated_visual_acuity ?? "";
       newFormState.od_dilated_pinhole = visitRef.od_dilated_pinhole ?? "";
-      newFormState.os_dilated_sphere = visitRef.os_dilated_sphere !== null && visitRef.os_dilated_sphere !== undefined ? visitRef.os_dilated_sphere.toString() : "";
-      newFormState.os_dilated_cylinder = visitRef.os_dilated_cylinder !== null && visitRef.os_dilated_cylinder !== undefined ? visitRef.os_dilated_cylinder.toString() : "";
+      newFormState.os_dilated_sphere = formatDiopterVal(visitRef.os_dilated_sphere);
+      newFormState.os_dilated_cylinder = formatDiopterVal(visitRef.os_dilated_cylinder);
       newFormState.os_dilated_axis = visitRef.os_dilated_axis !== null && visitRef.os_dilated_axis !== undefined ? visitRef.os_dilated_axis.toString() : "";
       newFormState.os_dilated_visual_acuity = visitRef.os_dilated_visual_acuity ?? "";
       newFormState.os_dilated_pinhole = visitRef.os_dilated_pinhole ?? "";
