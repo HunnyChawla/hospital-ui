@@ -663,6 +663,13 @@ export function MergedVisionTab({
     return isNaN(n) ? null : n;
   };
 
+  const getVaOptions = (options: string[], currentVal?: string) => {
+    if (currentVal && !options.includes(currentVal)) {
+      return [currentVal, ...options];
+    }
+    return options;
+  };
+
   // Handle Save — single API call for all sections
   const handleSaveAll = async () => {
     if (!visitId) {
@@ -670,13 +677,16 @@ export function MergedVisionTab({
       return;
     }
 
-    // Pre-validate: Axis is required when Cylinder is non-zero
+    // Pre-validate: Axis is required when Cylinder is non-zero, and Axis range 0-180
     const validationErrors: Record<string, string> = {};
     const checkCylAxis = (cylStr: string, axisStr: string, key: keyof CombinedFormState) => {
       const cyl = parseNumVal(cylStr);
       const axis = parseIntVal(axisStr);
       if (cyl !== null && cyl !== 0 && axis === null) {
         validationErrors[key] = "Axis is required when cylinder is specified";
+      }
+      if (axis !== null && (axis < 0 || axis > 180)) {
+        validationErrors[key] = "Axis must be between 0° and 180°";
       }
     };
 
@@ -926,7 +936,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}ucva_distance` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}ucva_distance`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ucva_distance`]}</span>
@@ -943,7 +953,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(NEAR_VA_OPTIONS, formState[`${prefix}near_ucva` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}near_ucva`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}near_ucva`]}</span>
@@ -960,7 +970,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}va_with_current_specs` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}va_with_current_specs`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}va_with_current_specs`]}</span>
@@ -977,7 +987,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(NEAR_VA_OPTIONS, formState[`${prefix}near_with_current_specs` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}near_with_current_specs`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}near_with_current_specs`]}</span>
@@ -994,7 +1004,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}ph_va` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}ph_va`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ph_va`]}</span>
@@ -1301,7 +1311,7 @@ export function MergedVisionTab({
                     )}
                   >
                     <option value="">—</option>
-                    {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}ref_distance_bcva` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                   {errors[`${prefix}ref_distance_bcva`] && (
                     <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_distance_bcva`]}</span>
@@ -1428,7 +1438,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}dilated_visual_acuity` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}dilated_visual_acuity`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_visual_acuity`]}</span>
@@ -1445,7 +1455,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}dilated_pinhole` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}dilated_pinhole`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_pinhole`]}</span>
