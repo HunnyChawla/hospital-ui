@@ -141,17 +141,24 @@ export function HistoryPrescriptionModal({
             let surgeries = surgeriesRes.items || [];
             const rxDateStr = prescription?.created_at || (visitDataRes as any)?.created_at || (visitDataRes as any)?.visit_date;
 
-            if (rxDateStr) {
-                const rxDate = new Date(rxDateStr);
-                const endOfRxDay = new Date(rxDate);
-                endOfRxDay.setHours(23, 59, 59, 999);
+            const getIsoDateStr = (d?: string | null) => {
+                if (!d) return null;
+                try {
+                    if (d.length === 10 && d.includes("-")) return d;
+                    return new Date(d).toISOString().slice(0, 10);
+                } catch {
+                    return null;
+                }
+            };
 
-                surgeries = surgeries.filter((s) => {
-                    const surgeryDateStr = s.created_at || s.advised_date;
-                    if (!surgeryDateStr) return true;
-                    const sDate = new Date(surgeryDateStr);
-                    return sDate <= endOfRxDay;
-                });
+            if (rxDateStr) {
+                const rxDateOnly = getIsoDateStr(rxDateStr);
+                if (rxDateOnly) {
+                    surgeries = surgeries.filter((s) => {
+                        const sDateOnly = getIsoDateStr(s.advised_date) || getIsoDateStr(s.created_at);
+                        return sDateOnly === rxDateOnly;
+                    });
+                }
             }
 
             setVisitData(visitDataRes);
