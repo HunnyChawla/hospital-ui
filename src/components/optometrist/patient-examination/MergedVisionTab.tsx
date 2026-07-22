@@ -225,12 +225,22 @@ export function MergedVisionTab({
         return `${rest[0]}_${rest[1]}`;
       }
       if (rest[0] === "remarks") return "specs_remarks";
+      if (rest[0] === "lens_type") return "specs_lens_type";
+      if (rest[0] === "usage") return "specs_usage";
+      if (rest[0] === "measured_by") return "specs_measured_by";
+      if (rest[0] === "is_comfortable") return "specs_is_comfortable";
       return rest[0] || null;
     }
 
     if (section === "ar_data") {
       if (rest[0] === "pupillary_distance") return "ar_pd";
       if (rest[0] === "notes") return "ar_notes";
+      if (typeof rest[0] === "string") {
+        const fieldName = rest[0];
+        if (fieldName.includes("_wet_")) return fieldName;
+        if (fieldName.startsWith("od_")) return fieldName.replace("od_", "od_ar_");
+        if (fieldName.startsWith("os_")) return fieldName.replace("os_", "os_ar_");
+      }
       return rest[0] || null;
     }
 
@@ -639,10 +649,43 @@ export function MergedVisionTab({
     return isNaN(n) ? null : n;
   };
 
+  const parseIntVal = (v: string): number | null => {
+    if (v === "" || v === null || v === undefined) return null;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
+  };
+
   // Handle Save — single API call for all sections
   const handleSaveAll = async () => {
     if (!visitId) {
       toast.error("No active visit ID found.");
+      return;
+    }
+
+    // Pre-validate: Axis is required when Cylinder is non-zero
+    const validationErrors: Record<string, string> = {};
+    const checkCylAxis = (cylStr: string, axisStr: string, key: keyof CombinedFormState) => {
+      const cyl = parseNumVal(cylStr);
+      const axis = parseIntVal(axisStr);
+      if (cyl !== null && cyl !== 0 && axis === null) {
+        validationErrors[key] = "Axis is required when cylinder is specified";
+      }
+    };
+
+    checkCylAxis(formState.od_sph ? formState.od_cyl : formState.od_cyl, formState.od_axis, "od_axis");
+    checkCylAxis(formState.os_sph ? formState.os_cyl : formState.os_cyl, formState.os_axis, "os_axis");
+    checkCylAxis(formState.od_ar_cylinder, formState.od_ar_axis, "od_ar_axis");
+    checkCylAxis(formState.os_ar_cylinder, formState.os_ar_axis, "os_ar_axis");
+    checkCylAxis(formState.od_wet_cylinder, formState.od_wet_axis, "od_wet_axis");
+    checkCylAxis(formState.os_wet_cylinder, formState.os_wet_axis, "os_wet_axis");
+    checkCylAxis(formState.od_ref_cylinder, formState.od_ref_axis, "od_ref_axis");
+    checkCylAxis(formState.os_ref_cylinder, formState.os_ref_axis, "os_ref_axis");
+    checkCylAxis(formState.od_dilated_cylinder, formState.od_dilated_axis, "od_dilated_axis");
+    checkCylAxis(formState.os_dilated_cylinder, formState.os_dilated_axis, "os_dilated_axis");
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      toast.error("Axis is required when cylinder is specified. Please check highlighted fields.");
       return;
     }
 
@@ -674,13 +717,13 @@ export function MergedVisionTab({
               od: {
                 sph: parseNumVal(formState.od_sph),
                 cyl: parseNumVal(formState.od_cyl),
-                axis: parseNumVal(formState.od_axis),
+                axis: parseIntVal(formState.od_axis),
                 add: parseNumVal(formState.od_add),
               },
               os: {
                 sph: parseNumVal(formState.os_sph),
                 cyl: parseNumVal(formState.os_cyl),
-                axis: parseNumVal(formState.os_axis),
+                axis: parseIntVal(formState.os_axis),
                 add: parseNumVal(formState.os_add),
               },
               lens_type: formState.specs_lens_type || null,
@@ -698,16 +741,16 @@ export function MergedVisionTab({
             ar_data: {
               od_sphere: parseNumVal(formState.od_ar_sphere),
               od_cylinder: parseNumVal(formState.od_ar_cylinder),
-              od_axis: parseNumVal(formState.od_ar_axis),
+              od_axis: parseIntVal(formState.od_ar_axis),
               os_sphere: parseNumVal(formState.os_ar_sphere),
               os_cylinder: parseNumVal(formState.os_ar_cylinder),
-              os_axis: parseNumVal(formState.os_ar_axis),
+              os_axis: parseIntVal(formState.os_ar_axis),
               od_wet_sphere: parseNumVal(formState.od_wet_sphere),
               od_wet_cylinder: parseNumVal(formState.od_wet_cylinder),
-              od_wet_axis: parseNumVal(formState.od_wet_axis),
+              od_wet_axis: parseIntVal(formState.od_wet_axis),
               os_wet_sphere: parseNumVal(formState.os_wet_sphere),
               os_wet_cylinder: parseNumVal(formState.os_wet_cylinder),
-              os_wet_axis: parseNumVal(formState.os_wet_axis),
+              os_wet_axis: parseIntVal(formState.os_wet_axis),
               pupillary_distance: parseNumVal(formState.ar_pd),
               notes: formState.ar_notes || null,
             },
@@ -716,7 +759,7 @@ export function MergedVisionTab({
               od: {
                 sphere: parseNumVal(formState.od_ref_sphere),
                 cylinder: parseNumVal(formState.od_ref_cylinder),
-                axis: parseNumVal(formState.od_ref_axis),
+                axis: parseIntVal(formState.od_ref_axis),
                 add_power: parseNumVal(formState.od_ref_add_power),
                 visual_acuity_uncorrected: formState.od_ref_visual_acuity_uncorrected || null,
                 visual_acuity_corrected: formState.od_ref_visual_acuity_corrected || null,
@@ -726,7 +769,7 @@ export function MergedVisionTab({
               os: {
                 sphere: parseNumVal(formState.os_ref_sphere),
                 cylinder: parseNumVal(formState.os_ref_cylinder),
-                axis: parseNumVal(formState.os_ref_axis),
+                axis: parseIntVal(formState.os_ref_axis),
                 add_power: parseNumVal(formState.os_ref_add_power),
                 visual_acuity_uncorrected: formState.os_ref_visual_acuity_uncorrected || null,
                 visual_acuity_corrected: formState.os_ref_visual_acuity_corrected || null,
@@ -737,12 +780,12 @@ export function MergedVisionTab({
               os_prism: formState.os_ref_prism || null,
               od_dilated_sphere: parseNumVal(formState.od_dilated_sphere),
               od_dilated_cylinder: parseNumVal(formState.od_dilated_cylinder),
-              od_dilated_axis: parseNumVal(formState.od_dilated_axis),
+              od_dilated_axis: parseIntVal(formState.od_dilated_axis),
               od_dilated_visual_acuity: formState.od_dilated_visual_acuity || null,
               od_dilated_pinhole: formState.od_dilated_pinhole || null,
               os_dilated_sphere: parseNumVal(formState.os_dilated_sphere),
               os_dilated_cylinder: parseNumVal(formState.os_dilated_cylinder),
-              os_dilated_axis: parseNumVal(formState.os_dilated_axis),
+              os_dilated_axis: parseIntVal(formState.os_dilated_axis),
               os_dilated_visual_acuity: formState.os_dilated_visual_acuity || null,
               os_dilated_pinhole: formState.os_dilated_pinhole || null,
               pupillary_distance: parseNumVal(formState.ref_pd),
@@ -763,20 +806,53 @@ export function MergedVisionTab({
       onRefresh();
       setErrors({});
     } catch (e: any) {
-      const fieldErrors = getFieldErrors(e);
-      if (Object.keys(fieldErrors).length > 0) {
-        const mappedErrors: Record<string, string> = {};
-        const detail = e?.detail || e?.response?.data?.detail;
-        if (Array.isArray(detail)) {
-          detail.forEach((err: any) => {
-            const formKey = mapLocToFormKey(err.loc || []);
-            if (formKey) {
-              mappedErrors[formKey] = err.msg || "Invalid value";
+      const detail = e?.detail || e?.response?.data?.detail;
+      const mappedErrors: Record<string, string> = {};
+      let firstErrorMsg = "";
+
+      if (Array.isArray(detail)) {
+        detail.forEach((err: any) => {
+          let formKey = mapLocToFormKey(err.loc || []);
+
+          // Fallback parsing for generic locs or Pydantic business_logic_error strings
+          if (!formKey && typeof err.msg === "string") {
+            const msg = err.msg;
+            if (msg.includes("CurrentSpecsEyeMeasurements")) {
+              if (msg.includes("axis")) {
+                if (formState.od_cyl && !formState.od_axis) formKey = "od_axis";
+                else if (formState.os_cyl && !formState.os_axis) formKey = "os_axis";
+                else formKey = "od_axis";
+              }
+            } else if (msg.includes("ARData")) {
+              if (msg.includes("axis")) {
+                if (formState.od_ar_cylinder && !formState.od_ar_axis) formKey = "od_ar_axis";
+                else if (formState.os_ar_cylinder && !formState.os_ar_axis) formKey = "os_ar_axis";
+                else formKey = "od_ar_axis";
+              }
+            } else if (msg.includes("EyeMeasurements")) {
+              if (msg.includes("axis")) {
+                if (formState.od_ref_cylinder && !formState.od_ref_axis) formKey = "od_ref_axis";
+                else if (formState.os_ref_cylinder && !formState.os_ref_axis) formKey = "os_ref_axis";
+                else formKey = "od_ref_axis";
+              }
             }
-          });
-        }
+          }
+
+          let cleanMsg = err.msg || "Invalid value";
+          if (cleanMsg.includes("Axis is required when cylinder is specified")) {
+            cleanMsg = "Axis is required when cylinder is specified";
+          }
+
+          if (formKey) {
+            mappedErrors[formKey] = cleanMsg;
+          }
+          if (!firstErrorMsg) firstErrorMsg = cleanMsg;
+        });
+      }
+
+      if (Object.keys(mappedErrors).length > 0) {
         setErrors(mappedErrors);
-        toast.error("Validation error: Please check the highlighted fields.");
+        toast.error(`Validation error: ${firstErrorMsg || "Please check highlighted fields."}`);
       } else {
         handleError(e, {
           defaultMessage: "Failed to save measurements.",
