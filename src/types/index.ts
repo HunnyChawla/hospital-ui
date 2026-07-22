@@ -611,6 +611,7 @@ export type PlannedSurgery = {
   id: string;
   tenant_id: string;
   patient_id: string;
+  visit_id?: string | null;
   patient_name?: string | null;
   surgery_id: string;
   surgery_name: string;
@@ -631,6 +632,7 @@ export type PlannedSurgery = {
 
 export type CreatePlannedSurgeryRequest = {
   patient_id: string;
+  visit_id?: string | null;
   surgery_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";

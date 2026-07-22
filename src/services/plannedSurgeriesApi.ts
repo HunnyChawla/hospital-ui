@@ -9,6 +9,7 @@ import type {
 
 export type PlannedSurgeryParams = {
     patient_id?: string;
+    visit_id?: string;
     surgeon_id?: string;
     from_date?: string;
     to_date?: string;

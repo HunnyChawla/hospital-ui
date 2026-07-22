@@ -139,25 +139,34 @@ export function HistoryPrescriptionModal({
             }
 
             let surgeries = surgeriesRes.items || [];
-            const rxDateStr = prescription?.created_at || (visitDataRes as any)?.created_at || (visitDataRes as any)?.visit_date;
 
-            const getIsoDateStr = (d?: string | null) => {
-                if (!d) return null;
-                try {
-                    if (d.length === 10 && d.includes("-")) return d;
-                    return new Date(d).toISOString().slice(0, 10);
-                } catch {
-                    return null;
-                }
-            };
+            // 1. Try matching by exact visit_id
+            const visitMatchedSurgeries = surgeries.filter((s) => s.visit_id === visitId);
 
-            if (rxDateStr) {
-                const rxDateOnly = getIsoDateStr(rxDateStr);
-                if (rxDateOnly) {
-                    surgeries = surgeries.filter((s) => {
-                        const sDateOnly = getIsoDateStr(s.advised_date) || getIsoDateStr(s.created_at);
-                        return sDateOnly === rxDateOnly;
-                    });
+            if (visitMatchedSurgeries.length > 0) {
+                surgeries = visitMatchedSurgeries;
+            } else {
+                // 2. Fallback for legacy surgeries without visit_id: match by prescription date
+                const rxDateStr = prescription?.created_at || (visitDataRes as any)?.created_at || (visitDataRes as any)?.visit_date;
+
+                const getIsoDateStr = (d?: string | null) => {
+                    if (!d) return null;
+                    try {
+                        if (d.length === 10 && d.includes("-")) return d;
+                        return new Date(d).toISOString().slice(0, 10);
+                    } catch {
+                        return null;
+                    }
+                };
+
+                if (rxDateStr) {
+                    const rxDateOnly = getIsoDateStr(rxDateStr);
+                    if (rxDateOnly) {
+                        surgeries = surgeries.filter((s) => {
+                            const sDateOnly = getIsoDateStr(s.advised_date) || getIsoDateStr(s.created_at);
+                            return sDateOnly === rxDateOnly;
+                        });
+                    }
                 }
             }
 

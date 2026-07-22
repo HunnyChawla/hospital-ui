@@ -101,6 +101,7 @@ export function PlannedSurgerySection({
         try {
             const newSurgery = await plannedSurgeriesApi.create({
                 patient_id: patientId,
+                visit_id: visitId || null,
                 surgery_id: selectedSurgeryId,
                 surgery_name: selectedSurgeryName,
                 eye: selectedEye,
