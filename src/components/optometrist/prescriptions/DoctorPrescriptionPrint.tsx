@@ -651,9 +651,11 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
 
                 {/* Document Status Badge (Right aligned, if Draft) */}
                 {prescription.status !== "finalized" && (
-                    <div className="mb-1.5 flex justify-end">
-                        <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 font-semibold rounded text-[10px] uppercase tracking-wider border border-slate-300/80">
-                            Draft
+                    <div className="mb-1 flex justify-end">
+                        <span className="px-2 py-0.5 bg-slate-50 text-slate-700 font-medium rounded text-[10px] border border-slate-300/80">
+                            <span className="font-semibold text-slate-600">Prescription Status:</span>{" "}
+                            <span className="font-bold text-slate-900">Draft</span>{" "}
+                            <span className="text-[9px] text-slate-500 italic font-normal">(not finalized)</span>
                         </span>
                     </div>
                 )}
