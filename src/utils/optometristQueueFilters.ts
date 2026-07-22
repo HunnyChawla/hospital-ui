@@ -67,14 +67,32 @@ export const OPTOMETRIST_QUEUE_FILTERS: Record<OptometristQueueFilter, FilterCon
 
 export function filterOptometristQueuePatients(
   patients: OptometristQueuePatient[],
-  filter: OptometristQueueFilter
+  filter: OptometristQueueFilter,
+  currentOptometristId?: string | null,
+  allowPickAny: boolean = false
 ): OptometristQueuePatient[] {
   const filterConfig = OPTOMETRIST_QUEUE_FILTERS[filter];
   if (!filterConfig) return patients;
 
-  return patients.filter((patient) =>
-    filterConfig.statuses.includes(patient.status)
-  );
+  return patients.filter((patient) => {
+    if (!filterConfig.statuses.includes(patient.status)) {
+      return false;
+    }
+
+    // For pending tab: hide patients currently picked/in-progress by OTHER optometrists
+    if (
+      filter === "pending" &&
+      (patient.status === "optometrist_assigned" || patient.status === "optometrist_investigation_in_progress") &&
+      patient.optometrist_id &&
+      currentOptometristId &&
+      patient.optometrist_id !== currentOptometristId &&
+      !allowPickAny
+    ) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): Record<OptometristQueueFilter, number> {

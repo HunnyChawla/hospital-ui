@@ -26,6 +26,7 @@ interface OptometristCollapsibleQueueSectionProps {
   isVisible: boolean;
   onToggle: () => void;
   isDoctor?: boolean;
+  optometristId?: string;
 }
 
 export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsibleQueueSectionProps> = ({
@@ -40,6 +41,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   isVisible,
   onToggle,
   isDoctor = false,
+  optometristId,
 }) => {
   // Feature flags for queue configuration
   const { allowDoctorPickAny, allowOptometristPickAny } = useQueueFlags();
@@ -124,7 +126,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
     // OR we use a generic filter function if we can.
 
     if (!isDoctor) {
-      filtered = filterOptometristQueuePatients(queuePatients, activeFilter as any);
+      filtered = filterOptometristQueuePatients(queuePatients, activeFilter as any, optometristId, allowOptometristPickAny);
     } else {
       // For doctor, we can use the doctor filter function or assume parent filtered it.
       // Let's import the doctor filter function dynamically or just filter simple status match here
