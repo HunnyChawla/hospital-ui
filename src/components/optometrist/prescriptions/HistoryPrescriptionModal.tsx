@@ -52,44 +52,76 @@ export function HistoryPrescriptionModal({
         setLoading(true);
         try {
             const [prescriptionRes, visitDataRes, surgeriesRes] = await Promise.all([
-                optometryPrescriptionApi.list({ visit_id: visitId, status: "finalized" }),
+                optometryPrescriptionApi.list({ visit_id: visitId }),
                 prescriptionDataApi.getPrescriptionData(patientId, visitId),
                 plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
             ]);
 
-            let prescription = null;
+            let prescription: OptometryPrescription | null = null;
             if (prescriptionRes.items && prescriptionRes.items.length > 0) {
-                prescription = prescriptionRes.items[0];
-                setPrescription(prescription);
+                // Prefer finalized prescription over draft if both exist
+                const finalized = prescriptionRes.items.find(p => p.status === "finalized");
+                prescription = finalized || prescriptionRes.items[0];
+            } else if (visitDataRes) {
+                // Fallback: Check if there is clinical visit data recorded (refraction, complaints, vision, etc.)
+                const hasClinicalData = !!(
+                    visitDataRes.refraction ||
+                    visitDataRes.vision ||
+                    visitDataRes.iop ||
+                    visitDataRes.ar_data ||
+                    (visitDataRes.complaints && visitDataRes.complaints.length > 0)
+                );
+                if (hasClinicalData) {
+                    prescription = {
+                        id: `draft-${visitId}`,
+                        tenant_id: "",
+                        patient_id: patientId,
+                        patient_name: "",
+                        optometrist_id: "",
+                        optometrist_name: "",
+                        visit_id: visitId,
+                        prescription_number: "DRAFT",
+                        status: "draft",
+                        diagnosis: null,
+                        notes: null,
+                        items: [],
+                        pupillary_distance: null,
+                        frame_fitting_notes: null,
+                        finalized_at: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    };
+                }
+            }
 
-                // Fetch doctor signature if we have a prescription
-                if (prescription.doctor_id) {
-                    try {
-                        const sigData = await doctorsApi.getSignature(prescription.doctor_id.toString());
-                        if (sigData?.signature) {
-                            setDoctorSignature(sigData.signature);
-                        } else {
-                            const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
-                            if (docProfile?.signature) {
-                                setDoctorSignature(docProfile.signature);
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Failed to fetch doctor signature:", e);
-                        // Fallback
-                        try {
-                            const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
-                            if (docProfile?.signature) {
-                                setDoctorSignature(docProfile.signature);
-                            }
-                        } catch (err) {
-                            console.error("Failed fallback signature fetch:", err);
+            setPrescription(prescription);
+
+            // Fetch doctor signature if we have a prescription
+            if (prescription?.doctor_id) {
+                try {
+                    const sigData = await doctorsApi.getSignature(prescription.doctor_id.toString());
+                    if (sigData?.signature) {
+                        setDoctorSignature(sigData.signature);
+                    } else {
+                        const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
+                        if (docProfile?.signature) {
+                            setDoctorSignature(docProfile.signature);
                         }
                     }
+                } catch (e) {
+                    console.error("Failed to fetch doctor signature:", e);
+                    // Fallback
+                    try {
+                        const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
+                        if (docProfile?.signature) {
+                            setDoctorSignature(docProfile.signature);
+                        }
+                    } catch (err) {
+                        console.error("Failed fallback signature fetch:", err);
+                    }
                 }
-            } else {
-                setPrescription(null);
             }
+
             setVisitData(visitDataRes);
             setPlannedSurgeries(surgeriesRes.items || []);
         } catch (error) {

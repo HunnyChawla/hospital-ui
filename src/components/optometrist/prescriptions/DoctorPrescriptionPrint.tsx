@@ -647,6 +647,14 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     <div className={`${isExtremelyCompact ? "h-16" : isCompact ? "h-20" : "h-32"} mb-2`} />
                 )}
 
+                {/* Draft Notice Banner */}
+                {prescription.status !== "finalized" && (
+                    <div className="mb-2 px-3 py-1 bg-amber-50 border border-amber-300 rounded text-center text-amber-900 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>DRAFT PRESCRIPTION — NOT FINALIZED</span>
+                    </div>
+                )}
+
                 {/* Patient Details Section - Matches the Box style in image */}
                 <div className={`${isCompact ? "mb-1" : "mb-4"} border border-slate-400 text-[10px] font-medium`}>
                     <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">

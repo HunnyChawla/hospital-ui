@@ -261,8 +261,13 @@ export function PrintPreviewModal({
                             <Printer className="h-5 w-5 text-slate-600" />
                         </div>
                         <div>
-                            <h3 className="text-base font-bold text-slate-900 leading-none">
-                                Prescription Print Preview
+                            <h3 className="text-base font-bold text-slate-900 leading-none flex items-center gap-2">
+                                <span>Prescription Print Preview</span>
+                                {prescription.status !== 'finalized' && (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded-md tracking-wider">
+                                        DRAFT
+                                    </span>
+                                )}
                             </h3>
                             <p className="text-[11px] text-slate-500 mt-1 font-medium tracking-wide">
                                 Patient: <span className="text-slate-700">{prescription.patient_name || "Ref: " + prescription.visit_id}</span>
