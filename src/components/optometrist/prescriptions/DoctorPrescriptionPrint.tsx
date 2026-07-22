@@ -615,6 +615,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     padding: '1.5rem',
                 }}
             >
+
                 {/* Print-specific style block injected directly to ensure priority */}
                 <style dangerouslySetInnerHTML={{
                     __html: `
@@ -630,8 +631,9 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             margin: 0 !important;
                             max-width: none !important;
                             height: auto !important;
-                            overflow: visible !important;
+                            overflow: hidden !important;
                             display: block !important;
+                            position: relative !important;
                         }
                         .break-inside-avoid {
                             break-inside: avoid !important;
@@ -647,11 +649,12 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     <div className={`${isExtremelyCompact ? "h-16" : isCompact ? "h-20" : "h-32"} mb-2`} />
                 )}
 
-                {/* Draft Notice Banner */}
+                {/* Document Status Badge (Right aligned, if Draft) */}
                 {prescription.status !== "finalized" && (
-                    <div className="mb-2 px-3 py-1 bg-amber-50 border border-amber-300 rounded text-center text-amber-900 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
-                        <span>DRAFT PRESCRIPTION — NOT FINALIZED</span>
+                    <div className="mb-1.5 flex justify-end">
+                        <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 font-semibold rounded text-[10px] uppercase tracking-wider border border-slate-300/80">
+                            Draft
+                        </span>
                     </div>
                 )}
 

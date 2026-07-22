@@ -264,8 +264,8 @@ export function PrintPreviewModal({
                             <h3 className="text-base font-bold text-slate-900 leading-none flex items-center gap-2">
                                 <span>Prescription Print Preview</span>
                                 {prescription.status !== 'finalized' && (
-                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded-md tracking-wider">
-                                        DRAFT
+                                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-md tracking-wider">
+                                        Draft Preview
                                     </span>
                                 )}
                             </h3>
