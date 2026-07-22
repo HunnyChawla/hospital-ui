@@ -119,15 +119,6 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
     let filtered = [...queuePatients];
 
     if (!isDoctor) {
-      // Debug: log current optometristId and each patient's optometrist_id
-      console.log("[QueueFilter] currentOptometristId (my user_id):", optometristId);
-      console.log("[QueueFilter] activeFilter:", activeFilter);
-      console.log("[QueueFilter] allowOptometristPickAny:", allowOptometristPickAny);
-      queuePatients.forEach(p => {
-        if (p.status === "optometrist_assigned" || p.status === "optometrist_investigation_in_progress") {
-          console.log(`[QueueFilter] Patient ${p.patient_name}: optometrist_id=${p.optometrist_id}, match=${p.optometrist_id === optometristId}, will hide=${!allowOptometristPickAny && !!p.optometrist_id && (!optometristId || p.optometrist_id !== optometristId)}`);
-        }
-      });
       filtered = filterOptometristQueuePatients(queuePatients, activeFilter as any, optometristId, allowOptometristPickAny);
     } else {
       const DOCTOR_STATUS_MAP: Record<string, string[]> = {
@@ -171,16 +162,16 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
           return;
         }
         // In-progress (optometrist_assigned, optometrist_investigation_in_progress):
-        // only count for the assigned optometrist (unless allowPickAny)
+        // Always isolated to the assigned optometrist — allowPickAny does NOT override this
         if (status === "optometrist_assigned" || status === "optometrist_investigation_in_progress") {
-          if (!allowOptometristPickAny && patient.optometrist_id) {
-            // Only count if this is MY patient (same isolation logic as filter)
+          if (patient.optometrist_id) {
+            // Only count if this is MY patient
             if (optometristId && patient.optometrist_id === optometristId) {
               counts.pending++;
             }
             // else: belongs to another optometrist, don't count
           } else {
-            // No assigned optometrist yet, or allowPickAny — count for everyone
+            // Not yet assigned to anyone — count for everyone
             counts.pending++;
           }
         }

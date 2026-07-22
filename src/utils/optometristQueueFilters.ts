@@ -69,7 +69,7 @@ export function filterOptometristQueuePatients(
   patients: OptometristQueuePatient[],
   filter: OptometristQueueFilter,
   currentOptometristId?: string | null,
-  allowPickAny: boolean = false
+  allowPickAny: boolean = false  // only affects awaiting_optometrist pick access, NOT isolation
 ): OptometristQueuePatient[] {
   const filterConfig = OPTOMETRIST_QUEUE_FILTERS[filter];
   if (!filterConfig) return patients;
@@ -79,17 +79,16 @@ export function filterOptometristQueuePatients(
       return false;
     }
 
-    // For pending tab: hide patients picked/in-progress by ANOTHER optometrist
-    // A patient with optometrist_assigned/in_progress and a set optometrist_id belongs
-    // exclusively to that optometrist unless allowPickAny is enabled.
+    // Isolation: patients already picked (optometrist_assigned / investigation_in_progress)
+    // are ONLY visible to the optometrist they are assigned to.
+    // This applies regardless of allowPickAny — that flag only controls picking from the
+    // awaiting_optometrist pool, not visibility of already-assigned patients.
     if (
-      !allowPickAny &&
       filter === "pending" &&
       (patient.status === "optometrist_assigned" || patient.status === "optometrist_investigation_in_progress") &&
-      patient.optometrist_id  // patient is assigned to someone
+      patient.optometrist_id  // patient is assigned to a specific optometrist
     ) {
-      // If we know who the current user is, only show if it matches
-      // If we don't know the current user (no ID), hide all picked patients to be safe
+      // Show only if this is the assigned optometrist
       if (!currentOptometristId || patient.optometrist_id !== currentOptometristId) {
         return false;
       }
