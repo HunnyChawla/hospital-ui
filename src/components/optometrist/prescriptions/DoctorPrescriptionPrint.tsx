@@ -21,7 +21,8 @@ import {
     Hash,
     User,
     UserRound,
-    MapPin
+    MapPin,
+    Phone
 } from "lucide-react";
 
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
@@ -684,7 +685,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         </div>
                         <div className={cellPadding}>{formatDate(visitData?.checked_in_at || prescription.created_at)} {formatTime(visitData?.checked_in_at || prescription.created_at)}</div>
                     </div>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr]">
+                    <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">
                         <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
                             <MapPin className="h-2.5 w-2.5 text-slate-500" />
                             <span>Address</span>
@@ -695,6 +696,17 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             <span>Category</span>
                         </div>
                         <div className={`${cellPadding} font-bold`}>{(visitData as any)?.category || (visitData as any)?.patient_category || "-"}</div>
+                    </div>
+                    <div className="grid grid-cols-[100px_1fr_100px_1fr]">
+                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                            <Phone className="h-2.5 w-2.5 text-slate-500" />
+                            <span>Mobile No.</span>
+                        </div>
+                        <div className={`${cellPadding} font-bold border-r border-slate-300`}>{visitData?.mobile || "-"}</div>
+                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                            <span></span>
+                        </div>
+                        <div className={`${cellPadding}`}></div>
                     </div>
 
                 </div>

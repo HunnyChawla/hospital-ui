@@ -4,6 +4,7 @@ import { getTenantIdForApi } from "@/utils/auth";
 export interface PrescriptionDataResponse {
   patient_id: string;
   uhid?: string;
+  mobile?: string | null;
   category?: string | null;
   visit_id: string;
 
