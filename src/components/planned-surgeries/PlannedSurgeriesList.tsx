@@ -329,7 +329,7 @@ export function PlannedSurgeriesList() {
 
             // Prepare table data
             const tableData = allSurgeries.map((surgery) => [
-                formatDate(surgery.planned_date),
+                surgery.planned_date ? formatDate(surgery.planned_date) : `Advised: ${formatDate(surgery.advised_date || surgery.created_at)}`,
                 surgery.patient_name || "-",
                 surgery.surgery_name,
                 surgery.eye,
