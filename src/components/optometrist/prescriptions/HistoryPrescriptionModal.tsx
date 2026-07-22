@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Printer, Loader2, Download, AlertCircle } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
+import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { optometryPrescriptionApi } from "@/services/optometryPrescriptionApi";
 import { prescriptionDataApi, type PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { doctorsApi } from "@/services/doctorsApi";
@@ -62,7 +63,24 @@ export function HistoryPrescriptionModal({
                 // Prefer finalized prescription over draft if both exist
                 const finalized = prescriptionRes.items.find(p => p.status === "finalized");
                 prescription = finalized || prescriptionRes.items[0];
-            } else if (visitDataRes) {
+            }
+
+            // Resolve target doctor ID from prescription or OPD visit details
+            let targetDoctorId = prescription?.doctor_id;
+            let targetDoctorName = prescription?.doctor_name;
+
+            if (!targetDoctorId) {
+                try {
+                    const visitDetails = await opdVisitsApi.getById(visitId);
+                    if (visitDetails?.doctor_id) {
+                        targetDoctorId = visitDetails.doctor_id;
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch visit details for doctor ID", err);
+                }
+            }
+
+            if (!prescription && visitDataRes) {
                 // Fallback: Check if there is clinical visit data recorded (refraction, complaints, vision, etc.)
                 const hasClinicalData = !!(
                     visitDataRes.refraction ||
@@ -80,6 +98,8 @@ export function HistoryPrescriptionModal({
                         optometrist_id: "",
                         optometrist_name: "",
                         visit_id: visitId,
+                        doctor_id: targetDoctorId,
+                        doctor_name: targetDoctorName,
                         prescription_number: "DRAFT",
                         status: "draft",
                         diagnosis: null,
@@ -96,29 +116,25 @@ export function HistoryPrescriptionModal({
 
             setPrescription(prescription);
 
-            // Fetch doctor signature if we have a prescription
-            if (prescription?.doctor_id) {
+            // Fetch doctor signature and doctor details
+            if (targetDoctorId) {
                 try {
-                    const sigData = await doctorsApi.getSignature(prescription.doctor_id.toString());
+                    const [sigData, docProfile] = await Promise.all([
+                        doctorsApi.getSignature(targetDoctorId.toString()).catch(() => null),
+                        doctorsApi.getById(targetDoctorId.toString()).catch(() => null)
+                    ]);
+
                     if (sigData?.signature) {
                         setDoctorSignature(sigData.signature);
-                    } else {
-                        const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
-                        if (docProfile?.signature) {
-                            setDoctorSignature(docProfile.signature);
-                        }
+                    } else if (docProfile?.signature) {
+                        setDoctorSignature(docProfile.signature);
+                    }
+
+                    if (prescription && !prescription.doctor_name && docProfile) {
+                        prescription.doctor_name = docProfile.user_name || docProfile.name || (docProfile.specialization ? `Dr. ${docProfile.specialization}` : undefined);
                     }
                 } catch (e) {
-                    console.error("Failed to fetch doctor signature:", e);
-                    // Fallback
-                    try {
-                        const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
-                        if (docProfile?.signature) {
-                            setDoctorSignature(docProfile.signature);
-                        }
-                    } catch (err) {
-                        console.error("Failed fallback signature fetch:", err);
-                    }
+                    console.error("Failed to fetch doctor signature/profile:", e);
                 }
             }
 
