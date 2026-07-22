@@ -101,13 +101,13 @@ const doctorPanelSlice = createSlice({
         const slots = action.payload.slots;
         const pendingOptometrist = slots.filter((s) =>
           s.status === "awaiting_optometrist" ||
-          s.status === "optometrist_assigned" ||
           s.status === "checked_in" ||
           s.status === "checked_in_opd" ||
           s.status === "waiting" ||
           s.status === "scheduled"
         ).length;
         const inProgressOptometrist = slots.filter((s) =>
+          s.status === "optometrist_assigned" ||
           s.status === "optometrist_investigation_in_progress" ||
           s.status === "dilation_in_progress"
         ).length;

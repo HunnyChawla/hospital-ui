@@ -212,13 +212,14 @@ export function OptometristPanel() {
       switch (patient.status) {
         // Pending statuses
         case "awaiting_optometrist":
-        case "optometrist_assigned":
         case "scheduled":
         case "waiting":
         case "checked_in":
+        case "checked_in_opd":
           stats.todayPending++;
           break;
         // In progress statuses
+        case "optometrist_assigned":
         case "optometrist_investigation_in_progress":
         case "dilation_in_progress":
           stats.todayInProgress++;
