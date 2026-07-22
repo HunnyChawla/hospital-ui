@@ -42,7 +42,8 @@ export function PlannedSurgerySection({
     const [selectedSurgeryId, setSelectedSurgeryId] = useState("");
     const [selectedSurgeryName, setSelectedSurgeryName] = useState("");
     const [selectedEye, setSelectedEye] = useState<EyeType>("OD");
-    const [plannedDate, setPlannedDate] = useState(getTodayDateLocal());
+    const [plannedDate, setPlannedDate] = useState("");
+    const [advisedDate, setAdvisedDate] = useState(getTodayDateLocal());
     const [notes, setNotes] = useState("");
 
     // Load surgeries master list
@@ -91,8 +92,8 @@ export function PlannedSurgerySection({
     };
 
     const handleAddSurgery = async () => {
-        if (!selectedSurgeryId || !plannedDate) {
-            toast.error("Please select a surgery and date");
+        if (!selectedSurgeryId) {
+            toast.error("Please select a surgery");
             return;
         }
 
@@ -103,7 +104,8 @@ export function PlannedSurgerySection({
                 surgery_id: selectedSurgeryId,
                 surgery_name: selectedSurgeryName,
                 eye: selectedEye,
-                planned_date: plannedDate,
+                planned_date: plannedDate || null,
+                advised_date: advisedDate || getTodayDateLocal(),
                 surgeon_id: surgeonId,
                 notes: notes || null,
             });
@@ -114,7 +116,8 @@ export function PlannedSurgerySection({
             setSelectedSurgeryId("");
             setSelectedSurgeryName("");
             setSelectedEye("OD");
-            setPlannedDate(getTodayDateLocal());
+            setPlannedDate("");
+            setAdvisedDate(getTodayDateLocal());
             setNotes("");
         } catch (error) {
             handleError(error, { defaultMessage: "Failed to plan surgery", logError: true });
@@ -209,7 +212,9 @@ export function PlannedSurgerySection({
                                                     </span>
                                                     <span className="text-xs text-slate-500 flex items-center gap-1">
                                                         <Calendar className="h-3 w-3" />
-                                                        {formatDate(surgery.planned_date)}
+                                                        {surgery.planned_date
+                                                            ? `Planned: ${formatDate(surgery.planned_date)}`
+                                                            : `Advised: ${formatDate(surgery.advised_date || surgery.created_at)}`}
                                                     </span>
                                                 </div>
                                             </div>
@@ -277,7 +282,9 @@ export function PlannedSurgerySection({
 
                         {/* Date Selection */}
                         <div>
-                            <label className="block text-xs font-medium text-slate-600 mb-1.5">Planned Date</label>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                                Planned Date <span className="text-xs text-slate-400 font-normal">(optional)</span>
+                            </label>
                             <input
                                 type="date"
                                 value={plannedDate}
@@ -303,7 +310,7 @@ export function PlannedSurgerySection({
                         <button
                             type="button"
                             onClick={handleAddSurgery}
-                            disabled={isSubmitting || !selectedSurgeryId || !plannedDate}
+                            disabled={isSubmitting || !selectedSurgeryId}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                         >
                             {isSubmitting ? (

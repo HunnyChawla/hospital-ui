@@ -80,7 +80,7 @@ export function PlannedSurgeryFormModal({
             setSurgeryName(initialData.surgery_name);
             setSurgeonId(initialData.surgeon_id);
             setEye(initialData.eye);
-            setPlannedDate(initialData.planned_date);
+            setPlannedDate(initialData.planned_date || "");
             setPlannedTime(initialData.planned_time?.slice(0, 5) || "");
             setHospitalName(initialData.hospital_name || "");
             setHospitalName(initialData.hospital_name || "");
@@ -161,10 +161,6 @@ export function PlannedSurgeryFormModal({
             toast.error("Please select a surgeon");
             return;
         }
-        if (!plannedDate) {
-            toast.error("Please select a planned date");
-            return;
-        }
 
         setSaving(true);
         try {
@@ -173,7 +169,7 @@ export function PlannedSurgeryFormModal({
                     surgery_id: surgeryId,
                     surgery_name: surgeryName,
                     eye,
-                    planned_date: plannedDate,
+                    planned_date: plannedDate || null,
                     planned_time: plannedTime || null,
                     hospital_name: hospitalName || null,
                     notes: notes || null,
@@ -188,7 +184,7 @@ export function PlannedSurgeryFormModal({
                     surgery_name: surgeryName,
                     surgeon_id: surgeonId,
                     eye,
-                    planned_date: plannedDate,
+                    planned_date: plannedDate || null,
                     planned_time: plannedTime || null,
                     hospital_name: hospitalName || null,
                     notes: notes || null,
@@ -369,7 +365,7 @@ export function PlannedSurgeryFormModal({
                                         <div className="space-y-1.5">
                                             <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                                 <Calendar className="h-4 w-4 text-slate-400" />
-                                                Planned Date <span className="text-rose-500">*</span>
+                                                Planned Date <span className="text-xs text-slate-400 font-normal">(optional)</span>
                                             </label>
                                             <input
                                                 type="date"

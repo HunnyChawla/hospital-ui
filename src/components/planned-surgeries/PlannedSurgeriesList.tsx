@@ -43,6 +43,7 @@ export function PlannedSurgeriesList() {
     const [fromDate, setFromDate] = useState<string>("");
     const [toDate, setToDate] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<PlannedSurgeryStatus | "all">("all");
+    const [sortBy, setSortBy] = useState<"advised_date" | "planned_date" | "created_at">("advised_date");
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -64,6 +65,7 @@ export function PlannedSurgeriesList() {
                 from_date: fromDate || undefined,
                 to_date: toDate || undefined,
                 status: statusFilter !== "all" ? statusFilter : undefined,
+                sort_by: sortBy,
             };
 
             const response = await plannedSurgeriesApi.list(params);
@@ -80,11 +82,11 @@ export function PlannedSurgeriesList() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, pageSize, surgeonId, fromDate, toDate, statusFilter]);
+    }, [currentPage, pageSize, surgeonId, fromDate, toDate, statusFilter, sortBy]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [surgeonId, fromDate, toDate, statusFilter]);
+    }, [surgeonId, fromDate, toDate, statusFilter, sortBy]);
 
     useEffect(() => {
         fetchSurgeries();
@@ -511,6 +513,23 @@ export function PlannedSurgeriesList() {
                         </select>
                     </div>
 
+                    {/* Sort By Filter */}
+                    <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                            <Clock className="h-4 w-4 text-slate-400" />
+                            Sort By
+                        </label>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        >
+                            <option value="advised_date">Advised Date (Newest)</option>
+                            <option value="planned_date">Planned Date</option>
+                            <option value="created_at">Creation Date</option>
+                        </select>
+                    </div>
+
                     {/* Results Count */}
                     <div className="flex items-end">
                         <div className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-center">
@@ -625,9 +644,23 @@ export function PlannedSurgeriesList() {
                                             </div>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            <div className="flex items-center gap-2 text-slate-700">
-                                                <Calendar className="h-4 w-4 text-slate-400" />
-                                                <span>{formatDateTime(surgery.planned_date, surgery.planned_time)}</span>
+                                            <div className="flex flex-col gap-0.5 text-slate-700">
+                                                {surgery.planned_date ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Calendar className="h-4 w-4 text-sky-500" />
+                                                        <span className="font-medium">{formatDateTime(surgery.planned_date, surgery.planned_time)}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full w-fit">
+                                                        <Clock className="h-3 w-3" />
+                                                        Advised: {formatDate(surgery.advised_date || surgery.created_at)}
+                                                    </span>
+                                                )}
+                                                {surgery.planned_date && surgery.advised_date && (
+                                                    <span className="text-[11px] text-slate-400 pl-5">
+                                                        Advised: {formatDate(surgery.advised_date)}
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">

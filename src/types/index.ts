@@ -609,7 +609,8 @@ export type PlannedSurgery = {
   surgery_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";
-  planned_date: string;
+  planned_date: string | null;
+  advised_date?: string | null;
   planned_time: string | null;
   surgeon_id: string;
   surgeon_name: string | null;
@@ -627,7 +628,8 @@ export type CreatePlannedSurgeryRequest = {
   surgery_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";
-  planned_date: string;
+  planned_date?: string | null;
+  advised_date?: string | null;
   planned_time?: string | null;
   surgeon_id: string;
   hospital_name?: string | null;
@@ -638,7 +640,8 @@ export type UpdatePlannedSurgeryRequest = {
   surgery_id?: string;
   surgery_name?: string;
   eye?: "OD" | "OS" | "OU";
-  planned_date?: string;
+  planned_date?: string | null;
+  advised_date?: string | null;
   planned_time?: string | null;
   hospital_name?: string | null;
   notes?: string | null;

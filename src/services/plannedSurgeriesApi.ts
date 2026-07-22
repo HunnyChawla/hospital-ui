@@ -13,6 +13,7 @@ export type PlannedSurgeryParams = {
     from_date?: string;
     to_date?: string;
     status?: PlannedSurgeryStatus;
+    sort_by?: "advised_date" | "planned_date" | "created_at";
     page?: number;
     page_size?: number;
 };

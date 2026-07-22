@@ -566,7 +566,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         <li key={idx} className="mb-1">
                                             <span className="font-medium">{surgery.surgery_name}</span>
                                             <span className="text-slate-600 ml-1">
-                                                ({surgery.eye}) - Planned on {formatDate(surgery.planned_date)}
+                                                ({surgery.eye}){surgery.planned_date ? ` - Planned on ${formatDate(surgery.planned_date)}` : surgery.advised_date ? ` - Advised on ${formatDate(surgery.advised_date)}` : ""}
                                             </span>
                                             {surgery.notes && (
                                                 <div className="text-xs text-slate-500 mt-0.5 italic">
