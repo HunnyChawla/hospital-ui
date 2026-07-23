@@ -49,107 +49,100 @@ export interface HandleErrorOptions {
 }
 
 /**
+ * Helper to parse detail field from API responses or error payloads
+ */
+function parseDetail(detail: any): string | null {
+  if (!detail) return null;
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const messages = detail.map((err: any) => {
+      if (typeof err === "string") return err;
+      if (err?.msg) return err.msg;
+      if (err?.message) return err.message;
+      if (err?.ctx) {
+        const { resource_type, field, value } = err.ctx;
+        if (resource_type && field) {
+          return `${resource_type} with ${field} '${value || ""}' already exists`;
+        }
+      }
+      return "Validation error";
+    });
+    return messages.join(", ");
+  }
+
+  if (typeof detail === "object" && detail !== null) {
+    if ("message" in detail && typeof detail.message === "string") {
+      return detail.message;
+    }
+    if ("msg" in detail && typeof detail.msg === "string") {
+      return detail.msg;
+    }
+    if ("detail" in detail) {
+      return parseDetail(detail.detail);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extracts user-friendly error message from API error response
  * Handles both old format (string) and new format (array with structured errors)
- * Also handles Redux thunk errors (rejected actions)
+ * Also handles Redux thunk errors (rejected actions & unwrapped payloads)
  */
 export function getErrorMessage(error: any): string {
+  if (!error) {
+    return "An error occurred. Please try again.";
+  }
+
+  // Handle direct string errors
+  if (typeof error === "string") {
+    return error;
+  }
+
   // Handle Redux thunk rejected actions
-  // When using rejectWithValue, the error is in error.payload
-  // When using .unwrap(), the error structure is: { payload: ..., error: ... }
   let actualError = error;
   
   if (error?.payload) {
-    // Redux thunk with rejectWithValue - payload contains the original error
     actualError = error.payload;
   } else if (error?.error) {
-    // Redux thunk without rejectWithValue
     actualError = error.error;
   }
-  
-  // Check if we have a response (API error from axios)
-  if (actualError?.response) {
-    const response = actualError.response;
-    const data = response.data as ApiErrorResponse | undefined;
 
-    if (!data?.detail) {
-      // Fallback to status text or generic message
-      return response.statusText || `Request failed with status ${response.status}`;
-    }
-
-    const detail = data.detail;
-
-    // Handle string error messages (old format)
-    if (typeof detail === "string") {
-      return detail;
-    }
-
-    // Handle array of error details (new format)
-    if (Array.isArray(detail) && detail.length > 0) {
-      // Extract messages from all errors
-      const messages = detail.map((err: ErrorDetail) => {
-        // Use the msg field which contains the user-friendly message
-        if (err.msg) {
-          return err.msg;
-        }
-        // Fallback: construct message from context if available
-        if (err.ctx) {
-          const { resource_type, field, value } = err.ctx;
-          if (resource_type && field) {
-            return `${resource_type} with ${field} '${value || ""}' already exists`;
-          }
-        }
-        // Last fallback
-        return "Validation error";
-      });
-
-      // Join multiple errors with newlines or commas
-      return messages.join(", ");
-    }
-
-    // Handle object with message property
-    if (typeof detail === "object" && "message" in detail) {
-      return (detail as any).message;
-    }
+  if (typeof actualError === "string") {
+    return actualError;
   }
 
-  // Check if error has data directly (non-axios errors or custom error format)
-  if (actualError?.data) {
-    const data = actualError.data as ApiErrorResponse | undefined;
-    
-    if (data?.detail) {
-      const detail = data.detail;
-      
-      // Handle string error messages
-      if (typeof detail === "string") {
-        return detail;
-      }
-      
-      // Handle array of error details
-      if (Array.isArray(detail) && detail.length > 0) {
-        const messages = detail.map((err: ErrorDetail) => {
-          if (err.msg) {
-            return err.msg;
-          }
-          if (err.ctx) {
-            const { resource_type, field, value } = err.ctx;
-            if (resource_type && field) {
-              return `${resource_type} with ${field} '${value || ""}' already exists`;
-            }
-          }
-          return "Validation error";
-        });
-        
-        return messages.join(", ");
-      }
-    }
+  // 1. Check axios response structure (actualError.response.data.detail)
+  if (actualError?.response?.data?.detail) {
+    const msg = parseDetail(actualError.response.data.detail);
+    if (msg) return msg;
   }
-  
-  // Handle network errors or errors without response
-  if (actualError?.message) {
+  if (actualError?.response?.statusText) {
+    return actualError.response.statusText;
+  }
+
+  // 2. Check direct data object (actualError.data.detail)
+  if (actualError?.data?.detail) {
+    const msg = parseDetail(actualError.data.detail);
+    if (msg) return msg;
+  }
+
+  // 3. Check direct detail property (Redux rejectWithValue / unwrapped API payload)
+  if (actualError?.detail) {
+    const msg = parseDetail(actualError.detail);
+    if (msg) return msg;
+  }
+
+  // 4. Check message property
+  if (actualError?.message && typeof actualError.message === "string") {
     return actualError.message;
   }
-  
+
   // Default fallback
   return "An error occurred. Please try again.";
 }
