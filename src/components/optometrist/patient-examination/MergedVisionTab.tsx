@@ -190,12 +190,12 @@ const initialFormState: CombinedFormState = {
 };
 
 const DIST_VA_OPTIONS = [
-  "6/6", "6/6p", "6/5", "6/9", "6/9p", "6/12", "6/12p", "6/18", "6/18p", "6/24", "6/24p", "6/36", "6/36p", "6/60", "6/60p",
+  "6/6", "6/6 p", "6/5", "6/9", "6/9 p", "6/12", "6/12 p", "6/18", "6/18 p", "6/24", "6/24 p", "6/36", "6/36 p", "6/60", "6/60 p",
   "5/60", "4/60", "3/60", "2/60", "1/60",
   "CF 6m", "CF 5m", "CF 4m", "CF 3m", "CF 2m", "CF 1m", "CF", "CFCF",
   "HM", "PL", "PL+", "PL-", "PR+", "PR-", "PL+ PR+", "PL+ PR-", "PL PR", "NPL", "FFL"
 ];
-const NEAR_VA_OPTIONS = ["N5", "N6", "N6p", "N8", "N8p", "N10", "N12", "N12p", "N14", "N18", "N18p", "N24", "N36", "N48"];
+const NEAR_VA_OPTIONS = ["N5", "N6", "N6 p", "N8", "N8 p", "N10", "N12", "N12 p", "N14", "N18", "N18 p", "N24", "N36", "N48"];
 const PRISM_OPTIONS = ["", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
 
 export function MergedVisionTab({

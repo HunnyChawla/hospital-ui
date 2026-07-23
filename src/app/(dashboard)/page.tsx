@@ -345,6 +345,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, [router]);
 
+  const totalPatientsCount = useAppSelector((s) => s.patients.pagination?.total) ?? patients.length;
   const admittedCount = admissions.length;
   const totalQueue = queue.length;
   // Use actual invoice totals instead of old billing records
@@ -386,7 +387,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <EnhancedStatCard
               label="Total patients"
-              value={patients.length}
+              value={totalPatientsCount}
               hint="Registered patients"
               icon={HeartPulse}
               tone="sky"
