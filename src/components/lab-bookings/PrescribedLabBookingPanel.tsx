@@ -819,23 +819,35 @@ export function PrescribedLabBookingPanel({
                     <div className="space-y-2 text-sm">
                       {advisedTests
                         .filter((t) => selectedTestIds.includes(t.lab_test_id))
-                        .map((t) => (
-                          <div key={t.advice_item_id} className="flex justify-between text-slate-600">
-                            <span className="font-medium">
-                              {t.test_name} {t.already_booked ? "(Repeat Booking)" : ""}
-                            </span>
-                            <span className="font-semibold text-slate-700">
-                              {t.price !== undefined && t.price !== null ? currency(t.price) : "—"}
-                            </span>
-                          </div>
-                        ))}
+                        .map((t) => {
+                          const effectivePrice = priceOverrides[t.lab_test_id] !== undefined ? priceOverrides[t.lab_test_id] : (t.price ?? 0);
+                          const isOverridden = priceOverrides[t.lab_test_id] !== undefined && priceOverrides[t.lab_test_id] !== t.price;
+                          return (
+                            <div key={t.advice_item_id} className="flex justify-between items-center text-slate-600">
+                              <span className="font-medium flex items-center gap-1.5">
+                                {t.test_name} {t.already_booked ? "(Repeat Booking)" : ""}
+                                {isOverridden && (
+                                  <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                                    Custom (Orig: {currency(t.price ?? 0)})
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-semibold text-slate-700">
+                                {currency(effectivePrice)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       <div className="border-t border-slate-200 my-1 pt-2 flex justify-between font-bold text-slate-900 text-base">
                         <span>Total Amount to Collect</span>
                         <span className="text-sky-600">
                           {currency(
                             advisedTests
                               .filter((t) => selectedTestIds.includes(t.lab_test_id))
-                              .reduce((sum, t) => sum + (t.price || 0), 0)
+                              .reduce((sum, t) => {
+                                const p = priceOverrides[t.lab_test_id] !== undefined ? priceOverrides[t.lab_test_id] : (t.price ?? 0);
+                                return sum + p;
+                              }, 0)
                           )}
                         </span>
                       </div>
