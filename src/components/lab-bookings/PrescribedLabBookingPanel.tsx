@@ -47,10 +47,15 @@ export function PrescribedLabBookingPanel({
   const [priority, setPriority] = useState<TestPriority>("routine");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [paymentReference, setPaymentReference] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
-  const [showOnlyPending, setShowOnlyPending] = useState(true);
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
+
+  const handlePriceChange = (labTestId: string, val: string) => {
+    const parsed = parseFloat(val);
+    setPriceOverrides((prev) => ({
+      ...prev,
+      [labTestId]: isNaN(parsed) ? 0 : parsed,
+    }));
+  };
 
   // Set default date to today
   useEffect(() => {
@@ -278,7 +283,20 @@ export function PrescribedLabBookingPanel({
           </div>
 
           <div className="flex items-center gap-3">
-            {test.price !== undefined && test.price !== null ? (
+            {isChecked ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-500">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceOverrides[test.lab_test_id] ?? test.price ?? 0}
+                  onChange={(e) => handlePriceChange(test.lab_test_id, e.target.value)}
+                  className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-900 shadow-sm outline-none focus:border-sky-500"
+                  title="Override price for this test"
+                />
+              </div>
+            ) : test.price !== undefined && test.price !== null ? (
               <span className="text-sm font-semibold text-slate-700">
                 {currency(test.price)}
               </span>
@@ -383,6 +401,13 @@ export function PrescribedLabBookingPanel({
         scheduled_date: scheduledDate,
         priority,
         lab_test_ids: selectedTestIds,
+        test_items: selectedTestIds.map((id) => {
+          const defaultPrice = advisedTests.find((t) => t.lab_test_id === id)?.price;
+          return {
+            lab_test_id: id,
+            price: priceOverrides[id] !== undefined ? priceOverrides[id] : (defaultPrice ?? undefined),
+          };
+        }),
         notes: notes.trim() || undefined,
         payment_method: paymentMethod,
         payment_reference: paymentReference.trim() || undefined,

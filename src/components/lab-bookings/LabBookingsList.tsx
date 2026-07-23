@@ -1133,14 +1133,21 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                     className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3"
                   >
                     <div className="flex-1">
-                      <p className="font-semibold text-slate-900">
-                        {test.test_name}
-                        {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
-                          <span className="font-normal text-slate-500 text-xs ml-1.5">
-                            ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-900">
+                          {test.test_name}
+                          {test.prescription_metadata && Object.keys(test.prescription_metadata).length > 0 && (
+                            <span className="font-normal text-slate-500 text-xs ml-1.5">
+                              ({Object.entries(test.prescription_metadata).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                            </span>
+                          )}
+                        </p>
+                        {test.is_price_overridden && (
+                          <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 shrink-0">
+                            Custom Price {test.original_price != null ? `(Orig: ${currency(test.original_price)})` : ""}
                           </span>
                         )}
-                      </p>
+                      </div>
                       <p className="text-xs text-slate-500">Code: {test.test_code}</p>
                     </div>
                     <p className="ml-4 font-semibold text-slate-900">{currency(test.price)}</p>
