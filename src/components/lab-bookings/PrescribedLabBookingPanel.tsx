@@ -47,6 +47,10 @@ export function PrescribedLabBookingPanel({
   const [priority, setPriority] = useState<TestPriority>("routine");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
+  const [showOnlyPending, setShowOnlyPending] = useState(true);
   const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
 
   const handlePriceChange = (labTestId: string, val: string) => {

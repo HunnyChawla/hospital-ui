@@ -308,7 +308,7 @@ export function LabBookingForm({
                       <div>
                         <p className="font-semibold text-slate-900">{patient.name}</p>
                         <p className="text-xs text-slate-500">
-                          {patient.mobile || "No Mobile"} • MRN: {patient.mrn || "N/A"}
+                          {patient.mobile || "No Mobile"} • ID: {patient.id.slice(0, 8)}...
                         </p>
                       </div>
                     </div>
