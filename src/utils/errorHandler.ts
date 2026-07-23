@@ -186,12 +186,7 @@ export function handleError(
 
   // Log error if requested
   if (logError) {
-    console.error("Error details:", {
-      error,
-      message: errorMessage,
-      response: error?.response,
-      data: error?.response?.data,
-    });
+    console.error(`[ErrorHandler] ${errorMessage}`, error);
   }
 
   // Show toast notification
