@@ -59,7 +59,7 @@ export function BillingManagement({
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Date filter state - default to "today" for daily operational visibility
-  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month" | "custom">("today");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday" | "week" | "month" | "custom">("today");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -141,6 +141,13 @@ export function BillingManagement({
         start_date = today.toISOString().split("T")[0];
         end_date = start_date;
         break;
+      case "yesterday": {
+        const yest = new Date(today);
+        yest.setDate(today.getDate() - 1);
+        start_date = yest.toISOString().split("T")[0];
+        end_date = start_date;
+        break;
+      }
       case "week":
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
@@ -221,7 +228,9 @@ export function BillingManagement({
           totalInvoices: response.summary.total_invoices,
         });
       } else {
-        const totalRevenue = response.items.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+        const totalRevenue = response.items
+          .filter(inv => inv.status !== "refunded" && inv.status !== "cancelled")
+          .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
         const paidAmount = response.items.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
         const pendingAmount = response.items
           .filter(inv => inv.status === "pending" || inv.status === "partial")
@@ -541,6 +550,7 @@ export function BillingManagement({
                 <span>
                   {dateFilter === "all" && "All Time"}
                   {dateFilter === "today" && "Today"}
+                  {dateFilter === "yesterday" && "Yesterday"}
                   {dateFilter === "week" && "Last 7 Days"}
                   {dateFilter === "month" && "Last 30 Days"}
                   {dateFilter === "custom" && "Custom Range"}
@@ -573,6 +583,18 @@ export function BillingManagement({
                         }`}
                     >
                       Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDateFilter("yesterday");
+                        setShowDatePicker(false);
+                      }}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${dateFilter === "yesterday"
+                        ? "bg-sky-50 text-sky-700"
+                        : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                    >
+                      Yesterday
                     </button>
                     <button
                       onClick={() => {
