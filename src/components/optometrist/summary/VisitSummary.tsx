@@ -11,8 +11,232 @@ const formatDiopter = (val: string | number | null | undefined): string => {
   if (val === null || val === undefined || val === "") return "—";
   const num = typeof val === "number" ? val : parseFloat(String(val));
   if (isNaN(num)) return String(val);
-  return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+  return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
 };
+
+// Helper component to render Prescription details in a clean UI layout
+function PrescriptionSummaryView({
+  prescription,
+  formatDate
+}: {
+  prescription: any;
+  formatDate: (date: string) => string;
+}) {
+  const medicineItems = prescription.medicine_items || [];
+  const adviceItems = prescription.advice_items || [];
+  const symptoms = prescription.symptoms || [];
+  const specItems = prescription.items || [];
+  const coatings = Array.isArray(prescription.coatings) ? prescription.coatings : [];
+
+  const hasContent =
+    prescription.diagnosis ||
+    prescription.plan_of_action ||
+    prescription.remarks ||
+    prescription.followup_date ||
+    medicineItems.length > 0 ||
+    adviceItems.length > 0 ||
+    symptoms.length > 0 ||
+    specItems.length > 0 ||
+    prescription.lens_type ||
+    prescription.vision_type ||
+    prescription.lens_material ||
+    coatings.length > 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Header Info Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-3 border border-slate-200">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-900 text-sm">
+            {prescription.prescription_number || "Prescription"}
+          </span>
+          {prescription.status && (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                prescription.status === "finalized"
+                  ? "bg-green-100 text-green-700 border border-green-200"
+                  : "bg-amber-100 text-amber-700 border border-amber-200"
+              }`}
+            >
+              {prescription.status}
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-slate-500 flex items-center gap-3">
+          {(prescription.doctor_name || prescription.optometrist_name) && (
+            <span>
+              By: <strong className="text-slate-700">{prescription.doctor_name || prescription.optometrist_name}</strong>
+            </span>
+          )}
+          {prescription.created_at && (
+            <span>{formatDate(prescription.created_at)}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Diagnosis & Plan of Action */}
+      {(prescription.diagnosis || prescription.plan_of_action || prescription.remarks || prescription.followup_date) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          {prescription.diagnosis && (
+            <div className="rounded-lg bg-blue-50/60 p-3 border border-blue-100">
+              <span className="text-xs font-semibold text-blue-800 uppercase tracking-wider block mb-1">
+                Diagnosis
+              </span>
+              <p className="text-slate-800 font-medium">{prescription.diagnosis}</p>
+            </div>
+          )}
+          {prescription.plan_of_action && (
+            <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">
+                Plan of Action
+              </span>
+              <p className="text-slate-800">{prescription.plan_of_action}</p>
+            </div>
+          )}
+          {prescription.remarks && (
+            <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1">
+                Remarks
+              </span>
+              <p className="text-slate-800 italic">&quot;{prescription.remarks}&quot;</p>
+            </div>
+          )}
+          {prescription.followup_date && (
+            <div className="rounded-lg bg-indigo-50/60 p-3 border border-indigo-100">
+              <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wider block mb-1">
+                Follow-up Date
+              </span>
+              <p className="text-indigo-950 font-medium">{formatDate(prescription.followup_date)}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Symptoms */}
+      {symptoms.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Symptoms</h4>
+          <div className="flex flex-wrap gap-2">
+            {symptoms.map((symptom: any, idx: number) => (
+              <span
+                key={symptom.id || idx}
+                className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 text-xs border border-slate-200 font-medium"
+              >
+                {symptom.symptom_name}
+                {symptom.applicable_eye && symptom.applicable_eye !== "NA" && ` (${symptom.applicable_eye})`}
+                {symptom.severity && ` • ${symptom.severity}`}
+                {symptom.duration && ` • ${symptom.duration}`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Medicines Table */}
+      {medicineItems.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Prescribed Medicines</h4>
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="p-2.5">Medicine</th>
+                  <th className="p-2.5">Eye</th>
+                  <th className="p-2.5">Dosage</th>
+                  <th className="p-2.5">Frequency</th>
+                  <th className="p-2.5">Duration</th>
+                  <th className="p-2.5">Instructions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
+                {medicineItems.map((med: any, idx: number) => (
+                  <tr key={med.id || idx} className="hover:bg-slate-50/50">
+                    <td className="p-2.5 font-medium text-slate-900">
+                      {med.medicine_name}
+                      {med.generic_name && (
+                        <span className="block text-[11px] text-slate-400 font-normal">{med.generic_name}</span>
+                      )}
+                    </td>
+                    <td className="p-2.5">
+                      {med.applicable_eye && med.applicable_eye !== "NA" ? (
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[11px]">
+                          {med.applicable_eye}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="p-2.5 font-medium">{med.dosage || "—"}</td>
+                    <td className="p-2.5">{med.frequency || "—"}</td>
+                    <td className="p-2.5">{med.duration || "—"}</td>
+                    <td className="p-2.5 text-slate-600">{med.instructions || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Advice Items */}
+      {adviceItems.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Advice & Lab Tests</h4>
+          <div className="space-y-2">
+            {adviceItems.map((item: any, idx: number) => (
+              <div key={item.id || idx} className="rounded-lg bg-slate-50 p-2.5 border border-slate-200 text-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-slate-800">{item.description || item.advice_type}</span>
+                  {item.advice_type && (
+                    <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-medium uppercase">
+                      {item.advice_type}
+                    </span>
+                  )}
+                </div>
+                {item.notes && <p className="text-slate-600 italic">{item.notes}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Eyewear & Lens Details */}
+      {(prescription.lens_type || prescription.vision_type || prescription.lens_material || coatings.length > 0 || specItems.length > 0) && (
+        <div className="rounded-lg bg-slate-50 p-3 border border-slate-200 text-xs space-y-2">
+          <h4 className="font-semibold text-slate-800 uppercase tracking-wider text-[11px]">Optical / Frame Specifications</h4>
+          <div className="flex flex-wrap gap-2">
+            {prescription.lens_type && (
+              <span className="px-2 py-1 rounded bg-white border border-slate-200 text-slate-700 font-medium">
+                Type: {prescription.lens_type}
+              </span>
+            )}
+            {prescription.vision_type && (
+              <span className="px-2 py-1 rounded bg-white border border-slate-200 text-slate-700 font-medium">
+                Vision: {prescription.vision_type}
+              </span>
+            )}
+            {prescription.lens_material && (
+              <span className="px-2 py-1 rounded bg-white border border-slate-200 text-slate-700 font-medium">
+                Material: {prescription.lens_material}
+              </span>
+            )}
+            {coatings.map((c: string, idx: number) => (
+              <span key={idx} className="px-2 py-1 rounded bg-blue-50 border border-blue-200 text-blue-700 font-medium">
+                Coating: {c}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!hasContent && (
+        <div className="text-center py-4 text-xs text-slate-500 italic bg-slate-50 rounded-lg border border-slate-200">
+          No detailed items recorded in this prescription draft yet.
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Dynamic layout component that balances content across columns
 function VisitSummaryLayout({
@@ -175,12 +399,20 @@ function VisitSummaryLayout({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <p className="font-medium text-slate-900">{history.surgery_name}</p>
-              <div className="mt-1 grid grid-cols-2 gap-2 text-sm text-slate-600">
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
                 <span>Eye: <span className="font-medium">{history.eye}</span></span>
-                <span>Date: <span className="font-medium">{formatDate(history.surgery_date)}</span></span>
-                <span>Surgeon: <span className="font-medium">{history.surgeon_name}</span></span>
-                <span>Hospital: <span className="font-medium">{history.hospital_name}</span></span>
-                <span className="col-span-2">Complications: <span className="font-medium">{history.complications}</span></span>
+                {history.surgery_date && (
+                  <span>Date: <span className="font-medium">{formatDate(history.surgery_date)}</span></span>
+                )}
+                {history.surgeon_name && (
+                  <span>Surgeon: <span className="font-medium">{history.surgeon_name}</span></span>
+                )}
+                {history.hospital_name && (
+                  <span>Hospital: <span className="font-medium">{history.hospital_name}</span></span>
+                )}
+                {history.complications && (
+                  <span className="w-full">Complications: <span className="font-medium">{history.complications}</span></span>
+                )}
               </div>
               {history.notes && (
                 <p className="mt-2 text-sm text-slate-600">Notes: {history.notes}</p>
@@ -595,11 +827,7 @@ function VisitSummaryLayout({
       icon: <FileText className="h-5 w-5 text-green-600" />,
       hasData: !!data.prescription,
       content: data.prescription && (
-        <div className="rounded-lg bg-slate-50 p-4">
-          <pre className="text-sm text-slate-700 whitespace-pre-wrap">
-            {JSON.stringify(data.prescription, null, 2)}
-          </pre>
-        </div>
+        <PrescriptionSummaryView prescription={data.prescription} formatDate={formatDate} />
       )
     }
   ];
@@ -691,8 +919,16 @@ export function VisitSummary({ data, patientName, patientUhid, onClose }: VisitS
     };
   }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    if (date.getDate() === 1 && month === 0) {
+      return String(year);
+    }
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",

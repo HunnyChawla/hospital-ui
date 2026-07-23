@@ -338,7 +338,7 @@ export function PreviousHistoryTimeline({
                           <div className="mt-3 rounded bg-white/50 p-3 text-xs">
                             <p className="font-semibold text-slate-900">Eye Surgery</p>
                             <p className="text-slate-700">{event.details.surgery_name}</p>
-                            <p className="text-slate-600">Eye: {event.details.eye} • Date: {event.details.surgery_date}</p>
+                            <p className="text-slate-600">Eye: {event.details.eye}{event.details.surgery_date ? ` • Date: ${event.details.surgery_date}` : ""}</p>
                             {event.details.surgeon_name && <p className="text-slate-600">Surgeon: {event.details.surgeon_name}</p>}
                             {event.details.hospital_name && <p className="text-slate-600">Hospital: {event.details.hospital_name}</p>}
                             {event.details.complications && <p className="text-slate-600">Complications: {event.details.complications}</p>}

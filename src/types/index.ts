@@ -219,9 +219,14 @@ export type LabResult = {
 // Doctor Panel - Stats
 export type DoctorStats = {
   todayTotal: number;
-  todayPending: number;
-  todayInProgress: number;
+  pendingOptometrist: number;
+  inProgressOptometrist: number;
+  pendingDoctor: number;
+  inProgressDoctor: number;
   todayCompleted: number;
+  todayNoShow?: number;
+  todayPending?: number;
+  todayInProgress?: number;
 };
 
 // ============================================
@@ -252,6 +257,7 @@ export type OptometristStats = {
   todayTotal: number;
   todayPending: number;
   todayInProgress: number;
+  sentToDoctor?: number;
   todayCompleted: number;
   todayNoShow: number;
 };
@@ -412,7 +418,7 @@ export type OphthalmicSurgeryRecord = {
   patient_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";
-  surgery_date: string;
+  surgery_date: string | null;
   hospital_name: string | null;
   surgeon_name: string | null;
   complications: string | null;
@@ -605,11 +611,13 @@ export type PlannedSurgery = {
   id: string;
   tenant_id: string;
   patient_id: string;
+  visit_id?: string | null;
   patient_name?: string | null;
   surgery_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";
-  planned_date: string;
+  planned_date: string | null;
+  advised_date?: string | null;
   planned_time: string | null;
   surgeon_id: string;
   surgeon_name: string | null;
@@ -624,10 +632,12 @@ export type PlannedSurgery = {
 
 export type CreatePlannedSurgeryRequest = {
   patient_id: string;
+  visit_id?: string | null;
   surgery_id: string;
   surgery_name: string;
   eye: "OD" | "OS" | "OU";
-  planned_date: string;
+  planned_date?: string | null;
+  advised_date?: string | null;
   planned_time?: string | null;
   surgeon_id: string;
   hospital_name?: string | null;
@@ -638,7 +648,8 @@ export type UpdatePlannedSurgeryRequest = {
   surgery_id?: string;
   surgery_name?: string;
   eye?: "OD" | "OS" | "OU";
-  planned_date?: string;
+  planned_date?: string | null;
+  advised_date?: string | null;
   planned_time?: string | null;
   hospital_name?: string | null;
   notes?: string | null;

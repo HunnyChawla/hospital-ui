@@ -311,7 +311,7 @@ export function ARDataSummary({ record }: { record: any }) {
         if (v == null || v === "") return "—";
         const num = typeof v === "number" ? v : parseFloat(String(v));
         if (isNaN(num)) return String(v);
-        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+        return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     return (
@@ -346,7 +346,7 @@ export function RefractionSummary({ record }: { record: any }) {
         if (v == null || v === "") return "—";
         const num = typeof v === "number" ? v : parseFloat(String(v));
         if (isNaN(num)) return String(v);
-        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+        return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     // Handle different record structures
@@ -541,7 +541,7 @@ export function CurrentSpecsSummary({ record }: { record: any }) {
         if (v == null || v === "") return "—";
         const num = typeof v === "number" ? v : parseFloat(String(v));
         if (isNaN(num)) return String(v);
-        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+        return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     return (
@@ -585,7 +585,7 @@ export function MergedVisionSummary({
         if (v == null || v === "") return "—";
         const num = typeof v === "number" ? v : parseFloat(String(v));
         if (isNaN(num)) return String(v);
-        return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+        return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
     const hasVision = !!visionRecord;

@@ -67,14 +67,35 @@ export const OPTOMETRIST_QUEUE_FILTERS: Record<OptometristQueueFilter, FilterCon
 
 export function filterOptometristQueuePatients(
   patients: OptometristQueuePatient[],
-  filter: OptometristQueueFilter
+  filter: OptometristQueueFilter,
+  currentOptometristId?: string | null,
+  allowPickAny: boolean = false  // only affects awaiting_optometrist pick access, NOT isolation
 ): OptometristQueuePatient[] {
   const filterConfig = OPTOMETRIST_QUEUE_FILTERS[filter];
   if (!filterConfig) return patients;
 
-  return patients.filter((patient) =>
-    filterConfig.statuses.includes(patient.status)
-  );
+  return patients.filter((patient) => {
+    if (!filterConfig.statuses.includes(patient.status)) {
+      return false;
+    }
+
+    // Isolation: patients already picked (optometrist_assigned / investigation_in_progress)
+    // are ONLY visible to the optometrist they are assigned to.
+    // This applies regardless of allowPickAny — that flag only controls picking from the
+    // awaiting_optometrist pool, not visibility of already-assigned patients.
+    if (
+      filter === "pending" &&
+      (patient.status === "optometrist_assigned" || patient.status === "optometrist_investigation_in_progress") &&
+      patient.optometrist_id  // patient is assigned to a specific optometrist
+    ) {
+      // Show only if this is the assigned optometrist
+      if (!currentOptometristId || patient.optometrist_id !== currentOptometristId) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): Record<OptometristQueueFilter, number> {

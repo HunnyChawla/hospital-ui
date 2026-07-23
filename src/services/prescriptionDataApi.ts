@@ -4,6 +4,7 @@ import { getTenantIdForApi } from "@/utils/auth";
 export interface PrescriptionDataResponse {
   patient_id: string;
   uhid?: string;
+  mobile?: string | null;
   category?: string | null;
   visit_id: string;
 
@@ -151,10 +152,10 @@ export interface PrescriptionDataResponse {
     patient_id: string;
     surgery_name: string;
     eye: string;
-    surgery_date: string;
-    surgeon_name: string;
-    hospital_name: string;
-    complications: string;
+    surgery_date: string | null;
+    surgeon_name: string | null;
+    hospital_name: string | null;
+    complications: string | null;
     notes: string | null;
     created_at: string;
     updated_at: string;

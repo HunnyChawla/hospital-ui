@@ -26,6 +26,7 @@ interface OptometristCollapsibleQueueSectionProps {
   isVisible: boolean;
   onToggle: () => void;
   isDoctor?: boolean;
+  optometristId?: string;
 }
 
 export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsibleQueueSectionProps> = ({
@@ -40,6 +41,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   isVisible,
   onToggle,
   isDoctor = false,
+  optometristId,
 }) => {
   // Feature flags for queue configuration
   const { allowDoctorPickAny, allowOptometristPickAny } = useQueueFlags();
@@ -116,19 +118,9 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   const filteredPatients = React.useMemo(() => {
     let filtered = [...queuePatients];
 
-    // Manual filtering if needed based on the filter type passed
-    // Assuming the parent component passes pre-filtered or raw queuePatients,
-    // but typically filter logic happens here or in parent. 
-    // To support both, let's defer filtering to parent OR maintain existing logic if we import filters.
-    // For now, let's assume the parent handles the filtering logic based on the queuePatients passed,
-    // OR we use a generic filter function if we can.
-
     if (!isDoctor) {
-      filtered = filterOptometristQueuePatients(queuePatients, activeFilter as any);
+      filtered = filterOptometristQueuePatients(queuePatients, activeFilter as any, optometristId, allowOptometristPickAny);
     } else {
-      // For doctor, we can use the doctor filter function or assume parent filtered it.
-      // Let's import the doctor filter function dynamically or just filter simple status match here
-      // To avoid complex imports, let's rely on status mapping
       const DOCTOR_STATUS_MAP: Record<string, string[]> = {
         pending: ["awaiting_doctor", "doctor_assigned", "consultation_in_progress"],
         dilation: ["dilation_in_progress"],
@@ -142,12 +134,49 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
     }
 
     return filtered;
-  }, [queuePatients, activeFilter, isDoctor]);
+  }, [queuePatients, activeFilter, isDoctor, optometristId, allowOptometristPickAny]);
 
   // Get counts for each filter
+  // For optometrists: counts respect isolation (in-progress by others are excluded from pending count)
   const queueCounts = React.useMemo(() => {
     if (!isDoctor) {
-      return getOptometristQueueCounts(queuePatients);
+      // Build per-tab counts using the same isolation logic as filtering
+      const counts = { pending: 0, completed: 0, no_show: 0 };
+      queuePatients.forEach((patient) => {
+        const status = patient.status;
+        // no_show is always visible to all
+        if (status === "no_show") {
+          counts.no_show++;
+          return;
+        }
+        // Completed (optometry done, sent to doctor) - always visible globally
+        if (["optometrist_investigation_completed", "awaiting_doctor", "doctor_assigned",
+             "consultation_in_progress", "dilation_in_progress", "dilation_completed",
+             "consultation_completed"].includes(status)) {
+          counts.completed++;
+          return;
+        }
+        // Pending: awaiting_optometrist is visible to all
+        if (status === "awaiting_optometrist") {
+          counts.pending++;
+          return;
+        }
+        // In-progress (optometrist_assigned, optometrist_investigation_in_progress):
+        // Always isolated to the assigned optometrist — allowPickAny does NOT override this
+        if (status === "optometrist_assigned" || status === "optometrist_investigation_in_progress") {
+          if (patient.optometrist_id) {
+            // Only count if this is MY patient
+            if (optometristId && patient.optometrist_id === optometristId) {
+              counts.pending++;
+            }
+            // else: belongs to another optometrist, don't count
+          } else {
+            // Not yet assigned to anyone — count for everyone
+            counts.pending++;
+          }
+        }
+      });
+      return counts;
     } else {
       // Simple count for doctor
       const counts = { pending: 0, dilation: 0, completed: 0, no_show: 0 };
@@ -159,7 +188,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
       });
       return counts;
     }
-  }, [queuePatients, isDoctor]);
+  }, [queuePatients, isDoctor, optometristId, allowOptometristPickAny]);
 
   const filters = isDoctor
     ? [

@@ -206,16 +206,14 @@ export function useOptometristLiveQueue({
 }: UseOptometristLiveQueueOptions) {
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
 
-  // Build status query parameter with all relevant statuses for both Pending and Completed tabs
-  // Pending: awaiting_optometrist, optometrist_assigned, optometrist_investigation_in_progress
-  // Completed: optometrist_investigation_completed, awaiting_doctor, doctor_assigned, consultation_in_progress, dilation_in_progress, dilation_completed, consultation_completed
+  // Build status query parameter with all statuses for the global doctor-group queue
   const statusQuery = useMemo(() => {
-    const pendingStatuses = [
+    const allStatuses = [
+      // Optometry pending/in-progress
       "awaiting_optometrist",
       "optometrist_assigned",
       "optometrist_investigation_in_progress",
-    ];
-    const completedStatuses = [
+      // Optometry completed / sent to doctor
       "optometrist_investigation_completed",
       "awaiting_doctor",
       "doctor_assigned",
@@ -225,7 +223,7 @@ export function useOptometristLiveQueue({
       "consultation_completed",
       "no_show",
     ];
-    return [...pendingStatuses, ...completedStatuses].join(",");
+    return allStatuses.join(",");
   }, []);
 
   const sseUrl = useMemo(

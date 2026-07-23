@@ -21,7 +21,8 @@ import {
     Hash,
     User,
     UserRound,
-    MapPin
+    MapPin,
+    Phone
 } from "lucide-react";
 
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
@@ -64,7 +65,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
             if (!isDiopter) return val;
             const num = typeof val === "number" ? val : parseFloat(String(val));
             if (isNaN(num)) return String(val);
-            return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+            return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
         };
 
         // Determine layout density based on content length
@@ -566,7 +567,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         <li key={idx} className="mb-1">
                                             <span className="font-medium">{surgery.surgery_name}</span>
                                             <span className="text-slate-600 ml-1">
-                                                ({surgery.eye}) - Planned on {formatDate(surgery.planned_date)}
+                                                ({surgery.eye}){surgery.planned_date ? ` - Planned on ${formatDate(surgery.planned_date)}` : surgery.advised_date ? ` - Advised on ${formatDate(surgery.advised_date)}` : ""}
                                             </span>
                                             {surgery.notes && (
                                                 <div className="text-xs text-slate-500 mt-0.5 italic">
@@ -614,6 +615,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     padding: '1.5rem',
                 }}
             >
+
                 {/* Print-specific style block injected directly to ensure priority */}
                 <style dangerouslySetInnerHTML={{
                     __html: `
@@ -629,8 +631,9 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             margin: 0 !important;
                             max-width: none !important;
                             height: auto !important;
-                            overflow: visible !important;
+                            overflow: hidden !important;
                             display: block !important;
+                            position: relative !important;
                         }
                         .break-inside-avoid {
                             break-inside: avoid !important;
@@ -644,6 +647,17 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                 ) : (
                     /* Blank space for pre-printed letterhead - approximately same height as header */
                     <div className={`${isExtremelyCompact ? "h-16" : isCompact ? "h-20" : "h-32"} mb-2`} />
+                )}
+
+                {/* Document Status Badge (Right aligned, if Draft) */}
+                {prescription.status !== "finalized" && (
+                    <div className="mb-1 flex justify-end">
+                        <span className="px-2 py-0.5 bg-slate-50 text-slate-700 font-medium rounded text-[10px] border border-slate-300/80">
+                            <span className="font-semibold text-slate-600">Prescription Status:</span>{" "}
+                            <span className="font-bold text-slate-900">Draft</span>{" "}
+                            <span className="text-[9px] text-slate-500 italic font-normal">(not finalized)</span>
+                        </span>
+                    </div>
                 )}
 
                 {/* Patient Details Section - Matches the Box style in image */}
@@ -684,7 +698,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         </div>
                         <div className={cellPadding}>{formatDate(visitData?.checked_in_at || prescription.created_at)} {formatTime(visitData?.checked_in_at || prescription.created_at)}</div>
                     </div>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr]">
+                    <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">
                         <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
                             <MapPin className="h-2.5 w-2.5 text-slate-500" />
                             <span>Address</span>
@@ -695,6 +709,17 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             <span>Category</span>
                         </div>
                         <div className={`${cellPadding} font-bold`}>{(visitData as any)?.category || (visitData as any)?.patient_category || "-"}</div>
+                    </div>
+                    <div className="grid grid-cols-[100px_1fr_100px_1fr]">
+                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                            <Phone className="h-2.5 w-2.5 text-slate-500" />
+                            <span>Mobile No.</span>
+                        </div>
+                        <div className={`${cellPadding} font-bold border-r border-slate-300`}>{visitData?.mobile || "-"}</div>
+                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                            <span></span>
+                        </div>
+                        <div className={`${cellPadding}`}></div>
                     </div>
 
                 </div>

@@ -12,6 +12,8 @@ export interface LabBookingTest {
   test_code: string;
   test_name: string;
   price: number;
+  original_price?: number | null;
+  is_price_overridden?: boolean;
   prescription_metadata?: Record<string, any> | null;
 }
 
@@ -93,6 +95,10 @@ export interface BookAdvisedTestsRequest {
   scheduled_date: string; // YYYY-MM-DD
   priority?: TestPriority;
   lab_test_ids: string[];
+  test_items?: Array<{
+    lab_test_id: string;
+    price?: number;
+  }>;
   notes?: string;
   payment_method?: PaymentMethod;
   payment_reference?: string;

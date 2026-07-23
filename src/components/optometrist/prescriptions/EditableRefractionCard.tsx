@@ -42,7 +42,7 @@ export function EditableRefractionCard({
     if (val === null || val === undefined || val === "") return "-";
     const num = typeof val === "string" ? parseFloat(val) : val;
     if (isNaN(num)) return "-";
-    return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+    return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
   };
 
   // Fetch refraction records when modal opens

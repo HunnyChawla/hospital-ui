@@ -66,7 +66,7 @@ export function InlineSurgeryForm({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const isFormValid = formData.eye !== "OD" && formData.surgery_year;
+  const isFormValid = Boolean(formData.eye);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -96,7 +96,7 @@ export function InlineSurgeryForm({
           <div>
             <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
               <Calendar className="h-4 w-4 text-slate-400" />
-              Year <span className="text-red-500">*</span>
+              Year <span className="text-xs text-slate-400">(optional)</span>
             </label>
             <select
               value={formData.surgery_year}
@@ -107,9 +107,8 @@ export function InlineSurgeryForm({
                   ? "border-emerald-300 bg-emerald-50"
                   : "border-slate-300 bg-white"
               )}
-              required
             >
-              <option value="">Select year...</option>
+              <option value="">Select year (optional)...</option>
               {yearOptions.map((year) => (
                 <option key={year} value={year}>
                   {year}
@@ -128,8 +127,7 @@ export function InlineSurgeryForm({
           <select
             value={formData.surgery_month}
             onChange={(e) => handleChange("surgery_month", e.target.value)}
-            disabled={!formData.surgery_year}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           >
             <option value="">Not sure</option>
             {monthOptions.map((month) => (

@@ -66,12 +66,16 @@ function mapVisitsToSchedule(visits: Visit[], startDate: string): OptometristSch
  * Calculates daily statistics from visits
  */
 function calculateStats(visits: Visit[]): OptometristStats {
+  const sentToDoctor = visits.filter(
+    (v) => (v.status as string) === "optometrist_investigation_completed" || v.status === "awaiting_doctor" || v.status === "doctor_assigned" || v.status === "in_consultation" || v.status === "completed"
+  ).length;
   return {
     todayTotal: visits.length,
-    todayCompleted: visits.filter((v) => v.status === "completed").length,
-    todayInProgress: visits.filter((v) => v.status === "in_consultation").length,
-    todayPending: visits.filter((v) => v.status === "checked_in").length, // "checked_in" is the waiting status
-    todayNoShow: visits.filter((v) => v.status === "no_show").length,
+    todayCompleted: sentToDoctor,
+    todayInProgress: visits.filter((v) => (v.status as string) === "optometrist_investigation_in_progress" || v.status === "dilation_in_progress" || v.status === "in_consultation").length,
+    todayPending: visits.filter((v) => (v.status as string) === "awaiting_optometrist" || v.status === "checked_in_opd").length,
+    sentToDoctor,
+    todayNoShow: visits.filter((v) => (v.status as string) === "no_show" || v.status === "cancelled").length,
   };
 }
 

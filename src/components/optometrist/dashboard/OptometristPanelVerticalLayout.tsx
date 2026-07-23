@@ -311,6 +311,7 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
               isVisible={true}
               onToggle={() => setIsQueueExpanded(!isQueueExpanded)}
               isDoctor={isDoctor}
+              optometristId={optometristId}
             />
           )}
         </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Printer, Loader2, Download, AlertCircle } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
+import { opdVisitsApi } from "@/services/opdVisitsApi";
 import { optometryPrescriptionApi } from "@/services/optometryPrescriptionApi";
 import { prescriptionDataApi, type PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { doctorsApi } from "@/services/doctorsApi";
@@ -52,46 +53,125 @@ export function HistoryPrescriptionModal({
         setLoading(true);
         try {
             const [prescriptionRes, visitDataRes, surgeriesRes] = await Promise.all([
-                optometryPrescriptionApi.list({ visit_id: visitId, status: "finalized" }),
+                optometryPrescriptionApi.list({ visit_id: visitId }),
                 prescriptionDataApi.getPrescriptionData(patientId, visitId),
                 plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
             ]);
 
-            let prescription = null;
+            let prescription: OptometryPrescription | null = null;
             if (prescriptionRes.items && prescriptionRes.items.length > 0) {
-                prescription = prescriptionRes.items[0];
-                setPrescription(prescription);
+                // Prefer finalized prescription over draft if both exist
+                const finalized = prescriptionRes.items.find(p => p.status === "finalized");
+                prescription = finalized || prescriptionRes.items[0];
+            }
 
-                // Fetch doctor signature if we have a prescription
-                if (prescription.doctor_id) {
+            // Resolve target doctor ID from prescription or OPD visit details
+            let targetDoctorId = prescription?.doctor_id;
+            let targetDoctorName = prescription?.doctor_name;
+
+            if (!targetDoctorId) {
+                try {
+                    const visitDetails = await opdVisitsApi.getById(visitId);
+                    if (visitDetails?.doctor_id) {
+                        targetDoctorId = visitDetails.doctor_id;
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch visit details for doctor ID", err);
+                }
+            }
+
+            if (!prescription && visitDataRes) {
+                // Fallback: Check if there is clinical visit data recorded (refraction, complaints, vision, etc.)
+                const hasClinicalData = !!(
+                    visitDataRes.refraction ||
+                    visitDataRes.vision ||
+                    visitDataRes.iop ||
+                    visitDataRes.ar_data ||
+                    (visitDataRes.complaints && visitDataRes.complaints.length > 0)
+                );
+                if (hasClinicalData) {
+                    prescription = {
+                        id: `draft-${visitId}`,
+                        tenant_id: "",
+                        patient_id: patientId,
+                        patient_name: "",
+                        optometrist_id: "",
+                        optometrist_name: "",
+                        visit_id: visitId,
+                        doctor_id: targetDoctorId,
+                        doctor_name: targetDoctorName,
+                        prescription_number: "DRAFT",
+                        status: "draft",
+                        diagnosis: null,
+                        notes: null,
+                        items: [],
+                        pupillary_distance: null,
+                        frame_fitting_notes: null,
+                        finalized_at: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    };
+                }
+            }
+
+            setPrescription(prescription);
+
+            // Fetch doctor signature and doctor details
+            if (targetDoctorId) {
+                try {
+                    const [sigData, docProfile] = await Promise.all([
+                        doctorsApi.getSignature(targetDoctorId.toString()).catch(() => null),
+                        doctorsApi.getById(targetDoctorId.toString()).catch(() => null)
+                    ]);
+
+                    if (sigData?.signature) {
+                        setDoctorSignature(sigData.signature);
+                    } else if (docProfile?.signature) {
+                        setDoctorSignature(docProfile.signature);
+                    }
+
+                    if (prescription && !prescription.doctor_name && docProfile) {
+                        prescription.doctor_name = docProfile.user_name || docProfile.name || (docProfile.specialization ? `Dr. ${docProfile.specialization}` : undefined);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch doctor signature/profile:", e);
+                }
+            }
+
+            let surgeries = surgeriesRes.items || [];
+
+            // 1. Try matching by exact visit_id
+            const visitMatchedSurgeries = surgeries.filter((s) => s.visit_id === visitId);
+
+            if (visitMatchedSurgeries.length > 0) {
+                surgeries = visitMatchedSurgeries;
+            } else {
+                // 2. Fallback for legacy surgeries without visit_id: match by prescription date
+                const rxDateStr = prescription?.created_at || (visitDataRes as any)?.created_at || (visitDataRes as any)?.visit_date;
+
+                const getIsoDateStr = (d?: string | null) => {
+                    if (!d) return null;
                     try {
-                        const sigData = await doctorsApi.getSignature(prescription.doctor_id.toString());
-                        if (sigData?.signature) {
-                            setDoctorSignature(sigData.signature);
-                        } else {
-                            const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
-                            if (docProfile?.signature) {
-                                setDoctorSignature(docProfile.signature);
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Failed to fetch doctor signature:", e);
-                        // Fallback
-                        try {
-                            const docProfile = await doctorsApi.getById(prescription.doctor_id.toString());
-                            if (docProfile?.signature) {
-                                setDoctorSignature(docProfile.signature);
-                            }
-                        } catch (err) {
-                            console.error("Failed fallback signature fetch:", err);
-                        }
+                        if (d.length === 10 && d.includes("-")) return d;
+                        return new Date(d).toISOString().slice(0, 10);
+                    } catch {
+                        return null;
+                    }
+                };
+
+                if (rxDateStr) {
+                    const rxDateOnly = getIsoDateStr(rxDateStr);
+                    if (rxDateOnly) {
+                        surgeries = surgeries.filter((s) => {
+                            const sDateOnly = getIsoDateStr(s.advised_date) || getIsoDateStr(s.created_at);
+                            return sDateOnly === rxDateOnly;
+                        });
                     }
                 }
-            } else {
-                setPrescription(null);
             }
+
             setVisitData(visitDataRes);
-            setPlannedSurgeries(surgeriesRes.items || []);
+            setPlannedSurgeries(surgeries);
         } catch (error) {
             handleError(error, {
                 defaultMessage: "Failed to load prescription history",

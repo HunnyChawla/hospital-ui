@@ -21,17 +21,17 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
 }) => {
   const statItems = [
     {
-      label: "Total Patients",
+      label: "Total OPD",
       value: stats?.todayTotal || 0,
       icon: Users,
-      color: "sky",
-      bgGradient: "from-sky-50 to-sky-50/50",
-      iconBg: "bg-sky-100",
-      iconColor: "text-sky-600",
-      textColor: "text-sky-700",
+      color: "slate",
+      bgGradient: "from-slate-50 to-slate-50/50",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
+      textColor: "text-slate-800",
     },
     {
-      label: "Pending",
+      label: "Pending Optometry",
       value: stats?.todayPending || 0,
       icon: Clock,
       color: "amber",
@@ -41,18 +41,18 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
       textColor: "text-amber-700",
     },
     {
-      label: "In Progress",
+      label: "In Progress Optometry",
       value: stats?.todayInProgress || 0,
       icon: Activity,
-      color: "blue",
-      bgGradient: "from-blue-50 to-blue-50/50",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-      textColor: "text-blue-700",
+      color: "purple",
+      bgGradient: "from-purple-50 to-purple-50/50",
+      iconBg: "bg-purple-100",
+      iconColor: "text-purple-600",
+      textColor: "text-purple-700",
     },
     {
-      label: "Completed",
-      value: stats?.todayCompleted || 0,
+      label: "Sent to Doctor",
+      value: stats?.sentToDoctor || stats?.todayCompleted || 0,
       icon: CheckCircle2,
       color: "emerald",
       bgGradient: "from-emerald-50 to-emerald-50/50",
@@ -60,20 +60,17 @@ export const OptometristCollapsibleStatsSection: React.FC<OptometristCollapsible
       iconColor: "text-emerald-600",
       textColor: "text-emerald-700",
     },
-  ];
-
-  if (stats?.todayNoShow && stats.todayNoShow > 0) {
-    statItems.push({
+    {
       label: "No Show",
-      value: stats.todayNoShow,
+      value: stats?.todayNoShow || 0,
       icon: AlertTriangle,
       color: "rose",
       bgGradient: "from-rose-50 to-rose-50/50",
       iconBg: "bg-rose-100",
       iconColor: "text-rose-600",
       textColor: "text-rose-700",
-    });
-  }
+    },
+  ];
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

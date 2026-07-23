@@ -5,6 +5,7 @@ import { Provider as ReduxProvider } from "react-redux";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
+import { FullscreenAwareToaster } from "@/components/common/FullscreenAwareToaster";
 import { store } from "@/redux/store";
 import { getQueryClient } from "@/lib/react-query";
 import { TenantContext } from "@/lib/tenant-context";
@@ -73,7 +74,7 @@ export default function Providers({
                 <>
                   <ServiceWorkerRegistration />
                   {children}
-                  <Toaster richColors position="top-right" />
+                  <FullscreenAwareToaster />
                   <ReactQueryDevtools initialIsOpen={false} />
                 </>
               ) : (
@@ -81,7 +82,7 @@ export default function Providers({
                 <LayoutWrapper>
                   <ServiceWorkerRegistration />
                   {children}
-                  <Toaster richColors position="top-right" />
+                  <FullscreenAwareToaster />
                   <ReactQueryDevtools initialIsOpen={false} />
                 </LayoutWrapper>
               )}

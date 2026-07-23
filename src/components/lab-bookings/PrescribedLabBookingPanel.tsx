@@ -51,6 +51,15 @@ export function PrescribedLabBookingPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const [showOnlyPending, setShowOnlyPending] = useState(true);
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
+
+  const handlePriceChange = (labTestId: string, val: string) => {
+    const parsed = parseFloat(val);
+    setPriceOverrides((prev) => ({
+      ...prev,
+      [labTestId]: isNaN(parsed) ? 0 : parsed,
+    }));
+  };
 
   // Set default date to today
   useEffect(() => {
@@ -278,7 +287,20 @@ export function PrescribedLabBookingPanel({
           </div>
 
           <div className="flex items-center gap-3">
-            {test.price !== undefined && test.price !== null ? (
+            {isChecked ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-500">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceOverrides[test.lab_test_id] ?? test.price ?? 0}
+                  onChange={(e) => handlePriceChange(test.lab_test_id, e.target.value)}
+                  className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-900 shadow-sm outline-none focus:border-sky-500"
+                  title="Override price for this test"
+                />
+              </div>
+            ) : test.price !== undefined && test.price !== null ? (
               <span className="text-sm font-semibold text-slate-700">
                 {currency(test.price)}
               </span>
@@ -383,6 +405,13 @@ export function PrescribedLabBookingPanel({
         scheduled_date: scheduledDate,
         priority,
         lab_test_ids: selectedTestIds,
+        test_items: selectedTestIds.map((id) => {
+          const defaultPrice = advisedTests.find((t) => t.lab_test_id === id)?.price;
+          return {
+            lab_test_id: id,
+            price: priceOverrides[id] !== undefined ? priceOverrides[id] : (defaultPrice ?? undefined),
+          };
+        }),
         notes: notes.trim() || undefined,
         payment_method: paymentMethod,
         payment_reference: paymentReference.trim() || undefined,
@@ -790,23 +819,35 @@ export function PrescribedLabBookingPanel({
                     <div className="space-y-2 text-sm">
                       {advisedTests
                         .filter((t) => selectedTestIds.includes(t.lab_test_id))
-                        .map((t) => (
-                          <div key={t.advice_item_id} className="flex justify-between text-slate-600">
-                            <span className="font-medium">
-                              {t.test_name} {t.already_booked ? "(Repeat Booking)" : ""}
-                            </span>
-                            <span className="font-semibold text-slate-700">
-                              {t.price !== undefined && t.price !== null ? currency(t.price) : "—"}
-                            </span>
-                          </div>
-                        ))}
+                        .map((t) => {
+                          const effectivePrice = priceOverrides[t.lab_test_id] !== undefined ? priceOverrides[t.lab_test_id] : (t.price ?? 0);
+                          const isOverridden = priceOverrides[t.lab_test_id] !== undefined && priceOverrides[t.lab_test_id] !== t.price;
+                          return (
+                            <div key={t.advice_item_id} className="flex justify-between items-center text-slate-600">
+                              <span className="font-medium flex items-center gap-1.5">
+                                {t.test_name} {t.already_booked ? "(Repeat Booking)" : ""}
+                                {isOverridden && (
+                                  <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                                    Custom (Orig: {currency(t.price ?? 0)})
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-semibold text-slate-700">
+                                {currency(effectivePrice)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       <div className="border-t border-slate-200 my-1 pt-2 flex justify-between font-bold text-slate-900 text-base">
                         <span>Total Amount to Collect</span>
                         <span className="text-sky-600">
                           {currency(
                             advisedTests
                               .filter((t) => selectedTestIds.includes(t.lab_test_id))
-                              .reduce((sum, t) => sum + (t.price || 0), 0)
+                              .reduce((sum, t) => {
+                                const p = priceOverrides[t.lab_test_id] !== undefined ? priceOverrides[t.lab_test_id] : (t.price ?? 0);
+                                return sum + p;
+                              }, 0)
                           )}
                         </span>
                       </div>

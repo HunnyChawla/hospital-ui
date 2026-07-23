@@ -9,10 +9,13 @@ import type {
 
 export type PlannedSurgeryParams = {
     patient_id?: string;
+    visit_id?: string;
     surgeon_id?: string;
     from_date?: string;
     to_date?: string;
     status?: PlannedSurgeryStatus;
+    sort_by?: "advised_date" | "planned_date" | "created_at";
+    date_status?: "all" | "planned" | "not_planned";
     page?: number;
     page_size?: number;
 };

@@ -189,8 +189,13 @@ const initialFormState: CombinedFormState = {
   os_dilated_pinhole: "",
 };
 
-const DIST_VA_OPTIONS = ["6/6", "6/5", "6/9", "6/12", "6/18", "6/24", "6/36", "6/60", "5/60", "4/60", "3/60", "2/60", "1/60", "CF 6m", "CF 5m", "CF 4m", "CF 3m", "CF 2m", "CF 1m", "CF", "HM", "PL", "NPL"];
-const NEAR_VA_OPTIONS = ["N5", "N6", "N8", "N10", "N12", "N14", "N18", "N24", "N36", "N48"];
+const DIST_VA_OPTIONS = [
+  "6/6", "6/6 p", "6/5", "6/9", "6/9 p", "6/12", "6/12 p", "6/18", "6/18 p", "6/24", "6/24 p", "6/36", "6/36 p", "6/60", "6/60 p",
+  "5/60", "4/60", "3/60", "2/60", "1/60",
+  "CF 6m", "CF 5m", "CF 4m", "CF 3m", "CF 2m", "CF 1m", "CF", "CFCF",
+  "HM", "PL", "PL+", "PL-", "PR+", "PR-", "PL+ PR+", "PL+ PR-", "PL PR", "NPL", "FFL"
+];
+const NEAR_VA_OPTIONS = ["N5", "N6", "N6 p", "N8", "N8 p", "N10", "N12", "N12 p", "N14", "N18", "N18 p", "N24", "N36", "N48"];
 const PRISM_OPTIONS = ["", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
 
 export function MergedVisionTab({
@@ -225,12 +230,22 @@ export function MergedVisionTab({
         return `${rest[0]}_${rest[1]}`;
       }
       if (rest[0] === "remarks") return "specs_remarks";
+      if (rest[0] === "lens_type") return "specs_lens_type";
+      if (rest[0] === "usage") return "specs_usage";
+      if (rest[0] === "measured_by") return "specs_measured_by";
+      if (rest[0] === "is_comfortable") return "specs_is_comfortable";
       return rest[0] || null;
     }
 
     if (section === "ar_data") {
       if (rest[0] === "pupillary_distance") return "ar_pd";
       if (rest[0] === "notes") return "ar_notes";
+      if (typeof rest[0] === "string") {
+        const fieldName = rest[0];
+        if (fieldName.includes("_wet_")) return fieldName;
+        if (fieldName.startsWith("od_")) return fieldName.replace("od_", "od_ar_");
+        if (fieldName.startsWith("os_")) return fieldName.replace("os_", "os_ar_");
+      }
       return rest[0] || null;
     }
 
@@ -274,6 +289,21 @@ export function MergedVisionTab({
   useEffect(() => {
     if (!visitId) return;
 
+    const formatDiopterVal = (val: string | number | null | undefined): string => {
+      if (val === null || val === undefined || val === "") return "";
+      const str = String(val).trim();
+      if (str === "") return "";
+      const num = parseFloat(str);
+      if (isNaN(num)) return str;
+      if (num === 0 || Math.abs(num) < 0.0001) {
+        return str.replace(/^\+/, "");
+      }
+      if (num > 0 && !str.startsWith("+")) {
+        return `+${str}`;
+      }
+      return str;
+    };
+
     const newFormState = { ...initialFormState };
 
     // 1. Load Vision
@@ -293,14 +323,14 @@ export function MergedVisionTab({
 
     // 2. Load Specs (POG)
     if (visitSpecs) {
-      newFormState.od_sph = visitSpecs.od_sph != null ? visitSpecs.od_sph.toString() : "";
-      newFormState.od_cyl = visitSpecs.od_cyl != null ? visitSpecs.od_cyl.toString() : "";
+      newFormState.od_sph = formatDiopterVal(visitSpecs.od_sph);
+      newFormState.od_cyl = formatDiopterVal(visitSpecs.od_cyl);
       newFormState.od_axis = visitSpecs.od_axis != null ? visitSpecs.od_axis.toString() : "";
-      newFormState.od_add = visitSpecs.od_add != null ? visitSpecs.od_add.toString() : "";
-      newFormState.os_sph = visitSpecs.os_sph != null ? visitSpecs.os_sph.toString() : "";
-      newFormState.os_cyl = visitSpecs.os_cyl != null ? visitSpecs.os_cyl.toString() : "";
+      newFormState.od_add = formatDiopterVal(visitSpecs.od_add);
+      newFormState.os_sph = formatDiopterVal(visitSpecs.os_sph);
+      newFormState.os_cyl = formatDiopterVal(visitSpecs.os_cyl);
       newFormState.os_axis = visitSpecs.os_axis != null ? visitSpecs.os_axis.toString() : "";
-      newFormState.os_add = visitSpecs.os_add != null ? visitSpecs.os_add.toString() : "";
+      newFormState.os_add = formatDiopterVal(visitSpecs.os_add);
       newFormState.specs_lens_type = visitSpecs.lens_type ?? "SINGLE";
       newFormState.specs_usage = visitSpecs.usage ?? "BOTH";
       newFormState.specs_measured_by = visitSpecs.measured_by ?? "LENSOMETER";
@@ -310,21 +340,21 @@ export function MergedVisionTab({
 
     // 3. Load AR (DRY & WET)
     if (visitAR) {
-      newFormState.od_ar_sphere = visitAR.od_sphere !== null ? visitAR.od_sphere.toString() : "";
-      newFormState.od_ar_cylinder = visitAR.od_cylinder !== null ? visitAR.od_cylinder.toString() : "";
-      newFormState.od_ar_axis = visitAR.od_axis !== null ? visitAR.od_axis.toString() : "";
-      newFormState.os_ar_sphere = visitAR.os_sphere !== null ? visitAR.os_sphere.toString() : "";
-      newFormState.os_ar_cylinder = visitAR.os_cylinder !== null ? visitAR.os_cylinder.toString() : "";
-      newFormState.os_ar_axis = visitAR.os_axis !== null ? visitAR.os_axis.toString() : "";
-      newFormState.ar_pd = visitAR.pupillary_distance !== null ? visitAR.pupillary_distance.toString() : "";
+      newFormState.od_ar_sphere = formatDiopterVal(visitAR.od_sphere);
+      newFormState.od_ar_cylinder = formatDiopterVal(visitAR.od_cylinder);
+      newFormState.od_ar_axis = visitAR.od_axis !== null && visitAR.od_axis !== undefined ? visitAR.od_axis.toString() : "";
+      newFormState.os_ar_sphere = formatDiopterVal(visitAR.os_sphere);
+      newFormState.os_ar_cylinder = formatDiopterVal(visitAR.os_cylinder);
+      newFormState.os_ar_axis = visitAR.os_axis !== null && visitAR.os_axis !== undefined ? visitAR.os_axis.toString() : "";
+      newFormState.ar_pd = visitAR.pupillary_distance !== null && visitAR.pupillary_distance !== undefined ? visitAR.pupillary_distance.toString() : "";
       newFormState.ar_notes = visitAR.notes ?? "";
 
       // Load WET AR from columns
-      newFormState.od_wet_sphere = visitAR.od_wet_sphere !== null && visitAR.od_wet_sphere !== undefined ? visitAR.od_wet_sphere.toString() : "";
-      newFormState.od_wet_cylinder = visitAR.od_wet_cylinder !== null && visitAR.od_wet_cylinder !== undefined ? visitAR.od_wet_cylinder.toString() : "";
+      newFormState.od_wet_sphere = formatDiopterVal(visitAR.od_wet_sphere);
+      newFormState.od_wet_cylinder = formatDiopterVal(visitAR.od_wet_cylinder);
       newFormState.od_wet_axis = visitAR.od_wet_axis !== null && visitAR.od_wet_axis !== undefined ? visitAR.od_wet_axis.toString() : "";
-      newFormState.os_wet_sphere = visitAR.os_wet_sphere !== null && visitAR.os_wet_sphere !== undefined ? visitAR.os_wet_sphere.toString() : "";
-      newFormState.os_wet_cylinder = visitAR.os_wet_cylinder !== null && visitAR.os_wet_cylinder !== undefined ? visitAR.os_wet_cylinder.toString() : "";
+      newFormState.os_wet_sphere = formatDiopterVal(visitAR.os_wet_sphere);
+      newFormState.os_wet_cylinder = formatDiopterVal(visitAR.os_wet_cylinder);
       newFormState.os_wet_axis = visitAR.os_wet_axis !== null && visitAR.os_wet_axis !== undefined ? visitAR.os_wet_axis.toString() : "";
     }
 
@@ -333,10 +363,10 @@ export function MergedVisionTab({
       const getRefVal = (eye: "od" | "os", fieldName: string, flatName: string) => {
         const eyeObj = visitRef[eye];
         if (eyeObj && eyeObj[fieldName] !== undefined && eyeObj[fieldName] !== null) {
-          return eyeObj[fieldName].toString();
+          return formatDiopterVal(eyeObj[fieldName]);
         }
         if (visitRef[flatName] !== undefined && visitRef[flatName] !== null) {
-          return visitRef[flatName].toString();
+          return formatDiopterVal(visitRef[flatName]);
         }
         return "";
       };
@@ -354,7 +384,7 @@ export function MergedVisionTab({
 
       newFormState.od_ref_sphere = getRefVal("od", "sphere", "od_sphere");
       newFormState.od_ref_cylinder = getRefVal("od", "cylinder", "od_cylinder");
-      newFormState.od_ref_axis = getRefVal("od", "axis", "od_axis");
+      newFormState.od_ref_axis = visitRef.od?.axis != null ? visitRef.od.axis.toString() : visitRef.od_axis != null ? visitRef.od_axis.toString() : "";
       newFormState.od_ref_add_power = getRefVal("od", "add_power", "od_add_power");
       newFormState.od_ref_visual_acuity_uncorrected = getRefStr("od", "visual_acuity_uncorrected", "od_visual_acuity_uncorrected");
       newFormState.od_ref_visual_acuity_corrected = getRefStr("od", "visual_acuity_corrected", "od_visual_acuity_corrected");
@@ -368,20 +398,20 @@ export function MergedVisionTab({
       newFormState.os_ref_prism = visitRef.os_prism ?? "";
       newFormState.os_ref_sphere = getRefVal("os", "sphere", "os_sphere");
       newFormState.os_ref_cylinder = getRefVal("os", "cylinder", "os_cylinder");
-      newFormState.os_ref_axis = getRefVal("os", "axis", "os_axis");
+      newFormState.os_ref_axis = visitRef.os?.axis != null ? visitRef.os.axis.toString() : visitRef.os_axis != null ? visitRef.os_axis.toString() : "";
       newFormState.os_ref_add_power = getRefVal("os", "add_power", "os_add_power");
       newFormState.os_ref_visual_acuity_uncorrected = getRefStr("os", "visual_acuity_uncorrected", "os_visual_acuity_uncorrected");
       newFormState.os_ref_visual_acuity_corrected = getRefStr("os", "visual_acuity_corrected", "os_visual_acuity_corrected");
       newFormState.os_ref_distance_bcva = getRefStr("os", "distance_bcva", "os_distance_bcva");
       newFormState.os_ref_near_bcva = getRefStr("os", "near_bcva", "os_near_bcva");
 
-      newFormState.od_dilated_sphere = visitRef.od_dilated_sphere !== null && visitRef.od_dilated_sphere !== undefined ? visitRef.od_dilated_sphere.toString() : "";
-      newFormState.od_dilated_cylinder = visitRef.od_dilated_cylinder !== null && visitRef.od_dilated_cylinder !== undefined ? visitRef.od_dilated_cylinder.toString() : "";
+      newFormState.od_dilated_sphere = formatDiopterVal(visitRef.od_dilated_sphere);
+      newFormState.od_dilated_cylinder = formatDiopterVal(visitRef.od_dilated_cylinder);
       newFormState.od_dilated_axis = visitRef.od_dilated_axis !== null && visitRef.od_dilated_axis !== undefined ? visitRef.od_dilated_axis.toString() : "";
       newFormState.od_dilated_visual_acuity = visitRef.od_dilated_visual_acuity ?? "";
       newFormState.od_dilated_pinhole = visitRef.od_dilated_pinhole ?? "";
-      newFormState.os_dilated_sphere = visitRef.os_dilated_sphere !== null && visitRef.os_dilated_sphere !== undefined ? visitRef.os_dilated_sphere.toString() : "";
-      newFormState.os_dilated_cylinder = visitRef.os_dilated_cylinder !== null && visitRef.os_dilated_cylinder !== undefined ? visitRef.os_dilated_cylinder.toString() : "";
+      newFormState.os_dilated_sphere = formatDiopterVal(visitRef.os_dilated_sphere);
+      newFormState.os_dilated_cylinder = formatDiopterVal(visitRef.os_dilated_cylinder);
       newFormState.os_dilated_axis = visitRef.os_dilated_axis !== null && visitRef.os_dilated_axis !== undefined ? visitRef.os_dilated_axis.toString() : "";
       newFormState.os_dilated_visual_acuity = visitRef.os_dilated_visual_acuity ?? "";
       newFormState.os_dilated_pinhole = visitRef.os_dilated_pinhole ?? "";
@@ -410,7 +440,7 @@ export function MergedVisionTab({
       if (val !== "" && val !== "-" && val !== "+") {
         const num = parseFloat(val);
         if (!isNaN(num)) {
-          const formatted = num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+          const formatted = num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
           updateField(key, formatted);
         }
       }
@@ -627,10 +657,53 @@ export function MergedVisionTab({
     return isNaN(n) ? null : n;
   };
 
+  const parseIntVal = (v: string): number | null => {
+    if (v === "" || v === null || v === undefined) return null;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
+  };
+
+  const getVaOptions = (options: string[], currentVal?: string) => {
+    if (currentVal && !options.includes(currentVal)) {
+      return [currentVal, ...options];
+    }
+    return options;
+  };
+
   // Handle Save — single API call for all sections
   const handleSaveAll = async () => {
     if (!visitId) {
       toast.error("No active visit ID found.");
+      return;
+    }
+
+    // Pre-validate: Axis is required when Cylinder is non-zero, and Axis range 0-180
+    const validationErrors: Record<string, string> = {};
+    const checkCylAxis = (cylStr: string, axisStr: string, key: keyof CombinedFormState) => {
+      const cyl = parseNumVal(cylStr);
+      const axis = parseIntVal(axisStr);
+      if (cyl !== null && cyl !== 0 && axis === null) {
+        validationErrors[key] = "Axis is required when cylinder is specified";
+      }
+      if (axis !== null && (axis < 0 || axis > 180)) {
+        validationErrors[key] = "Axis must be between 0° and 180°";
+      }
+    };
+
+    checkCylAxis(formState.od_sph ? formState.od_cyl : formState.od_cyl, formState.od_axis, "od_axis");
+    checkCylAxis(formState.os_sph ? formState.os_cyl : formState.os_cyl, formState.os_axis, "os_axis");
+    checkCylAxis(formState.od_ar_cylinder, formState.od_ar_axis, "od_ar_axis");
+    checkCylAxis(formState.os_ar_cylinder, formState.os_ar_axis, "os_ar_axis");
+    checkCylAxis(formState.od_wet_cylinder, formState.od_wet_axis, "od_wet_axis");
+    checkCylAxis(formState.os_wet_cylinder, formState.os_wet_axis, "os_wet_axis");
+    checkCylAxis(formState.od_ref_cylinder, formState.od_ref_axis, "od_ref_axis");
+    checkCylAxis(formState.os_ref_cylinder, formState.os_ref_axis, "os_ref_axis");
+    checkCylAxis(formState.od_dilated_cylinder, formState.od_dilated_axis, "od_dilated_axis");
+    checkCylAxis(formState.os_dilated_cylinder, formState.os_dilated_axis, "os_dilated_axis");
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      toast.error("Axis is required when cylinder is specified. Please check highlighted fields.");
       return;
     }
 
@@ -662,13 +735,13 @@ export function MergedVisionTab({
               od: {
                 sph: parseNumVal(formState.od_sph),
                 cyl: parseNumVal(formState.od_cyl),
-                axis: parseNumVal(formState.od_axis),
+                axis: parseIntVal(formState.od_axis),
                 add: parseNumVal(formState.od_add),
               },
               os: {
                 sph: parseNumVal(formState.os_sph),
                 cyl: parseNumVal(formState.os_cyl),
-                axis: parseNumVal(formState.os_axis),
+                axis: parseIntVal(formState.os_axis),
                 add: parseNumVal(formState.os_add),
               },
               lens_type: formState.specs_lens_type || null,
@@ -686,16 +759,16 @@ export function MergedVisionTab({
             ar_data: {
               od_sphere: parseNumVal(formState.od_ar_sphere),
               od_cylinder: parseNumVal(formState.od_ar_cylinder),
-              od_axis: parseNumVal(formState.od_ar_axis),
+              od_axis: parseIntVal(formState.od_ar_axis),
               os_sphere: parseNumVal(formState.os_ar_sphere),
               os_cylinder: parseNumVal(formState.os_ar_cylinder),
-              os_axis: parseNumVal(formState.os_ar_axis),
+              os_axis: parseIntVal(formState.os_ar_axis),
               od_wet_sphere: parseNumVal(formState.od_wet_sphere),
               od_wet_cylinder: parseNumVal(formState.od_wet_cylinder),
-              od_wet_axis: parseNumVal(formState.od_wet_axis),
+              od_wet_axis: parseIntVal(formState.od_wet_axis),
               os_wet_sphere: parseNumVal(formState.os_wet_sphere),
               os_wet_cylinder: parseNumVal(formState.os_wet_cylinder),
-              os_wet_axis: parseNumVal(formState.os_wet_axis),
+              os_wet_axis: parseIntVal(formState.os_wet_axis),
               pupillary_distance: parseNumVal(formState.ar_pd),
               notes: formState.ar_notes || null,
             },
@@ -704,7 +777,7 @@ export function MergedVisionTab({
               od: {
                 sphere: parseNumVal(formState.od_ref_sphere),
                 cylinder: parseNumVal(formState.od_ref_cylinder),
-                axis: parseNumVal(formState.od_ref_axis),
+                axis: parseIntVal(formState.od_ref_axis),
                 add_power: parseNumVal(formState.od_ref_add_power),
                 visual_acuity_uncorrected: formState.od_ref_visual_acuity_uncorrected || null,
                 visual_acuity_corrected: formState.od_ref_visual_acuity_corrected || null,
@@ -714,7 +787,7 @@ export function MergedVisionTab({
               os: {
                 sphere: parseNumVal(formState.os_ref_sphere),
                 cylinder: parseNumVal(formState.os_ref_cylinder),
-                axis: parseNumVal(formState.os_ref_axis),
+                axis: parseIntVal(formState.os_ref_axis),
                 add_power: parseNumVal(formState.os_ref_add_power),
                 visual_acuity_uncorrected: formState.os_ref_visual_acuity_uncorrected || null,
                 visual_acuity_corrected: formState.os_ref_visual_acuity_corrected || null,
@@ -725,12 +798,12 @@ export function MergedVisionTab({
               os_prism: formState.os_ref_prism || null,
               od_dilated_sphere: parseNumVal(formState.od_dilated_sphere),
               od_dilated_cylinder: parseNumVal(formState.od_dilated_cylinder),
-              od_dilated_axis: parseNumVal(formState.od_dilated_axis),
+              od_dilated_axis: parseIntVal(formState.od_dilated_axis),
               od_dilated_visual_acuity: formState.od_dilated_visual_acuity || null,
               od_dilated_pinhole: formState.od_dilated_pinhole || null,
               os_dilated_sphere: parseNumVal(formState.os_dilated_sphere),
               os_dilated_cylinder: parseNumVal(formState.os_dilated_cylinder),
-              os_dilated_axis: parseNumVal(formState.os_dilated_axis),
+              os_dilated_axis: parseIntVal(formState.os_dilated_axis),
               os_dilated_visual_acuity: formState.os_dilated_visual_acuity || null,
               os_dilated_pinhole: formState.os_dilated_pinhole || null,
               pupillary_distance: parseNumVal(formState.ref_pd),
@@ -751,20 +824,53 @@ export function MergedVisionTab({
       onRefresh();
       setErrors({});
     } catch (e: any) {
-      const fieldErrors = getFieldErrors(e);
-      if (Object.keys(fieldErrors).length > 0) {
-        const mappedErrors: Record<string, string> = {};
-        const detail = e?.detail || e?.response?.data?.detail;
-        if (Array.isArray(detail)) {
-          detail.forEach((err: any) => {
-            const formKey = mapLocToFormKey(err.loc || []);
-            if (formKey) {
-              mappedErrors[formKey] = err.msg || "Invalid value";
+      const detail = e?.detail || e?.response?.data?.detail;
+      const mappedErrors: Record<string, string> = {};
+      let firstErrorMsg = "";
+
+      if (Array.isArray(detail)) {
+        detail.forEach((err: any) => {
+          let formKey = mapLocToFormKey(err.loc || []);
+
+          // Fallback parsing for generic locs or Pydantic business_logic_error strings
+          if (!formKey && typeof err.msg === "string") {
+            const msg = err.msg;
+            if (msg.includes("CurrentSpecsEyeMeasurements")) {
+              if (msg.includes("axis")) {
+                if (formState.od_cyl && !formState.od_axis) formKey = "od_axis";
+                else if (formState.os_cyl && !formState.os_axis) formKey = "os_axis";
+                else formKey = "od_axis";
+              }
+            } else if (msg.includes("ARData")) {
+              if (msg.includes("axis")) {
+                if (formState.od_ar_cylinder && !formState.od_ar_axis) formKey = "od_ar_axis";
+                else if (formState.os_ar_cylinder && !formState.os_ar_axis) formKey = "os_ar_axis";
+                else formKey = "od_ar_axis";
+              }
+            } else if (msg.includes("EyeMeasurements")) {
+              if (msg.includes("axis")) {
+                if (formState.od_ref_cylinder && !formState.od_ref_axis) formKey = "od_ref_axis";
+                else if (formState.os_ref_cylinder && !formState.os_ref_axis) formKey = "os_ref_axis";
+                else formKey = "od_ref_axis";
+              }
             }
-          });
-        }
+          }
+
+          let cleanMsg = err.msg || "Invalid value";
+          if (cleanMsg.includes("Axis is required when cylinder is specified")) {
+            cleanMsg = "Axis is required when cylinder is specified";
+          }
+
+          if (formKey) {
+            mappedErrors[formKey] = cleanMsg;
+          }
+          if (!firstErrorMsg) firstErrorMsg = cleanMsg;
+        });
+      }
+
+      if (Object.keys(mappedErrors).length > 0) {
         setErrors(mappedErrors);
-        toast.error("Validation error: Please check the highlighted fields.");
+        toast.error(`Validation error: ${firstErrorMsg || "Please check highlighted fields."}`);
       } else {
         handleError(e, {
           defaultMessage: "Failed to save measurements.",
@@ -830,7 +936,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}ucva_distance` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}ucva_distance`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ucva_distance`]}</span>
@@ -847,7 +953,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(NEAR_VA_OPTIONS, formState[`${prefix}near_ucva` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}near_ucva`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}near_ucva`]}</span>
@@ -864,7 +970,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}va_with_current_specs` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}va_with_current_specs`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}va_with_current_specs`]}</span>
@@ -881,7 +987,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {NEAR_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(NEAR_VA_OPTIONS, formState[`${prefix}near_with_current_specs` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}near_with_current_specs`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}near_with_current_specs`]}</span>
@@ -898,7 +1004,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}ph_va` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}ph_va`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ph_va`]}</span>
@@ -1205,7 +1311,7 @@ export function MergedVisionTab({
                     )}
                   >
                     <option value="">—</option>
-                    {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}ref_distance_bcva` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                   {errors[`${prefix}ref_distance_bcva`] && (
                     <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}ref_distance_bcva`]}</span>
@@ -1332,7 +1438,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}dilated_visual_acuity` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}dilated_visual_acuity`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_visual_acuity`]}</span>
@@ -1349,7 +1455,7 @@ export function MergedVisionTab({
                 )}
               >
                 <option value="">—</option>
-                {DIST_VA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {getVaOptions(DIST_VA_OPTIONS, formState[`${prefix}dilated_pinhole` as keyof CombinedFormState] as string).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               {errors[`${prefix}dilated_pinhole`] && (
                 <span className="text-[9px] text-red-600 font-medium block mt-0.5">{errors[`${prefix}dilated_pinhole`]}</span>

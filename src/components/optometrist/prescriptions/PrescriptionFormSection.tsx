@@ -333,32 +333,6 @@ export function PrescriptionFormSection({
 
 
 
-    const handlePrintClick = async () => {
-        setIsSubmitting(true);
-        try {
-            // Always fetch latest surgeries
-            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
-            setPlannedSurgeries(surgs.items || []);
-
-            // Always fetch fresh data for print to ensure all clinical modification are reflected
-            const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
-            setFullPrescriptionData(data);
-
-            // Sync savedPrescription if data has it
-            if (data.prescription) {
-                setSavedPrescription(data.prescription);
-            }
-
-            // Show preview modal instead of direct printing
-            setShowPrintPreview(true);
-        } catch (error) {
-            console.error("Failed to fetch prescription data for print", error);
-            toast.error("Failed to load print data");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     const {
         register,
         control,
@@ -1360,6 +1334,12 @@ export function PrescriptionFormSection({
             }
 
             if (options.print) {
+                try {
+                    const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+                    setPlannedSurgeries(surgs.items || []);
+                } catch (e) {
+                    console.error("Failed to fetch planned surgeries for print", e);
+                }
                 setShowPrintPreview(true);
             }
 
@@ -1403,6 +1383,37 @@ export function PrescriptionFormSection({
     };
 
     const onSaveDraft = (data: FormData) => processSubmit(data, { print: false, finalize: false });
+
+    const handlePrintClick = async () => {
+        if (canEdit) {
+            // In editable mode, submit/save form first to ensure latest fields are saved and previewed
+            return handleSubmit((data) => processSubmit(data, { print: true, finalize: false }))();
+        }
+
+        // In read-only mode, fetch fresh data and open preview
+        setIsSubmitting(true);
+        try {
+            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+            setPlannedSurgeries(surgs.items || []);
+
+            const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
+            setFullPrescriptionData(data);
+
+            if (data.prescription) {
+                setSavedPrescription(data.prescription);
+                setShowPrintPreview(true);
+            } else if (savedPrescription) {
+                setShowPrintPreview(true);
+            } else {
+                toast.error("No saved prescription found to print");
+            }
+        } catch (error) {
+            console.error("Failed to fetch prescription data for print", error);
+            toast.error("Failed to load print data");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleConfirmFinalize = () => {
         if (pendingFinalizeAction) {

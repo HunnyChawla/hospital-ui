@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Users, Clock, Activity, CheckCircle2 } from "lucide-react";
+import { Users, Clock, Activity, CheckCircle2, AlertTriangle } from "lucide-react";
 import { DoctorStats } from "@/types";
 
 interface DoctorStatsCardsProps {
@@ -17,18 +17,18 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
 }) => {
   const statItems = [
     {
-      label: "Total Patients",
+      label: "Total OPD",
       value: stats?.todayTotal || 0,
       icon: Users,
-      color: "sky",
-      bgGradient: "from-sky-50 to-sky-50/50",
-      iconBg: "bg-sky-100",
-      iconColor: "text-sky-600",
-      textColor: "text-sky-700",
+      color: "slate",
+      bgGradient: "from-slate-50 to-slate-50/50",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
+      textColor: "text-slate-800",
     },
     {
-      label: "Pending",
-      value: stats?.todayPending || 0,
+      label: "Pending at Optom",
+      value: stats?.pendingOptometrist || 0,
       icon: Clock,
       color: "amber",
       bgGradient: "from-amber-50 to-amber-50/50",
@@ -37,8 +37,28 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       textColor: "text-amber-700",
     },
     {
-      label: "In Progress",
-      value: stats?.todayInProgress || 0,
+      label: "In-Progress at Optom",
+      value: stats?.inProgressOptometrist || 0,
+      icon: Activity,
+      color: "purple",
+      bgGradient: "from-purple-50 to-purple-50/50",
+      iconBg: "bg-purple-100",
+      iconColor: "text-purple-600",
+      textColor: "text-purple-700",
+    },
+    {
+      label: "Ready for Doctor",
+      value: stats?.pendingDoctor || 0,
+      icon: Clock,
+      color: "sky",
+      bgGradient: "from-sky-50 to-sky-50/50",
+      iconBg: "bg-sky-100",
+      iconColor: "text-sky-600",
+      textColor: "text-sky-700",
+    },
+    {
+      label: "In Consultation",
+      value: stats?.inProgressDoctor || 0,
       icon: Activity,
       color: "blue",
       bgGradient: "from-blue-50 to-blue-50/50",
@@ -47,7 +67,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       textColor: "text-blue-700",
     },
     {
-      label: "Completed",
+      label: "Completed Today",
       value: stats?.todayCompleted || 0,
       icon: CheckCircle2,
       color: "emerald",
@@ -56,15 +76,25 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       iconColor: "text-emerald-600",
       textColor: "text-emerald-700",
     },
+    {
+      label: "No Show",
+      value: stats?.todayNoShow || 0,
+      icon: AlertTriangle,
+      color: "rose",
+      bgGradient: "from-rose-50 to-rose-50/50",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-600",
+      textColor: "text-rose-700",
+    },
   ];
 
   if (loading) {
     return (
-      <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
-        {[1, 2, 3, 4].map((i) => (
+      <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"}>
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
           <div
             key={i}
-            className={compact ? "h-20 animate-pulse rounded-lg bg-slate-100" : "h-28 animate-pulse rounded-xl bg-slate-100"}
+            className={compact ? "h-20 animate-pulse rounded-lg bg-slate-100" : "h-24 animate-pulse rounded-xl bg-slate-100"}
           />
         ))}
       </div>
@@ -72,52 +102,47 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   }
 
   return (
-    <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>
+    <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"}>
       {statItems.map((item) => {
         const Icon = item.icon;
         return (
           <div
             key={item.label}
-            className={`group relative overflow-hidden border border-slate-100 bg-gradient-to-br ${item.bgGradient} shadow-sm transition hover:shadow-md ${
-              compact ? "rounded-lg p-3" : "rounded-xl p-5"
+            className={`group relative overflow-hidden border border-slate-200/80 bg-gradient-to-br ${item.bgGradient} shadow-sm transition hover:shadow-md ${
+              compact ? "rounded-lg p-2.5" : "rounded-xl p-3.5"
             }`}
           >
-            {/* Background glow */}
-            {!compact && (
-              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/50 opacity-0 blur-2xl transition group-hover:opacity-100" />
-            )}
-
-            <div className="relative flex items-start justify-between">
+            <div className="relative flex items-start justify-between gap-2">
               <div>
-                <p className={compact ? "text-xs font-medium text-slate-600" : "text-sm font-medium text-slate-600"}>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight leading-tight">
                   {item.label}
                 </p>
-                <p className={compact ? `mt-1 text-2xl font-bold ${item.textColor}` : `mt-2 text-3xl font-bold ${item.textColor}`}>
+                <p className={`mt-1 text-2xl font-extrabold ${item.textColor}`}>
                   {item.value}
                 </p>
               </div>
 
               <div
-                className={`flex items-center justify-center rounded-xl ${item.iconBg} shadow-sm ${
-                  compact ? "h-9 w-9" : "h-12 w-12"
+                className={`flex items-center justify-center rounded-lg ${item.iconBg} shrink-0 shadow-xs ${
+                  compact ? "h-7 w-7" : "h-9 w-9"
                 }`}
               >
-                <Icon className={compact ? `h-4 w-4 ${item.iconColor}` : `h-6 w-6 ${item.iconColor}`} />
+                <Icon className={compact ? `h-3.5 w-3.5 ${item.iconColor}` : `h-4.5 w-4.5 ${item.iconColor}`} />
               </div>
             </div>
 
             {/* Progress indicator */}
-            {!compact && stats && stats.todayTotal > 0 && item.label !== "Total Patients" && (
-              <div className="mt-3 flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/60">
+            {!compact && stats && stats.todayTotal > 0 && item.label !== "Total OPD" && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-200/60">
                   <div
-                    className={`h-full rounded-full bg-gradient-to-r ${item.iconBg}`}
+                    className={`h-full rounded-full ${item.iconBg.replace('bg-', 'bg-')}`}
                     style={{
-                      width: `${(item.value / stats.todayTotal) * 100}%`,
+                      width: `${Math.min(100, Math.round((item.value / stats.todayTotal) * 100))}%`,
                     }}
                   />
                 </div>
-                <span className="text-xs font-medium text-slate-500">
+                <span className="text-[10px] font-medium text-slate-400">
                   {Math.round((item.value / stats.todayTotal) * 100)}%
                 </span>
               </div>
