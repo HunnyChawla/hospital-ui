@@ -221,7 +221,9 @@ export function BillingManagement({
           totalInvoices: response.summary.total_invoices,
         });
       } else {
-        const totalRevenue = response.items.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+        const totalRevenue = response.items
+          .filter(inv => inv.status !== "refunded" && inv.status !== "cancelled")
+          .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
         const paidAmount = response.items.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
         const pendingAmount = response.items
           .filter(inv => inv.status === "pending" || inv.status === "partial")
