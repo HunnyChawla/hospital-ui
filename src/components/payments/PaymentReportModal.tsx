@@ -38,7 +38,7 @@ export function PaymentReportModal({ isOpen, onClose }: PaymentReportModalProps)
   const [error, setError] = useState<string | null>(null);
 
   // Filter state
-  const [datePreset, setDatePreset] = useState<DatePreset>("month");
+  const [datePreset, setDatePreset] = useState<DatePreset>("today");
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
   const [selectedMethod, setSelectedMethod] = useState<string>("all");
