@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, CalendarClock, Calendar, Package, CheckCircle2, CreditCard, Loader2 } from "lucide-react";
+import { X, CalendarClock, Calendar, Package, CheckCircle2, CreditCard, Loader2, Edit2 } from "lucide-react";
 import { surgeryPackagesApi } from "@/services/surgeryPackagesApi";
 import type { PlannedSurgery, SurgeryPackage, RescheduleRequest } from "@/types";
 import { toast } from "sonner";
@@ -50,6 +50,9 @@ export function RescheduleModal({
     const [paymentDate, setPaymentDate] = useState<string>(getTodayDateLocal());
     const [paymentNotes, setPaymentNotes] = useState<string>("");
 
+    const hasCollectedPayment = !!(surgery?.advance_payment_amount && Number(surgery.advance_payment_amount) > 0);
+    const [isEditingPayment, setIsEditingPayment] = useState(false);
+
     const isFirstSchedule = !currentDate;
     const titleText = isFirstSchedule ? "Schedule Surgery" : "Reschedule Surgery";
     const dateLabel = isFirstSchedule ? "Surgery Date *" : "New Date *";
@@ -65,6 +68,7 @@ export function RescheduleModal({
             setNewTime(surgery.planned_time ? surgery.planned_time.slice(0, 5) : "");
             setReason("");
             setSelectedPackageId(surgery.package_id || null);
+            setIsEditingPayment(false);
 
             if (surgery.advance_payment_amount) {
                 setAdvanceAmount(surgery.advance_payment_amount.toString());
@@ -98,9 +102,6 @@ export function RescheduleModal({
                 if (data.length > 0 && (!surgery.package_id || !selectedPackageId)) {
                     const defaultPkg = data.find((p) => p.id === surgery.package_id) || data[0];
                     setSelectedPackageId(defaultPkg.id);
-                    if (!surgery.advance_payment_amount) {
-                        setAdvanceAmount(defaultPkg.price.toString());
-                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch surgery packages:", error);
@@ -130,10 +131,6 @@ export function RescheduleModal({
 
     const handlePackageSelect = (pkg: SurgeryPackage) => {
         setSelectedPackageId(pkg.id);
-        // Auto update default advance payment if amount is empty or 0
-        if (!advanceAmount || parseFloat(advanceAmount) === 0) {
-            setAdvanceAmount(pkg.price.toString());
-        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -163,6 +160,19 @@ export function RescheduleModal({
             advance_payment_date: numAdvance ? paymentDate || undefined : undefined,
             advance_payment_notes: numAdvance ? paymentNotes || undefined : undefined,
         });
+    };
+
+    const formatDate = (d: string | null | undefined) => {
+        if (!d) return "";
+        try {
+            return new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+            });
+        } catch {
+            return d;
+        }
     };
 
     const formatCurrentDate = (d: string | null | undefined) => {
@@ -330,97 +340,166 @@ export function RescheduleModal({
                         </div>
 
                         {/* Advance Payment Details */}
-                        <div className="rounded-xl border border-slate-200 bg-slate-50/60 overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-3 bg-slate-100/80 border-b border-slate-200/60">
-                                <span className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wide">
-                                    <CreditCard className="h-4 w-4 text-sky-600" />
-                                    Advance Payment Details (Optional)
-                                </span>
-                                {advanceAmount && parseFloat(advanceAmount) > 0 && (
-                                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                        ₹{parseFloat(advanceAmount).toLocaleString("en-IN")}
+                        {hasCollectedPayment && !isEditingPayment ? (
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2.5 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                                        <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
+                                        Advance Payment Already Collected
                                     </span>
-                                )}
-                            </div>
-
-                            <div className="p-4 bg-white space-y-3">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                                            Advance Amount (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            value={advanceAmount}
-                                            onChange={(e) => setAdvanceAmount(e.target.value)}
-                                            placeholder="e.g. 5000"
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                                            Payment Method
-                                        </label>
-                                        <select
-                                            value={paymentMethod}
-                                            onChange={(e) => setPaymentMethod(e.target.value)}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 bg-white"
-                                        >
-                                            <option value="cash">Cash</option>
-                                            <option value="upi">UPI / QR</option>
-                                            <option value="card">Credit / Debit Card</option>
-                                            <option value="netbanking">Netbanking</option>
-                                            <option value="cheque">Cheque</option>
-                                        </select>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingPayment(true)}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-800 underline cursor-pointer"
+                                    >
+                                        <Edit2 className="h-3 w-3" />
+                                        Edit / Update Payment
+                                    </button>
                                 </div>
 
-                                {advanceAmount && parseFloat(advanceAmount) > 0 && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-700 pt-1">
+                                    <div>
+                                        <span className="text-slate-500 block text-[11px]">Collected Amount</span>
+                                        <span className="text-base font-bold text-slate-900">
+                                            ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 block text-[11px]">Payment Method</span>
+                                        <span className="font-semibold text-slate-800 uppercase bg-white px-2 py-0.5 rounded border border-slate-200 inline-block mt-0.5">
+                                            {surgery.advance_payment_method || "Cash"}
+                                        </span>
+                                    </div>
+                                    {surgery.advance_payment_date && (
+                                        <div>
+                                            <span className="text-slate-500 block text-[11px]">Payment Date</span>
+                                            <span className="font-medium text-slate-800">
+                                                {formatDate(surgery.advance_payment_date)}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {surgery.advance_payment_reference && (
+                                        <div>
+                                            <span className="text-slate-500 block text-[11px]">Ref / Txn No</span>
+                                            <span className="font-medium text-slate-800 truncate block max-w-[120px]">
+                                                {surgery.advance_payment_reference}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {surgery.advance_payment_notes && (
+                                    <p className="text-[11px] text-slate-600 pt-1.5 border-t border-emerald-200/60">
+                                        <span className="font-medium text-slate-700">Notes:</span> {surgery.advance_payment_notes}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/60 overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3 bg-slate-100/80 border-b border-slate-200/60">
+                                    <span className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wide">
+                                        <CreditCard className="h-4 w-4 text-sky-600" />
+                                        {hasCollectedPayment ? "Modifying Advance Payment Information" : "Advance Payment Details (Optional)"}
+                                    </span>
+                                    {hasCollectedPayment ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingPayment(false)}
+                                            className="text-xs text-slate-500 hover:text-slate-700 underline cursor-pointer"
+                                        >
+                                            Cancel Edit
+                                        </button>
+                                    ) : advanceAmount && parseFloat(advanceAmount) > 0 ? (
+                                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                            ₹{parseFloat(advanceAmount).toLocaleString("en-IN")}
+                                        </span>
+                                    ) : null}
+                                </div>
+
+                                <div className="p-4 bg-white space-y-3">
+                                    {hasCollectedPayment && (
+                                        <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 font-medium">
+                                            ⚠️ You are updating the previously recorded advance payment details.
+                                        </p>
+                                    )}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-xs font-medium text-slate-700 mb-1">
-                                                Ref / Txn Number (Optional)
+                                                Advance Amount (₹)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={advanceAmount}
+                                                onChange={(e) => setAdvanceAmount(e.target.value)}
+                                                placeholder="e.g. 5000"
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                                                Payment Method
+                                            </label>
+                                            <select
+                                                value={paymentMethod}
+                                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 bg-white"
+                                            >
+                                                <option value="cash">Cash</option>
+                                                <option value="upi">UPI / QR</option>
+                                                <option value="card">Credit / Debit Card</option>
+                                                <option value="netbanking">Netbanking</option>
+                                                <option value="cheque">Cheque</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {advanceAmount && parseFloat(advanceAmount) > 0 && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-700 mb-1">
+                                                    Ref / Txn Number (Optional)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={paymentReference}
+                                                    onChange={(e) => setPaymentReference(e.target.value)}
+                                                    placeholder="e.g. UPI-987654"
+                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-700 mb-1">
+                                                    Collection Date
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={paymentDate}
+                                                    onChange={(e) => setPaymentDate(e.target.value)}
+                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {advanceAmount && parseFloat(advanceAmount) > 0 && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                                                Payment Notes (Optional)
                                             </label>
                                             <input
                                                 type="text"
-                                                value={paymentReference}
-                                                onChange={(e) => setPaymentReference(e.target.value)}
-                                                placeholder="e.g. UPI-987654"
+                                                value={paymentNotes}
+                                                onChange={(e) => setPaymentNotes(e.target.value)}
+                                                placeholder="e.g. Advance paid at front desk"
                                                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-700 mb-1">
-                                                Collection Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={paymentDate}
-                                                onChange={(e) => setPaymentDate(e.target.value)}
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {advanceAmount && parseFloat(advanceAmount) > 0 && (
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                                            Payment Notes (Optional)
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={paymentNotes}
-                                            onChange={(e) => setPaymentNotes(e.target.value)}
-                                            placeholder="e.g. Advance paid at front desk"
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-                                        />
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Reason / Notes */}
                         <div>

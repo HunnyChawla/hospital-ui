@@ -104,9 +104,6 @@ export function PlannedSurgeryFormModal({
                 setPackages(data);
                 if (data.length > 0 && !selectedPackageId) {
                     setSelectedPackageId(data[0].id);
-                    if (!advanceAmount || parseFloat(advanceAmount) === 0) {
-                        setAdvanceAmount(data[0].price.toString());
-                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch packages:", error);
@@ -236,10 +233,6 @@ export function PlannedSurgeryFormModal({
             setSelectedPackageId(null);
         } else {
             setSelectedPackageId(pkg.id);
-            // Optionally set default advance amount to package price if advance section is visible or auto-expand
-            if (!advanceAmount || parseFloat(advanceAmount) === 0) {
-                setAdvanceAmount(pkg.price.toString());
-            }
         }
     };
 

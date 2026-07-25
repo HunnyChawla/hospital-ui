@@ -1104,6 +1104,17 @@ export function PlannedSurgeriesList({
                                                 variant="sky"
                                             />
 
+                                            {/* Edit action button */}
+                                            {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
+                                                <ExpandableActionButton
+                                                    onClick={() => handleEdit(surgery)}
+                                                    icon={Pencil}
+                                                    title="Edit Surgery Details"
+                                                    label="Edit"
+                                                    variant="emerald"
+                                                />
+                                            )}
+
                                             {/* Primary contextual action button */}
                                             {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
                                                 <ExpandableActionButton
@@ -1123,31 +1134,31 @@ export function PlannedSurgeriesList({
                         /* List View Mode (Table) */
                         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-slate-200">
+                                <table className="min-w-full divide-y divide-slate-200 table-fixed">
                                     <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
                                         <tr>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[18%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Patient
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[22%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Surgery & Details
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[8%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Eye
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[14%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Surgeon
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[14%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Planned / Advised Date
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[10%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Status
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[8%] px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Notes
                                             </th>
-                                            <th scope="col" className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                            <th scope="col" className="w-[16%] px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
                                                 Actions
                                             </th>
                                         </tr>
@@ -1223,7 +1234,7 @@ export function PlannedSurgeriesList({
                                                         {surgery.notes || "-"}
                                                     </span>
                                                 </td>
-                                                <td className="whitespace-nowrap px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                                                <td className="w-[16%] whitespace-nowrap px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         <ExpandableActionButton
                                                             onClick={() => handleViewHistory(surgery)}
@@ -1232,6 +1243,15 @@ export function PlannedSurgeriesList({
                                                             label="History"
                                                             variant="sky"
                                                         />
+                                                        {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
+                                                            <ExpandableActionButton
+                                                                onClick={() => handleEdit(surgery)}
+                                                                icon={Pencil}
+                                                                title="Edit Surgery Details"
+                                                                label="Edit"
+                                                                variant="emerald"
+                                                            />
+                                                        )}
                                                         {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
                                                             <ExpandableActionButton
                                                                 onClick={() => handleReschedule(surgery)}
