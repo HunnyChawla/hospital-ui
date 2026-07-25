@@ -38,6 +38,16 @@ export const getTodayDateLocal = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+// Get past date (N days ago) in YYYY-MM-DD format in local timezone
+export const getPastDateLocal = (daysAgo: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "N/A";
   try {

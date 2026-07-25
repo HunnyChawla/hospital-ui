@@ -218,6 +218,7 @@ export const labBookingsApi = {
 
 export interface PatientWithPendingTests {
   patient_id: string;
+  patient_uhid?: string | null;
   patient_name: string;
   patient_mobile: string | null;
   visit_id: string;

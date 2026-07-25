@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { labBookingsApi, AdvisedTest, BookAdvisedTestsRequest, PaymentMethod, TestPriority, PatientWithPendingTests, LabBooking } from "@/services/labBookingsApi";
 import { labTestsApi, PrescriptionField } from "@/services/labTestsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList, Eye, AlertTriangle } from "lucide-react";
-import { currency, getTodayDateLocal } from "@/utils/format";
+import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList, Eye, AlertTriangle, Edit2 } from "lucide-react";
+import { currency, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 
 export interface PrescribedLabBookingPanelProps {
@@ -33,7 +33,7 @@ export function PrescribedLabBookingPanel({
   // Standalone mode state: Pending patients and date filters
   const [pendingPatients, setPendingPatients] = useState<PatientWithPendingTests[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
-  const [dateFilter, setDateFilter] = useState<"today" | "7days" | "custom">("today");
+  const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "3days" | "custom">("3days");
   const [customStartDate, setCustomStartDate] = useState(getTodayDateLocal());
   const [customEndDate, setCustomEndDate] = useState(getTodayDateLocal());
 
@@ -53,6 +53,21 @@ export function PrescribedLabBookingPanel({
   const [showOnlyPending, setShowOnlyPending] = useState(true);
   const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
 
+  const handleEnableOverride = (labTestId: string, currentPrice: number) => {
+    setPriceOverrides((prev) => ({
+      ...prev,
+      [labTestId]: currentPrice,
+    }));
+  };
+
+  const handleResetOverride = (labTestId: string) => {
+    setPriceOverrides((prev) => {
+      const updated = { ...prev };
+      delete updated[labTestId];
+      return updated;
+    });
+  };
+
   const handlePriceChange = (labTestId: string, val: string) => {
     const parsed = parseFloat(val);
     setPriceOverrides((prev) => ({
@@ -67,16 +82,21 @@ export function PrescribedLabBookingPanel({
   }, []);
 
   // Standalone Mode: Fetch pending patients
-  const fetchPendingPatients = async () => {
+  const fetchPendingPatients = useCallback(async () => {
     setLoadingPatients(true);
     try {
       let start_date = getTodayDateLocal();
       let end_date = getTodayDateLocal();
 
-      if (dateFilter === "7days") {
-        const d = new Date();
-        d.setDate(d.getDate() - 7);
-        start_date = d.toISOString().split("T")[0];
+      if (dateFilter === "today") {
+        start_date = getTodayDateLocal();
+        end_date = getTodayDateLocal();
+      } else if (dateFilter === "yesterday") {
+        start_date = getPastDateLocal(1);
+        end_date = getPastDateLocal(1);
+      } else if (dateFilter === "3days") {
+        start_date = getPastDateLocal(2);
+        end_date = getTodayDateLocal();
       } else if (dateFilter === "custom") {
         start_date = customStartDate || getTodayDateLocal();
         end_date = customEndDate || getTodayDateLocal();
@@ -91,7 +111,7 @@ export function PrescribedLabBookingPanel({
 
       // If the currently selected visit is not in the new list, deselect it
       if (selectedVisitId) {
-        const stillPending = res.items.some((item) => item.visit_id === selectedVisitId);
+        const stillPending = (res.items || []).some((item) => item.visit_id === selectedVisitId);
         if (!stillPending) {
           setSelectedVisitId("");
         }
@@ -102,26 +122,28 @@ export function PrescribedLabBookingPanel({
     } finally {
       setLoadingPatients(false);
     }
-  };
+  }, [dateFilter, customStartDate, customEndDate, selectedVisitId]);
 
   useEffect(() => {
     if (isDirectMode) return;
     fetchPendingPatients();
-  }, [dateFilter, customStartDate, customEndDate, isDirectMode]);
+  }, [fetchPendingPatients, isDirectMode]);
 
-  // Standalone Mode: Listen for booking creation events to refresh the list
+  // Standalone Mode: Listen for booking creation/cancellation events to refresh the list
   useEffect(() => {
     if (isDirectMode) return;
 
-    const handleBookingCreated = () => {
+    const handleBookingChanged = () => {
       fetchPendingPatients();
     };
 
-    window.addEventListener("lab:booking:created", handleBookingCreated);
+    window.addEventListener("lab:booking:created", handleBookingChanged);
+    window.addEventListener("lab:booking:cancelled", handleBookingChanged);
     return () => {
-      window.removeEventListener("lab:booking:created", handleBookingCreated);
+      window.removeEventListener("lab:booking:created", handleBookingChanged);
+      window.removeEventListener("lab:booking:cancelled", handleBookingChanged);
     };
-  }, [dateFilter, customStartDate, customEndDate, isDirectMode]);
+  }, [fetchPendingPatients, isDirectMode]);
 
   // Standalone Mode: Fetch selected visit detail
   useEffect(() => {
@@ -248,7 +270,7 @@ export function PrescribedLabBookingPanel({
         {/* Test Row */}
         <div
           className={`flex items-center justify-between p-3 transition-colors ${
-            test.already_booked ? "bg-amber-50/30 hover:bg-amber-50/60" : "hover:bg-sky-50/30"
+            test.already_booked ? "bg-slate-50/70 hover:bg-slate-100/70" : "hover:bg-slate-50/60"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -269,15 +291,15 @@ export function PrescribedLabBookingPanel({
               </label>
 
               {test.already_booked && (
-                <div className="flex items-center gap-2 mt-0.5 text-xs text-amber-700">
-                  <span className="font-semibold">
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                  <span className="font-medium">
                     Booked {test.existing_booking_date ? `on ${new Date(test.existing_booking_date).toLocaleDateString()}` : ""}:
                   </span>
-                  <span className="font-mono text-[11px] font-bold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded">
+                  <span className="font-mono text-[11px] font-semibold bg-slate-200/70 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300/60">
                     {test.existing_booking_number || "Existing Booking"}
                   </span>
                   {test.existing_booking_status && (
-                    <span className="capitalize text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border">
+                    <span className="capitalize text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                       {test.existing_booking_status.replace(/_/g, " ")}
                     </span>
                   )}
@@ -288,17 +310,54 @@ export function PrescribedLabBookingPanel({
 
           <div className="flex items-center gap-3">
             {isChecked ? (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-slate-500">₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={priceOverrides[test.lab_test_id] ?? test.price ?? 0}
-                  onChange={(e) => handlePriceChange(test.lab_test_id, e.target.value)}
-                  className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-900 shadow-sm outline-none focus:border-sky-500"
-                  title="Override price for this test"
-                />
+              <div className="flex items-center gap-2">
+                {priceOverrides[test.lab_test_id] !== undefined ? (
+                  <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-200/80 rounded-lg px-2 py-1">
+                    <div className="flex flex-col text-right">
+                      <span className="text-[10px] text-slate-400 line-through leading-none">
+                        Orig: {currency(test.price || 0)}
+                      </span>
+                      <span className="text-[10px] font-semibold text-amber-800 leading-tight">
+                        Custom
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-slate-700">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={priceOverrides[test.lab_test_id]}
+                        onChange={(e) => handlePriceChange(test.lab_test_id, e.target.value)}
+                        className="w-20 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-900 shadow-sm outline-none focus:border-amber-500"
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleResetOverride(test.lab_test_id)}
+                      className="text-xs text-slate-400 hover:text-rose-600 font-bold px-1 cursor-pointer"
+                      title="Reset to original price"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-800">
+                      {test.price !== undefined && test.price !== null ? currency(test.price) : "Price not set"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleEnableOverride(test.lab_test_id, test.price || 0)}
+                      className="inline-flex items-center gap-1 rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 transition cursor-pointer"
+                      title="Override price for this test"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      <span>Override</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : test.price !== undefined && test.price !== null ? (
               <span className="text-sm font-semibold text-slate-700">
@@ -314,13 +373,13 @@ export function PrescribedLabBookingPanel({
               <button
                 type="button"
                 onClick={() => handleViewExistingReport(test.existing_booking_id!)}
-                className="inline-flex items-center gap-1 rounded-lg bg-white border border-slate-250 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm cursor-pointer"
               >
                 <Eye className="h-3.5 w-3.5 text-sky-600" />
                 View Report
               </button>
             ) : (
-              <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/10">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
                 {test.advice_type}
               </span>
             )}
@@ -329,10 +388,10 @@ export function PrescribedLabBookingPanel({
 
         {/* Re-booking Warning Banner */}
         {isRebooking && (
-          <div className="bg-amber-50/90 border-t border-amber-200/80 px-4 py-2 text-left text-xs text-amber-900 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+          <div className="bg-amber-50/60 border-t border-amber-200/60 px-4 py-1.5 text-left text-xs text-amber-900 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
             <span>
-              <strong>Repeat Booking Notice:</strong> This test was previously booked ({test.existing_booking_number || "active booking"}).
+              <strong>Repeat Booking Notice:</strong> Previously booked ({test.existing_booking_number || "active booking"}).
               Proceeding will create an intentional duplicate booking.
             </span>
           </div>
@@ -429,8 +488,11 @@ export function PrescribedLabBookingPanel({
       // Notify parent/dashboard
       window.dispatchEvent(new CustomEvent("lab:booking:created"));
 
-      // Refresh advised tests list (shows newly booked tests as already booked)
-      await fetchAdvisedTests(selectedVisitId);
+      // Refresh pending patients list and advised tests list
+      await Promise.all([
+        fetchPendingPatients(),
+        fetchAdvisedTests(selectedVisitId),
+      ]);
 
       onSuccess?.();
     } catch (error: any) {
@@ -490,21 +552,32 @@ export function PrescribedLabBookingPanel({
                 <div className="space-y-2 text-sm">
                   {advisedTests
                     .filter((t) => selectedTestIds.includes(t.lab_test_id) && !t.already_booked)
-                    .map((t) => (
-                      <div key={t.advice_item_id} className="flex justify-between text-slate-600">
-                        <span className="font-medium">{t.test_name}</span>
-                        <span className="font-semibold text-slate-700">
-                          {t.price !== undefined && t.price !== null ? currency(t.price) : "—"}
-                        </span>
-                      </div>
-                    ))}
+                    .map((t) => {
+                      const isOverridden = priceOverrides[t.lab_test_id] !== undefined;
+                      const effectivePrice = isOverridden ? priceOverrides[t.lab_test_id] : (t.price || 0);
+                      return (
+                        <div key={t.advice_item_id} className="flex justify-between items-center text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{t.test_name}</span>
+                            {isOverridden && (
+                              <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                                Custom (Orig: {currency(t.price || 0)})
+                              </span>
+                            )}
+                          </div>
+                          <span className={`font-semibold ${isOverridden ? "text-amber-700 font-bold" : "text-slate-700"}`}>
+                            {currency(effectivePrice)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   <div className="border-t border-slate-200 my-1 pt-2 flex justify-between font-bold text-slate-900 text-base">
                     <span>Total Amount to Collect</span>
                     <span className="text-sky-600">
                       {currency(
                         advisedTests
                           .filter((t) => selectedTestIds.includes(t.lab_test_id) && !t.already_booked)
-                          .reduce((sum, t) => sum + (t.price || 0), 0)
+                          .reduce((sum, t) => sum + (priceOverrides[t.lab_test_id] !== undefined ? priceOverrides[t.lab_test_id] : (t.price || 0)), 0)
                       )}
                     </span>
                   </div>
@@ -617,20 +690,32 @@ export function PrescribedLabBookingPanel({
       <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 space-y-4">
         {/* Date Filter Selector */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-600 block">Date Range</label>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
-            {(["today", "7days", "custom"] as const).map((filter) => (
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-600">Date Range</label>
+            <button
+              type="button"
+              onClick={() => fetchPendingPatients()}
+              disabled={loadingPatients}
+              className="flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-700 disabled:opacity-50 transition cursor-pointer"
+              title="Refresh prescribed patients list"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingPatients ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl">
+            {(["today", "yesterday", "3days", "custom"] as const).map((filter) => (
               <button
                 key={filter}
                 type="button"
                 onClick={() => setDateFilter(filter)}
-                className={`py-1.5 text-xs font-semibold rounded-lg transition-all capitalize cursor-pointer ${
+                className={`py-1.5 text-[11px] font-semibold rounded-lg transition-all capitalize cursor-pointer whitespace-nowrap text-center ${
                   dateFilter === filter
                     ? "bg-white text-slate-900 shadow-sm font-bold"
                     : "text-slate-500 hover:text-slate-950"
                 }`}
               >
-                {filter === "7days" ? "Last 7 Days" : filter}
+                {filter === "3days" ? "Last 3 Days" : filter === "today" ? "Today" : filter === "yesterday" ? "Yesterday" : "Custom"}
               </button>
             ))}
           </div>
@@ -666,7 +751,7 @@ export function PrescribedLabBookingPanel({
         {/* Prescribed Patients List */}
         <div className="space-y-2">
           <div className="flex justify-between items-center flex-wrap gap-1">
-            <label className="text-xs font-semibold text-slate-650 block">Prescribed Patients</label>
+            <label className="text-xs font-semibold text-slate-700 block">Prescribed Patients</label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -711,40 +796,47 @@ export function PrescribedLabBookingPanel({
                       onClick={() => setSelectedVisitId(patient.visit_id)}
                       className={`p-3 rounded-xl border transition-all cursor-pointer text-left ${
                         isSelected
-                          ? "border-sky-400 bg-sky-50/50 shadow-sm"
+                          ? "border-l-4 border-l-sky-500 border-sky-300 bg-white shadow-sm ring-1 ring-sky-500/10"
                           : isFullyBooked
-                            ? "border-slate-150 bg-slate-50/60 opacity-80 hover:opacity-100"
-                            : "border-slate-100 hover:border-slate-200 hover:bg-slate-50/30"
+                            ? "border-slate-200 bg-slate-50/50 opacity-75 hover:opacity-100 hover:border-slate-300"
+                            : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
                       }`}
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <p className="text-sm font-semibold text-slate-900 truncate">
-                          {patient.patient_name}
-                        </p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                          isSelected ? "bg-sky-100 text-sky-850" : "bg-slate-100 text-slate-655"
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {patient.patient_name}
+                          </p>
+                          <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-[11px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                              UHID: {patient.patient_uhid || patient.patient_id.substring(0, 8)}
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                          isSelected ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-slate-100 text-slate-600 border-slate-200"
                         }`}>
                           {patient.visit_number}
                         </span>
                       </div>
 
-                      <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <div className="flex justify-between text-xs text-slate-500 mt-2">
                         <span>Mob: {patient.patient_mobile || "N/A"}</span>
-                        <span className="font-medium text-slate-650 truncate max-w-[120px]">
+                        <span className="font-medium text-slate-600 truncate max-w-[120px]">
                           {patient.doctor_name || "OPD Doctor"}
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-slate-100/50">
+                      <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-slate-100">
                         <span className="text-[10px] text-slate-400">
                           {patient.visit_date}
                         </span>
                         {patient.pending_test_count > 0 ? (
-                          <span className="inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-inset ring-rose-600/10">
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200/80">
                             {patient.pending_test_count} {patient.pending_test_count === 1 ? "test" : "tests"} pending
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200">
                             ✓ All Booked
                           </span>
                         )}

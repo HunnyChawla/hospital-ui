@@ -41,7 +41,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { usePermissions } from "@/hooks/usePermissions";
 import { labBookingsApi } from "@/services/labBookingsApi";
-import { getTodayDateLocal } from "@/utils/format";
+import { getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 
 
 // Icon mapping from string names to Lucide components
@@ -192,7 +192,7 @@ export function Sidebar() {
       try {
         const today = getTodayDateLocal();
         const res = await labBookingsApi.getPatientsWithPendingTests({
-          start_date: today,
+          start_date: getPastDateLocal(2),
           end_date: today,
         });
         const pendingVisitsCount = (res.items || []).filter((item) => item.pending_test_count > 0).length;
@@ -204,18 +204,16 @@ export function Sidebar() {
 
     fetchPendingCount();
 
-    // Listen for booking creation/update
-    const handleBookingCreated = () => {
+    // Listen for booking creation/cancellation/update
+    const handleBookingChanged = () => {
       fetchPendingCount();
     };
-    window.addEventListener("lab:booking:created", handleBookingCreated);
-
-    // Periodic poll every 30 seconds
-    const intervalId = setInterval(fetchPendingCount, 30000);
+    window.addEventListener("lab:booking:created", handleBookingChanged);
+    window.addEventListener("lab:booking:cancelled", handleBookingChanged);
 
     return () => {
-      window.removeEventListener("lab:booking:created", handleBookingCreated);
-      clearInterval(intervalId);
+      window.removeEventListener("lab:booking:created", handleBookingChanged);
+      window.removeEventListener("lab:booking:cancelled", handleBookingChanged);
     };
   }, [hasLabBookings]);
 

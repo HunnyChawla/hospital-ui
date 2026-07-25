@@ -7,7 +7,7 @@ import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormMod
 import { PrescribedLabBookingPanel } from "@/components/lab-bookings/PrescribedLabBookingPanel";
 import { Beaker } from "lucide-react";
 import { labBookingsApi } from "@/services/labBookingsApi";
-import { getTodayDateLocal } from "@/utils/format";
+import { getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 
 export default function LabBookingsPage() {
   const searchParams = useSearchParams();
@@ -19,7 +19,7 @@ export default function LabBookingsPage() {
     try {
       const today = getTodayDateLocal();
       const res = await labBookingsApi.getPatientsWithPendingTests({
-        start_date: today,
+        start_date: getPastDateLocal(2),
         end_date: today,
       });
       const pendingVisitsCount = (res.items || []).filter((item) => item.pending_test_count > 0).length;
@@ -41,13 +41,15 @@ export default function LabBookingsPage() {
       setShowModal(true);
     }
 
-    const handleBookingCreated = () => {
+    const handleBookingChanged = () => {
       fetchPendingCount();
     };
 
-    window.addEventListener("lab:booking:created", handleBookingCreated);
+    window.addEventListener("lab:booking:created", handleBookingChanged);
+    window.addEventListener("lab:booking:cancelled", handleBookingChanged);
     return () => {
-      window.removeEventListener("lab:booking:created", handleBookingCreated);
+      window.removeEventListener("lab:booking:created", handleBookingChanged);
+      window.removeEventListener("lab:booking:cancelled", handleBookingChanged);
     };
   }, [searchParams]);
 
