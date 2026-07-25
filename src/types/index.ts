@@ -745,6 +745,12 @@ export type RescheduleRequest = {
   new_date: string;
   new_time?: string | null;
   reason?: string | null;
+  package_id?: string | null;
+  advance_payment_amount?: number | null;
+  advance_payment_method?: string | null;
+  advance_payment_reference?: string | null;
+  advance_payment_date?: string | null;
+  advance_payment_notes?: string | null;
 };
 
 // ============================================

@@ -1377,10 +1377,7 @@ export function PlannedSurgeriesList({
                         }
                     );
                 }}
-                surgeryName={rescheduleModalSurgery?.surgery_name || ""}
-                patientName={rescheduleModalSurgery?.patient_name || ""}
-                currentDate={rescheduleModalSurgery?.planned_date}
-                currentTime={rescheduleModalSurgery?.planned_time}
+                surgery={rescheduleModalSurgery}
                 isLoading={rescheduleMutation.isPending}
             />
         </div>

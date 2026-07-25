@@ -102,6 +102,12 @@ export function PlannedSurgeryFormModal({
             try {
                 const data = await surgeryPackagesApi.list(surgeryId, true);
                 setPackages(data);
+                if (data.length > 0 && !selectedPackageId) {
+                    setSelectedPackageId(data[0].id);
+                    if (!advanceAmount || parseFloat(advanceAmount) === 0) {
+                        setAdvanceAmount(data[0].price.toString());
+                    }
+                }
             } catch (error) {
                 console.error("Failed to fetch packages:", error);
                 setPackages([]);
@@ -250,6 +256,12 @@ export function PlannedSurgeryFormModal({
         }
         if (!surgeonId) {
             toast.error("Please select a surgeon");
+            return;
+        }
+
+        const isScheduling = !!plannedDate || status === "scheduled";
+        if (isScheduling && packages.length > 0 && !selectedPackageId) {
+            toast.error("Please select a surgery package for scheduling");
             return;
         }
 
