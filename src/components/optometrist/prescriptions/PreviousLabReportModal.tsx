@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { labBookingsApi } from "@/services/labBookingsApi";
@@ -22,11 +23,16 @@ export function PreviousLabReportModal({
     onClose,
     booking,
 }: PreviousLabReportModalProps) {
+    const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<LabTestResultItem[]>([]);
 
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const printReportRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handlePrintReport = useReactToPrint({
         contentRef: printReportRef,
@@ -57,10 +63,10 @@ export function PreviousLabReportModal({
         }
     };
 
-    if (!isOpen || !booking) return null;
+    if (!isOpen || !booking || !mounted) return null;
 
-    return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    return createPortal(
+        <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] border border-slate-200">
                 {/* Modal Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-2xl">
@@ -282,6 +288,7 @@ export function PreviousLabReportModal({
                     </div>
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -11,9 +11,10 @@ import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
 
 interface InvoicePaymentReceiptPrintProps {
   invoiceId: string;
+  onReady?: () => void;
 }
 
-export function InvoicePaymentReceiptPrint({ invoiceId }: InvoicePaymentReceiptPrintProps) {
+export function InvoicePaymentReceiptPrint({ invoiceId, onReady }: InvoicePaymentReceiptPrintProps) {
   const { tenant } = useTenant();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -52,13 +53,16 @@ export function InvoicePaymentReceiptPrint({ invoiceId }: InvoicePaymentReceiptP
         setError(err?.response?.data?.detail || err?.message || "Failed to fetch payment receipt");
       } finally {
         setLoading(false);
+        setTimeout(() => {
+          onReady?.();
+        }, 150);
       }
     };
 
     if (invoiceId) {
       fetchData();
     }
-  }, [invoiceId]);
+  }, [invoiceId, onReady]);
 
 
   if (loading) {

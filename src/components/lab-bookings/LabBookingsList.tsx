@@ -6,13 +6,14 @@ import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/ser
 import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
-import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
-import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2, Eye } from "lucide-react";
+import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
+import { Beaker, Search, Calendar, User, Printer, ChevronLeft, ChevronRight, Download, List, Activity, CheckCircle2, XCircle, FlaskConical, Loader2, Eye, Receipt, RotateCw } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "../invoices/InvoicePrint";
 import { TestReportPrint } from "../lab-technician/TestReportPrint";
+import { InvoicePaymentReceiptPrint } from "../payments/InvoicePaymentReceiptPrint";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 import { Modal } from "../common/Modal";
 import { useTenant } from "@/hooks/useTenant";
@@ -24,6 +25,7 @@ import { getPatientById } from "@/redux/patientsSlice";
 interface LabBookingWithPatient extends LabBooking {
   patient_name?: string;
   patient_mobile?: string;
+  patient_uhid?: string;
 }
 
 interface LabBookingsListProps {
@@ -38,7 +40,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
   const [loading, setLoading] = useState(false);
   const [searchBookingId, setSearchBookingId] = useState("");
   const [searching, setSearching] = useState(false);
-  const [startDate, setStartDate] = useState<string>(getTodayDateLocal());
+  const [datePreset, setDatePreset] = useState<"today" | "yesterday" | "3days" | "custom">("3days");
+  const [startDate, setStartDate] = useState<string>(getPastDateLocal(2));
   const [endDate, setEndDate] = useState<string>(getTodayDateLocal());
   const [dateRangeError, setDateRangeError] = useState<string>("");
   const [exporting, setExporting] = useState(false);
@@ -49,6 +52,17 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
   const [total, setTotal] = useState(0);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string; tests?: LabBookingTest[]; bookingNumber?: string } | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
+
+  // Payment Receipt Print state
+  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
+  const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const printPaymentRef = useRef<HTMLDivElement>(null);
+
+  // Cancellation Modal state
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [cancellingBooking, setCancellingBooking] = useState<LabBookingWithPatient | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const [selectedBooking, setSelectedBooking] = useState<LabBookingWithPatient | null>(null);
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -63,6 +77,20 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
   } | null>(null);
   const [shouldPrintReport, setShouldPrintReport] = useState(false);
   const printReportRef = useRef<HTMLDivElement>(null);
+
+  const handleDatePresetChange = (preset: "today" | "yesterday" | "3days" | "custom") => {
+    setDatePreset(preset);
+    if (preset === "today") {
+      setStartDate(getTodayDateLocal());
+      setEndDate(getTodayDateLocal());
+    } else if (preset === "yesterday") {
+      setStartDate(getPastDateLocal(1));
+      setEndDate(getPastDateLocal(1));
+    } else if (preset === "3days") {
+      setStartDate(getPastDateLocal(2));
+      setEndDate(getTodayDateLocal());
+    }
+  };
   
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -73,6 +101,53 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
     contentRef: printReportRef,
     documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
   });
+
+  const handlePrintPaymentReceipt = useReactToPrint({
+    contentRef: printPaymentRef,
+    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
+  });
+
+  const handlePaymentReceiptReady = useCallback(() => {
+    if (printPaymentRef.current) {
+      handlePrintPaymentReceipt();
+    }
+  }, [handlePrintPaymentReceipt]);
+
+  const handlePrintPaymentReceiptClick = (invoiceId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    toast.info("Preparing payment receipt for print...");
+    setPrintPaymentInvoiceId(null);
+    setTimeout(() => {
+      setPrintPaymentInvoiceId(invoiceId);
+    }, 10);
+  };
+
+  const handleCancelClick = (booking: LabBookingWithPatient, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setCancellingBooking(booking);
+    setShowCancellationModal(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!cancellingBooking) return;
+    setIsCancelling(true);
+    try {
+      await labBookingsApi.updateStatus(cancellingBooking.id, "cancelled");
+      toast.success(`Booking ${cancellingBooking.booking_number} cancelled successfully`);
+      setShowCancellationModal(false);
+      setCancellingBooking(null);
+      if (selectedBooking?.id === cancellingBooking.id) {
+        setSelectedBooking(null);
+      }
+      window.dispatchEvent(new CustomEvent("lab:booking:cancelled"));
+      fetchBookings();
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to cancel booking");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // Helper function to batch fetch patients and enrich bookings
   const enrichBookingsWithPatients = async (bookingsList: LabBooking[]): Promise<LabBookingWithPatient[]> => {
@@ -100,6 +175,7 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
           ...booking,
           patient_name: patient.name,
           patient_mobile: patient.mobile,
+          patient_uhid: (patient as any).uhid || patient.healthId || undefined,
         };
       }
       return {
@@ -717,52 +793,92 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
               )}
             </div>
           </div>
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1 text-sm">
-              <Calendar className="h-4 w-4" />
-              Start Date
+          {/* Date Preset Selector */}
+          <div className="space-y-1">
+            <span className="text-slate-600 flex items-center gap-1 text-sm font-semibold">
+              <Calendar className="h-4 w-4 text-sky-500" />
+              Date Preset
             </span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
-              min={endDate ? getMinStartDate() : undefined}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-slate-600 flex items-center gap-1 text-sm">
-              <Calendar className="h-4 w-4" />
-              End Date
-            </span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              min={startDate || undefined}
-              max={startDate ? getMaxEndDate() : getTodayDate()}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-            />
-          </label>
-          <button
-            onClick={handleExportPDF}
-            disabled={!!dateRangeError || exporting}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 whitespace-nowrap"
-            title="Export all lab bookings to PDF"
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Exporting...</span>
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                <span>Export PDF</span>
-              </>
-            )}
-          </button>
+            <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+              {(["today", "yesterday", "3days", "custom"] as const).map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => handleDatePresetChange(preset)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all capitalize cursor-pointer ${
+                    datePreset === preset
+                      ? "bg-white text-slate-900 shadow-sm font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {preset === "3days" ? "Last 3 Days" : preset === "today" ? "Today" : preset === "yesterday" ? "Yesterday" : "Custom"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {datePreset === "custom" && (
+            <>
+              <label className="space-y-1">
+                <span className="text-slate-600 flex items-center gap-1 text-sm">
+                  <Calendar className="h-4 w-4" />
+                  Start Date
+                </span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  max={endDate ? (endDate < getTodayDate() ? endDate : getTodayDate()) : getTodayDate()}
+                  min={endDate ? getMinStartDate() : undefined}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-slate-600 flex items-center gap-1 text-sm">
+                  <Calendar className="h-4 w-4" />
+                  End Date
+                </span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate || undefined}
+                  max={startDate ? getMaxEndDate() : getTodayDate()}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+                />
+              </label>
+            </>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => fetchBookings()}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap shadow-sm cursor-pointer"
+              title="Refresh bookings list"
+            >
+              <RotateCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              disabled={!!dateRangeError || exporting}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 whitespace-nowrap"
+              title="Export all lab bookings to PDF"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  <span>Export PDF</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {dateRangeError && (
@@ -873,10 +989,15 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                       </p>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-slate-900">
                           {booking.patient_name || `Patient ${booking.patient_id.slice(0, 8)}...`}
                         </p>
+                        {booking.patient_uhid && (
+                          <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            UHID: {booking.patient_uhid}
+                          </span>
+                        )}
                         <span className="pill bg-sky-50 text-sky-700 px-2 py-0.5 text-xs font-mono">
                           {booking.booking_number}
                         </span>
@@ -943,12 +1064,56 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                     </button>
                   )}
                   {booking.invoice_id && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrintInvoice(booking.invoice_id!, booking.patient_name || "Unknown", booking.patient_mobile, booking.tests, booking.booking_number);
+                        }}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Print Invoice"
+                      >
+                        <Printer className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
+                      </button>
+                      {booking.status !== "cancelled" && (
+                        <button
+                          onClick={(e) => handlePrintPaymentReceiptClick(booking.invoice_id!, e)}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-emerald-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-emerald-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Print Payment Receipt"
+                        >
+                          <Receipt className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Receipt</span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {booking.status !== "completed" && booking.status !== "cancelled" && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePrintInvoice(booking.invoice_id!, booking.patient_name || "Unknown", booking.patient_mobile, booking.tests, booking.booking_number);
-                      }}
-                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                      onClick={(e) => handleCancelClick(booking, e)}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
                       style={{ width: "2rem" }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.width = "auto";
@@ -960,10 +1125,10 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                         e.currentTarget.style.paddingLeft = "0.5rem";
                         e.currentTarget.style.paddingRight = "0.5rem";
                       }}
-                      title="Print Invoice"
+                      title="Cancel Booking"
                     >
-                      <Printer className="h-4 w-4 shrink-0" />
-                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
+                      <XCircle className="h-4 w-4 shrink-0" />
+                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel Booking</span>
                     </button>
                   )}
                 </div>
@@ -1060,6 +1225,15 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
         </div>
       )}
 
+      {/* Hidden printable payment receipt */}
+      {printPaymentInvoiceId && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printPaymentRef} className="print-content">
+            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} onReady={handlePaymentReceiptReady} />
+          </div>
+        </div>
+      )}
+
       {/* Booking Details Modal */}
       <Modal
         isOpen={!!selectedBooking}
@@ -1079,6 +1253,12 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                     {selectedBooking.patient_name || `Patient ${selectedBooking.patient_id.slice(0, 8)}...`}
                   </p>
                 </div>
+                {selectedBooking.patient_uhid && (
+                  <div>
+                    <p className="text-xs text-slate-500">UHID</p>
+                    <p className="mt-1 font-mono text-sm font-semibold text-slate-900">{selectedBooking.patient_uhid}</p>
+                  </div>
+                )}
                 {selectedBooking.patient_mobile && (
                   <div>
                     <p className="text-xs text-slate-500">Mobile</p>
@@ -1165,33 +1345,114 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
             )}
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
-              {selectedBooking.invoice_id && (
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4">
+              {selectedBooking.status !== "completed" && selectedBooking.status !== "cancelled" && (
                 <button
-                  onClick={() => {
-                    handlePrintInvoice(
-                      selectedBooking.invoice_id!,
-                      selectedBooking.patient_name || "Unknown",
-                      selectedBooking.patient_mobile,
-                      selectedBooking.tests,
-                      selectedBooking.booking_number
-                    );
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-600"
+                  type="button"
+                  onClick={() => handleCancelClick(selectedBooking)}
+                  className="flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 cursor-pointer"
                 >
-                  <Printer className="h-4 w-4" />
-                  Print Invoice
+                  <XCircle className="h-4 w-4" />
+                  Cancel Booking
                 </button>
+              )}
+              {selectedBooking.invoice_id && (
+                <>
+                  <button
+                    onClick={() => {
+                      handlePrintInvoice(
+                        selectedBooking.invoice_id!,
+                        selectedBooking.patient_name || "Unknown",
+                        selectedBooking.patient_mobile,
+                        selectedBooking.tests,
+                        selectedBooking.booking_number
+                      );
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-600 cursor-pointer"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print Invoice
+                  </button>
+                  {selectedBooking.status !== "cancelled" && (
+                    <button
+                      onClick={() => handlePrintPaymentReceiptClick(selectedBooking.invoice_id!)}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
+                    >
+                      <Receipt className="h-4 w-4" />
+                      Print Receipt
+                    </button>
+                  )}
+                </>
               )}
               {selectedBooking.status === "completed" && (
                 <button
                   onClick={() => handleDownloadReport(selectedBooking)}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-sky-600 hover:to-teal-600"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-sky-600 hover:to-teal-600 cursor-pointer"
                 >
                   <Eye className="h-4 w-4" />
                   View Report
                 </button>
               )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Cancellation Confirmation Modal */}
+      <Modal
+        isOpen={showCancellationModal}
+        onClose={() => {
+          if (!isCancelling) {
+            setShowCancellationModal(false);
+            setCancellingBooking(null);
+          }
+        }}
+        title="Confirm Booking Cancellation"
+        size="md"
+      >
+        {cancellingBooking && (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm font-semibold text-rose-900">
+                Are you sure you want to cancel booking #{cancellingBooking.booking_number}?
+              </p>
+              {cancellingBooking.invoice_id && (
+                <p className="mt-2 text-xs text-rose-700">
+                  Note: Cancelling this booking will automatically issue refunds for any completed payments and cancel the associated invoice.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancellationModal(false);
+                  setCancellingBooking(null);
+                }}
+                disabled={isCancelling}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+              >
+                No, Keep Booking
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancelBooking}
+                disabled={isCancelling}
+                className="flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    Yes, Cancel Booking
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
