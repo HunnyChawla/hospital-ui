@@ -2,8 +2,11 @@ import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 import type {
     PlannedSurgery,
+    PlannedSurgeryStatusHistory,
     CreatePlannedSurgeryRequest,
     UpdatePlannedSurgeryRequest,
+    StatusTransitionRequest,
+    RescheduleRequest,
     PlannedSurgeryStatus,
 } from "@/types";
 
@@ -14,8 +17,8 @@ export type PlannedSurgeryParams = {
     from_date?: string;
     to_date?: string;
     status?: PlannedSurgeryStatus;
-    sort_by?: "advised_date" | "planned_date" | "created_at";
-    date_status?: "all" | "planned" | "not_planned";
+    followup_due?: string;
+    sort_by?: "advised_date" | "planned_date" | "created_at" | "followup_date";
     page?: number;
     page_size?: number;
 };
@@ -65,7 +68,43 @@ export const plannedSurgeriesApi = {
         await apiClient.delete(`/planned-surgeries/${id}`, { params });
     },
 
+    transitionStatus: async (id: string, payload: StatusTransitionRequest, tenantId?: string) => {
+        const apiTenantId = getTenantIdForApi(tenantId);
+        const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+        const { data } = await apiClient.post<PlannedSurgery>(
+            `/planned-surgeries/${id}/transition`,
+            payload,
+            { params }
+        );
+        return data;
+    },
+
+    reschedule: async (id: string, payload: RescheduleRequest, tenantId?: string) => {
+        const apiTenantId = getTenantIdForApi(tenantId);
+        const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+        const { data } = await apiClient.post<PlannedSurgery>(
+            `/planned-surgeries/${id}/reschedule`,
+            payload,
+            { params }
+        );
+        return data;
+    },
+
+    getHistory: async (id: string, tenantId?: string) => {
+        const apiTenantId = getTenantIdForApi(tenantId);
+        const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+        const { data } = await apiClient.get<PlannedSurgeryStatusHistory[]>(
+            `/planned-surgeries/${id}/history`,
+            { params }
+        );
+        return data;
+    },
+
     cancel: async (id: string, tenantId?: string) => {
-        return plannedSurgeriesApi.update(id, { status: "cancelled" }, tenantId);
+        return plannedSurgeriesApi.transitionStatus(
+            id,
+            { to_status: "cancelled" },
+            tenantId
+        );
     },
 };

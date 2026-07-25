@@ -33,6 +33,11 @@ export interface DayCareVisit {
   surgeon_id: string;
   surgeon_name?: string;
   surgery_name: string;
+  package_id?: string | null;
+  package_name?: string | null;
+  package_price?: number | null;
+  eye?: string | null;
+  ou_price_multiplier?: number | null;
   visit_date: string;
   status: DayCareStatus;
   check_in_at: string | null;

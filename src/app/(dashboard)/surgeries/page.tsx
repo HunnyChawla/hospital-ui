@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, CheckCircle2, XCircle, Package } from "lucide-react";
 import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { useTenant } from "@/hooks/useTenant";
 import { SurgeryFormModal } from "@/components/surgeries/SurgeryFormModal";
 import { DeleteSurgeryModal } from "@/components/surgeries/DeleteSurgeryModal";
+import { SurgeryPackagesModal } from "@/components/surgeries/SurgeryPackagesModal";
 import { Menu, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import clsx from "clsx";
@@ -22,6 +23,7 @@ export default function SurgeriesPage() {
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isPackagesModalOpen, setIsPackagesModalOpen] = useState(false);
     const [selectedSurgery, setSelectedSurgery] = useState<Surgery | null>(null);
 
     const fetchSurgeries = async () => {
@@ -53,6 +55,11 @@ export default function SurgeriesPage() {
     const handleEdit = (surgery: Surgery) => {
         setSelectedSurgery(surgery);
         setIsFormModalOpen(true);
+    };
+
+    const handleManagePackages = (surgery: Surgery) => {
+        setSelectedSurgery(surgery);
+        setIsPackagesModalOpen(true);
     };
 
     const handleDeleteClick = (surgery: Surgery) => {
@@ -211,6 +218,20 @@ export default function SurgeriesPage() {
                                                         <Menu.Item>
                                                             {({ active }) => (
                                                                 <button
+                                                                    onClick={() => handleManagePackages(surgery)}
+                                                                    className={clsx(
+                                                                        active ? "bg-slate-50" : "",
+                                                                        "flex w-full items-center px-4 py-2 text-sm text-sky-700"
+                                                                    )}
+                                                                >
+                                                                    <Package className="mr-3 h-4 w-4 text-sky-600" />
+                                                                    Manage Packages
+                                                                </button>
+                                                            )}
+                                                        </Menu.Item>
+                                                        <Menu.Item>
+                                                            {({ active }) => (
+                                                                <button
                                                                     onClick={() => handleEdit(surgery)}
                                                                     className={clsx(
                                                                         active ? "bg-slate-50" : "",
@@ -313,6 +334,12 @@ export default function SurgeriesPage() {
                     surgeryName={selectedSurgery.name}
                 />
             )}
+
+            <SurgeryPackagesModal
+                isOpen={isPackagesModalOpen}
+                onClose={() => setIsPackagesModalOpen(false)}
+                surgery={selectedSurgery}
+            />
         </div>
     );
 }

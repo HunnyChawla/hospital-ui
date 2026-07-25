@@ -20,6 +20,8 @@ export function SurgeryFormModal({
     const [category, setCategory] = useState("");
     const [description, setDescription] = useState("");
     const [isActive, setIsActive] = useState(true);
+    const [isEyeSurgery, setIsEyeSurgery] = useState(true);
+    const [ouPriceMultiplier, setOuPriceMultiplier] = useState<number>(1.0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -28,11 +30,15 @@ export function SurgeryFormModal({
             setCategory(initialData.category || "");
             setDescription(initialData.description || "");
             setIsActive(initialData.is_active);
+            setIsEyeSurgery(initialData.is_eye_surgery ?? true);
+            setOuPriceMultiplier(initialData.ou_price_multiplier ?? 1.0);
         } else {
             setName("");
             setCategory("");
             setDescription("");
             setIsActive(true);
+            setIsEyeSurgery(true);
+            setOuPriceMultiplier(1.0);
         }
     }, [initialData, isOpen]);
 
@@ -45,6 +51,8 @@ export function SurgeryFormModal({
                 category: category || null,
                 description: description || null,
                 is_active: isActive,
+                is_eye_surgery: isEyeSurgery,
+                ou_price_multiplier: Number(ouPriceMultiplier),
             });
             onClose();
         } catch (error) {
@@ -159,6 +167,58 @@ export function SurgeryFormModal({
                                                 />
                                             </div>
                                         </div>
+
+                                        {/* Eye Surgery Toggle */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="flex flex-grow flex-col">
+                                                <span className="text-sm font-medium leading-6 text-slate-900">
+                                                    Eye Surgery
+                                                </span>
+                                                <span className="text-sm text-slate-500">
+                                                    Enable if this surgery is eye specific (requires eye selection)
+                                                </span>
+                                            </span>
+                                            <Switch
+                                                checked={isEyeSurgery}
+                                                onChange={setIsEyeSurgery}
+                                                className={`${isEyeSurgery ? "bg-sky-600" : "bg-slate-200"
+                                                    } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2`}
+                                            >
+                                                <span
+                                                    aria-hidden="true"
+                                                    className={`${isEyeSurgery ? "translate-x-5" : "translate-x-0"
+                                                        } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                                                />
+                                            </Switch>
+                                        </div>
+
+                                        {/* OU Price Multiplier (only if eye surgery) */}
+                                        {isEyeSurgery && (
+                                            <div>
+                                                <label
+                                                    htmlFor="ouPriceMultiplier"
+                                                    className="block text-sm font-medium leading-6 text-slate-900"
+                                                >
+                                                    Both Eyes (OU) Price Multiplier
+                                                </label>
+                                                <p className="text-xs text-slate-500 mb-2">
+                                                    Multiplier for total price when patient opts for surgery on both eyes (e.g., 1.0 = same price, 2.0 = double price)
+                                                </p>
+                                                <div className="mt-1">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="1"
+                                                        max="5"
+                                                        name="ouPriceMultiplier"
+                                                        id="ouPriceMultiplier"
+                                                        className="block w-full rounded-lg border-0 px-3 py-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-sky-600 sm:text-sm sm:leading-6"
+                                                        value={ouPriceMultiplier}
+                                                        onChange={(e) => setOuPriceMultiplier(parseFloat(e.target.value) || 1.0)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Active Status */}
                                         <div className="flex items-center justify-between">

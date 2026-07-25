@@ -459,20 +459,41 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
 
   // Initialize default line items when visit is loaded
   useEffect(() => {
-    if (visit && !visit.invoice_id && invoiceLineItems.length === 0 && availableSurgeries.length > 0) {
-      const sNameLower = visit.surgery_name.toLowerCase().trim();
-      const surgery = availableSurgeries.find(s => s.name.toLowerCase().trim() === sNameLower);
-      const price = surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
-      
+    if (visit && !visit.invoice_id && invoiceLineItems.length === 0) {
+      let desc = visit.surgery_name;
+      if (visit.package_name) {
+        desc = `${visit.surgery_name} (${visit.package_name} Package)`;
+      } else {
+        desc = `${visit.surgery_name} Package Charges`;
+      }
+      if (visit.eye) {
+        desc += ` - Eye: ${visit.eye}`;
+      }
+
+      let price = visit.package_price ?? 0;
+      if (price <= 0 && availableSurgeries.length > 0) {
+        const sNameLower = visit.surgery_name.toLowerCase().trim();
+        const surgery = availableSurgeries.find(s => s.name.toLowerCase().trim() === sNameLower);
+        price = surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
+      } else if (price <= 0) {
+        price = 25000;
+      }
+
+      // Apply OU multiplier if both eyes are selected
+      if (visit.eye === "OU") {
+        const multiplier = visit.ou_price_multiplier || 2.0;
+        price = price * multiplier;
+      }
+
       setInvoiceLineItems([
         {
-          description: `${visit.surgery_name} package charges`,
+          description: desc,
           quantity: 1,
           unit_price: price
         }
       ]);
     }
-  }, [visit?.id, visit?.invoice_id, availableSurgeries, invoiceLineItems.length]);
+  }, [visit?.id, visit?.invoice_id, visit?.package_name, visit?.package_price, visit?.eye, availableSurgeries, invoiceLineItems.length]);
 
   const handleAddServiceItem = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -882,19 +903,40 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   <h3 className="font-bold text-slate-800 text-lg">Billing Information</h3>
                   <p className="text-sm text-slate-500">Day care surgery package</p>
                 </div>
-                {visit?.payment_id ? (
-                  <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                    Payment Confirmed
-                  </span>
-                ) : visit?.invoice_id ? (
-                  <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-                    Pending Payment
-                  </span>
-                ) : (
-                  <span className="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
-                    Invoice Not Generated
-                  </span>
-                )}
+                {(() => {
+                  const totalAmount = invoice?.total_amount || 0;
+                  const paidAmount = invoice?.paid_amount || 0;
+                  const balanceAmount = Math.max(0, totalAmount - paidAmount);
+                  const isFullyPaid = invoice ? (invoice.status === 'paid' || balanceAmount <= 0) : !!visit?.payment_id;
+                  const isPartiallyPaid = invoice ? (paidAmount > 0 && balanceAmount > 0) : false;
+
+                  if (isFullyPaid) {
+                    return (
+                      <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                        Payment Confirmed
+                      </span>
+                    );
+                  }
+                  if (isPartiallyPaid) {
+                    return (
+                      <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+                        Partially Paid ({currency(paidAmount)} paid, {currency(balanceAmount)} pending)
+                      </span>
+                    );
+                  }
+                  if (visit?.invoice_id) {
+                    return (
+                      <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+                        Pending Payment
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
+                      Invoice Not Generated
+                    </span>
+                  );
+                })()}
               </div>
 
               {!visit?.invoice_id ? (
@@ -1041,16 +1083,35 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   </div>
 
                   {/* Summary Details */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm gap-4">
                     <div className="text-center sm:text-left">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Number</span>
                       <p className="font-mono text-xl font-bold text-slate-800 mt-1">{visit.invoice_number || visit.invoice_id}</p>
                     </div>
-                    <div className="text-center sm:text-right mt-4 sm:mt-0">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Total</span>
-                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
-                        {currency(invoice?.total_amount || 0)}
-                      </p>
+
+                    <div className="flex flex-wrap items-center gap-6 justify-center sm:justify-end">
+                      <div className="text-center sm:text-right">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Amount</span>
+                        <p className="text-xl font-extrabold text-slate-900 mt-0.5">
+                          {currency(invoice?.total_amount || 0)}
+                        </p>
+                      </div>
+
+                      {(invoice?.paid_amount || 0) > 0 && (
+                        <div className="text-center sm:text-right">
+                          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">✓ Advance Collected</span>
+                          <p className="text-xl font-extrabold text-emerald-700 mt-0.5">
+                            -{currency(invoice?.paid_amount || 0)}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="text-center sm:text-right bg-amber-50 px-4 py-2 rounded-xl border border-amber-200">
+                        <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Final Amount to Collect</span>
+                        <p className="text-2xl font-black text-amber-900 mt-0.5">
+                          {currency(Math.max(0, (invoice?.total_amount || 0) - (invoice?.paid_amount || 0)))}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1061,17 +1122,27 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     </p>
                   </div>
 
-                  {!visit.payment_id && (
-                    <div className="flex justify-center pt-2">
-                      <button
-                        onClick={handleOpenPayment}
-                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all"
-                      >
-                        <IndianRupee className="w-5 h-5" />
-                        Collect Payment
-                      </button>
-                    </div>
-                  )}
+                  {(() => {
+                    const totalAmount = invoice?.total_amount || 0;
+                    const paidAmount = invoice?.paid_amount || 0;
+                    const balanceAmount = Math.max(0, totalAmount - paidAmount);
+                    const isFullyPaid = invoice ? (invoice.status === 'paid' || balanceAmount <= 0) : !!visit?.payment_id;
+                    const isPartiallyPaid = invoice ? (paidAmount > 0 && balanceAmount > 0) : false;
+
+                    if (isFullyPaid || !visit?.invoice_id) return null;
+
+                    return (
+                      <div className="flex justify-center pt-2">
+                        <button
+                          onClick={handleOpenPayment}
+                          className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all"
+                        >
+                          <IndianRupee className="w-5 h-5" />
+                          {isPartiallyPaid ? "Collect Remaining Payment" : "Collect Payment"}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
