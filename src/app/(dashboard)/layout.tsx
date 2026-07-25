@@ -237,7 +237,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <main className="min-h-screen flex flex-col px-3 py-3 lg:px-6 pb-20">
+    <main className="min-h-screen flex flex-col px-3 py-3 lg:px-6 pb-20 min-w-0 max-w-full">
       <TopBar onPatientSelect={(patientId) => {
         setSelectedPatientId(patientId);
       }} />

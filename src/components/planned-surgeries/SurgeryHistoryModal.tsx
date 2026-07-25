@@ -99,6 +99,19 @@ function getEventConfig(eventType: string) {
     );
 }
 
+function formatTime12h(timeStr: string | null | undefined): string {
+    if (!timeStr) return "";
+    try {
+        const [hours, minutes] = timeStr.split(":");
+        const h = parseInt(hours, 10);
+        const ampm = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 || 12;
+        return `${h12}:${minutes} ${ampm}`;
+    } catch {
+        return timeStr;
+    }
+}
+
 function formatStatusLabel(status: string | null): string {
     if (!status) return "—";
     const labels: Record<string, string> = {
@@ -177,19 +190,24 @@ function TimelineEntry({
                         <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
                             <span className="rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800 border border-amber-200">
                                 {entry.from_date ? formatDate(entry.from_date) : "No date"}
+                                {entry.from_time ? ` at ${formatTime12h(entry.from_time)}` : ""}
                             </span>
                             <ArrowRight className="h-3 w-3 text-slate-400" />
                             <span className="rounded bg-sky-100 px-2 py-0.5 font-semibold text-sky-800 border border-sky-200">
                                 {entry.to_date ? formatDate(entry.to_date) : "No date"}
+                                {entry.to_time ? ` at ${formatTime12h(entry.to_time)}` : ""}
                             </span>
                         </div>
                     )}
 
-                    {/* Scheduled date */}
+                    {/* Scheduled date & time */}
                     {entry.event_type === "scheduled" && entry.to_date && (
                         <div className="mt-2 text-xs text-slate-600">
-                            <span className="text-slate-500">Scheduled Date: </span>
-                            <span className="font-semibold text-sky-700">{formatDate(entry.to_date)}</span>
+                            <span className="text-slate-500">Scheduled Date & Time: </span>
+                            <span className="font-semibold text-sky-700">
+                                {formatDate(entry.to_date)}
+                                {entry.to_time ? ` at ${formatTime12h(entry.to_time)}` : ""}
+                            </span>
                         </div>
                     )}
 

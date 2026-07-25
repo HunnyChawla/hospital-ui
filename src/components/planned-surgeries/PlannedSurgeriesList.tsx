@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
     usePlannedSurgeries,
     useCancelPlannedSurgery,
@@ -39,6 +39,7 @@ import {
     CalendarClock,
     Ban,
     RefreshCw,
+    Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -63,6 +64,52 @@ const getYesterdayDateLocal = (): string => {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+};
+
+const getTomorrowDateLocal = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getNext7DaysDateLocal = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getNextMondayDateLocal = (): string => {
+    const d = new Date();
+    const dayOfWeek = d.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
+    let daysUntilMonday = 1;
+    if (dayOfWeek === 0) {
+        daysUntilMonday = 1;
+    } else if (dayOfWeek === 6) {
+        daysUntilMonday = 2;
+    } else {
+        daysUntilMonday = 8 - dayOfWeek;
+    }
+    d.setDate(d.getDate() + daysUntilMonday);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const formatQuickDateBadge = (dateStr: string) => {
+    if (!dateStr) return "";
+    try {
+        const d = new Date(dateStr + "T00:00:00");
+        return d.toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" });
+    } catch {
+        return dateStr;
+    }
 };
 
 const get7DaysAgoDateLocal = (): string => {
@@ -118,9 +165,20 @@ function ExpandableActionButton({
 interface PlannedSurgeriesListProps {
     openFormModal?: boolean;
     onCloseFormModal?: () => void;
+    patientSearch?: string;
+    setPatientSearch?: (search: string) => void;
+    surgeonId?: string;
+    setSurgeonId?: (id: string) => void;
 }
 
-export function PlannedSurgeriesList({ openFormModal, onCloseFormModal }: PlannedSurgeriesListProps) {
+export function PlannedSurgeriesList({
+    openFormModal,
+    onCloseFormModal,
+    patientSearch: externalSearch,
+    setPatientSearch: setExternalSearch,
+    surgeonId: externalSurgeonId,
+    setSurgeonId: setExternalSurgeonId,
+}: PlannedSurgeriesListProps) {
     const queryClient = useQueryClient();
     const { tenant, hospitalName, logoDataUrl } = useTenant();
     const doctors = useAppSelector((s) => s.doctors.list);
@@ -135,14 +193,49 @@ export function PlannedSurgeriesList({ openFormModal, onCloseFormModal }: Planne
         return "grid";
     });
 
+    // Fallback internal filter state if not passed from page header
+    const [internalSearch, setInternalSearch] = useState("");
+    const [internalSurgeonId, setInternalSurgeonId] = useState("");
+
+    const patientSearch = externalSearch !== undefined ? externalSearch : internalSearch;
+    const setPatientSearch = setExternalSearch || setInternalSearch;
+
+    const surgeonId = externalSurgeonId !== undefined ? externalSurgeonId : internalSurgeonId;
+    const setSurgeonId = setExternalSurgeonId || setInternalSurgeonId;
+
     // Filters
-    const [patientSearch, setPatientSearch] = useState("");
-    const [surgeonId, setSurgeonId] = useState<string>("");
     const [datePreset, setDatePreset] = useState<DatePreset>("today");
     const [fromDate, setFromDate] = useState<string>(() => getTodayDateLocal());
     const [toDate, setToDate] = useState<string>(() => getTodayDateLocal());
+    const [followupDue, setFollowupDue] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<PlannedSurgeryStatus | "all">("all");
+    const [activePill, setActivePill] = useState<string>("today");
     const [sortBy, setSortBy] = useState<"advised_date" | "planned_date" | "created_at">("advised_date");
+
+    // Tab scrolling arrows
+    const tabsRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const checkTabScroll = useCallback(() => {
+        const el = tabsRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 2);
+        setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+    }, []);
+
+    useEffect(() => {
+        checkTabScroll();
+        window.addEventListener("resize", checkTabScroll);
+        return () => window.removeEventListener("resize", checkTabScroll);
+    }, [checkTabScroll]);
+
+    const scrollTabs = (direction: "left" | "right") => {
+        const el = tabsRef.current;
+        if (!el) return;
+        const scrollAmount = direction === "left" ? -220 : 220;
+        el.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    };
 
     const handleDatePresetChange = (preset: DatePreset) => {
         setDatePreset(preset);
@@ -207,10 +300,11 @@ export function PlannedSurgeriesList({ openFormModal, onCloseFormModal }: Planne
         from_date: fromDate || undefined,
         to_date: toDate || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
+        followup_due: followupDue || undefined,
         sort_by: sortBy,
     };
 
-    const { data: surgeriesResponse, isLoading: loading, error } = usePlannedSurgeries(queryParams);
+    const { data: surgeriesResponse, isLoading: loading, isFetching, error } = usePlannedSurgeries(queryParams);
     const cancelSurgeryMutation = useCancelPlannedSurgery();
     const transitionMutation = useTransitionSurgeryStatus();
     const rescheduleMutation = useRescheduleSurgery();
@@ -547,207 +641,319 @@ export function PlannedSurgeriesList({ openFormModal, onCloseFormModal }: Planne
     const clearFilters = () => {
         setPatientSearch("");
         setSurgeonId("");
-        setDatePreset("today");
-        const today = getTodayDateLocal();
-        setFromDate(today);
-        setToDate(today);
+        setDatePreset("all");
+        setFromDate("");
+        setToDate("");
+        setFollowupDue("");
         setStatusFilter("all");
+        setActivePill("all");
         setSortBy("advised_date");
     };
 
-    const todayStr = getTodayDateLocal();
     const hasActiveFilters =
         patientSearch ||
         surgeonId ||
-        datePreset !== "today" ||
-        fromDate !== todayStr ||
-        toDate !== todayStr ||
+        datePreset !== "all" ||
+        fromDate ||
+        toDate ||
+        followupDue ||
         statusFilter !== "all" ||
+        activePill !== "all" ||
         sortBy !== "advised_date";
 
+    const handleSelectQuickPill = (pill: {
+        id: string;
+        label: string;
+        type: string;
+        from?: string;
+        to?: string;
+        date?: string;
+    }) => {
+        setActivePill(pill.id);
+        if (pill.type === "custom") {
+            setFollowupDue("");
+            setDatePreset("custom");
+            if (!fromDate && !toDate) {
+                const today = getTodayDateLocal();
+                setFromDate(today);
+                setToDate(today);
+            }
+        } else if (pill.type === "followup") {
+            setFromDate("");
+            setToDate("");
+            setDatePreset("all");
+            setFollowupDue(pill.date || getTodayDateLocal());
+        } else if (pill.type === "range") {
+            setFollowupDue("");
+            const from = pill.from || "";
+            const to = pill.to || "";
+            setFromDate(from);
+            setToDate(to);
+            if (!from && !to) {
+                setDatePreset("all");
+            } else if (from === getTodayDateLocal() && to === getTodayDateLocal()) {
+                setDatePreset("today");
+            } else if (from === getYesterdayDateLocal() && to === getYesterdayDateLocal()) {
+                setDatePreset("yesterday");
+            } else if (from === get7DaysAgoDateLocal() && to === getTodayDateLocal()) {
+                setDatePreset("7days");
+            } else {
+                setDatePreset("custom");
+            }
+        }
+    };
+
+    const getQuickDatePills = () => {
+        const today = getTodayDateLocal();
+        const yesterday = getYesterdayDateLocal();
+        const tomorrow = getTomorrowDateLocal();
+        const nextMonday = getNextMondayDateLocal();
+        const last7Days = get7DaysAgoDateLocal();
+        const next7Days = getNext7DaysDateLocal();
+
+        const todayLabel = formatQuickDateBadge(today);
+        const tomorrowLabel = formatQuickDateBadge(tomorrow);
+        const nextMondayLabel = formatQuickDateBadge(nextMonday);
+        const yesterdayLabel = formatQuickDateBadge(yesterday);
+
+        if (statusFilter === "postponed") {
+            return [
+                { id: "all", label: "All Postponed", type: "range", from: "", to: "" },
+                { id: "due_today", label: `Follow-up Due Today (${todayLabel})`, type: "followup", date: today },
+                { id: "due_next_7", label: `Follow-up Next 7 Days`, type: "followup", date: next7Days },
+                { id: "custom", label: "Custom Range", type: "custom" },
+            ];
+        }
+
+        if (statusFilter === "advised") {
+            return [
+                { id: "all", label: "All Advised", type: "range", from: "", to: "" },
+                { id: "today", label: `Advised Today (${todayLabel})`, type: "range", from: today, to: today },
+                { id: "yesterday", label: `Advised Yesterday (${yesterdayLabel})`, type: "range", from: yesterday, to: yesterday },
+                { id: "last_7", label: "Last 7 Days", type: "range", from: last7Days, to: today },
+                { id: "custom", label: "Custom Range", type: "custom" },
+            ];
+        }
+
+        if (statusFilter === "scheduled") {
+            return [
+                { id: "all", label: "All Scheduled", type: "range", from: "", to: "" },
+                { id: "today", label: `Today (${todayLabel})`, type: "range", from: today, to: today },
+                { id: "tomorrow", label: `Tomorrow (${tomorrowLabel})`, type: "range", from: tomorrow, to: tomorrow },
+                { id: "next_monday", label: `Next Mon (${nextMondayLabel})`, type: "range", from: nextMonday, to: nextMonday },
+                { id: "next_7", label: "Next 7 Days", type: "range", from: today, to: next7Days },
+                { id: "custom", label: "Custom Range", type: "custom" },
+            ];
+        }
+
+        return [
+            { id: "all", label: "All Time", type: "range", from: "", to: "" },
+            { id: "today", label: `Today (${todayLabel})`, type: "range", from: today, to: today },
+            { id: "tomorrow", label: `Tomorrow (${tomorrowLabel})`, type: "range", from: tomorrow, to: tomorrow },
+            { id: "next_monday", label: `Next Mon (${nextMondayLabel})`, type: "range", from: nextMonday, to: nextMonday },
+            { id: "yesterday", label: `Yesterday (${yesterdayLabel})`, type: "range", from: yesterday, to: yesterday },
+            { id: "last_7", label: "Last 7 Days", type: "range", from: last7Days, to: today },
+            { id: "next_7", label: "Next 7 Days", type: "range", from: today, to: next7Days },
+            { id: "custom", label: "Custom Range", type: "custom" },
+        ];
+    };
+
+    const STATUS_TABS: Array<{
+        id: PlannedSurgeryStatus | "all";
+        label: string;
+        icon: React.ComponentType<{ className?: string }>;
+        activeBg: string;
+    }> = [
+        { id: "all", label: "All Surgeries", icon: CalendarDays, activeBg: "bg-slate-900 text-white shadow-sm" },
+        { id: "advised", label: "Advised", icon: AlertCircle, activeBg: "bg-amber-500 text-white shadow-sm shadow-amber-500/20" },
+        { id: "scheduled", label: "Scheduled", icon: CalendarClock, activeBg: "bg-sky-600 text-white shadow-sm shadow-sky-600/20" },
+        { id: "postponed", label: "Postponed", icon: Clock, activeBg: "bg-orange-500 text-white shadow-sm shadow-orange-500/20" },
+        { id: "completed", label: "Completed", icon: CheckCircle2, activeBg: "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20" },
+        { id: "denied", label: "Denied", icon: Ban, activeBg: "bg-red-600 text-white shadow-sm shadow-red-600/20" },
+        { id: "cancelled", label: "Cancelled", icon: XCircle, activeBg: "bg-rose-600 text-white shadow-sm shadow-rose-600/20" },
+    ];
+
     return (
-        <div className="space-y-4">
-            {/* Filter Bar Controls - Styled exactly like OPD & Appointments List */}
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${datePreset === "custom" ? "lg:grid-cols-6" : "lg:grid-cols-4"} flex-1`}>
-                    {/* Search Patient / Surgery */}
-                    <label className="space-y-1">
-                        <span className="text-slate-600 flex items-center gap-1 text-xs font-medium">
-                            <Search className="h-3.5 w-3.5" />
-                            Search
-                        </span>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={patientSearch}
-                                onChange={(e) => setPatientSearch(e.target.value)}
-                                placeholder="Search patient, surgery..."
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
-                            />
-                            {patientSearch && (
-                                <button
-                                    onClick={() => setPatientSearch("")}
-                                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            )}
-                        </div>
-                    </label>
+        <div className="space-y-4 min-w-0 max-w-full">
+            {/* Header Bar: Status Tabs, View Mode, Export PDF & Reset */}
+            <div className="flex flex-col gap-3 min-w-0">
+                {/* Horizontal Status Tabs Bar (Scrollable with hidden scrollbars and arrow buttons) */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 min-w-0">
+                    <div className="relative flex items-center flex-1 min-w-0 py-1">
+                        {canScrollLeft && (
+                            <button
+                                onClick={() => scrollTabs("left")}
+                                className="absolute left-0 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/90 shadow-md text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                                title="Scroll Left"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+                        )}
 
-                    {/* Date Range Preset */}
-                    <label className="space-y-1">
-                        <span className="text-slate-600 flex items-center gap-1 text-xs font-medium">
-                            <Calendar className="h-3.5 w-3.5 text-sky-500" />
-                            Date Range
-                        </span>
-                        <select
-                            value={datePreset}
-                            onChange={(e) => handleDatePresetChange(e.target.value as DatePreset)}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none transition focus:border-sky-400"
+                        <div
+                            ref={tabsRef}
+                            onScroll={checkTabScroll}
+                            className="flex items-center gap-1 overflow-x-auto scrollbar-none [ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-1"
                         >
-                            <option value="today">Today</option>
-                            <option value="yesterday">Yesterday</option>
-                            <option value="7days">Last 7 Days</option>
-                            <option value="custom">Custom Range</option>
-                            <option value="all">All Time</option>
-                        </select>
-                    </label>
+                            {STATUS_TABS.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = statusFilter === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => {
+                                            setStatusFilter(tab.id);
+                                            setActivePill("all");
+                                            setFollowupDue("");
+                                            setFromDate("");
+                                            setToDate("");
+                                            setDatePreset("all");
+                                        }}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap transition-all cursor-pointer border-b-2 -mb-px ${
+                                            isActive
+                                                ? "border-sky-500 text-sky-600 font-bold"
+                                                : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                                        }`}
+                                    >
+                                        <Icon className={`h-4 w-4 ${isActive ? "text-sky-500" : "text-slate-400"}`} />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
 
-                    {/* Custom Range Pickers (shown when custom is selected) */}
-                    {datePreset === "custom" && (
-                        <>
-                            <label className="space-y-1">
-                                <span className="text-slate-600 flex items-center gap-1 text-xs font-medium">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    Start Date
-                                </span>
+                        {canScrollRight && (
+                            <button
+                                onClick={() => scrollTabs("right")}
+                                className="absolute right-0 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/90 shadow-md text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                                title="Scroll Right"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* View Mode Toggle, Export PDF & Reset */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-auto">
+                        {hasActiveFilters && (
+                            <button
+                                onClick={clearFilters}
+                                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                                title="Clear all active filters"
+                            >
+                                <RotateCcw className="h-3.5 w-3.5 text-amber-600" />
+                                <span>Reset</span>
+                            </button>
+                        )}
+
+                        <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+                            <button
+                                onClick={() => {
+                                    setViewMode("list");
+                                    localStorage.setItem("planned_surgeries_view", "list");
+                                }}
+                                className={`flex items-center justify-center rounded-lg p-1.5 transition ${
+                                    viewMode === "list" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
+                                }`}
+                                title="List View"
+                            >
+                                <List className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setViewMode("grid");
+                                    localStorage.setItem("planned_surgeries_view", "grid");
+                                }}
+                                className={`flex items-center justify-center rounded-lg p-1.5 transition ${
+                                    viewMode === "grid" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
+                                }`}
+                                title="Card View"
+                            >
+                                <LayoutGrid className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={handleExportPDF}
+                            disabled={exporting}
+                            className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Export planned surgeries to PDF"
+                        >
+                            {exporting ? (
+                                <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <span>Exporting...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="h-3.5 w-3.5" />
+                                    <span>Export PDF</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Quick Date Filter Pills Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50/80 border border-slate-200/80 p-2 min-w-0 max-w-full">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 shrink-0 px-2">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                            Quick Filter:
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            {getQuickDatePills().map((pill) => {
+                                const isActive = activePill === pill.id;
+                                return (
+                                    <button
+                                        key={pill.id}
+                                        onClick={() => handleSelectQuickPill(pill)}
+                                        className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shrink-0 transition-all cursor-pointer ${
+                                            isActive
+                                                ? "bg-slate-900 text-white shadow-xs"
+                                                : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                                        }`}
+                                    >
+                                        <span>{pill.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Custom Date Pickers (Shown when Custom Range pill is active) */}
+                    {(activePill === "custom" || datePreset === "custom") && (
+                        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white border border-slate-200 px-3 py-1.5 shadow-2xs">
+                            <label className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                                <span>From:</span>
                                 <input
                                     type="date"
                                     value={fromDate}
-                                    onChange={(e) => setFromDate(e.target.value)}
-                                    max={toDate || undefined}
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                                    onChange={(e) => {
+                                        setFromDate(e.target.value);
+                                        setDatePreset("custom");
+                                        setActivePill("custom");
+                                        setFollowupDue("");
+                                    }}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs outline-none focus:border-sky-400 font-medium text-slate-800"
                                 />
                             </label>
-
-                            <label className="space-y-1">
-                                <span className="text-slate-600 flex items-center gap-1 text-xs font-medium">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    End Date
-                                </span>
+                            <label className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                                <span>To:</span>
                                 <input
                                     type="date"
                                     value={toDate}
-                                    onChange={(e) => setToDate(e.target.value)}
-                                    min={fromDate || undefined}
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
+                                    onChange={(e) => {
+                                        setToDate(e.target.value);
+                                        setDatePreset("custom");
+                                        setActivePill("custom");
+                                        setFollowupDue("");
+                                    }}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs outline-none focus:border-sky-400 font-medium text-slate-800"
                                 />
                             </label>
-                        </>
+                        </div>
                     )}
-
-                    {/* Surgeon Filter */}
-                    <label className="space-y-1">
-                        <span className="text-slate-600 flex items-center gap-1 text-xs font-medium">
-                            <Stethoscope className="h-3.5 w-3.5" />
-                            Surgeon
-                        </span>
-                        <select
-                            value={surgeonId}
-                            onChange={(e) => setSurgeonId(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
-                        >
-                            <option value="">All Surgeons</option>
-                            {doctors.map((doc) => (
-                                <option key={doc.id} value={doc.id}>
-                                    {doc.name || doc.user?.name || `Dr. ${doc.specialization}`}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    {/* Status Filter */}
-                    <label className="space-y-1">
-                        <span className="text-slate-600 flex items-center gap-1 text-xs font-medium">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Status
-                        </span>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value as PlannedSurgeryStatus | "all")}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400"
-                        >
-                            <option value="all">All Statuses</option>
-                            <option value="advised">Advised</option>
-                            <option value="scheduled">Scheduled</option>
-                            <option value="postponed">Postponed</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                            <option value="denied">Denied</option>
-                        </select>
-                    </label>
-                </div>
-
-                {/* Right controls: View Toggle & PDF Export & Clear */}
-                <div className="flex items-center gap-2">
-                    {hasActiveFilters && (
-                        <button
-                            onClick={clearFilters}
-                            className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
-                            title="Clear all filters"
-                        >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Reset</span>
-                        </button>
-                    )}
-
-                    {/* View Toggle */}
-                    <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
-                        <button
-                            onClick={() => {
-                                setViewMode("list");
-                                localStorage.setItem("planned_surgeries_view", "list");
-                            }}
-                            className={`flex items-center justify-center rounded-lg p-2 transition ${
-                                viewMode === "list" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
-                            }`}
-                            title="List View"
-                        >
-                            <List className="h-4 w-4" />
-                        </button>
-                        <button
-                            onClick={() => {
-                                setViewMode("grid");
-                                localStorage.setItem("planned_surgeries_view", "grid");
-                            }}
-                            className={`flex items-center justify-center rounded-lg p-2 transition ${
-                                viewMode === "grid" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"
-                            }`}
-                            title="Card View"
-                        >
-                            <LayoutGrid className="h-4 w-4" />
-                        </button>
-                    </div>
-
-                    <button
-                        onClick={handleExportPDF}
-                        disabled={exporting}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        title="Export planned surgeries to PDF"
-                    >
-                        {exporting ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>Exporting...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Download className="h-4 w-4" />
-                                <span>Export PDF</span>
-                            </>
-                        )}
-                    </button>
                 </div>
             </div>
 
@@ -759,7 +965,7 @@ export function PlannedSurgeriesList({ openFormModal, onCloseFormModal }: Planne
                     </p>
                 </div>
             ) : loading ? (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-w-0 max-w-full">
                     {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className="h-48 rounded-xl border border-slate-100 bg-white p-4 shadow-sm animate-pulse space-y-3">
                             <div className="h-5 w-3/4 bg-slate-200 rounded" />
@@ -792,12 +998,12 @@ export function PlannedSurgeriesList({ openFormModal, onCloseFormModal }: Planne
                 <>
                     {/* Grid View Mode */}
                     {viewMode === "grid" ? (
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-w-0 max-w-full">
                             {surgeries.map((surgery) => (
                                 <div
                                     key={surgery.id}
                                     onClick={() => setDetailModalSurgery(surgery)}
-                                    className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:shadow-md h-full cursor-pointer group"
+                                    className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:shadow-md h-full cursor-pointer group min-w-0"
                                 >
                                     <div className="flex flex-col gap-3">
                                         {/* Card Header: Patient Name & Eye Tag */}

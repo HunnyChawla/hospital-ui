@@ -652,7 +652,9 @@ export type PlannedSurgeryStatusHistory = {
   to_status: string;
   event_type: string;
   from_date: string | null;
+  from_time?: string | null;
   to_date: string | null;
+  to_time?: string | null;
   followup_date: string | null;
   notes: string | null;
   created_at: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, CalendarClock } from "lucide-react";
+import { X, CalendarClock, Calendar } from "lucide-react";
 
 interface RescheduleModalProps {
     isOpen: boolean;
@@ -27,6 +27,14 @@ export function RescheduleModal({
     const [newDate, setNewDate] = useState("");
     const [newTime, setNewTime] = useState("");
     const [reason, setReason] = useState("");
+
+    const isFirstSchedule = !currentDate;
+    const titleText = isFirstSchedule ? "Schedule Surgery" : "Reschedule Surgery";
+    const dateLabel = isFirstSchedule ? "Surgery Date *" : "New Date *";
+    const timeLabel = isFirstSchedule ? "Surgery Time (optional)" : "New Time (optional)";
+    const submitText = isLoading
+        ? (isFirstSchedule ? "Scheduling…" : "Rescheduling…")
+        : (isFirstSchedule ? "Schedule Surgery" : "Reschedule");
 
     // Reset form on open
     useEffect(() => {
@@ -89,11 +97,15 @@ export function RescheduleModal({
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-sky-50 to-teal-50 px-6 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-50">
-                            <CalendarClock className="h-5 w-5 text-amber-700" />
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+                            isFirstSchedule
+                                ? "border-sky-200 bg-sky-50 text-sky-700"
+                                : "border-amber-200 bg-amber-50 text-amber-700"
+                        }`}>
+                            {isFirstSchedule ? <Calendar className="h-5 w-5" /> : <CalendarClock className="h-5 w-5" />}
                         </div>
                         <div>
-                            <h3 className="text-base font-semibold text-slate-900">Reschedule Surgery</h3>
+                            <h3 className="text-base font-semibold text-slate-900">{titleText}</h3>
                             <p className="text-xs font-medium text-slate-500">
                                 {surgeryName} • {patientName}
                             </p>
@@ -101,7 +113,7 @@ export function RescheduleModal({
                     </div>
                     <button
                         onClick={() => !isLoading && onClose()}
-                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
                         disabled={isLoading}
                     >
                         <X className="h-5 w-5" />
@@ -111,7 +123,7 @@ export function RescheduleModal({
                 {/* Body */}
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-4 p-6">
-                        {/* Current date info */}
+                        {/* Current date info (shown only when a planned date exists) */}
                         {currentDate && (
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <p className="text-xs font-medium text-slate-500">Currently scheduled for</p>
@@ -124,10 +136,10 @@ export function RescheduleModal({
                             </div>
                         )}
 
-                        {/* New date */}
+                        {/* Surgery date */}
                         <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                                New Date *
+                                {dateLabel}
                             </label>
                             <input
                                 type="date"
@@ -138,10 +150,10 @@ export function RescheduleModal({
                             />
                         </div>
 
-                        {/* New time */}
+                        {/* Surgery time */}
                         <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                                New Time (optional)
+                                {timeLabel}
                             </label>
                             <input
                                 type="time"
@@ -151,15 +163,15 @@ export function RescheduleModal({
                             />
                         </div>
 
-                        {/* Reason */}
+                        {/* Reason / Notes */}
                         <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                                Reason (optional)
+                                {isFirstSchedule ? "Notes (optional)" : "Reason for Rescheduling (optional)"}
                             </label>
                             <textarea
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                placeholder="e.g., Patient requested different date"
+                                placeholder={isFirstSchedule ? "e.g., Patient confirmed for OT slot 1" : "e.g., Patient requested different date"}
                                 rows={2}
                                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                             />
@@ -171,7 +183,7 @@ export function RescheduleModal({
                         <button
                             type="button"
                             onClick={() => !isLoading && onClose()}
-                            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
                             disabled={isLoading}
                         >
                             Cancel
@@ -179,9 +191,13 @@ export function RescheduleModal({
                         <button
                             type="submit"
                             disabled={!canSubmit || isLoading}
-                            className="rounded-xl bg-amber-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            className={`rounded-xl px-5 py-2 text-sm font-semibold text-white transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 shadow-sm ${
+                                isFirstSchedule
+                                    ? "bg-sky-600 hover:bg-sky-700 shadow-sky-600/20"
+                                    : "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+                            }`}
                         >
-                            {isLoading ? "Rescheduling…" : "Reschedule"}
+                            {submitText}
                         </button>
                     </div>
                 </form>
