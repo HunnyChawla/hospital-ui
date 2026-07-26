@@ -583,6 +583,7 @@ export type Surgery = {
   default_anatomy_site_id?: string | null;
   is_anatomy_specific?: boolean;
   applicable_anatomy_site_ids?: string[];
+  packages?: SurgeryPackage[];
   service_id?: string;
   is_active: boolean;
   created_at: string;
