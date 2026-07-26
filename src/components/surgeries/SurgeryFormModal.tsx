@@ -38,7 +38,6 @@ interface PackageItemInput {
   name: string;
   description: string;
   price: string;
-  bilateral_price: string;
   anatomy_prices?: Record<string, any>;
   is_default: boolean;
 }
@@ -68,7 +67,6 @@ export function SurgeryFormModal({
       name: "Basic / Monofocal Package",
       description: "Standard surgical procedure package including post-op medication.",
       price: "25000",
-      bilateral_price: "45000",
       anatomy_prices: {},
       is_default: true,
     },
@@ -112,13 +110,11 @@ export function SurgeryFormModal({
       if (initialData.packages && initialData.packages.length > 0) {
         setPackages(
           initialData.packages.map((pkg) => {
-            const strAnatomyPrices: Record<string, { price: string; bilateral_price: string }> = {};
+            const strAnatomyPrices: Record<string, string> = {};
             if (pkg.anatomy_prices) {
-              Object.entries(pkg.anatomy_prices).forEach(([siteId, vals]: [string, any]) => {
-                strAnatomyPrices[siteId] = {
-                  price: vals?.price ? vals.price.toString() : "",
-                  bilateral_price: vals?.bilateral_price ? vals.bilateral_price.toString() : "",
-                };
+              Object.entries(pkg.anatomy_prices).forEach(([siteId, val]: [string, any]) => {
+                const numVal = typeof val === "object" ? val?.price : val;
+                strAnatomyPrices[siteId] = numVal !== undefined && numVal !== null ? numVal.toString() : "";
               });
             }
             return {
@@ -126,7 +122,6 @@ export function SurgeryFormModal({
               name: pkg.name,
               description: pkg.description || "",
               price: pkg.price ? pkg.price.toString() : "0",
-              bilateral_price: pkg.bilateral_price ? pkg.bilateral_price.toString() : "0",
               anatomy_prices: strAnatomyPrices,
               is_default: pkg.is_default,
             };
@@ -147,7 +142,6 @@ export function SurgeryFormModal({
           name: "Basic / Monofocal Package",
           description: "Standard surgical procedure package including post-op medication.",
           price: "25000",
-          bilateral_price: "45000",
           anatomy_prices: {},
           is_default: true,
         },
@@ -178,7 +172,6 @@ export function SurgeryFormModal({
         name: `Package ${prev.length + 1}`,
         description: "",
         price: "35000",
-        bilateral_price: "65000",
         is_default: false,
       },
     ]);
@@ -205,15 +198,7 @@ export function SurgeryFormModal({
     setPackages((prev) =>
       prev.map((pkg, i) => {
         if (i === index) {
-          const updatedPkg = { ...pkg, [field]: val };
-          // Auto-calculate bilateral price if single price changes and bilateral is empty
-          if (field === "price" && val) {
-            const num = parseFloat(val);
-            if (!isNaN(num) && num > 0) {
-              updatedPkg.bilateral_price = Math.round(num * 1.8).toString();
-            }
-          }
-          return updatedPkg;
+          return { ...pkg, [field]: val };
         }
         if (field === "is_default" && val === true) {
           return { ...pkg, is_default: false };
@@ -267,19 +252,14 @@ export function SurgeryFormModal({
     // Determine primary base price from default package
     const defaultPkg = packages.find((p) => p.is_default) || packages[0];
     const basePriceNum = parseFloat(defaultPkg.price) || 0;
-    const bilateralPriceNum =
-      parseFloat(defaultPkg.bilateral_price) || basePriceNum * 2;
 
     const payloadPackages = packages.map((pkg) => {
-      const formattedAnatomyPrices: Record<string, { price: number; bilateral_price?: number }> = {};
+      const formattedAnatomyPrices: Record<string, number> = {};
       if (pkg.anatomy_prices) {
         Object.entries(pkg.anatomy_prices).forEach(([siteId, val]: [string, any]) => {
-          const numVal = typeof val === "object" ? parseFloat(val.price) || 0 : parseFloat(val) || 0;
+          const numVal = typeof val === "object" ? parseFloat(val?.price) || 0 : parseFloat(val) || 0;
           if (numVal > 0) {
-            formattedAnatomyPrices[siteId] = {
-              price: numVal,
-              bilateral_price: numVal,
-            };
+            formattedAnatomyPrices[siteId] = numVal;
           }
         });
       }
@@ -288,8 +268,6 @@ export function SurgeryFormModal({
         name: pkg.name.trim() || "Standard Package",
         description: pkg.description.trim() || undefined,
         price: parseFloat(pkg.price) || 0,
-        bilateral_price:
-          parseFloat(pkg.bilateral_price) || (parseFloat(pkg.price) || 0) * 2,
         anatomy_prices: formattedAnatomyPrices,
         is_default: pkg.is_default,
       };
@@ -306,7 +284,6 @@ export function SurgeryFormModal({
         description: description.trim() || null,
         price: basePriceNum,
         base_price: basePriceNum,
-        bilateral_price: bilateralPriceNum,
         default_anatomy_site_id: defaultAnatomySiteId || null,
         is_anatomy_specific: isAnatomySpecific,
         applicable_anatomy_site_ids: isAnatomySpecific ? selectedSiteIds : [],
@@ -314,6 +291,7 @@ export function SurgeryFormModal({
         is_active: isActive,
       });
       // Only close on success
+      onClose();
       onClose();
     } catch (error) {
       // Surface backend error (e.g. duplicate surgery name) as toast
@@ -729,38 +707,21 @@ export function SurgeryFormModal({
                           ) : (
                             /* Non-Anatomy Specific Procedure: Standard Package Rate */
                             <div className="space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                                    Standard Package Rate (₹) *
-                                  </label>
-                                  <input
-                                    type="number"
-                                    required
-                                    min="0"
-                                    value={pkg.price}
-                                    onChange={(e) =>
-                                      handleUpdatePackage(idx, "price", e.target.value)
-                                    }
-                                    placeholder="25000"
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-sky-400"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[11px] font-semibold text-amber-900 flex items-center gap-1">
-                                    <Sparkles className="h-3 w-3 text-amber-600" /> Bilateral Rate (if applicable) (₹)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={pkg.bilateral_price}
-                                    onChange={(e) =>
-                                      handleUpdatePackage(idx, "bilateral_price", e.target.value)
-                                    }
-                                    placeholder="45000"
-                                    className="w-full rounded-xl border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs font-bold text-amber-950 outline-none focus:border-amber-500"
-                                  />
-                                </div>
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                                  Standard Package Rate (₹) *
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="0"
+                                  value={pkg.price}
+                                  onChange={(e) =>
+                                    handleUpdatePackage(idx, "price", e.target.value)
+                                  }
+                                  placeholder="25000"
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-sky-400"
+                                />
                               </div>
 
                               <input

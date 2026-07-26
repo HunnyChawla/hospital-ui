@@ -579,7 +579,6 @@ export type Surgery = {
   categories?: string[];
   price?: number;
   base_price?: number;
-  bilateral_price?: number;
   default_anatomy_site_id?: string | null;
   is_anatomy_specific?: boolean;
   applicable_anatomy_site_ids?: string[];
@@ -599,7 +598,6 @@ export type CreateSurgeryRequest = {
   categories?: string[];
   price?: number;
   base_price?: number;
-  bilateral_price?: number;
   default_anatomy_site_id?: string | null;
   is_anatomy_specific?: boolean;
   applicable_anatomy_site_ids?: string[];
@@ -614,7 +612,6 @@ export type UpdateSurgeryRequest = {
   categories?: string[];
   price?: number | null;
   base_price?: number | null;
-  bilateral_price?: number | null;
   default_anatomy_site_id?: string | null;
   is_anatomy_specific?: boolean | null;
   applicable_anatomy_site_ids?: string[] | null;
@@ -646,8 +643,7 @@ export type SurgeryPackage = {
   name: string;
   description?: string | null;
   price: number;
-  bilateral_price?: number;
-  anatomy_prices?: Record<string, { price: number; bilateral_price?: number }>;
+  anatomy_prices?: Record<string, number>;
   is_active: boolean;
   is_default: boolean;
   created_at: string;

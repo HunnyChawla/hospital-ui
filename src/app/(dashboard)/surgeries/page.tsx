@@ -233,7 +233,6 @@ export default function SurgeriesPage() {
                                                             </div>
                                                             <div className="text-[11px] font-mono text-slate-600 shrink-0 font-medium">
                                                                 ₹{pkg.price?.toLocaleString("en-IN") || surgery.base_price || 0}
-                                                                {pkg.bilateral_price && pkg.bilateral_price > 0 ? ` / ₹${pkg.bilateral_price.toLocaleString("en-IN")} OU` : ""}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -241,7 +240,6 @@ export default function SurgeriesPage() {
                                             ) : (
                                                 <span className="text-xs font-mono font-semibold text-slate-700">
                                                     ₹{surgery.base_price || surgery.price || 0}
-                                                    {surgery.bilateral_price ? ` / ₹${surgery.bilateral_price} OU` : ""}
                                                 </span>
                                             )}
                                         </td>

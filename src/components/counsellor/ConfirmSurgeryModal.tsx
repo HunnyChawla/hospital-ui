@@ -34,10 +34,9 @@ export function ConfirmSurgeryModal({
   const isBilateral = plannedSurgery.eye === "OU";
 
   const getSuggestedPackagePrice = (pkg: SurgeryPackage) => {
-    if (isBilateral) {
-      return pkg.bilateral_price && pkg.bilateral_price > 0
-        ? pkg.bilateral_price
-        : pkg.price * 2;
+    if (plannedSurgery.anatomy_site_id && pkg.anatomy_prices?.[plannedSurgery.anatomy_site_id]) {
+      const p = pkg.anatomy_prices[plannedSurgery.anatomy_site_id];
+      return typeof p === "number" ? p : (p as any)?.price || pkg.price;
     }
     return pkg.price;
   };
