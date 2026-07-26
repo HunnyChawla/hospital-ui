@@ -137,7 +137,8 @@ export function PlannedSurgerySection({
         }
     };
 
-    const formatDate = (dateStr: string) => {
+    const formatDate = (dateStr?: string | null) => {
+        if (!dateStr) return "N/A";
         return new Date(dateStr).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
@@ -145,12 +146,13 @@ export function PlannedSurgerySection({
         });
     };
 
-    const getEyeLabel = (eye: string) => {
+    const getEyeLabel = (eye?: string | null) => {
+        if (!eye) return "N/A";
         const option = eyeOptions.find(o => o.value === eye);
         return option?.fullLabel || eye;
     };
 
-    const getEyeBadgeColor = (eye: string) => {
+    const getEyeBadgeColor = (eye?: string | null) => {
         switch (eye) {
             case "OD": return "bg-blue-100 text-blue-700 border-blue-200";
             case "OS": return "bg-green-100 text-green-700 border-green-200";

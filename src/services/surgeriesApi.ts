@@ -1,5 +1,5 @@
 import { apiClient } from "./api";
-import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
+import { CreateSurgeryRequest, Surgery, SurgeryPackage, UpdateSurgeryRequest } from "@/types";
 
 export type SurgeryParams = {
     page?: number;
@@ -42,5 +42,28 @@ export const surgeriesApi = {
 
     delete: async (id: string) => {
         await apiClient.delete(`/surgeries/${id}`);
+    },
+
+    listPackages: async (surgeryId: string) => {
+        const { data } = await apiClient.get<SurgeryPackage[]>(`/surgeries/${surgeryId}/packages`);
+        return data;
+    },
+
+    createPackage: async (surgeryId: string, payload: { name: string; description?: string; price: number; is_default?: boolean }) => {
+        const { data } = await apiClient.post<SurgeryPackage>(`/surgeries/${surgeryId}/packages`, payload);
+        return data;
+    },
+
+    updatePackage: async (surgeryId: string, packageId: string, payload: { name?: string; description?: string; price?: number; is_active?: boolean; is_default?: boolean }) => {
+        const { data } = await apiClient.put<SurgeryPackage>(`/surgeries/${surgeryId}/packages/${packageId}`, payload);
+        return data;
+    },
+
+    setDefaultPackage: async (surgeryId: string, packageId: string) => {
+        await apiClient.patch(`/surgeries/${surgeryId}/packages/${packageId}/set-default`);
+    },
+
+    deletePackage: async (surgeryId: string, packageId: string) => {
+        await apiClient.delete(`/surgeries/${surgeryId}/packages/${packageId}`);
     },
 };

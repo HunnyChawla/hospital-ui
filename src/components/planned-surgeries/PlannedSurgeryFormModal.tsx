@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { X, Loader2, Calendar, User, Stethoscope, Eye, Clock, FileText, Building2, CheckCircle2 } from "lucide-react";
-import { PlannedSurgery, CreatePlannedSurgeryRequest, UpdatePlannedSurgeryRequest, Surgery, PlannedSurgeryStatus } from "@/types";
+import { X, Loader2, Calendar, User, Stethoscope, Eye, Clock, FileText, Building2, CheckCircle2, MapPin, Flame } from "lucide-react";
+import { PlannedSurgery, CreatePlannedSurgeryRequest, UpdatePlannedSurgeryRequest, Surgery, PlannedSurgeryStatus, AnatomySite, PlannedSurgeryUrgency } from "@/types";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
+import { anatomySitesApi } from "@/services/anatomySitesApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useAppSelector } from "@/redux/hooks";
 import { toast } from "sonner";
@@ -36,15 +37,18 @@ export function PlannedSurgeryFormModal({
     const [surgeryId, setSurgeryId] = useState("");
     const [surgeryName, setSurgeryName] = useState("");
     const [surgeonId, setSurgeonId] = useState("");
+    const [anatomySiteId, setAnatomySiteId] = useState("");
     const [eye, setEye] = useState<"OD" | "OS" | "OU">("OD");
+    const [urgency, setUrgency] = useState<PlannedSurgeryUrgency>("elective");
     const [plannedDate, setPlannedDate] = useState(getTodayDateLocal());
     const [plannedTime, setPlannedTime] = useState("");
     const [hospitalName, setHospitalName] = useState("");
     const [notes, setNotes] = useState("");
-    const [status, setStatus] = useState<PlannedSurgeryStatus>("scheduled");
+    const [status, setStatus] = useState<PlannedSurgeryStatus>("advised");
 
     // Lists
     const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+    const [anatomySites, setAnatomySites] = useState<AnatomySite[]>([]);
     const [patientResults, setPatientResults] = useState<any[]>([]);
     const [showPatientDropdown, setShowPatientDropdown] = useState(false);
 
@@ -53,21 +57,25 @@ export function PlannedSurgeryFormModal({
     const [loadingSurgeries, setLoadingSurgeries] = useState(false);
     const [searchingPatients, setSearchingPatients] = useState(false);
 
-    // Fetch surgeries list
+    // Fetch surgeries and anatomy sites list
     useEffect(() => {
-        const fetchSurgeries = async () => {
+        const fetchData = async () => {
             setLoadingSurgeries(true);
             try {
-                const response = await surgeriesApi.list({ is_active: true, page_size: 100 });
-                setSurgeries(response.items);
+                const [surgRes, sitesRes] = await Promise.all([
+                    surgeriesApi.list({ is_active: true, page_size: 100 }),
+                    anatomySitesApi.list({ is_active_only: true }),
+                ]);
+                setSurgeries(surgRes.items);
+                setAnatomySites(sitesRes);
             } catch (error) {
-                console.error("Failed to fetch surgeries:", error);
+                console.error("Failed to fetch surgeries or anatomy sites:", error);
             } finally {
                 setLoadingSurgeries(false);
             }
         };
         if (isOpen) {
-            fetchSurgeries();
+            fetchData();
         }
     }, [isOpen]);
 
@@ -79,10 +87,11 @@ export function PlannedSurgeryFormModal({
             setSurgeryId(initialData.surgery_id);
             setSurgeryName(initialData.surgery_name);
             setSurgeonId(initialData.surgeon_id);
-            setEye(initialData.eye);
+            setAnatomySiteId(initialData.anatomy_site_id || "");
+            if (initialData.eye) setEye(initialData.eye);
+            setUrgency(initialData.urgency || "elective");
             setPlannedDate(initialData.planned_date || "");
             setPlannedTime(initialData.planned_time?.slice(0, 5) || "");
-            setHospitalName(initialData.hospital_name || "");
             setHospitalName(initialData.hospital_name || "");
             setNotes(initialData.notes || "");
             setStatus(initialData.status);
@@ -94,12 +103,14 @@ export function PlannedSurgeryFormModal({
             setSurgeryId("");
             setSurgeryName("");
             setSurgeonId("");
+            setAnatomySiteId("");
             setEye("OD");
+            setUrgency("elective");
             setPlannedDate(getTodayDateLocal());
             setPlannedTime("");
             setHospitalName("");
             setNotes("");
-            setStatus("scheduled");
+            setStatus("advised");
         }
     }, [initialData, isOpen]);
 
@@ -144,6 +155,9 @@ export function PlannedSurgeryFormModal({
         setSurgeryId(selectedId);
         const selectedSurgery = surgeries.find((s) => s.id === selectedId);
         setSurgeryName(selectedSurgery?.name || "");
+        if (selectedSurgery?.default_anatomy_site_id) {
+            setAnatomySiteId(selectedSurgery.default_anatomy_site_id);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -168,7 +182,10 @@ export function PlannedSurgeryFormModal({
                 const updatePayload: UpdatePlannedSurgeryRequest = {
                     surgery_id: surgeryId,
                     surgery_name: surgeryName,
+                    surgeon_id: surgeonId,
+                    anatomy_site_id: anatomySiteId || null,
                     eye,
+                    urgency,
                     planned_date: plannedDate || null,
                     planned_time: plannedTime || null,
                     hospital_name: hospitalName || null,
@@ -181,16 +198,18 @@ export function PlannedSurgeryFormModal({
                 const createPayload: CreatePlannedSurgeryRequest = {
                     patient_id: patientId,
                     surgery_id: surgeryId,
-                    surgery_name: surgeryName,
                     surgeon_id: surgeonId,
+                    anatomy_site_id: anatomySiteId || null,
                     eye,
+                    urgency,
                     planned_date: plannedDate || null,
                     planned_time: plannedTime || null,
                     hospital_name: hospitalName || null,
                     notes: notes || null,
+                    status: "advised",
                 };
                 await plannedSurgeriesApi.create(createPayload);
-                toast.success("Planned surgery created successfully");
+                toast.success("Surgery advice created successfully");
             }
             onSuccess();
             onClose();
@@ -337,11 +356,65 @@ export function PlannedSurgeryFormModal({
                                         </select>
                                     </div>
 
-                                    {/* Eye Selection */}
+                                    {/* Anatomy Site Selection */}
+                                    <div className="space-y-1.5">
+                                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                            <MapPin className="h-4 w-4 text-slate-400" />
+                                            Anatomy Site / Procedure Location
+                                        </label>
+                                        <select
+                                            value={anatomySiteId}
+                                            onChange={(e) => setAnatomySiteId(e.target.value)}
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                        >
+                                            <option value="">Select anatomy site...</option>
+                                            {anatomySites.map((site) => (
+                                                <option key={site.id} value={site.id}>
+                                                    {site.name} ({site.short_code}) {site.department ? `— ${site.department}` : ""}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Urgency Selection */}
+                                    <div className="space-y-1.5">
+                                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                            <Flame className="h-4 w-4 text-slate-400" />
+                                            Urgency Level
+                                        </label>
+                                        <div className="flex gap-3">
+                                            {(
+                                                [
+                                                    { id: "elective", label: "Elective" },
+                                                    { id: "urgent", label: "Urgent" },
+                                                    { id: "emergency", label: "Emergency" },
+                                                ] as const
+                                            ).map((u) => (
+                                                <button
+                                                    key={u.id}
+                                                    type="button"
+                                                    onClick={() => setUrgency(u.id)}
+                                                    className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                                                        urgency === u.id
+                                                            ? u.id === "emergency"
+                                                                ? "bg-rose-600 text-white shadow-md"
+                                                                : u.id === "urgent"
+                                                                ? "bg-amber-600 text-white shadow-md"
+                                                                : "bg-emerald-600 text-white shadow-md"
+                                                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                                    }`}
+                                                >
+                                                    {u.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Eye Selection (Legacy Fallback) */}
                                     <div className="space-y-1.5">
                                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                             <Eye className="h-4 w-4 text-slate-400" />
-                                            Eye <span className="text-rose-500">*</span>
+                                            Eye Designation <span className="text-xs text-slate-400 font-normal">(Ophthalmology fallback)</span>
                                         </label>
                                         <div className="flex gap-3">
                                             {(["OD", "OS", "OU"] as const).map((eyeOption) => (
@@ -349,7 +422,7 @@ export function PlannedSurgeryFormModal({
                                                     key={eyeOption}
                                                     type="button"
                                                     onClick={() => setEye(eyeOption)}
-                                                    className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${eye === eyeOption
+                                                    className={`flex-1 rounded-xl px-4 py-2 text-xs font-medium transition-all ${eye === eyeOption
                                                         ? "bg-sky-500 text-white shadow-md"
                                                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                                                         }`}

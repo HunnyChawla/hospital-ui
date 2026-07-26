@@ -27,7 +27,7 @@ export const formatDate = (value: string | null | undefined) => {
   } catch (e) {
     return "Invalid Date";
   }
-};
+};export const formatDateDisplay = formatDate;
 
 // Get today's date in YYYY-MM-DD format in local timezone (not UTC)
 export const getTodayDateLocal = (): string => {
