@@ -37,7 +37,7 @@ export function AnatomySitesManagement() {
   const [sortOrder, setSortOrder] = useState<number>(0);
   const [saving, setSaving] = useState(false);
 
-  const [selectedStatus, setSelectedStatus] = useState("all"); // "all" | "active" | "inactive"
+  const [selectedStatus, setSelectedStatus] = useState("active"); // "active" (default) | "inactive" | "all"
 
   const fetchSites = async () => {
     setLoading(true);
@@ -156,8 +156,8 @@ export function AnatomySitesManagement() {
 
     try {
       await anatomySitesApi.deactivate(site.id);
+      setSites((prev) => prev.filter((s) => s.id !== site.id));
       toast.success(`Custom anatomy site "${site.name}" deleted successfully.`);
-      fetchSites();
     } catch (err) {
       const errMsg = getErrorMessage(err);
       toast.error(errMsg || "Failed to delete anatomy site");
