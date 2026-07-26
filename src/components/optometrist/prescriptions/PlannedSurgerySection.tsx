@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Scissors, Calendar, Plus, Trash2, ChevronDown, ChevronUp, Loader2, AlertCircle, Eye } from "lucide-react";
+import { Scissors, Calendar, Plus, Trash2, ChevronDown, ChevronUp, Loader2, AlertCircle, Eye, MapPin, Sparkles, CheckCircle2, Flame } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import { surgeriesApi } from "@/services/surgeriesApi";
+import { anatomySitesApi } from "@/services/anatomySitesApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { handleError } from "@/utils/errorHandler";
 import { getTodayDateLocal } from "@/utils/format";
-import type { Surgery, PlannedSurgery } from "@/types";
+import type { Surgery, PlannedSurgery, AnatomySite, PlannedSurgeryUrgency } from "@/types";
 
 interface PlannedSurgerySectionProps {
     patientId: string;
@@ -31,6 +32,7 @@ export function PlannedSurgerySection({
 }: PlannedSurgerySectionProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+    const [anatomySites, setAnatomySites] = useState<AnatomySite[]>([]);
     const [loadingSurgeries, setLoadingSurgeries] = useState(false);
     const [plannedSurgeries, setPlannedSurgeries] = useState<PlannedSurgery[]>([]);
     const [loadingPlanned, setLoadingPlanned] = useState(false);
@@ -41,39 +43,44 @@ export function PlannedSurgerySection({
     // Form state
     const [selectedSurgeryId, setSelectedSurgeryId] = useState("");
     const [selectedSurgeryName, setSelectedSurgeryName] = useState("");
+    const [selectedAnatomySiteId, setSelectedAnatomySiteId] = useState("");
     const [selectedEye, setSelectedEye] = useState<EyeType>("OD");
+    const [urgency, setUrgency] = useState<PlannedSurgeryUrgency>("elective");
     const [plannedDate, setPlannedDate] = useState("");
     const [advisedDate, setAdvisedDate] = useState(getTodayDateLocal());
     const [notes, setNotes] = useState("");
 
-    // Load surgeries master list
+    // Load surgeries master list & anatomy sites
     useEffect(() => {
-        const loadSurgeries = async () => {
+        const loadMasterData = async () => {
             setLoadingSurgeries(true);
             try {
-                const response = await surgeriesApi.list({ is_active: true, page_size: 100 });
-                setSurgeries(response.items);
+                const [surgeriesRes, sitesRes] = await Promise.all([
+                    surgeriesApi.list({ is_active: true, page_size: 100 }),
+                    anatomySitesApi.list({ is_active_only: true }),
+                ]);
+                setSurgeries(surgeriesRes.items);
+                setAnatomySites(sitesRes);
             } catch (error) {
-                handleError(error, { defaultMessage: "Failed to load surgeries", logError: true });
+                handleError(error, { defaultMessage: "Failed to load surgeries and anatomy sites", logError: true });
             } finally {
                 setLoadingSurgeries(false);
             }
         };
-        if (isExpanded && surgeries.length === 0) {
-            loadSurgeries();
+        if (isExpanded && (surgeries.length === 0 || anatomySites.length === 0)) {
+            loadMasterData();
         }
-    }, [isExpanded, surgeries.length]);
+    }, [isExpanded, surgeries.length, anatomySites.length]);
 
     // Load patient's planned surgeries
     useEffect(() => {
         const loadPlannedSurgeries = async () => {
             setLoadingPlanned(true);
             try {
-                const response = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+                const response = await plannedSurgeriesApi.list({ patient_id: patientId });
                 setPlannedSurgeries(response.items);
             } catch (error) {
-                // API might not exist yet - silently fail
-                console.warn("Planned surgeries API not available:", error);
+                console.warn("Planned surgeries API issue:", error);
                 setPlannedSurgeries([]);
             } finally {
                 setLoadingPlanned(false);
@@ -84,11 +91,43 @@ export function PlannedSurgerySection({
         }
     }, [isExpanded, patientId]);
 
+    const selectedSurgery = surgeries.find((s) => s.id === selectedSurgeryId);
+    const isAnatomySpecific = selectedSurgery?.is_anatomy_specific ?? true;
+    const applicableSiteIds = selectedSurgery?.applicable_anatomy_site_ids || [];
+
+    // Filter anatomy sites based on surgery configuration
+    const filteredAnatomySites = selectedSurgery && isAnatomySpecific && applicableSiteIds.length > 0
+        ? anatomySites.filter((site) => applicableSiteIds.includes(site.id))
+        : anatomySites;
+
     const handleSurgeryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const surgeryId = e.target.value;
         setSelectedSurgeryId(surgeryId);
         const surgery = surgeries.find(s => s.id === surgeryId);
         setSelectedSurgeryName(surgery?.name || "");
+
+        if (surgery) {
+            // Pre-select default anatomy site if configured
+            if (surgery.default_anatomy_site_id) {
+                setSelectedAnatomySiteId(surgery.default_anatomy_site_id);
+                const defaultSite = anatomySites.find((a) => a.id === surgery.default_anatomy_site_id);
+                if (defaultSite && (defaultSite.short_code === "OD" || defaultSite.short_code === "OS" || defaultSite.short_code === "OU")) {
+                    setSelectedEye(defaultSite.short_code as EyeType);
+                }
+            } else {
+                setSelectedAnatomySiteId("");
+            }
+        } else {
+            setSelectedAnatomySiteId("");
+        }
+    };
+
+    const handleAnatomySiteSelect = (siteId: string) => {
+        setSelectedAnatomySiteId(siteId);
+        const site = anatomySites.find((a) => a.id === siteId);
+        if (site && (site.short_code === "OD" || site.short_code === "OS" || site.short_code === "OU")) {
+            setSelectedEye(site.short_code as EyeType);
+        }
     };
 
     const handleAddSurgery = async () => {
@@ -104,7 +143,9 @@ export function PlannedSurgerySection({
                 visit_id: visitId || null,
                 surgery_id: selectedSurgeryId,
                 surgery_name: selectedSurgeryName,
+                anatomy_site_id: selectedAnatomySiteId || null,
                 eye: selectedEye,
+                urgency: urgency,
                 planned_date: plannedDate || null,
                 advised_date: advisedDate || getTodayDateLocal(),
                 surgeon_id: surgeonId,
@@ -116,7 +157,9 @@ export function PlannedSurgerySection({
             // Reset form
             setSelectedSurgeryId("");
             setSelectedSurgeryName("");
+            setSelectedAnatomySiteId("");
             setSelectedEye("OD");
+            setUrgency("elective");
             setPlannedDate("");
             setAdvisedDate(getTodayDateLocal());
             setNotes("");
@@ -144,12 +187,6 @@ export function PlannedSurgerySection({
             day: "numeric",
             year: "numeric",
         });
-    };
-
-    const getEyeLabel = (eye?: string | null) => {
-        if (!eye) return "N/A";
-        const option = eyeOptions.find(o => o.value === eye);
-        return option?.fullLabel || eye;
     };
 
     const getEyeBadgeColor = (eye?: string | null) => {
@@ -194,7 +231,7 @@ export function PlannedSurgerySection({
                     ) : plannedSurgeries.length > 0 && (
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                Scheduled Surgeries
+                                Scheduled & Advised Surgeries
                             </label>
                             <div className="space-y-2">
                                 {plannedSurgeries.map((surgery) => (
@@ -207,12 +244,19 @@ export function PlannedSurgerySection({
                                             <div>
                                                 <p className="text-sm font-medium text-slate-900">{surgery.surgery_name}</p>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className={clsx(
-                                                        "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border",
-                                                        getEyeBadgeColor(surgery.eye)
-                                                    )}>
-                                                        {surgery.eye}
-                                                    </span>
+                                                    {surgery.anatomy_site_name ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
+                                                            <MapPin className="h-3 w-3" />
+                                                            {surgery.anatomy_site_name} ({surgery.anatomy_site_short_code || surgery.eye})
+                                                        </span>
+                                                    ) : (
+                                                        <span className={clsx(
+                                                            "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border",
+                                                            getEyeBadgeColor(surgery.eye)
+                                                        )}>
+                                                            {surgery.eye}
+                                                        </span>
+                                                    )}
                                                     <span className="text-xs text-slate-500 flex items-center gap-1">
                                                         <Calendar className="h-3 w-3" />
                                                         {surgery.planned_date
@@ -237,31 +281,104 @@ export function PlannedSurgerySection({
                     )}
 
                     {/* Add Surgery Form */}
-                    <div className="space-y-3">
+                    <div className="space-y-3.5">
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                             Plan New Surgery
                         </label>
 
                         {/* Surgery Selection */}
                         <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Select Surgery</label>
                             <select
                                 value={selectedSurgeryId}
                                 onChange={handleSurgeryChange}
                                 disabled={loadingSurgeries}
                                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20"
                             >
-                                <option value="">Select surgery...</option>
+                                <option value="">Select procedure...</option>
                                 {surgeries.map((surgery) => (
                                     <option key={surgery.id} value={surgery.id}>
-                                        {surgery.name}
+                                        {surgery.name} {surgery.category ? `(${surgery.category})` : ""}
                                     </option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Eye Selection */}
+                        {/* Surgery Specific Anatomy Banner */}
+                        {selectedSurgery && (
+                            <div className="rounded-lg border border-sky-100 bg-sky-50/70 p-2.5 text-xs text-sky-900 space-y-1.5">
+                                <div className="flex items-center justify-between font-semibold">
+                                    <span className="flex items-center gap-1.5">
+                                        <Sparkles className="h-3.5 w-3.5 text-sky-600" />
+                                        {isAnatomySpecific ? "Anatomy Specific Surgery" : "General Procedure (Non-Anatomy Specific)"}
+                                    </span>
+                                    {selectedSurgery.default_anatomy_site_id && (
+                                        <span className="bg-sky-200 text-sky-900 px-2 py-0.5 rounded font-medium text-[10px]">
+                                            Default Pre-selected
+                                        </span>
+                                    )}
+                                </div>
+                                {isAnatomySpecific && applicableSiteIds.length > 0 && (
+                                    <p className="text-[11px] text-sky-700">
+                                        Filtered for {filteredAnatomySites.length} configured anatomy site(s).
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Anatomy Site Selection */}
                         <div>
-                            <label className="block text-xs font-medium text-slate-600 mb-1.5">Eye</label>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                                Anatomy Site / Location {isAnatomySpecific && <span className="text-amber-600 font-bold">*</span>}
+                            </label>
+                            {filteredAnatomySites.length > 0 ? (
+                                <div className="space-y-2">
+                                    <select
+                                        value={selectedAnatomySiteId}
+                                        onChange={(e) => handleAnatomySiteSelect(e.target.value)}
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20"
+                                    >
+                                        <option value="">Select configured anatomy site...</option>
+                                        {filteredAnatomySites.map((site) => (
+                                            <option key={site.id} value={site.id}>
+                                                {site.name} ({site.short_code}) {site.department ? `— ${site.department}` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    {/* Quick Pills for Configured Anatomy Sites */}
+                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                        {filteredAnatomySites.map((site) => {
+                                            const isSelected = selectedAnatomySiteId === site.id;
+                                            return (
+                                                <button
+                                                    key={site.id}
+                                                    type="button"
+                                                    onClick={() => handleAnatomySiteSelect(site.id)}
+                                                    className={clsx(
+                                                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition cursor-pointer",
+                                                        isSelected
+                                                            ? "bg-sky-600 text-white border-sky-600 shadow-2xs"
+                                                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-sky-50 hover:border-sky-300"
+                                                    )}
+                                                >
+                                                    <MapPin className="h-3 w-3" />
+                                                    {site.name} ({site.short_code})
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-xs text-slate-500 italic p-2 bg-slate-50 rounded border border-slate-200">
+                                    No specific anatomy sites configured. Standard Eye selection applies below.
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Standard Eye Option Fallback/Override */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5">Eye Designation</label>
                             <div className="flex gap-2">
                                 {eyeOptions.map((option) => (
                                     <button
@@ -269,7 +386,7 @@ export function PlannedSurgerySection({
                                         type="button"
                                         onClick={() => setSelectedEye(option.value)}
                                         className={clsx(
-                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition",
+                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition cursor-pointer",
                                             selectedEye === option.value
                                                 ? option.color
                                                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -278,6 +395,35 @@ export function PlannedSurgerySection({
                                     >
                                         <Eye className="h-3.5 w-3.5" />
                                         {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Urgency Level Selection */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
+                                <Flame className="h-3.5 w-3.5 text-amber-500" /> Urgency Level
+                            </label>
+                            <div className="flex gap-2">
+                                {[
+                                    { value: "elective", label: "Elective", desc: "Routine", color: "bg-emerald-600 text-white border-emerald-600" },
+                                    { value: "urgent", label: "Urgent", desc: "Priority", color: "bg-amber-600 text-white border-amber-600" },
+                                    { value: "emergency", label: "Emergency", desc: "Immediate", color: "bg-rose-600 text-white border-rose-600 animate-pulse" },
+                                ].map((item) => (
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        onClick={() => setUrgency(item.value as any)}
+                                        className={clsx(
+                                            "flex-1 flex flex-col items-center justify-center py-1.5 px-2 rounded-lg border text-xs font-semibold transition cursor-pointer",
+                                            urgency === item.value
+                                                ? item.color
+                                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                        )}
+                                    >
+                                        <span>{item.label}</span>
+                                        <span className="text-[10px] font-normal opacity-80">{item.desc}</span>
                                     </button>
                                 ))}
                             </div>
@@ -314,7 +460,7 @@ export function PlannedSurgerySection({
                             type="button"
                             onClick={handleAddSurgery}
                             disabled={isSubmitting || !selectedSurgeryId}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer shadow-sm"
                         >
                             {isSubmitting ? (
                                 <>
