@@ -623,10 +623,10 @@ export function SurgeryFormModal({
                               />
                             </div>
 
-                            {/* Bilateral Rate */}
+                            {/* Bilateral / Dual Side Rate */}
                             <div className="space-y-1">
                               <label className="text-[11px] font-semibold text-amber-900 flex items-center gap-1">
-                                <Sparkles className="h-3 w-3 text-amber-600" /> Bilateral Rate (OU) (₹) *
+                                <Sparkles className="h-3 w-3 text-amber-600" /> Bilateral / Dual Side Rate (OU / Both) (₹) *
                               </label>
                               <input
                                 type="number"
@@ -639,6 +639,9 @@ export function SurgeryFormModal({
                                 placeholder="45000"
                                 className="w-full rounded-xl border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs font-bold text-amber-950 outline-none focus:border-amber-500"
                               />
+                              <p className="text-[10px] text-slate-500">
+                                Package rate when operating on Both Eyes (OU) or bilateral sites.
+                              </p>
                             </div>
                           </div>
 
