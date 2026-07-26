@@ -646,6 +646,7 @@ export type SurgeryPackage = {
   description?: string | null;
   price: number;
   bilateral_price?: number;
+  anatomy_prices?: Record<string, { price: number; bilateral_price?: number }>;
   is_active: boolean;
   is_default: boolean;
   created_at: string;

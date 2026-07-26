@@ -140,6 +140,9 @@ export default function SurgeriesPage() {
                                     Category
                                 </th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                                    Packages & Rates
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
                                     Status
                                 </th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -153,7 +156,7 @@ export default function SurgeriesPage() {
                         <tbody className="divide-y divide-slate-200 bg-white">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex justify-center">
                                             <div className="h-8 w-8 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
                                         </div>
@@ -161,7 +164,7 @@ export default function SurgeriesPage() {
                                 </tr>
                             ) : surgeries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-slate-500">
                                             <Search className="mb-2 h-10 w-10 text-slate-300" />
                                             <p className="text-base font-medium text-slate-900">No surgeries found</p>
@@ -199,6 +202,31 @@ export default function SurgeriesPage() {
                                                 </span>
                                             ) : (
                                                 <span className="text-slate-400 text-sm">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {surgery.packages && surgery.packages.length > 0 ? (
+                                                <div className="space-y-1.5 max-w-xs">
+                                                    {surgery.packages.map((pkg, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between gap-2 text-xs bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                                                            <div className="truncate font-semibold text-slate-800 flex items-center gap-1">
+                                                                <span>{pkg.name}</span>
+                                                                {pkg.is_default && (
+                                                                    <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1 rounded">Default</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-[11px] font-mono text-slate-600 shrink-0 font-medium">
+                                                                ₹{pkg.price?.toLocaleString("en-IN") || surgery.base_price || 0}
+                                                                {pkg.bilateral_price && pkg.bilateral_price > 0 ? ` / ₹${pkg.bilateral_price.toLocaleString("en-IN")} OU` : ""}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs font-mono font-semibold text-slate-700">
+                                                    ₹{surgery.base_price || surgery.price || 0}
+                                                    {surgery.bilateral_price ? ` / ₹${surgery.bilateral_price} OU` : ""}
+                                                </span>
                                             )}
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
