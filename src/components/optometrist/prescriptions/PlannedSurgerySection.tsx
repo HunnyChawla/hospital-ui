@@ -308,50 +308,20 @@ export function PlannedSurgerySection({
                             </select>
                         </div>
 
-                        {/* Surgery Specific Anatomy Banner */}
-                        {selectedSurgery && (
-                            <div className="rounded-lg border border-sky-100 bg-sky-50/70 p-2.5 text-xs text-sky-900 space-y-1.5">
-                                <div className="flex items-center justify-between font-semibold">
-                                    <span className="flex items-center gap-1.5">
-                                        <Sparkles className="h-3.5 w-3.5 text-sky-600" />
-                                        {isAnatomySpecific ? "Anatomy Specific Surgery" : "General Procedure (Non-Anatomy Specific)"}
-                                    </span>
-                                    {selectedSurgery.default_anatomy_site_id && (
-                                        <span className="bg-sky-200 text-sky-900 px-2 py-0.5 rounded font-medium text-[10px]">
-                                            Default Pre-selected
+                        {/* Anatomy Site / Location - Streamlined Quick Select */}
+                        {selectedSurgery ? (
+                            filteredAnatomySites.length > 0 ? (
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center justify-between">
+                                        <span className="flex items-center gap-1.5 font-semibold">
+                                            <MapPin className="h-3.5 w-3.5 text-sky-600" />
+                                            Anatomy Location {isAnatomySpecific && <span className="text-amber-600 font-bold">*</span>}
                                         </span>
-                                    )}
-                                </div>
-                                {isAnatomySpecific && applicableSiteIds.length > 0 && (
-                                    <p className="text-[11px] text-sky-700">
-                                        Filtered for {filteredAnatomySites.length} configured anatomy site(s).
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Anatomy Site Selection */}
-                        <div>
-                            <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                                Anatomy Site / Location {isAnatomySpecific && <span className="text-amber-600 font-bold">*</span>}
-                            </label>
-                            {filteredAnatomySites.length > 0 ? (
-                                <div className="space-y-2">
-                                    <select
-                                        value={selectedAnatomySiteId}
-                                        onChange={(e) => handleAnatomySiteSelect(e.target.value)}
-                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20"
-                                    >
-                                        <option value="">Select configured anatomy site...</option>
-                                        {filteredAnatomySites.map((site) => (
-                                            <option key={site.id} value={site.id}>
-                                                {site.name} ({site.short_code}) {site.department ? `— ${site.department}` : ""}
-                                            </option>
-                                        ))}
-                                    </select>
-
-                                    {/* Quick Pills for Configured Anatomy Sites */}
-                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                        <span className="text-[10px] text-sky-700 bg-sky-50 px-2 py-0.5 rounded font-medium border border-sky-100">
+                                            Configured for {selectedSurgery.name}
+                                        </span>
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
                                         {filteredAnatomySites.map((site) => {
                                             const isSelected = selectedAnatomySiteId === site.id;
                                             return (
@@ -360,13 +330,13 @@ export function PlannedSurgerySection({
                                                     type="button"
                                                     onClick={() => handleAnatomySiteSelect(site.id)}
                                                     className={clsx(
-                                                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition cursor-pointer",
+                                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer shadow-2xs",
                                                         isSelected
-                                                            ? "bg-sky-600 text-white border-sky-600 shadow-2xs"
+                                                            ? "bg-sky-600 text-white border-sky-600 ring-2 ring-sky-200"
                                                             : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-sky-50 hover:border-sky-300"
                                                     )}
                                                 >
-                                                    <MapPin className="h-3 w-3" />
+                                                    <MapPin className="h-3.5 w-3.5" />
                                                     {site.name} ({site.short_code})
                                                 </button>
                                             );
@@ -374,35 +344,35 @@ export function PlannedSurgerySection({
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-xs text-slate-500 italic p-2 bg-slate-50 rounded border border-slate-200">
-                                    No specific anatomy sites configured. Standard Eye selection applies below.
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
+                                        <Eye className="h-3.5 w-3.5 text-blue-600" /> Eye Designation
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {eyeOptions.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedEye(option.value);
+                                                    setSelectedAnatomySiteId("");
+                                                }}
+                                                className={clsx(
+                                                    "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition cursor-pointer",
+                                                    selectedEye === option.value
+                                                        ? option.color
+                                                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                                )}
+                                                title={option.fullLabel}
+                                            >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Standard Eye Option Fallback/Override */}
-                        <div>
-                            <label className="block text-xs font-medium text-slate-600 mb-1.5">Eye Designation</label>
-                            <div className="flex gap-2">
-                                {eyeOptions.map((option) => (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        onClick={() => setSelectedEye(option.value)}
-                                        className={clsx(
-                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition cursor-pointer",
-                                            selectedEye === option.value
-                                                ? option.color
-                                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                                        )}
-                                        title={option.fullLabel}
-                                    >
-                                        <Eye className="h-3.5 w-3.5" />
-                                        {option.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                            )
+                        ) : null}
 
                         {/* Urgency Level Selection */}
                         <div>
