@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { useTenant } from "@/hooks/useTenant";
@@ -29,21 +29,23 @@ export default function SurgeriesPage() {
             setIsLoading(true);
             const data = await surgeriesApi.list({
                 page,
-                page_size: 20,
-                search: searchQuery || undefined,
+                page_size: 10,
+                search: searchQuery,
             });
             setSurgeries(data.items);
             setTotalPages(data.total_pages);
         } catch (error) {
-            console.error("Failed to fetch surgeries:", error);
+            handleError(error, { defaultMessage: "Failed to fetch surgeries." });
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchSurgeries();
-    }, [page, searchQuery]);
+        if (tenant?.id) {
+            fetchSurgeries();
+        }
+    }, [tenant?.id, page, searchQuery]);
 
     const handleCreate = () => {
         setSelectedSurgery(null);
@@ -69,10 +71,14 @@ export default function SurgeriesPage() {
                 await surgeriesApi.create(data as CreateSurgeryRequest);
                 toast.success(`Surgery "${(data as CreateSurgeryRequest).name}" created successfully.`);
             }
+            setIsFormModalOpen(false);
             await fetchSurgeries();
         } catch (error) {
-            // Re-throw so the modal catches it and stays open
-            throw error;
+            handleError(error, {
+                defaultMessage: selectedSurgery
+                    ? "Failed to update surgery."
+                    : "Failed to create surgery.",
+            });
         }
     };
 
@@ -81,6 +87,7 @@ export default function SurgeriesPage() {
             try {
                 await surgeriesApi.delete(selectedSurgery.id);
                 toast.success(`Surgery "${selectedSurgery.name}" deleted successfully.`);
+                setIsDeleteModalOpen(false);
                 await fetchSurgeries();
             } catch (error) {
                 handleError(error, { defaultMessage: "Failed to delete surgery." });
@@ -97,16 +104,28 @@ export default function SurgeriesPage() {
                         Surgeries
                     </h1>
                     <p className="text-sm text-slate-500">
-                        Manage surgical procedures and categories
+                        Manage surgical procedures, applicable anatomy sites, and packages
                     </p>
                 </div>
-                <button
-                    onClick={handleCreate}
-                    className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-sky-500 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
-                >
-                    <Plus className="h-5 w-5" />
-                    Add Surgery
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => fetchSurgeries()}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition-all disabled:opacity-50"
+                        title="Refresh Surgeries"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin text-sky-600" : "text-slate-500"}`} />
+                        <span>Refresh</span>
+                    </button>
+                    <button
+                        onClick={handleCreate}
+                        className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-sky-500 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                    >
+                        <Plus className="h-5 w-5" />
+                        Create Surgery
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -123,12 +142,10 @@ export default function SurgeriesPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-
-                {/* Additional filters can go here */}
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-50">
@@ -176,12 +193,11 @@ export default function SurgeriesPage() {
                                 surgeries.map((surgery) => (
                                     <tr
                                         key={surgery.id}
-                                        className="group hover:bg-sky-50/40 transition-colors cursor-pointer"
-                                        onClick={() => handleEdit(surgery)}
+                                        className="group hover:bg-sky-50/40 transition-colors"
                                     >
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-semibold text-slate-900 group-hover:text-sky-700 transition-colors">{surgery.name}</span>
+                                                <span className="font-semibold text-slate-900">{surgery.name}</span>
                                                 {surgery.description && (
                                                     <span className="text-xs text-slate-500 truncate max-w-xs">{surgery.description}</span>
                                                 )}
@@ -249,22 +265,26 @@ export default function SurgeriesPage() {
                                             className="whitespace-nowrap px-6 py-4 text-right"
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-end gap-1.5">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleEdit(surgery); }}
                                                     title="Edit Surgery"
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-2xs hover:bg-sky-50 hover:border-sky-300 hover:text-sky-700 transition-all"
+                                                    className="group/btn relative inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 transition-all duration-200"
                                                 >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                    Edit
+                                                    <Pencil className="h-3.5 w-3.5 text-slate-500 group-hover/btn:text-sky-600 shrink-0 transition-colors" />
+                                                    <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 group-hover/btn:max-w-xs group-hover/btn:opacity-100 transition-all duration-300 ease-in-out">
+                                                        Edit
+                                                    </span>
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteClick(surgery); }}
                                                     title="Delete Surgery"
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-500 shadow-2xs hover:bg-red-50 hover:border-red-300 transition-all"
+                                                    className="group/btn relative inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-600 shadow-2xs hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 transition-all duration-200"
                                                 >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Delete
+                                                    <Trash2 className="h-3.5 w-3.5 text-slate-400 group-hover/btn:text-rose-600 shrink-0 transition-colors" />
+                                                    <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 group-hover/btn:max-w-xs group-hover/btn:opacity-100 transition-all duration-300 ease-in-out">
+                                                        Delete
+                                                    </span>
                                                 </button>
                                             </div>
                                         </td>
