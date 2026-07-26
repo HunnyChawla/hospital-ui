@@ -15,6 +15,7 @@ import {
   Lock,
   AlertTriangle,
   Info,
+  RefreshCw,
 } from "lucide-react";
 import { AnatomySite } from "@/types";
 import { anatomySitesApi } from "@/services/anatomySitesApi";
@@ -208,12 +209,24 @@ export function AnatomySitesManagement() {
           </p>
         </div>
 
-        <button
-          onClick={() => handleOpenModal()}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-sky-700 transition cursor-pointer"
-        >
-          <Plus className="h-4 w-4" /> Add Custom Anatomy Site
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchSites()}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
+            title="Refresh Anatomy Sites"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 text-slate-600 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+
+          <button
+            onClick={() => handleOpenModal()}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-sky-700 transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" /> Add Custom Anatomy Site
+          </button>
+        </div>
       </div>
 
       {/* Scope Info Banner */}
