@@ -19,6 +19,8 @@ interface PlannedSurgeryFormModalProps {
     onClose: () => void;
     onSuccess: () => void;
     initialData?: PlannedSurgery | null;
+    preSelectedPatientId?: string;
+    preSelectedPatientName?: string;
 }
 
 export function PlannedSurgeryFormModal({
@@ -26,6 +28,8 @@ export function PlannedSurgeryFormModal({
     onClose,
     onSuccess,
     initialData,
+    preSelectedPatientId,
+    preSelectedPatientName,
 }: PlannedSurgeryFormModalProps) {
     const doctors = useAppSelector((s) => s.doctors.list);
     const isEditing = !!initialData;
