@@ -27,6 +27,10 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
 import { paymentsApi } from "@/services/paymentsApi";
+import { PlannedSurgery } from "@/types";
+import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
+import { PlannedSurgeryFormModal } from "@/components/planned-surgeries/PlannedSurgeryFormModal";
+import { SurgeryAdviceDrawer } from "@/components/counsellor/SurgeryAdviceDrawer";
 import {
   ArrowLeft,
   CreditCard,
@@ -50,6 +54,10 @@ import {
   Edit2,
   MapPin,
   FileText,
+  Sparkles,
+  Loader2,
+  Pencil,
+  Syringe,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -65,8 +73,45 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const doctors = useAppSelector((s) => s.doctors.list);
 
   const [activeTab, setActiveTab] = useState<
-    "opd" | "appointment" | "admit" | "billing" | "tests"
+    "opd" | "appointment" | "admit" | "billing" | "tests" | "surgeries"
   >("appointment");
+
+  // Surgeries tab state
+  const [surgeries, setSurgeries] = useState<PlannedSurgery[]>([]);
+  const [surgeriesLoading, setSurgeriesLoading] = useState(false);
+  const [surgeriesPage, setSurgeriesPage] = useState(1);
+  const [surgeriesTotalPages, setSurgeriesTotalPages] = useState(1);
+  const [surgeriesPageSize] = useState(5);
+  const [showPlannedSurgeryModal, setShowPlannedSurgeryModal] = useState(false);
+  const [selectedPlannedSurgeryForModal, setSelectedPlannedSurgeryForModal] = useState<PlannedSurgery | null>(null);
+  const [drawerSurgery, setDrawerSurgery] = useState<PlannedSurgery | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const fetchPatientSurgeries = useCallback(async () => {
+    if (!patientId) return;
+    setSurgeriesLoading(true);
+    try {
+      const res = await plannedSurgeriesApi.list({
+        patient_id: patientId,
+        page: surgeriesPage,
+        page_size: surgeriesPageSize,
+        sort_by: "advised_date",
+      });
+      setSurgeries(res.items);
+      setSurgeriesTotalPages(res.total_pages);
+    } catch (error) {
+      console.error("Failed to fetch patient planned surgeries:", error);
+      setSurgeries([]);
+    } finally {
+      setSurgeriesLoading(false);
+    }
+  }, [patientId, surgeriesPage, surgeriesPageSize]);
+
+  useEffect(() => {
+    if (activeTab === "surgeries") {
+      fetchPatientSurgeries();
+    }
+  }, [activeTab, fetchPatientSurgeries]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
@@ -949,6 +994,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 { id: "admit", label: "Admit/Discharge", icon: BedDouble },
                 { id: "billing", label: "Billing", icon: CreditCard },
                 { id: "tests", label: "Tests", icon: TestTube },
+                { id: "surgeries", label: "Surgeries", icon: Sparkles },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1767,6 +1813,222 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   )}
                 </div>
               )}
+
+              {activeTab === "surgeries" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-sky-600" /> Planned & Advised Surgeries
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        View surgical advice, package pricing, advance deposits, and receipts
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedPlannedSurgeryForModal(null);
+                        setShowPlannedSurgeryModal(true);
+                      }}
+                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4" /> Plan New Surgery
+                    </button>
+                  </div>
+
+                  {surgeriesLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+                        <Loader2 className="h-5 w-5 animate-spin text-sky-600" /> Loading surgery records...
+                      </div>
+                    </div>
+                  ) : surgeries.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-2xs">
+                      <Sparkles className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                      <p className="text-sm font-semibold text-slate-900">No Surgeries Planned</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                        No surgical procedures have been advised or planned for this patient yet.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setSelectedPlannedSurgeryForModal(null);
+                          setShowPlannedSurgeryModal(true);
+                        }}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-sky-50 border border-sky-200 px-4 py-2 text-xs font-bold text-sky-700 hover:bg-sky-100 transition shadow-2xs cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Plan First Surgery
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        {surgeries.map((surg) => {
+                          const statusStyle = (() => {
+                            switch (surg.status) {
+                              case "confirmed":
+                              case "scheduled":
+                                return { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-200" };
+                              case "completed":
+                              case "surgery_completed":
+                                return { bg: "bg-teal-50", text: "text-teal-800", border: "border-teal-200" };
+                              case "counselling_in_progress":
+                                return { bg: "bg-sky-50", text: "text-sky-800", border: "border-sky-200" };
+                              case "postponed":
+                                return { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200" };
+                              case "cancelled":
+                              case "cancelled_by_patient":
+                              case "cancelled_by_hospital":
+                                return { bg: "bg-rose-50", text: "text-rose-800", border: "border-rose-200" };
+                              default:
+                                return { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
+                            }
+                          })();
+
+                          const eyeLabel = surg.eye === "OD" ? "Right Eye (OD)" : surg.eye === "OS" ? "Left Eye (OS)" : surg.eye === "OU" ? "Both Eyes (OU)" : surg.eye || "General";
+                          const eyeBadgeColor = surg.eye === "OD" ? "bg-blue-50 text-blue-800 border-blue-200" : surg.eye === "OS" ? "bg-purple-50 text-purple-800 border-purple-200" : surg.eye === "OU" ? "bg-amber-50 text-amber-900 border-amber-300" : "bg-slate-50 text-slate-700 border-slate-200";
+
+                          return (
+                            <div
+                              key={surg.id}
+                              className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm hover:border-sky-200 transition-colors"
+                            >
+                              {/* Header */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="h-9 w-9 rounded-xl bg-sky-100 flex items-center justify-center text-sky-700 font-bold shrink-0">
+                                    <Sparkles className="h-5 w-5" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                      {surg.surgery_name}
+                                      <span className={`px-2 py-0.5 rounded-full border text-[11px] font-extrabold ${eyeBadgeColor}`}>
+                                        {eyeLabel}
+                                      </span>
+                                    </h4>
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                      <span>Advised: {formatDate(surg.advised_date || surg.created_at)}</span>
+                                      {surg.planned_date && (
+                                        <>
+                                          <span>•</span>
+                                          <span className="font-semibold text-sky-700">Planned OT: {formatDate(surg.planned_date)} {surg.planned_time ? `at ${surg.planned_time.slice(0, 5)}` : ""}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-3 py-1 rounded-full border text-xs font-bold capitalize ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                                    {surg.status.replace(/_/g, " ")}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Details Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50/60 rounded-xl p-3 border border-slate-100">
+                                <div>
+                                  <span className="text-slate-400 font-medium block">Surgeon & Counsellor</span>
+                                  <span className="font-semibold text-slate-800 flex items-center gap-1 mt-0.5">
+                                    <Stethoscope className="h-3.5 w-3.5 text-sky-600" />
+                                    {surg.surgeon_name || "Assigned Doctor"}
+                                  </span>
+                                  {surg.counsellor_name && (
+                                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                                      Counsellor: {surg.counsellor_name}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <span className="text-slate-400 font-medium block">Package Selected</span>
+                                  <span className="font-semibold text-slate-900 block mt-0.5">
+                                    {surg.package_name || "Standard Procedure"}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 block">
+                                    Urgency: <span className="capitalize font-medium">{surg.urgency}</span>
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <span className="text-slate-400 font-medium block">Financial & Agreed Rate</span>
+                                  <span className="font-bold text-emerald-700 text-sm block mt-0.5">
+                                    {surg.agreed_price ? currency(surg.agreed_price) : "Package Rate Pending"}
+                                  </span>
+                                  {surg.confirmed_at && (
+                                    <span className="text-[10px] text-emerald-600 font-medium block">
+                                      ✓ Confirmed on {formatDate(surg.confirmed_at)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <div className="flex items-center gap-2">
+                                  {surg.notes && (
+                                    <p className="text-xs text-slate-500 italic max-w-md truncate" title={surg.notes}>
+                                      Notes: &quot;{surg.notes}&quot;
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2 ml-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedPlannedSurgeryForModal(surg);
+                                      setShowPlannedSurgeryModal(true);
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5 text-slate-500" /> Edit Advice
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDrawerSurgery(surg);
+                                      setIsDrawerOpen(true);
+                                    }}
+                                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <Sparkles className="h-3.5 w-3.5" /> View Details, Invoice & Advance
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Pagination */}
+                      {surgeriesTotalPages > 1 && (
+                        <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                          <div className="text-sm text-slate-500">
+                            Page {surgeriesPage} of {surgeriesTotalPages}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setSurgeriesPage((p) => Math.max(1, p - 1))}
+                              disabled={surgeriesPage === 1}
+                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <ChevronLeft className="h-4 w-4" /> Previous
+                            </button>
+                            <button
+                              onClick={() => setSurgeriesPage((p) => Math.min(surgeriesTotalPages, p + 1))}
+                              disabled={surgeriesPage === surgeriesTotalPages}
+                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Next <ChevronRight className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2019,6 +2281,24 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           patientId={patientId}
         />
       )}
+
+      {/* Surgery Advice Drawer */}
+      <SurgeryAdviceDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        plannedSurgery={drawerSurgery}
+        onRefresh={fetchPatientSurgeries}
+      />
+
+      {/* Planned Surgery Form Modal */}
+      <PlannedSurgeryFormModal
+        isOpen={showPlannedSurgeryModal}
+        onClose={() => setShowPlannedSurgeryModal(false)}
+        onSuccess={fetchPatientSurgeries}
+        initialData={selectedPlannedSurgeryForModal}
+        preSelectedPatientId={patientId}
+        preSelectedPatientName={patient ? formatPatientName(patient) : undefined}
+      />
     </div>
   );
 }
