@@ -28,6 +28,7 @@ export function SurgeryPackagesModal({
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [price, setPrice] = useState<string>("0");
+    const [ouPrice, setOuPrice] = useState<string>("");
     const [isActive, setIsActive] = useState(true);
     const [sortOrder, setSortOrder] = useState<number>(0);
     const [isSaving, setIsSaving] = useState(false);
@@ -56,6 +57,7 @@ export function SurgeryPackagesModal({
         setName("");
         setDescription("");
         setPrice("0");
+        setOuPrice("");
         setIsActive(true);
         setSortOrder(packages.length);
         setIsEditing(false);
@@ -67,6 +69,7 @@ export function SurgeryPackagesModal({
         setName(pkg.name);
         setDescription(pkg.description || "");
         setPrice(pkg.price.toString());
+        setOuPrice(pkg.ou_price !== undefined && pkg.ou_price !== null ? pkg.ou_price.toString() : "");
         setIsActive(pkg.is_active);
         setSortOrder(pkg.sort_order);
         setIsEditing(true);
@@ -82,6 +85,12 @@ export function SurgeryPackagesModal({
             return;
         }
 
+        const numOuPrice = parseFloat(ouPrice);
+        if (isNaN(numOuPrice) || numOuPrice < 0) {
+            toast.error("Please enter a valid price for both eyes (OU)");
+            return;
+        }
+
         try {
             setIsSaving(true);
             if (isEditing && editingPackage) {
@@ -89,6 +98,7 @@ export function SurgeryPackagesModal({
                     name,
                     description: description || null,
                     price: numPrice,
+                    ou_price: numOuPrice,
                     is_active: isActive,
                     sort_order: Number(sortOrder),
                 };
@@ -99,6 +109,7 @@ export function SurgeryPackagesModal({
                     name,
                     description: description || null,
                     price: numPrice,
+                    ou_price: numOuPrice,
                     is_active: isActive,
                     sort_order: Number(sortOrder),
                 };
@@ -212,9 +223,9 @@ export function SurgeryPackagesModal({
                                                 />
                                             </div>
 
-                                            <div>
+                                             <div>
                                                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                                                    Price (₹) <span className="text-rose-500">*</span>
+                                                    Package Price (Single Eye) (₹) <span className="text-rose-500">*</span>
                                                 </label>
                                                 <div className="relative">
                                                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs font-medium">₹</span>
@@ -225,6 +236,25 @@ export function SurgeryPackagesModal({
                                                         step="1"
                                                         value={price}
                                                         onChange={(e) => setPrice(e.target.value)}
+                                                        className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                             <div>
+                                                <label className="block text-xs font-medium text-slate-700 mb-1">
+                                                    Both Eyes (OU) Package Price (₹) <span className="text-rose-500">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs font-medium">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        required
+                                                        min="0"
+                                                        step="1"
+                                                        placeholder="e.g. 50000"
+                                                        value={ouPrice}
+                                                        onChange={(e) => setOuPrice(e.target.value)}
                                                         className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                                     />
                                                 </div>
@@ -334,9 +364,14 @@ export function SurgeryPackagesModal({
                                                         </div>
 
                                                         <div className="flex items-center gap-4">
-                                                            <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">
-                                                                ₹{pkg.price.toLocaleString("en-IN")}
-                                                            </span>
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                                                                    Single Eye: ₹{pkg.price.toLocaleString("en-IN")}
+                                                                </span>
+                                                                <span className="text-xs font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md">
+                                                                    Both Eyes (OU): ₹{(pkg.ou_price ?? pkg.price * 2).toLocaleString("en-IN")}
+                                                                </span>
+                                                            </div>
                                                             <div className="flex items-center gap-1">
                                                                 <button
                                                                     type="button"

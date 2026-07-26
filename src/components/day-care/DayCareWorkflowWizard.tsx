@@ -479,10 +479,13 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         price = 25000;
       }
 
-      // Apply OU multiplier if both eyes are selected
-      if (visit.eye === "OU") {
-        const multiplier = visit.ou_price_multiplier || 2.0;
-        price = price * multiplier;
+      // Apply OU price if both eyes are selected and no package price was snapshotted
+      if (visit.eye === "OU" && (!visit.package_price || visit.package_price <= 0)) {
+        if (visit.ou_price && visit.ou_price > 0) {
+          price = visit.ou_price;
+        } else {
+          price = price * 2;
+        }
       }
 
       setInvoiceLineItems([
@@ -493,7 +496,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         }
       ]);
     }
-  }, [visit?.id, visit?.invoice_id, visit?.package_name, visit?.package_price, visit?.eye, availableSurgeries, invoiceLineItems.length]);
+  }, [visit?.id, visit?.invoice_id, visit?.package_name, visit?.package_price, visit?.eye, visit?.ou_price, availableSurgeries, invoiceLineItems.length]);
 
   const handleAddServiceItem = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);

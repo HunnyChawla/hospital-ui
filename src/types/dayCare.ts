@@ -37,7 +37,7 @@ export interface DayCareVisit {
   package_name?: string | null;
   package_price?: number | null;
   eye?: string | null;
-  ou_price_multiplier?: number | null;
+  ou_price?: number | null;
   visit_date: string;
   status: DayCareStatus;
   check_in_at: string | null;

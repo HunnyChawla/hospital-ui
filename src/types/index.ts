@@ -580,7 +580,7 @@ export type Surgery = {
   service_id?: string;
   is_active: boolean;
   is_eye_surgery?: boolean;
-  ou_price_multiplier?: number;
+  ou_price?: number | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -594,7 +594,7 @@ export type CreateSurgeryRequest = {
   price?: number;
   is_active?: boolean;
   is_eye_surgery?: boolean;
-  ou_price_multiplier?: number;
+  ou_price?: number | null;
 };
 
 export type UpdateSurgeryRequest = {
@@ -604,7 +604,7 @@ export type UpdateSurgeryRequest = {
   price?: number | null;
   is_active?: boolean | null;
   is_eye_surgery?: boolean;
-  ou_price_multiplier?: number;
+  ou_price?: number | null;
 };
 
 export type SurgeryPackage = {
@@ -615,6 +615,7 @@ export type SurgeryPackage = {
   name: string;
   description: string | null;
   price: number;
+  ou_price?: number | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -627,6 +628,7 @@ export type CreateSurgeryPackageRequest = {
   name: string;
   description?: string | null;
   price: number;
+  ou_price?: number | null;
   is_active?: boolean;
   sort_order?: number;
 };
@@ -635,6 +637,7 @@ export type UpdateSurgeryPackageRequest = {
   name?: string;
   description?: string | null;
   price?: number;
+  ou_price?: number | null;
   is_active?: boolean;
   sort_order?: number;
 };

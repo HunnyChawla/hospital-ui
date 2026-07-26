@@ -349,7 +349,10 @@ export function PlannedSurgeryFormModal({
     };
 
     const isEyeSurgery = selectedSurgery?.is_eye_surgery ?? true;
-    const ouMultiplier = selectedSurgery?.ou_price_multiplier ?? 1.0;
+    const selectedPkg = packages.find((p) => p.id === selectedPackageId);
+    const calculatedOuPrice = selectedPkg
+        ? (selectedPkg.ou_price ?? selectedPkg.price * 2)
+        : 0;
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
@@ -512,7 +515,7 @@ export function PlannedSurgeryFormModal({
                                             {eye === "OU" && (
                                                 <div className="mt-2 space-y-2 rounded-lg bg-sky-50 border border-sky-200 p-3 text-xs text-sky-800">
                                                     <p className="font-medium flex items-center gap-1">
-                                                        ℹ️ Both eyes (OU) selected — total price will apply with ×{ouMultiplier} multiplier at invoice time.
+                                                        ℹ️ Both eyes (OU) selected — total price will be {calculatedOuPrice > 0 ? `₹${calculatedOuPrice.toLocaleString("en-IN")}` : "calculated"} at invoice time.
                                                     </p>
                                                     {!isEditing && (
                                                         <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer pt-1 border-t border-sky-200/60">
@@ -563,6 +566,11 @@ export function PlannedSurgeryFormModal({
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                                                     {packages.map((pkg) => {
                                                         const isSelected = selectedPackageId === pkg.id;
+                                                        const isOu = eye === "OU";
+                                                        const activePrice = isOu ? (pkg.ou_price ?? pkg.price * 2) : pkg.price;
+                                                        const altPrice = isOu ? pkg.price : (pkg.ou_price ?? pkg.price * 2);
+                                                        const altLabel = isOu ? "Single Eye" : "Both Eyes (OU)";
+
                                                         return (
                                                             <button
                                                                 key={pkg.id}
@@ -578,20 +586,30 @@ export function PlannedSurgeryFormModal({
                                                                     <span className="font-semibold text-sm text-slate-900">
                                                                         {pkg.name}
                                                                     </span>
-                                                                    <span className="text-sm font-bold text-sky-700 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                                                        ₹{pkg.price.toLocaleString("en-IN")}
-                                                                    </span>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="text-sm font-extrabold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded-md border border-sky-200">
+                                                                            ₹{activePrice.toLocaleString("en-IN")}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                                                            {isOu ? "Both Eyes (OU)" : "Single Eye"}
+                                                                        </span>
+                                                                    </div>
                                                                 </div>
                                                                 {pkg.description && (
-                                                                    <p className="text-xs text-slate-500 line-clamp-2">
+                                                                    <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
                                                                         {pkg.description}
                                                                     </p>
                                                                 )}
-                                                                {isSelected && (
-                                                                    <div className="mt-2 text-[11px] font-semibold text-sky-700 flex items-center gap-1">
-                                                                        <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" /> Selected
-                                                                    </div>
-                                                                )}
+                                                                <div className="mt-2.5 flex items-center justify-between w-full pt-2 border-t border-slate-100 text-[11px]">
+                                                                    <span className="text-slate-400">
+                                                                        {altLabel}: ₹{altPrice.toLocaleString("en-IN")}
+                                                                    </span>
+                                                                    {isSelected && (
+                                                                        <span className="font-semibold text-sky-700 flex items-center gap-1">
+                                                                            <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" /> Selected
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </button>
                                                         );
                                                     })}
@@ -809,6 +827,30 @@ export function PlannedSurgeryFormModal({
                                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
                                                     />
                                                 </div>
+                                                {selectedPkg && (
+                                                    <div className="rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50/70 via-slate-50 to-teal-50/70 p-3.5 mt-3">
+                                                        <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200/80">
+                                                            <div className="pr-1">
+                                                                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Package Total</span>
+                                                                <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
+                                                                    ₹{(eye === "OU" ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price).toLocaleString("en-IN")}
+                                                                </span>
+                                                            </div>
+                                                            <div className="px-1">
+                                                                <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">Advance Amount</span>
+                                                                <span className="text-sm font-extrabold text-emerald-700 block mt-0.5">
+                                                                    ₹{(advanceAmount ? parseFloat(advanceAmount) : 0).toLocaleString("en-IN")}
+                                                                </span>
+                                                            </div>
+                                                            <div className="pl-1">
+                                                                <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider block">Balance Due</span>
+                                                                <span className="text-sm font-extrabold text-amber-700 block mt-0.5">
+                                                                    ₹{Math.max(0, (eye === "OU" ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price) - (advanceAmount ? parseFloat(advanceAmount) : 0)).toLocaleString("en-IN")}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}
