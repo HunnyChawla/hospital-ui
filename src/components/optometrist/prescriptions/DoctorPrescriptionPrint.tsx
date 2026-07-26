@@ -108,13 +108,25 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 {visitData?.complaints && visitData.complaints.length > 0 ? (
                                     <ul className="list-none m-0 p-0">
                                         {visitData.complaints.map((c, idx) => (
-                                            <li key={idx}>
-                                                Both Eye: {c.complaint} {c.duration ? `[${c.duration}]` : ""}
+                                            <li key={idx} className="font-medium text-slate-900">
+                                                {c.complaint} {c.severity ? `[${c.severity}]` : ""} {c.duration ? `— ${c.duration}` : ""} {c.notes ? `(${c.notes})` : ""}
                                             </li>
                                         ))}
                                     </ul>
                                 ) : (
                                     <span>-</span>
+                                )}
+                                {visitData?.medical_conditions && visitData.medical_conditions.length > 0 && (
+                                    <div className="mt-1 pt-1 border-t border-slate-200/80 text-[11px] text-slate-700">
+                                        <span className="font-bold text-slate-900">Systemic Medical History: </span>
+                                        {visitData.medical_conditions.map(m => `${m.condition_name}${m.duration ? ` (${m.duration})` : ""}${m.remarks ? ` [${m.remarks}]` : ""}`).join("; ")}
+                                    </div>
+                                )}
+                                {visitData?.ophthalmic_history && visitData.ophthalmic_history.length > 0 && (
+                                    <div className="mt-1 text-[11px] text-slate-700">
+                                        <span className="font-bold text-slate-900">Past Ocular History: </span>
+                                        {visitData.ophthalmic_history.map(h => `${h.surgery_name} (${h.eye})${h.surgery_date ? ` on ${h.surgery_date}` : ""}`).join("; ")}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -530,7 +542,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         </div>
                     ) : null;
                 case "Advice":
-                    return (prescription.advice_items?.some(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action) ? (
+                    return (prescription.advice_items?.some(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action || prescription.remarks || prescription.notes) ? (
                         <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
@@ -540,13 +552,17 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                     Advice
                                 </span>
                             </div>
-                            <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
+                            <div className={`${sectionFontClass} font-medium text-xs text-left space-y-1`}>
                                 {[
                                     ...(prescription.plan_of_action ? [prescription.plan_of_action] : []),
                                     ...((prescription.advice_items || [])
                                         .filter(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test")
-                                        .map(a => a.description))
-                                ].join(", ")}
+                                        .map(a => a.description)),
+                                    ...(prescription.remarks ? [`Remarks: ${prescription.remarks}`] : []),
+                                    ...(prescription.notes ? [`Notes: ${prescription.notes}`] : [])
+                                ].map((item, idx) => (
+                                    <div key={idx} className="uppercase font-medium">{item}</div>
+                                ))}
                             </div>
                         </div>
                     ) : null;
