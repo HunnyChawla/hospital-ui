@@ -39,6 +39,7 @@ interface PackageItemInput {
   description: string;
   price: string;
   bilateral_price: string;
+  anatomy_prices?: Record<string, { price: string; bilateral_price: string }>;
   is_default: boolean;
 }
 
@@ -68,6 +69,7 @@ export function SurgeryFormModal({
       description: "Standard surgical procedure package including post-op medication.",
       price: "25000",
       bilateral_price: "45000",
+      anatomy_prices: {},
       is_default: true,
     },
   ]);
@@ -106,6 +108,31 @@ export function SurgeryFormModal({
       setIsAnatomySpecific(initialData.is_anatomy_specific ?? true);
       setDefaultAnatomySiteId(initialData.default_anatomy_site_id || "");
       setSelectedSiteIds(initialData.applicable_anatomy_site_ids || []);
+
+      if (initialData.packages && initialData.packages.length > 0) {
+        setPackages(
+          initialData.packages.map((pkg) => {
+            const strAnatomyPrices: Record<string, { price: string; bilateral_price: string }> = {};
+            if (pkg.anatomy_prices) {
+              Object.entries(pkg.anatomy_prices).forEach(([siteId, vals]) => {
+                strAnatomyPrices[siteId] = {
+                  price: vals.price ? vals.price.toString() : "",
+                  bilateral_price: vals.bilateral_price ? vals.bilateral_price.toString() : "",
+                };
+              });
+            }
+            return {
+              id: pkg.id,
+              name: pkg.name,
+              description: pkg.description || "",
+              price: pkg.price ? pkg.price.toString() : "0",
+              bilateral_price: pkg.bilateral_price ? pkg.bilateral_price.toString() : "0",
+              anatomy_prices: strAnatomyPrices,
+              is_default: pkg.is_default,
+            };
+          })
+        );
+      }
     } else if (!initialData && isOpen) {
       setName("");
       setSelectedCategories(["Ophthalmology"]);
@@ -121,6 +148,7 @@ export function SurgeryFormModal({
           description: "Standard surgical procedure package including post-op medication.",
           price: "25000",
           bilateral_price: "45000",
+          anatomy_prices: {},
           is_default: true,
         },
       ]);
@@ -195,6 +223,34 @@ export function SurgeryFormModal({
     );
   };
 
+  const handleUpdatePackageAnatomyPrice = (
+    pkgIdx: number,
+    siteId: string,
+    field: "price" | "bilateral_price",
+    val: string
+  ) => {
+    setPackages((prev) =>
+      prev.map((pkg, i) => {
+        if (i !== pkgIdx) return pkg;
+        const currentAnatomyPrices = pkg.anatomy_prices || {};
+        const currentSitePrices = currentAnatomyPrices[siteId] || {
+          price: "",
+          bilateral_price: "",
+        };
+        return {
+          ...pkg,
+          anatomy_prices: {
+            ...currentAnatomyPrices,
+            [siteId]: {
+              ...currentSitePrices,
+              [field]: val,
+            },
+          },
+        };
+      })
+    );
+  };
+
   const toggleAnatomySite = (siteId: string) => {
     setSelectedSiteIds((prev) =>
       prev.includes(siteId)
@@ -222,15 +278,29 @@ export function SurgeryFormModal({
     const bilateralPriceNum =
       parseFloat(defaultPkg.bilateral_price) || basePriceNum * 2;
 
-    const payloadPackages = packages.map((pkg) => ({
-      id: pkg.id,
-      name: pkg.name.trim() || "Standard Package",
-      description: pkg.description.trim() || undefined,
-      price: parseFloat(pkg.price) || 0,
-      bilateral_price:
-        parseFloat(pkg.bilateral_price) || (parseFloat(pkg.price) || 0) * 2,
-      is_default: pkg.is_default,
-    }));
+    const payloadPackages = packages.map((pkg) => {
+      const formattedAnatomyPrices: Record<string, { price: number; bilateral_price?: number }> = {};
+      if (pkg.anatomy_prices) {
+        Object.entries(pkg.anatomy_prices).forEach(([siteId, vals]) => {
+          if (vals.price || vals.bilateral_price) {
+            formattedAnatomyPrices[siteId] = {
+              price: parseFloat(vals.price) || parseFloat(pkg.price) || 0,
+              bilateral_price: parseFloat(vals.bilateral_price) || parseFloat(pkg.bilateral_price) || (parseFloat(pkg.price) || 0) * 2,
+            };
+          }
+        });
+      }
+      return {
+        id: pkg.id,
+        name: pkg.name.trim() || "Standard Package",
+        description: pkg.description.trim() || undefined,
+        price: parseFloat(pkg.price) || 0,
+        bilateral_price:
+          parseFloat(pkg.bilateral_price) || (parseFloat(pkg.price) || 0) * 2,
+        anatomy_prices: formattedAnatomyPrices,
+        is_default: pkg.is_default,
+      };
+    });
 
     try {
       setIsSubmitting(true);
@@ -654,6 +724,72 @@ export function SurgeryFormModal({
                             placeholder="Package inclusions (e.g., Includes IOL lens, 3 follow-ups)..."
                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 outline-none focus:border-sky-400"
                           />
+
+                          {/* Anatomy Site Specific Pricing Overrides */}
+                          {isAnatomySpecific && selectedSiteIds.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                  <MapPin className="h-3.5 w-3.5 text-sky-600" />
+                                  Anatomy Location Pricing ({selectedSiteIds.length} sites selected)
+                                </span>
+                                <span className="text-[10px] text-slate-500">
+                                  Custom rate per anatomy location (Optional)
+                                </span>
+                              </div>
+
+                              <div className="space-y-2 bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80">
+                                {selectedSiteIds.map((siteId) => {
+                                  const site = anatomySites.find((a) => a.id === siteId);
+                                  if (!site) return null;
+                                  const sitePriceObj = pkg.anatomy_prices?.[siteId] || {
+                                    price: "",
+                                    bilateral_price: "",
+                                  };
+                                  return (
+                                    <div
+                                      key={siteId}
+                                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200 text-xs shadow-2xs"
+                                    >
+                                      <div className="font-semibold text-slate-800 flex items-center gap-1.5 min-w-[140px]">
+                                        <MapPin className="h-3 w-3 text-sky-600 shrink-0" />
+                                        <span>{site.name}</span>
+                                        <span className="font-mono text-[10px] text-slate-500">({site.short_code})</span>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2 flex-1">
+                                        <div>
+                                          <label className="text-[10px] text-slate-500 font-medium block">Single Rate (₹)</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            placeholder={pkg.price || "Base Single"}
+                                            value={sitePriceObj.price}
+                                            onChange={(e) =>
+                                              handleUpdatePackageAnatomyPrice(idx, siteId, "price", e.target.value)
+                                            }
+                                            className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs font-medium outline-none focus:border-sky-400 bg-white"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] text-slate-500 font-medium block">Bilateral Rate (₹)</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            placeholder={pkg.bilateral_price || "Base Bilateral"}
+                                            value={sitePriceObj.bilateral_price}
+                                            onChange={(e) =>
+                                              handleUpdatePackageAnatomyPrice(idx, siteId, "bilateral_price", e.target.value)
+                                            }
+                                            className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs font-medium outline-none focus:border-sky-400 bg-white"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
