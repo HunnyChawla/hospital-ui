@@ -10,19 +10,23 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Sparkles,
   Building2,
+  Globe,
+  Lock,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import { AnatomySite } from "@/types";
 import { anatomySitesApi } from "@/services/anatomySitesApi";
 import { toast } from "sonner";
-import { getErrorMessage } from "@/utils/errorHandler";
+import { getErrorMessage, handleError } from "@/utils/errorHandler";
 
 export function AnatomySitesManagement() {
   const [sites, setSites] = useState<AnatomySite[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("all");
+  const [selectedScope, setSelectedScope] = useState("all"); // "all" | "global" | "custom"
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -39,7 +43,7 @@ export function AnatomySitesManagement() {
       const data = await anatomySitesApi.list();
       setSites(data);
     } catch (err) {
-      toast.error("Failed to load anatomy sites");
+      handleError(err, { defaultMessage: "Failed to load anatomy sites", logError: true });
     } finally {
       setLoading(false);
     }
@@ -49,8 +53,18 @@ export function AnatomySitesManagement() {
     fetchSites();
   }, []);
 
+  const isGlobalSite = (site: AnatomySite) => {
+    return site.is_global === true || site.tenant_id === null || site.tenant_id === undefined;
+  };
+
   const handleOpenModal = (site?: AnatomySite) => {
     if (site) {
+      if (isGlobalSite(site)) {
+        toast.error("Global anatomy sites cannot be modified.", {
+          description: "Global system records are standard across all tenants. You can create custom anatomy sites for specific needs.",
+        });
+        return;
+      }
       setEditingSite(site);
       setName(site.name);
       setShortCode(site.short_code);
@@ -76,6 +90,11 @@ export function AnatomySitesManagement() {
     setSaving(true);
     try {
       if (editingSite) {
+        if (isGlobalSite(editingSite)) {
+          toast.error("Global anatomy sites are standard system records and cannot be edited.");
+          setSaving(false);
+          return;
+        }
         await anatomySitesApi.update(editingSite.id, {
           name: name.trim(),
           short_code: shortCode.trim().toUpperCase(),
@@ -90,18 +109,25 @@ export function AnatomySitesManagement() {
           department: department.trim(),
           sort_order: Number(sortOrder),
         });
-        toast.success("Anatomy site created successfully!");
+        toast.success("Custom anatomy site created successfully!");
       }
       setModalOpen(false);
       fetchSites();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      const errMsg = getErrorMessage(err);
+      toast.error(errMsg || "Failed to save anatomy site");
     } finally {
       setSaving(false);
     }
   };
 
   const handleToggleActive = async (site: AnatomySite) => {
+    if (isGlobalSite(site)) {
+      toast.error("Global anatomy sites cannot be deactivated.", {
+        description: "Global system records are active system wide. Create custom anatomy sites for tenant level changes.",
+      });
+      return;
+    }
     try {
       await anatomySitesApi.update(site.id, { is_active: !site.is_active });
       toast.success(
@@ -109,7 +135,30 @@ export function AnatomySitesManagement() {
       );
       fetchSites();
     } catch (err) {
-      toast.error("Failed to update status");
+      const errMsg = getErrorMessage(err);
+      toast.error(errMsg || "Failed to update status");
+    }
+  };
+
+  const handleDelete = async (site: AnatomySite) => {
+    if (isGlobalSite(site)) {
+      toast.error("Global anatomy sites cannot be deleted.", {
+        description: "Standard system anatomy sites (OD, OS, OU, etc.) are protected system records.",
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete custom anatomy site "${site.name}"?`)) {
+      return;
+    }
+
+    try {
+      await anatomySitesApi.deactivate(site.id);
+      toast.success(`Custom anatomy site "${site.name}" deleted successfully.`);
+      fetchSites();
+    } catch (err) {
+      const errMsg = getErrorMessage(err);
+      toast.error(errMsg || "Failed to delete anatomy site");
     }
   };
 
@@ -123,8 +172,17 @@ export function AnatomySitesManagement() {
     if (selectedDept !== "all" && site.department !== selectedDept) {
       return false;
     }
+    if (selectedScope === "global" && !isGlobalSite(site)) {
+      return false;
+    }
+    if (selectedScope === "custom" && isGlobalSite(site)) {
+      return false;
+    }
     return true;
   });
+
+  const globalCount = sites.filter(isGlobalSite).length;
+  const customCount = sites.length - globalCount;
 
   return (
     <div className="w-full space-y-4 pb-12">
@@ -136,16 +194,43 @@ export function AnatomySitesManagement() {
             Anatomy Sites Master
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage global surgical anatomy sites, eye laterality (OD, OS, OU), and anatomical regions.
+            Manage global system anatomy sites (OD, OS, OU) and tenant-custom surgical locations.
           </p>
         </div>
 
         <button
           onClick={() => handleOpenModal()}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-sky-700 transition"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-sky-700 transition cursor-pointer"
         >
-          <Plus className="h-4 w-4" /> Add Anatomy Site
+          <Plus className="h-4 w-4" /> Add Custom Anatomy Site
         </button>
+      </div>
+
+      {/* Scope Info Banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-50/70 border border-purple-200 text-purple-900 text-xs">
+          <div className="p-2 rounded-lg bg-purple-100 text-purple-700 shrink-0">
+            <Globe className="h-4 w-4" />
+          </div>
+          <div>
+            <span className="font-bold text-purple-950">Global (System) Sites ({globalCount})</span>
+            <p className="text-[11px] text-purple-800 mt-0.5">
+              Standard pre-configured anatomical sites (OD, OS, OU, etc.) shared across all hospital tenants. Protected against deletion.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-sky-50/70 border border-sky-200 text-sky-900 text-xs">
+          <div className="p-2 rounded-lg bg-sky-100 text-sky-700 shrink-0">
+            <Building2 className="h-4 w-4" />
+          </div>
+          <div>
+            <span className="font-bold text-sky-950">Tenant Custom Sites ({customCount})</span>
+            <p className="text-[11px] text-sky-800 mt-0.5">
+              Hospital-specific anatomical locations created by your organization. Can be edited and managed by admins.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Toolbar Filters */}
@@ -161,16 +246,28 @@ export function AnatomySitesManagement() {
           />
         </div>
 
-        <select
-          value={selectedDept}
-          onChange={(e) => setSelectedDept(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium outline-none focus:border-sky-400"
-        >
-          <option value="all">All Departments</option>
-          <option value="Ophthalmology">Ophthalmology</option>
-          <option value="Orthopedics">Orthopedics</option>
-          <option value="General Surgery">General Surgery</option>
-        </select>
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={selectedScope}
+            onChange={(e) => setSelectedScope(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-sky-400"
+          >
+            <option value="all">All Record Types ({sites.length})</option>
+            <option value="global">Global (System) Only ({globalCount})</option>
+            <option value="custom">Tenant Custom Only ({customCount})</option>
+          </select>
+
+          <select
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-sky-400"
+          >
+            <option value="all">All Departments</option>
+            <option value="Ophthalmology">Ophthalmology</option>
+            <option value="Orthopedics">Orthopedics</option>
+            <option value="General Surgery">General Surgery</option>
+          </select>
+        </div>
       </div>
 
       {/* Sites Grid / Table */}
@@ -193,6 +290,7 @@ export function AnatomySitesManagement() {
                 <tr>
                   <th className="px-5 py-3">Anatomy Site Name</th>
                   <th className="px-5 py-3">Short Code</th>
+                  <th className="px-5 py-3">Record Scope / Type</th>
                   <th className="px-5 py-3">Department</th>
                   <th className="px-5 py-3">Sort Order</th>
                   <th className="px-5 py-3">Status</th>
@@ -200,55 +298,94 @@ export function AnatomySitesManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredSites.map((site) => (
-                  <tr key={site.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-5 py-3.5 font-bold text-slate-900 text-sm">
-                      {site.name}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono font-semibold text-sky-700">
-                      <span className="bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
-                        {site.short_code}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-slate-600">
-                      {site.department || "General"}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-500 font-mono">
-                      #{site.sort_order || 0}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {site.is_active ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full text-[11px]">
-                          <CheckCircle2 className="h-3 w-3" /> Active
+                {filteredSites.map((site) => {
+                  const global = isGlobalSite(site);
+                  return (
+                    <tr key={site.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-5 py-3.5 font-bold text-slate-900 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span>{site.name}</span>
+                          {global && (
+                            <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">
+                              System
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 font-mono font-semibold text-sky-700">
+                        <span className="bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                          {site.short_code}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 font-semibold px-2 py-0.5 rounded-full text-[11px]">
-                          <XCircle className="h-3 w-3" /> Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right space-x-2">
-                      <button
-                        onClick={() => handleOpenModal(site)}
-                        className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition"
-                        title="Edit Anatomy Site"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleToggleActive(site)}
-                        className={`p-1.5 rounded-lg transition ${
-                          site.is_active
-                            ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                        }`}
-                        title={site.is_active ? "Deactivate" : "Activate"}
-                      >
-                        {site.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {global ? (
+                          <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                            <Globe className="h-3 w-3 text-purple-600" /> Global (System)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-sky-50 text-sky-700 border border-sky-200 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                            <Building2 className="h-3 w-3 text-sky-600" /> Custom (Tenant)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-slate-600">
+                        {site.department || "General"}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-500 font-mono">
+                        #{site.sort_order || 0}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {site.is_active ? (
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full text-[11px]">
+                            <CheckCircle2 className="h-3 w-3" /> Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 font-semibold px-2 py-0.5 rounded-full text-[11px]">
+                            <XCircle className="h-3 w-3" /> Inactive
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-right space-x-1.5">
+                        {global ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                            title="Global system records are protected and cannot be edited or deleted"
+                          >
+                            <Lock className="h-3 w-3 text-slate-400" /> Protected System Record
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleOpenModal(site)}
+                              className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                              title="Edit Custom Anatomy Site"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleActive(site)}
+                              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                site.is_active
+                                  ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                  : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                              }`}
+                              title={site.is_active ? "Deactivate" : "Activate"}
+                            >
+                              {site.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(site)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              title="Delete Custom Anatomy Site"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -262,11 +399,11 @@ export function AnatomySitesManagement() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-sky-600" />
-                {editingSite ? "Edit Anatomy Site" : "Add Anatomy Site"}
+                {editingSite ? "Edit Custom Anatomy Site" : "Add Tenant Custom Anatomy Site"}
               </h3>
               <button
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition cursor-pointer"
               >
                 <XCircle className="h-5 w-5" />
               </button>
@@ -323,14 +460,14 @@ export function AnatomySitesManagement() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 transition"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 transition cursor-pointer shadow-xs"
                 >
                   {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {editingSite ? "Save Changes" : "Create Site"}
