@@ -558,24 +558,43 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                     <Stethoscope className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
                                 </div>
                                 <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Planned Surgery
+                                    Advised Surgery
                                 </span>
                             </div>
                             <div className={sectionFontClass}>
                                 <ul className="list-disc list-outside ml-4 text-xs text-left">
-                                    {plannedSurgeries.map((surgery, idx) => (
-                                        <li key={idx} className="mb-1">
-                                            <span className="font-medium">{surgery.surgery_name}</span>
-                                            <span className="text-slate-600 ml-1">
-                                                ({surgery.eye}){surgery.planned_date ? ` - Planned on ${formatDate(surgery.planned_date)}` : surgery.advised_date ? ` - Advised on ${formatDate(surgery.advised_date)}` : ""}
-                                            </span>
-                                            {surgery.notes && (
-                                                <div className="text-xs text-slate-500 mt-0.5 italic">
-                                                    Note: {surgery.notes}
-                                                </div>
-                                            )}
-                                        </li>
-                                    ))}
+                                    {plannedSurgeries.map((surgery: any, idx: number) => {
+                                        const locationStr = surgery.anatomy_site_name
+                                            ? `${surgery.anatomy_site_name} (${surgery.anatomy_site_short_code || surgery.eye})`
+                                            : surgery.eye;
+                                        return (
+                                            <li key={idx} className="mb-1">
+                                                <span className="font-bold text-slate-900">{surgery.surgery_name}</span>
+                                                <span className="text-slate-700 font-medium ml-1">
+                                                    — {locationStr}
+                                                </span>
+                                                {surgery.planned_date ? (
+                                                    <span className="text-slate-600 ml-1">
+                                                        (Planned: {formatDate(surgery.planned_date)})
+                                                    </span>
+                                                ) : surgery.advised_date ? (
+                                                    <span className="text-slate-500 ml-1">
+                                                        (Advised: {formatDate(surgery.advised_date)})
+                                                    </span>
+                                                ) : null}
+                                                {surgery.urgency && surgery.urgency !== "elective" && (
+                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
+                                                        {surgery.urgency}
+                                                    </span>
+                                                )}
+                                                {surgery.notes && (
+                                                    <div className="text-xs text-slate-500 mt-0.5 italic">
+                                                        Note: {surgery.notes}
+                                                    </div>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </div>
                         </div>

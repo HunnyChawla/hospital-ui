@@ -278,13 +278,23 @@ export function PrescriptionFormSection({
         }
     };
 
+    const refreshPlannedSurgeries = async () => {
+        if (!patientId) return;
+        try {
+            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId });
+            setPlannedSurgeries(surgs.items || []);
+        } catch (e) {
+            console.error("Failed to refresh planned surgeries", e);
+        }
+    };
+
     // Fetch additional details
     useEffect(() => {
         const fetchExtras = async () => {
             if (patientId) {
                 try {
                     const [surgs, pat] = await Promise.all([
-                        plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
+                        plannedSurgeriesApi.list({ patient_id: patientId }),
                         patientsApi.getById(patientId),
                         fetchPatientLabBookings(patientId)
                     ]);
@@ -2607,6 +2617,7 @@ export function PrescriptionFormSection({
                                     patientId={patientId}
                                     surgeonId={doctorId}
                                     visitId={visitId}
+                                    onSurgeryUpdated={refreshPlannedSurgeries}
                                 />
                             </div>
                         </div>
