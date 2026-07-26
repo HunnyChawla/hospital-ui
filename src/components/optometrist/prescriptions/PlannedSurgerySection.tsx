@@ -15,6 +15,7 @@ interface PlannedSurgerySectionProps {
     patientId: string;
     surgeonId: string;
     visitId: string;
+    onSurgeryUpdated?: () => void;
 }
 
 type EyeType = "OD" | "OS" | "OU";
@@ -29,6 +30,7 @@ export function PlannedSurgerySection({
     patientId,
     surgeonId,
     visitId,
+    onSurgeryUpdated,
 }: PlannedSurgerySectionProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [surgeries, setSurgeries] = useState<Surgery[]>([]);
@@ -153,6 +155,7 @@ export function PlannedSurgerySection({
             });
             setPlannedSurgeries(prev => [...prev, newSurgery]);
             toast.success("Surgery planned successfully");
+            onSurgeryUpdated?.();
 
             // Reset form
             setSelectedSurgeryId("");
@@ -175,6 +178,7 @@ export function PlannedSurgerySection({
             await plannedSurgeriesApi.cancel(id);
             setPlannedSurgeries(prev => prev.filter(s => s.id !== id));
             toast.success("Surgery cancelled");
+            onSurgeryUpdated?.();
         } catch (error) {
             handleError(error, { defaultMessage: "Failed to cancel surgery", logError: true });
         }

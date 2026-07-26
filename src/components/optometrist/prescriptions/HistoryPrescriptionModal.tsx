@@ -55,7 +55,7 @@ export function HistoryPrescriptionModal({
             const [prescriptionRes, visitDataRes, surgeriesRes] = await Promise.all([
                 optometryPrescriptionApi.list({ visit_id: visitId }),
                 prescriptionDataApi.getPrescriptionData(patientId, visitId),
-                plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
+                plannedSurgeriesApi.list({ patient_id: patientId }),
             ]);
 
             let prescription: OptometryPrescription | null = null;
@@ -98,55 +98,40 @@ export function HistoryPrescriptionModal({
                         optometrist_id: "",
                         optometrist_name: "",
                         visit_id: visitId,
-                        doctor_id: targetDoctorId,
-                        doctor_name: targetDoctorName,
-                        prescription_number: "DRAFT",
+                        doctor_id: targetDoctorId || "",
+                        doctor_name: targetDoctorName || "Doctor",
+                        lens_type: null,
+                        lens_material: null,
+                        vision_type: null,
+                        coatings: [],
+                        remarks: null,
+                        advice_items: [],
+                        medicine_items: [],
                         status: "draft",
-                        diagnosis: null,
-                        notes: null,
-                        items: [],
-                        pupillary_distance: null,
-                        frame_fitting_notes: null,
-                        finalized_at: null,
-                        created_at: new Date().toISOString(),
+                        created_at: visitDataRes.checked_in_at || new Date().toISOString(),
                         updated_at: new Date().toISOString(),
-                    };
+                    } as any;
                 }
             }
 
             setPrescription(prescription);
 
-            // Fetch doctor signature and doctor details
+            // Fetch doctor signature if doctor_id is present
             if (targetDoctorId) {
                 try {
-                    const [sigData, docProfile] = await Promise.all([
-                        doctorsApi.getSignature(targetDoctorId.toString()).catch(() => null),
-                        doctorsApi.getById(targetDoctorId.toString()).catch(() => null)
-                    ]);
-
-                    if (sigData?.signature) {
-                        setDoctorSignature(sigData.signature);
-                    } else if (docProfile?.signature) {
-                        setDoctorSignature(docProfile.signature);
+                    const doc = await doctorsApi.getById(targetDoctorId);
+                    if (doc?.signature) {
+                        setDoctorSignature(doc.signature);
+                    } else if ((doc as any)?.signature_url) {
+                        setDoctorSignature((doc as any).signature_url);
                     }
-
-                    if (prescription && !prescription.doctor_name && docProfile) {
-                        prescription.doctor_name = docProfile.user_name || docProfile.name || (docProfile.specialization ? `Dr. ${docProfile.specialization}` : undefined);
-                    }
-                } catch (e) {
-                    console.error("Failed to fetch doctor signature/profile:", e);
+                } catch (err) {
+                    console.error("Failed to fetch doctor signature for print preview", err);
                 }
             }
 
             let surgeries = surgeriesRes.items || [];
-
-            // 1. Try matching by exact visit_id
-            const visitMatchedSurgeries = surgeries.filter((s) => s.visit_id === visitId);
-
-            if (visitMatchedSurgeries.length > 0) {
-                surgeries = visitMatchedSurgeries;
-            } else {
-                // 2. Fallback for legacy surgeries without visit_id: match by prescription date
+            if (surgeries.length > 0) {
                 const rxDateStr = prescription?.created_at || (visitDataRes as any)?.created_at || (visitDataRes as any)?.visit_date;
 
                 const getIsoDateStr = (d?: string | null) => {
@@ -159,15 +144,16 @@ export function HistoryPrescriptionModal({
                     }
                 };
 
-                if (rxDateStr) {
-                    const rxDateOnly = getIsoDateStr(rxDateStr);
+                const rxDateOnly = getIsoDateStr(rxDateStr);
+                const visitSurgeries = surgeries.filter((s) => {
+                    if (s.visit_id && s.visit_id === visitId) return true;
                     if (rxDateOnly) {
-                        surgeries = surgeries.filter((s) => {
-                            const sDateOnly = getIsoDateStr(s.advised_date) || getIsoDateStr(s.created_at);
-                            return sDateOnly === rxDateOnly;
-                        });
+                        const sDateOnly = getIsoDateStr(s.advised_date) || getIsoDateStr(s.created_at);
+                        return sDateOnly === rxDateOnly;
                     }
-                }
+                    return true;
+                });
+                surgeries = visitSurgeries.length > 0 ? visitSurgeries : surgeries;
             }
 
             setVisitData(visitDataRes);
