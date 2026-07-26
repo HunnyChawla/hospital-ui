@@ -358,7 +358,7 @@ export function SurgeryFormModal({
                   <div>
                     <Dialog.Title className="text-lg font-bold text-slate-900 flex items-center gap-2">
                       <Stethoscope className="h-5 w-5 text-sky-600" />
-                      {initialData ? "Edit Surgery Master" : "Add New Surgery Master"}
+                      {initialData ? "Edit Surgery" : "Create Surgery"}
                     </Dialog.Title>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Configure procedure name, anatomy specificity, and package rates.
@@ -822,7 +822,7 @@ export function SurgeryFormModal({
                       {isSubmitting && (
                         <Loader2 className="h-4 w-4 animate-spin text-white" />
                       )}
-                      {initialData ? "Save Surgery Master Changes" : "Create Surgery Master"}
+                      {initialData ? "Update Surgery" : "Create Surgery"}
                     </button>
                   </div>
                 </form>
