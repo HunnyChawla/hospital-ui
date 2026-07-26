@@ -98,8 +98,8 @@ export function PlannedSurgeryFormModal({
         } else {
             // Reset form
             setPatientSearch("");
-            setPatientId("");
-            setPatientName("");
+            setPatientId(preSelectedPatientId || "");
+            setPatientName(preSelectedPatientName || "");
             setSurgeryId("");
             setSurgeryName("");
             setSurgeonId("");
@@ -112,7 +112,7 @@ export function PlannedSurgeryFormModal({
             setNotes("");
             setStatus("advised");
         }
-    }, [initialData, isOpen]);
+    }, [initialData, isOpen, preSelectedPatientId, preSelectedPatientName]);
 
     // Search patients
     useEffect(() => {
