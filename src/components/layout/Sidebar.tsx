@@ -27,6 +27,8 @@ import {
   Link as LinkIcon,
   LayoutTemplate,
   Settings,
+  ClipboardList,
+  MapPin,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -69,6 +71,8 @@ const iconMap: Record<string, LucideIcon> = {
   Radio,
   Monitor,
   Settings,
+  ClipboardList,
+  MapPin,
   Link: LinkIcon,
 };
 

@@ -19,7 +19,8 @@ import {
     Loader2,
     AlertCircle,
     Plus,
-    Pencil
+    Pencil,
+    Phone
 } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -134,7 +135,7 @@ export function PlannedSurgeriesList() {
         }
     };
 
-    const getEyeLabel = (eye: string) => {
+    const getEyeLabel = (eye?: string | null) => {
         switch (eye) {
             case "OD":
                 return "Right Eye (OD)";
@@ -143,11 +144,11 @@ export function PlannedSurgeriesList() {
             case "OU":
                 return "Both Eyes (OU)";
             default:
-                return eye;
+                return eye || "-";
         }
     };
 
-    const getEyeColor = (eye: string) => {
+    const getEyeColor = (eye?: string | null) => {
         switch (eye) {
             case "OD":
                 return "bg-blue-50 text-blue-700 ring-blue-600/20";
@@ -330,11 +331,11 @@ export function PlannedSurgeriesList() {
             yPos += 8;
 
             // Prepare table data
-            const tableData = allSurgeries.map((surgery) => [
+            const tableData: string[][] = allSurgeries.map((surgery) => [
                 surgery.planned_date ? formatDate(surgery.planned_date) : `Advised: ${formatDate(surgery.advised_date || surgery.created_at)}`,
                 surgery.patient_name || "-",
-                surgery.surgery_name,
-                surgery.eye,
+                surgery.surgery_name || "-",
+                surgery.eye || surgery.anatomy_site_short_code || "-",
                 surgery.surgeon_name || "-",
                 formatStatus(surgery.status),
                 surgery.notes?.slice(0, 30) || "-",
@@ -527,9 +528,16 @@ export function PlannedSurgeriesList() {
                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                         >
                             <option value="all">All Statuses</option>
-                            <option value="scheduled">Scheduled</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
+                            <option value="advised">Advised</option>
+                            <option value="counselling_in_progress">Counselling In Progress</option>
+                            <option value="pending_patient_decision">Pending Patient Decision</option>
+                            <option value="pending_insurance">Pending Insurance</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="in_ot_preparation">In OT Prep</option>
+                            <option value="postponed">Postponed</option>
+                            <option value="completed">Completed / Surgery Completed</option>
+                            <option value="cancelled_by_patient">Cancelled (Patient)</option>
+                            <option value="cancelled_by_hospital">Cancelled (Hospital)</option>
                         </select>
                     </div>
 
@@ -641,9 +649,22 @@ export function PlannedSurgeriesList() {
                                 surgeries.map((surgery) => (
                                     <tr key={surgery.id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            <span className="font-medium text-slate-900">
+                                            <div className="font-medium text-slate-900">
                                                 {surgery.patient_name || "-"}
-                                            </span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                                {surgery.patient_uhid && (
+                                                    <span className="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-semibold text-slate-700">
+                                                        {surgery.patient_uhid}
+                                                    </span>
+                                                )}
+                                                {surgery.patient_mobile && (
+                                                    <span className="text-slate-600 flex items-center gap-1">
+                                                        <Phone className="h-3 w-3 text-slate-400" />
+                                                        {surgery.patient_mobile}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="font-medium text-slate-800">
@@ -668,7 +689,7 @@ export function PlannedSurgeriesList() {
                                                 {surgery.planned_date ? (
                                                     <div className="flex items-center gap-1.5">
                                                         <Calendar className="h-4 w-4 text-sky-500" />
-                                                        <span className="font-medium">{formatDateTime(surgery.planned_date, surgery.planned_time)}</span>
+                                                        <span className="font-medium">{formatDate(surgery.planned_date)}{surgery.planned_time ? ` ${surgery.planned_time.slice(0, 5)}` : ""}</span>
                                                     </div>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full w-fit">
@@ -678,7 +699,7 @@ export function PlannedSurgeriesList() {
                                                 )}
                                                 {surgery.planned_date && surgery.advised_date && (
                                                     <span className="text-[11px] text-slate-400 pl-5">
-                                                        Advised: {formatDate(surgery.advised_date)}
+                                                        Advised: {formatDate(surgery.advised_date || surgery.created_at)}
                                                     </span>
                                                 )}
                                             </div>

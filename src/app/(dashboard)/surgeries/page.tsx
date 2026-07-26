@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { useTenant } from "@/hooks/useTenant";
 import { SurgeryFormModal } from "@/components/surgeries/SurgeryFormModal";
 import { DeleteSurgeryModal } from "@/components/surgeries/DeleteSurgeryModal";
-import { Menu, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import clsx from "clsx";
+import { handleError } from "@/utils/errorHandler";
+import { toast } from "sonner";
 
 export default function SurgeriesPage() {
     const { tenant } = useTenant();
@@ -61,18 +61,30 @@ export default function SurgeriesPage() {
     };
 
     const handleFormSubmit = async (data: CreateSurgeryRequest | UpdateSurgeryRequest) => {
-        if (selectedSurgery) {
-            await surgeriesApi.update(selectedSurgery.id, data);
-        } else {
-            await surgeriesApi.create(data as CreateSurgeryRequest);
+        try {
+            if (selectedSurgery) {
+                await surgeriesApi.update(selectedSurgery.id, data);
+                toast.success(`Surgery "${(data as any).name || selectedSurgery.name}" updated successfully.`);
+            } else {
+                await surgeriesApi.create(data as CreateSurgeryRequest);
+                toast.success(`Surgery "${(data as CreateSurgeryRequest).name}" created successfully.`);
+            }
+            await fetchSurgeries();
+        } catch (error) {
+            // Re-throw so the modal catches it and stays open
+            throw error;
         }
-        await fetchSurgeries();
     };
 
     const handleDeleteConfirm = async () => {
         if (selectedSurgery) {
-            await surgeriesApi.delete(selectedSurgery.id);
-            await fetchSurgeries();
+            try {
+                await surgeriesApi.delete(selectedSurgery.id);
+                toast.success(`Surgery "${selectedSurgery.name}" deleted successfully.`);
+                await fetchSurgeries();
+            } catch (error) {
+                handleError(error, { defaultMessage: "Failed to delete surgery." });
+            }
         }
     };
 
@@ -159,17 +171,29 @@ export default function SurgeriesPage() {
                                 </tr>
                             ) : (
                                 surgeries.map((surgery) => (
-                                    <tr key={surgery.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr
+                                        key={surgery.id}
+                                        className="group hover:bg-sky-50/40 transition-colors cursor-pointer"
+                                        onClick={() => handleEdit(surgery)}
+                                    >
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-medium text-slate-900">{surgery.name}</span>
+                                                <span className="font-semibold text-slate-900 group-hover:text-sky-700 transition-colors">{surgery.name}</span>
                                                 {surgery.description && (
                                                     <span className="text-xs text-slate-500 truncate max-w-xs">{surgery.description}</span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            {surgery.category ? (
+                                            {surgery.categories && surgery.categories.length > 0 ? (
+                                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                                    {surgery.categories.map((cat, idx) => (
+                                                        <span key={idx} className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800 border border-sky-200">
+                                                            {cat}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : surgery.category ? (
                                                 <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-600/10">
                                                     {surgery.category}
                                                 </span>
@@ -193,52 +217,28 @@ export default function SurgeriesPage() {
                                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
                                             {new Date(surgery.updated_at).toLocaleDateString()}
                                         </td>
-                                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                                            <Menu as="div" className="relative inline-block text-left">
-                                                <Menu.Button className="flex items-center rounded-full p-1 text-slate-400 hover:text-slate-600 transition-colors">
-                                                    <MoreHorizontal className="h-5 w-5" />
-                                                </Menu.Button>
-                                                <Transition
-                                                    as={Fragment}
-                                                    enter="transition ease-out duration-100"
-                                                    enterFrom="transform opacity-0 scale-95"
-                                                    enterTo="transform opacity-100 scale-100"
-                                                    leave="transition ease-in duration-75"
-                                                    leaveFrom="transform opacity-100 scale-100"
-                                                    leaveTo="transform opacity-0 scale-95"
+                                        <td
+                                            className="whitespace-nowrap px-6 py-4 text-right"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleEdit(surgery); }}
+                                                    title="Edit Surgery"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-2xs hover:bg-sky-50 hover:border-sky-300 hover:text-sky-700 transition-all"
                                                 >
-                                                    <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                                        <Menu.Item>
-                                                            {({ active }) => (
-                                                                <button
-                                                                    onClick={() => handleEdit(surgery)}
-                                                                    className={clsx(
-                                                                        active ? "bg-slate-50" : "",
-                                                                        "flex w-full items-center px-4 py-2 text-sm text-slate-700"
-                                                                    )}
-                                                                >
-                                                                    <Pencil className="mr-3 h-4 w-4" />
-                                                                    Edit Surgery
-                                                                </button>
-                                                            )}
-                                                        </Menu.Item>
-                                                        <Menu.Item>
-                                                            {({ active }) => (
-                                                                <button
-                                                                    onClick={() => handleDeleteClick(surgery)}
-                                                                    className={clsx(
-                                                                        active ? "bg-red-50" : "",
-                                                                        "flex w-full items-center px-4 py-2 text-sm text-red-600"
-                                                                    )}
-                                                                >
-                                                                    <Trash2 className="mr-3 h-4 w-4" />
-                                                                    Delete Surgery
-                                                                </button>
-                                                            )}
-                                                        </Menu.Item>
-                                                    </Menu.Items>
-                                                </Transition>
-                                            </Menu>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(surgery); }}
+                                                    title="Delete Surgery"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-500 shadow-2xs hover:bg-red-50 hover:border-red-300 transition-all"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

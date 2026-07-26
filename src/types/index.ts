@@ -576,7 +576,13 @@ export type Surgery = {
   name: string;
   description: string | null;
   category: string | null;
+  categories?: string[];
   price?: number;
+  base_price?: number;
+  bilateral_price?: number;
+  default_anatomy_site_id?: string | null;
+  is_anatomy_specific?: boolean;
+  applicable_anatomy_site_ids?: string[];
   service_id?: string;
   is_active: boolean;
   created_at: string;
@@ -589,7 +595,14 @@ export type CreateSurgeryRequest = {
   name: string;
   description?: string | null;
   category?: string | null;
+  categories?: string[];
   price?: number;
+  base_price?: number;
+  bilateral_price?: number;
+  default_anatomy_site_id?: string | null;
+  is_anatomy_specific?: boolean;
+  applicable_anatomy_site_ids?: string[];
+  packages?: any[];
   is_active?: boolean;
 };
 
@@ -597,15 +610,71 @@ export type UpdateSurgeryRequest = {
   name?: string | null;
   description?: string | null;
   category?: string | null;
+  categories?: string[];
   price?: number | null;
+  base_price?: number | null;
+  bilateral_price?: number | null;
+  default_anatomy_site_id?: string | null;
+  is_anatomy_specific?: boolean | null;
+  applicable_anatomy_site_ids?: string[] | null;
+  packages?: any[] | null;
   is_active?: boolean | null;
 };
 
 // ============================================
-// PLANNED SURGERY TYPES
+// ANATOMY SITE & SURGERY PACKAGE TYPES
 // ============================================
 
-export type PlannedSurgeryStatus = "scheduled" | "completed" | "cancelled";
+export type AnatomySite = {
+  id: string;
+  tenant_id?: string | null;
+  name: string;
+  short_code: string;
+  department?: string | null;
+  is_active: boolean;
+  sort_order: number;
+  is_global?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SurgeryPackage = {
+  id: string;
+  tenant_id: string;
+  surgery_id: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  bilateral_price?: number;
+  is_active: boolean;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+// ============================================
+// PLANNED SURGERY & COUNSELLOR TYPES
+// ============================================
+
+export type PlannedSurgeryUrgency = "elective" | "urgent" | "emergency";
+
+export type PlannedSurgeryStatus =
+  | "scheduled"
+  | "completed"
+  | "cancelled"
+  | "advised"
+  | "counselling_in_progress"
+  | "pending_patient_decision"
+  | "pending_insurance"
+  | "pending_investigations"
+  | "pending_fitness"
+  | "confirmed"
+  | "in_ot_preparation"
+  | "surgery_completed"
+  | "postponed"
+  | "cancelled_by_patient"
+  | "cancelled_by_hospital"
+  | "lost_to_followup";
 
 export type PlannedSurgery = {
   id: string;
@@ -613,17 +682,33 @@ export type PlannedSurgery = {
   patient_id: string;
   visit_id?: string | null;
   patient_name?: string | null;
+  patient_uhid?: string | null;
+  patient_mobile?: string | null;
   surgery_id: string;
   surgery_name: string;
-  eye: "OD" | "OS" | "OU";
+  surgeon_id: string;
+  surgeon_name?: string | null;
+  anatomy_site_id?: string | null;
+  anatomy_site_name?: string | null;
+  anatomy_site_short_code?: string | null;
+  eye?: "OD" | "OS" | "OU" | null;
+  urgency: PlannedSurgeryUrgency;
+  counsellor_id?: string | null;
+  counsellor_name?: string | null;
+  package_id?: string | null;
+  package_name?: string | null;
+  agreed_price?: number | null;
   planned_date: string | null;
   advised_date?: string | null;
   planned_time: string | null;
-  surgeon_id: string;
-  surgeon_name: string | null;
   hospital_name: string | null;
   notes: string | null;
+  cancellation_reason?: string | null;
+  postponement_reason?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
   status: PlannedSurgeryStatus;
+  is_deleted?: boolean;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -634,26 +719,99 @@ export type CreatePlannedSurgeryRequest = {
   patient_id: string;
   visit_id?: string | null;
   surgery_id: string;
-  surgery_name: string;
-  eye: "OD" | "OS" | "OU";
-  planned_date?: string | null;
-  advised_date?: string | null;
-  planned_time?: string | null;
-  surgeon_id: string;
-  hospital_name?: string | null;
-  notes?: string | null;
-};
-
-export type UpdatePlannedSurgeryRequest = {
-  surgery_id?: string;
   surgery_name?: string;
-  eye?: "OD" | "OS" | "OU";
+  surgeon_id: string;
+  anatomy_site_id?: string | null;
+  eye?: "OD" | "OS" | "OU" | null;
+  urgency?: PlannedSurgeryUrgency;
+  counsellor_id?: string | null;
+  package_id?: string | null;
   planned_date?: string | null;
   advised_date?: string | null;
   planned_time?: string | null;
   hospital_name?: string | null;
   notes?: string | null;
   status?: PlannedSurgeryStatus;
+};
+
+export type UpdatePlannedSurgeryRequest = {
+  surgery_id?: string;
+  surgery_name?: string;
+  surgeon_id?: string;
+  anatomy_site_id?: string | null;
+  eye?: "OD" | "OS" | "OU" | null;
+  urgency?: PlannedSurgeryUrgency;
+  counsellor_id?: string | null;
+  package_id?: string | null;
+  agreed_price?: number | null;
+  planned_date?: string | null;
+  advised_date?: string | null;
+  planned_time?: string | null;
+  hospital_name?: string | null;
+  notes?: string | null;
+  status?: PlannedSurgeryStatus;
+};
+
+export type ConfirmSurgeryRequest = {
+  package_id: string;
+  agreed_price: number;
+  planned_date: string;
+  planned_time?: string | null;
+  notes?: string | null;
+};
+
+export type PostponeSurgeryRequest = {
+  postponement_reason: string;
+  new_planned_date?: string | null;
+  notes?: string | null;
+};
+
+export type CancelSurgeryRequest = {
+  cancelled_by: "patient" | "hospital";
+  cancellation_reason: string;
+  notes?: string | null;
+};
+
+export type LogInteractionRequest = {
+  interaction_type: string;
+  to_status?: PlannedSurgeryStatus | null;
+  package_id?: string | null;
+  payment_amount?: number | null;
+  payment_reference?: string | null;
+  notes: string;
+};
+
+export type CounsellorInteraction = {
+  id: string;
+  tenant_id: string;
+  advice_id: string;
+  counsellor_user_id?: string | null;
+  counsellor_name?: string | null;
+  interaction_at: string;
+  interaction_type: string;
+  from_status?: string | null;
+  to_status?: string | null;
+  package_id?: string | null;
+  package_name?: string | null;
+  payment_amount?: number | null;
+  payment_reference?: string | null;
+  notes: string;
+  created_at: string;
+};
+
+export type SurgeryAdviceHistory = {
+  id: string;
+  tenant_id: string;
+  advice_id: string;
+  changed_by_user_id?: string | null;
+  changed_by_name?: string | null;
+  changed_at: string;
+  action_type: string;
+  field_name?: string | null;
+  old_value?: string | null;
+  new_value?: string | null;
+  reason?: string | null;
+  notes?: string | null;
 };
 
 // ============================================
