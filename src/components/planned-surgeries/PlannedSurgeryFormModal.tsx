@@ -225,6 +225,12 @@ export function PlannedSurgeryFormModal({
         }
     };
 
+    const selectedSurgeryForModal = surgeries.find((s) => s.id === surgeryId);
+    const modalApplicableSiteIds = selectedSurgeryForModal?.applicable_anatomy_site_ids || [];
+    const modalFilteredAnatomySites = selectedSurgeryForModal && selectedSurgeryForModal.is_anatomy_specific && modalApplicableSiteIds.length > 0
+        ? anatomySites.filter((site) => modalApplicableSiteIds.includes(site.id))
+        : anatomySites;
+
     return (
         <Transition appear show={isOpen} as={Fragment}>
             <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -365,6 +371,11 @@ export function PlannedSurgeryFormModal({
                                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                             <MapPin className="h-4 w-4 text-slate-400" />
                                             Anatomy Site / Procedure Location
+                                            {selectedSurgeryForModal?.is_anatomy_specific && modalApplicableSiteIds.length > 0 && (
+                                                <span className="text-xs text-sky-600 font-semibold ml-auto">
+                                                    (Filtered for {selectedSurgeryForModal.name})
+                                                </span>
+                                            )}
                                         </label>
                                         <select
                                             value={anatomySiteId}
@@ -372,7 +383,7 @@ export function PlannedSurgeryFormModal({
                                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                         >
                                             <option value="">Select anatomy site...</option>
-                                            {anatomySites.map((site) => (
+                                            {modalFilteredAnatomySites.map((site) => (
                                                 <option key={site.id} value={site.id}>
                                                     {site.name} ({site.short_code}) {site.department ? `— ${site.department}` : ""}
                                                 </option>
