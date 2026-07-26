@@ -37,10 +37,12 @@ export function AnatomySitesManagement() {
   const [sortOrder, setSortOrder] = useState<number>(0);
   const [saving, setSaving] = useState(false);
 
+  const [selectedStatus, setSelectedStatus] = useState("all"); // "all" | "active" | "inactive"
+
   const fetchSites = async () => {
     setLoading(true);
     try {
-      const data = await anatomySitesApi.list();
+      const data = await anatomySitesApi.list({ is_active_only: false });
       setSites(data);
     } catch (err) {
       handleError(err, { defaultMessage: "Failed to load anatomy sites", logError: true });
@@ -178,11 +180,19 @@ export function AnatomySitesManagement() {
     if (selectedScope === "custom" && isGlobalSite(site)) {
       return false;
     }
+    if (selectedStatus === "active" && !site.is_active) {
+      return false;
+    }
+    if (selectedStatus === "inactive" && site.is_active) {
+      return false;
+    }
     return true;
   });
 
   const globalCount = sites.filter(isGlobalSite).length;
   const customCount = sites.length - globalCount;
+  const activeCount = sites.filter((s) => s.is_active).length;
+  const inactiveCount = sites.length - activeCount;
 
   return (
     <div className="w-full space-y-4 pb-12">
@@ -252,9 +262,19 @@ export function AnatomySitesManagement() {
             onChange={(e) => setSelectedScope(e.target.value)}
             className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-sky-400"
           >
-            <option value="all">All Record Types ({sites.length})</option>
+            <option value="all">All Scope Types ({sites.length})</option>
             <option value="global">Global (System) Only ({globalCount})</option>
             <option value="custom">Tenant Custom Only ({customCount})</option>
+          </select>
+
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-sky-400"
+          >
+            <option value="all">All Statuses ({sites.length})</option>
+            <option value="active">Active Only ({activeCount})</option>
+            <option value="inactive">Inactive / Deactivated ({inactiveCount})</option>
           </select>
 
           <select
