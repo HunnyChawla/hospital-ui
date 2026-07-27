@@ -566,8 +566,13 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             </div>
                         </div>
                     ) : null;
-                case "Planned Surgery":
-                    return (plannedSurgeries && plannedSurgeries.length > 0) ? (
+                case "Planned Surgery": {
+                    const validSurgeries = (plannedSurgeries || []).filter((s: any) =>
+                        s.status !== "cancelled" &&
+                        s.status !== "cancelled_by_patient" &&
+                        s.status !== "cancelled_by_hospital"
+                    );
+                    return validSurgeries.length > 0 ? (
                         <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
@@ -579,17 +584,22 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             </div>
                             <div className={sectionFontClass}>
                                 <ul className="list-disc list-outside ml-4 text-xs text-left">
-                                    {plannedSurgeries.map((surgery: any, idx: number) => {
+                                    {validSurgeries.map((surgery: any, idx: number) => {
                                         const locationStr = surgery.anatomy_site_name
                                             ? `${surgery.anatomy_site_name} (${surgery.anatomy_site_short_code || surgery.eye})`
                                             : surgery.eye;
+                                        const isCompleted = surgery.status === "completed";
                                         return (
                                             <li key={idx} className="mb-1">
                                                 <span className="font-bold text-slate-900">{surgery.surgery_name}</span>
                                                 <span className="text-slate-700 font-medium ml-1">
                                                     — {locationStr}
                                                 </span>
-                                                {surgery.planned_date ? (
+                                                {isCompleted ? (
+                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase tracking-wider">
+                                                        Completed
+                                                    </span>
+                                                ) : surgery.planned_date ? (
                                                     <span className="text-slate-600 ml-1">
                                                         (Planned: {formatDate(surgery.planned_date)})
                                                     </span>
@@ -598,7 +608,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                         (Advised: {formatDate(surgery.advised_date)})
                                                     </span>
                                                 ) : null}
-                                                {surgery.urgency && surgery.urgency !== "elective" && (
+                                                {!isCompleted && surgery.urgency && surgery.urgency !== "elective" && (
                                                     <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
                                                         {surgery.urgency}
                                                     </span>
@@ -615,6 +625,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             </div>
                         </div>
                     ) : null;
+                }
                 case "FollowUp":
                     return (
                         <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
@@ -792,7 +803,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                         if (sectionName === "Meds") return !!(prescription.medicine_items?.length);
                         if (sectionName === "Lab Investigations") return !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test" || a.advice_type === "lab-test"));
                         if (sectionName === "Advice") return !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action);
-                        if (sectionName === "Planned Surgery") return !!(plannedSurgeries?.length);
+                        if (sectionName === "Planned Surgery") return !!(plannedSurgeries?.some((s: any) => s.status !== "cancelled" && s.status !== "cancelled_by_patient" && s.status !== "cancelled_by_hospital"));
                         if (sectionName === "FollowUp") return !!(prescription.followup_date);
                         return false;
                     });
