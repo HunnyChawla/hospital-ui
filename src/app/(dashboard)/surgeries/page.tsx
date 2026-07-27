@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Search, Pencil, Trash2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
-import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
+import { AnatomySite, CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
 import { surgeriesApi } from "@/services/surgeriesApi";
+import { anatomySitesApi } from "@/services/anatomySitesApi";
 import { useTenant } from "@/hooks/useTenant";
 import { SurgeryFormModal } from "@/components/surgeries/SurgeryFormModal";
 import { DeleteSurgeryModal } from "@/components/surgeries/DeleteSurgeryModal";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 export default function SurgeriesPage() {
     const { tenant } = useTenant();
     const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+    const [anatomySiteMap, setAnatomySiteMap] = useState<Record<string, AnatomySite>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [page, setPage] = useState(1);
@@ -44,6 +46,18 @@ export default function SurgeriesPage() {
     useEffect(() => {
         if (tenant?.id) {
             fetchSurgeries();
+            anatomySitesApi
+                .list({ is_active_only: true })
+                .then((sites) => {
+                    const map: Record<string, AnatomySite> = {};
+                    sites.forEach((s) => {
+                        map[s.id] = s;
+                    });
+                    setAnatomySiteMap(map);
+                })
+                .catch((err) => {
+                    console.error("Failed to fetch anatomy sites:", err);
+                });
         }
     }, [tenant?.id, page, searchQuery]);
 
@@ -66,10 +80,10 @@ export default function SurgeriesPage() {
         try {
             if (selectedSurgery) {
                 await surgeriesApi.update(selectedSurgery.id, data);
-                toast.success(`Surgery "${(data as any).name || selectedSurgery.name}" updated successfully.`);
+                toast.success(`Surgery "${data.name}" updated successfully.`);
             } else {
                 await surgeriesApi.create(data as CreateSurgeryRequest);
-                toast.success(`Surgery "${(data as CreateSurgeryRequest).name}" created successfully.`);
+                toast.success(`Surgery "${data.name}" created successfully.`);
             }
             setIsFormModalOpen(false);
             await fetchSurgeries();
@@ -193,11 +207,12 @@ export default function SurgeriesPage() {
                                 surgeries.map((surgery) => (
                                     <tr
                                         key={surgery.id}
-                                        className="group hover:bg-sky-50/40 transition-colors"
+                                        onClick={() => handleEdit(surgery)}
+                                        className="group hover:bg-sky-50/40 transition-colors cursor-pointer"
                                     >
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-semibold text-slate-900">{surgery.name}</span>
+                                                <span className="font-semibold text-slate-900 group-hover:text-sky-700 transition-colors">{surgery.name}</span>
                                                 {surgery.description && (
                                                     <span className="text-xs text-slate-500 truncate max-w-xs">{surgery.description}</span>
                                                 )}
@@ -223,19 +238,44 @@ export default function SurgeriesPage() {
                                         <td className="px-6 py-4">
                                             {surgery.packages && surgery.packages.length > 0 ? (
                                                 <div className="space-y-1.5 max-w-xs">
-                                                    {surgery.packages.map((pkg, idx) => (
-                                                        <div key={idx} className="flex items-center justify-between gap-2 text-xs bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                                                            <div className="truncate font-semibold text-slate-800 flex items-center gap-1">
-                                                                <span>{pkg.name}</span>
-                                                                {pkg.is_default && (
-                                                                    <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1 rounded">Default</span>
+                                                    {surgery.packages.map((pkg, idx) => {
+                                                        const anatomyEntries = pkg.anatomy_prices && Object.keys(pkg.anatomy_prices).length > 0
+                                                            ? Object.entries(pkg.anatomy_prices)
+                                                            : null;
+                                                        return (
+                                                            <div key={idx} className="flex flex-col gap-1 text-xs bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <div className="truncate font-semibold text-slate-800 flex items-center gap-1">
+                                                                        <span>{pkg.name}</span>
+                                                                        {pkg.is_default && (
+                                                                            <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1 rounded">Default</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {!anatomyEntries && (
+                                                                        <div className="text-[11px] font-mono text-slate-700 shrink-0 font-bold">
+                                                                            ₹{pkg.price?.toLocaleString("en-IN") || surgery.base_price || 0}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {anatomyEntries && (
+                                                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                                                        {anatomyEntries.map(([siteId, pVal], sIdx) => {
+                                                                            const site = anatomySiteMap[siteId];
+                                                                            const code = site ? site.short_code || site.name : "Rate";
+                                                                            const numVal = typeof pVal === "number" ? pVal : parseFloat(pVal as any) || 0;
+                                                                            return (
+                                                                                <span key={sIdx} className="inline-flex items-center gap-1 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono font-medium text-slate-700 shadow-2xs">
+                                                                                    <span className="text-slate-500 font-sans font-semibold">{code}:</span>
+                                                                                    <span className="font-bold text-slate-900">₹{numVal.toLocaleString("en-IN")}</span>
+                                                                                </span>
+                                                                            );
+                                                                        })}
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                            <div className="text-[11px] font-mono text-slate-600 shrink-0 font-medium">
-                                                                ₹{pkg.price?.toLocaleString("en-IN") || surgery.base_price || 0}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             ) : (
                                                 <span className="text-xs font-mono font-semibold text-slate-700">
