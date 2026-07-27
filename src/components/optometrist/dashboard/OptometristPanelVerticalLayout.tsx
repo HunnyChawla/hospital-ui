@@ -225,6 +225,8 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
             doctorId={doctorId}
             doctorName={doctorName}
             isCompleted={isCompleted}
+            onAction={onAction}
+            activeQueuePatient={selectedPatient}
           >
             {children}
           </OptometristActivePatientCard>

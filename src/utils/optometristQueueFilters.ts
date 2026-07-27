@@ -30,7 +30,7 @@ export interface FilterConfig {
   color: string;
 }
 
-export type OptometristQueueFilter = "pending" | "completed" | "no_show";
+export type OptometristQueueFilter = "pending" | "dilation" | "completed" | "no_show";
 
 export const OPTOMETRIST_QUEUE_FILTERS: Record<OptometristQueueFilter, FilterConfig> = {
   pending: {
@@ -43,6 +43,12 @@ export const OPTOMETRIST_QUEUE_FILTERS: Record<OptometristQueueFilter, FilterCon
     icon: Clock,
     color: "amber",
   },
+  dilation: {
+    label: "Dilation",
+    statuses: ["dilation_in_progress"],
+    icon: Clock,
+    color: "violet",
+  },
   completed: {
     label: "Completed",
     statuses: [
@@ -50,7 +56,6 @@ export const OPTOMETRIST_QUEUE_FILTERS: Record<OptometristQueueFilter, FilterCon
       "awaiting_doctor",
       "doctor_assigned",
       "consultation_in_progress",
-      "dilation_in_progress",
       "dilation_completed",
       "consultation_completed",
     ],
@@ -101,6 +106,7 @@ export function filterOptometristQueuePatients(
 export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): Record<OptometristQueueFilter, number> {
   const counts: Record<OptometristQueueFilter, number> = {
     pending: 0,
+    dilation: 0,
     completed: 0,
     no_show: 0,
   };
@@ -108,6 +114,8 @@ export function getOptometristQueueCounts(patients: OptometristQueuePatient[]): 
   patients.forEach((patient) => {
     if (OPTOMETRIST_QUEUE_FILTERS.no_show.statuses.includes(patient.status)) {
       counts.no_show++;
+    } else if (OPTOMETRIST_QUEUE_FILTERS.dilation.statuses.includes(patient.status)) {
+      counts.dilation++;
     } else if (OPTOMETRIST_QUEUE_FILTERS.completed.statuses.includes(patient.status)) {
       counts.completed++;
     } else if (OPTOMETRIST_QUEUE_FILTERS.pending.statuses.includes(patient.status)) {

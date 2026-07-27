@@ -73,12 +73,65 @@ export function DilationTimer({
     if (isDilationCompleted) {
         const completedAt = new Date(visitData.dilation_completed_at!);
         return (
-            <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm animate-in fade-in zoom-in duration-300">
-                <CheckCircle className="h-4 w-4" />
-                <span className="font-semibold">Dilation Completed</span>
-                <span className="text-emerald-600 bg-white/50 px-2 py-0.5 rounded text-xs font-medium border border-emerald-100">
-                    {formatTime(completedAt)}
-                </span>
+            <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
+                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="font-semibold">Dilation Completed</span>
+                    <span className="text-emerald-600 bg-white/50 px-2 py-0.5 rounded text-xs font-medium border border-emerald-100">
+                        {formatTime(completedAt)}
+                    </span>
+                </div>
+
+                <div className="relative" ref={dropdownRef}>
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className={`flex items-center gap-1.5 h-9 px-3 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 ${isOpen ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+                        title="Start dilation again"
+                    >
+                        <Clock className="h-3.5 w-3.5" />
+                        Re-dilate
+                        {isOpen ? <ChevronUp className="h-3.5 w-3.5 opacity-80" /> : <ChevronDown className="h-3.5 w-3.5 opacity-80" />}
+                    </button>
+
+                    {isOpen && (
+                        <div className="absolute top-full right-0 mt-3 w-72 p-4 bg-white border border-slate-100 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="flex items-center gap-2 font-semibold text-sm text-slate-800 mb-3">
+                                        <Clock className="h-4 w-4 text-slate-500" />
+                                        Select Duration
+                                    </h4>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[15, 20, 30, 45, 60].map((mins) => (
+                                            <button
+                                                key={mins}
+                                                onClick={() => setSelectedDuration(mins)}
+                                                className={`h-9 text-xs font-semibold rounded-lg border transition-all ${selectedDuration === mins
+                                                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-200"
+                                                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                                    }`}
+                                            >
+                                                {mins} min
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleStart}
+                                    disabled={loading}
+                                    className="w-full h-10 flex items-center justify-center gap-2 text-sm font-bold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {loading ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Start Timer'}
+                                </button>
+
+                                <div className="text-[10px] text-slate-400 text-center leading-tight">
+                                    Timer will continue running even if you close this window.
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }

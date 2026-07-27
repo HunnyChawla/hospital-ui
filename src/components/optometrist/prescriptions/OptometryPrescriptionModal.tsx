@@ -1,7 +1,8 @@
-"use client";
-
+import { useState, useEffect, useCallback } from "react";
 import { X } from "lucide-react";
 import { OptometryPrescriptionForm } from "./OptometryPrescriptionForm";
+import { DilationTimer } from "./DilationTimer";
+import { optometristVisitsApi, type OptometristVisitResponse } from "@/services/optometristVisitsApi";
 import type { OptometryPrescription, RefractionRecord } from "@/types";
 
 interface OptometryPrescriptionModalProps {
@@ -33,6 +34,44 @@ export function OptometryPrescriptionModal({
   onFinalize,
   onPrint,
 }: OptometryPrescriptionModalProps) {
+  const [visitData, setVisitData] = useState<OptometristVisitResponse | null>(null);
+
+  const loadVisitData = useCallback(async () => {
+    if (!visitId) return;
+    try {
+      const data = await optometristVisitsApi.getById(visitId);
+      setVisitData(data);
+    } catch (error) {
+      console.error("Failed to load visit data:", error);
+    }
+  }, [visitId]);
+
+  useEffect(() => {
+    if (visitId && isOpen) {
+      loadVisitData();
+    }
+  }, [visitId, isOpen, loadVisitData]);
+
+  const handleStartDilation = async (minutes: number) => {
+    if (!visitId) return;
+    try {
+      await optometristVisitsApi.startDilation(visitId, minutes);
+      await loadVisitData();
+    } catch (error) {
+      console.error("Failed to start dilation:", error);
+    }
+  };
+
+  const handleCompleteDilation = async () => {
+    if (!visitId) return;
+    try {
+      await optometristVisitsApi.completeDilation(visitId);
+      await loadVisitData();
+    } catch (error) {
+      console.error("Failed to complete dilation:", error);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -46,7 +85,7 @@ export function OptometryPrescriptionModal({
       {/* Modal */}
       <div className="relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-slate-50 shadow-2xl scrollbar-hide">
         {/* Header */}
-        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+        <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">
               {existingPrescription ? "View/Edit" : "Create"} Optical Prescription
@@ -55,13 +94,23 @@ export function OptometryPrescriptionModal({
               Patient: <span className="font-medium">{patientName}</span>
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
-            title="Close"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            {visitId && visitData && (
+              <DilationTimer
+                visitId={visitId}
+                visitData={visitData}
+                onStartDilation={handleStartDilation}
+                onCompleteDilation={handleCompleteDilation}
+              />
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
+              title="Close"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

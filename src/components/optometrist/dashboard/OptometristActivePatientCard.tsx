@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Eye, X, LayoutGrid, LayoutList, LayoutDashboard } from "lucide-react";
 import { CreatePrescriptionButton } from "../prescriptions/CreatePrescriptionButton";
 import { ShowSummaryButton } from "../summary/ShowSummaryButton";
+import { DilationTimer } from "../prescriptions/DilationTimer";
+import { optometristVisitsApi, type OptometristVisitResponse } from "@/services/optometristVisitsApi";
 import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 import { PatientDetailView } from "../../patients/PatientDetailView";
+import type { OptometristActionType } from "./OptometristCollapsibleQueueSection";
 
 type ActiveTab =
   | "complaints"
@@ -36,6 +39,8 @@ interface OptometristActivePatientCardProps {
   doctorId?: string;
   doctorName?: string;
   isCompleted?: boolean;
+  onAction?: (visitId: string, action: OptometristActionType, minutes?: number) => void;
+  activeQueuePatient?: any;
 }
 
 export const OptometristActivePatientCard: React.FC<OptometristActivePatientCardProps> = ({
@@ -53,10 +58,92 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   doctorId,
   doctorName,
   isCompleted = false,
+  onAction,
+  activeQueuePatient,
 }) => {
 
   const { viewMode, setViewMode } = useExaminationViewPreference();
   const [showPatientDetail, setShowPatientDetail] = useState(false);
+  const [visitData, setVisitData] = useState<OptometristVisitResponse | null>(null);
+
+  const loadVisitData = useCallback(async () => {
+    if (!visitId) return;
+    try {
+      const data = await optometristVisitsApi.getById(visitId);
+      setVisitData(data);
+    } catch (error) {
+      console.error("Failed to load visit data:", error);
+    }
+  }, [visitId]);
+
+  useEffect(() => {
+    if (visitId) {
+      loadVisitData();
+    } else {
+      setVisitData(null);
+    }
+  }, [
+    visitId,
+    loadVisitData,
+    activeQueuePatient?.status,
+    activeQueuePatient?.dilation_started_at,
+    activeQueuePatient?.dilation_completed_at,
+  ]);
+
+  // Instantly reflect dilation status changes from live queue patient updates
+  useEffect(() => {
+    if (
+      activeQueuePatient &&
+      (activeQueuePatient.visit_id === visitId || activeQueuePatient.patient_id === patientId)
+    ) {
+      setVisitData((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: activeQueuePatient.status || prev.status,
+              dilation_started_at: activeQueuePatient.dilation_started_at ?? prev.dilation_started_at,
+              dilation_duration_minutes: activeQueuePatient.dilation_duration_minutes ?? prev.dilation_duration_minutes,
+              dilation_completed_at: activeQueuePatient.dilation_completed_at ?? prev.dilation_completed_at,
+            }
+          : null
+      );
+    }
+  }, [
+    visitId,
+    patientId,
+    activeQueuePatient?.status,
+    activeQueuePatient?.dilation_started_at,
+    activeQueuePatient?.dilation_duration_minutes,
+    activeQueuePatient?.dilation_completed_at,
+  ]);
+
+  const handleStartDilation = async (minutes: number) => {
+    if (!visitId) return;
+    try {
+      if (onAction) {
+        await onAction(visitId, "start_dilation", minutes);
+      } else {
+        await optometristVisitsApi.startDilation(visitId, minutes);
+      }
+      await loadVisitData();
+    } catch (error) {
+      console.error("Failed to start dilation:", error);
+    }
+  };
+
+  const handleCompleteDilation = async () => {
+    if (!visitId) return;
+    try {
+      if (onAction) {
+        await onAction(visitId, "complete_dilation");
+      } else {
+        await optometristVisitsApi.completeDilation(visitId);
+      }
+      await loadVisitData();
+    } catch (error) {
+      console.error("Failed to complete dilation:", error);
+    }
+  };
 
   if (!showPatientCard) {
     return (
@@ -76,7 +163,7 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500 scrollbar-hide">
-      <div className="border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-3 py-2 backdrop-blur-sm">
+      <div className="relative z-30 border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-3 py-2 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/30">
@@ -160,12 +247,22 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
               />
 
             ) : (
-              <ShowSummaryButton
-                patientId={patientId || ""}
-                patientName={patientName || ""}
-                patientUhid={patientUhid || ""}
-                visitId={visitId}
-              />
+              <div className="flex items-center gap-2">
+                {visitId && visitData && !isCompleted && (
+                  <DilationTimer
+                    visitId={visitId}
+                    visitData={visitData}
+                    onStartDilation={handleStartDilation}
+                    onCompleteDilation={handleCompleteDilation}
+                  />
+                )}
+                <ShowSummaryButton
+                  patientId={patientId || ""}
+                  patientName={patientName || ""}
+                  patientUhid={patientUhid || ""}
+                  visitId={visitId}
+                />
+              </div>
             )}
             <button
               onClick={onClose}
