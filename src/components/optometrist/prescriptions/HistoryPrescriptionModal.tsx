@@ -55,7 +55,9 @@ export function HistoryPrescriptionModal({
             const [prescriptionRes, visitDataRes, surgeriesRes] = await Promise.all([
                 optometryPrescriptionApi.list({ visit_id: visitId }),
                 prescriptionDataApi.getPrescriptionData(patientId, visitId),
-                plannedSurgeriesApi.list({ patient_id: patientId }),
+                plannedSurgeriesApi.list(
+                    visitId ? { patient_id: patientId, visit_id: visitId } : { patient_id: patientId }
+                ),
             ]);
 
             let prescription: OptometryPrescription | null = null;

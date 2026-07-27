@@ -281,7 +281,9 @@ export function PrescriptionFormSection({
     const refreshPlannedSurgeries = async () => {
         if (!patientId) return;
         try {
-            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId });
+            const surgs = await plannedSurgeriesApi.list(
+                visitId ? { patient_id: patientId, visit_id: visitId } : { patient_id: patientId }
+            );
             setPlannedSurgeries(surgs.items || []);
         } catch (e) {
             console.error("Failed to refresh planned surgeries", e);
@@ -294,7 +296,9 @@ export function PrescriptionFormSection({
             if (patientId) {
                 try {
                     const [surgs, pat] = await Promise.all([
-                        plannedSurgeriesApi.list({ patient_id: patientId }),
+                        plannedSurgeriesApi.list(
+                            visitId ? { patient_id: patientId, visit_id: visitId } : { patient_id: patientId }
+                        ),
                         patientsApi.getById(patientId),
                         fetchPatientLabBookings(patientId)
                     ]);
@@ -1345,7 +1349,9 @@ export function PrescriptionFormSection({
 
             if (options.print) {
                 try {
-                    const surgs = await plannedSurgeriesApi.list({ patient_id: patientId });
+                    const surgs = await plannedSurgeriesApi.list(
+                        visitId ? { patient_id: patientId, visit_id: visitId } : { patient_id: patientId }
+                    );
                     setPlannedSurgeries(surgs.items || []);
                 } catch (e) {
                     console.error("Failed to fetch planned surgeries for print", e);
@@ -1403,7 +1409,9 @@ export function PrescriptionFormSection({
         // In read-only mode, fetch fresh data and open preview
         setIsSubmitting(true);
         try {
-            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId });
+            const surgs = await plannedSurgeriesApi.list(
+                visitId ? { patient_id: patientId, visit_id: visitId } : { patient_id: patientId }
+            );
             setPlannedSurgeries(surgs.items || []);
 
             const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
