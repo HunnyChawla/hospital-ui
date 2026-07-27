@@ -124,7 +124,6 @@ export function useUpdateLabBookingStatus() {
     mutationFn: async ({
       bookingId,
       status,
-      notes,
     }: {
       bookingId: string;
       status: BookingStatus;
@@ -133,7 +132,6 @@ export function useUpdateLabBookingStatus() {
       return await labBookingsApi.updateStatus(
         bookingId,
         status,
-        notes,
         isPlatformOwner ? tenantId ?? undefined : undefined
       );
     },
