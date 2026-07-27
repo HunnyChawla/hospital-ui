@@ -83,18 +83,20 @@ export function DayCareDashboard() {
   const fetchPlannedSurgeries = useCallback(async () => {
     setLoadingPlanned(true);
     try {
-      // Query planned surgeries scheduled for the selected date
+      // Query planned surgeries scheduled for the selected date (confirmed, scheduled, in_ot_preparation)
       const response = await plannedSurgeriesApi.list({
         from_date: selectedDate,
         to_date: selectedDate,
-        status: "scheduled"
+        date_status: "planned",
       });
 
-      // Filter out planned surgeries that already have a daycare visit record
+      // Filter out completed/cancelled surgeries and those that already have a daycare visit record
       const items = response.items || [];
-      const filtered = items.filter(
-        (ps) => !(Array.isArray(visits) ? visits : []).some((v) => v.planned_surgery_id === ps.id)
-      );
+      const filtered = items.filter((ps) => {
+        const isEligibleStatus = ["confirmed", "scheduled", "in_ot_preparation"].includes(ps.status);
+        const hasNoVisitYet = !(Array.isArray(visits) ? visits : []).some((v) => v.planned_surgery_id === ps.id);
+        return isEligibleStatus && hasNoVisitYet;
+      });
 
       setPlannedSurgeries(filtered);
     } catch (err) {

@@ -28,6 +28,8 @@ export function ConfirmSurgeryModal({
   const [agreedPrice, setAgreedPrice] = useState<string>(plannedSurgery.agreed_price ? plannedSurgery.agreed_price.toString() : "");
   const [plannedDate, setPlannedDate] = useState<string>(plannedSurgery.planned_date || getTodayDateLocal());
   const [plannedTime, setPlannedTime] = useState<string>(plannedSurgery.planned_time || "");
+  const [advanceAmount, setAdvanceAmount] = useState<string>("");
+  const [paymentReference, setPaymentReference] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -89,6 +91,17 @@ export function ConfirmSurgeryModal({
         planned_time: plannedTime || undefined,
         notes: notes.trim() || undefined,
       });
+
+      // If advance payment was recorded, log interaction
+      if (advanceAmount && parseFloat(advanceAmount) > 0) {
+        await counsellorApi.logInteraction(plannedSurgery.id, {
+          interaction_type: "advance_payment",
+          package_id: selectedPackageId,
+          payment_amount: parseFloat(advanceAmount),
+          payment_reference: paymentReference.trim() || undefined,
+          notes: `Advance payment of ₹${parseFloat(advanceAmount).toLocaleString("en-IN")} collected during confirmation. ${notes.trim()}`.trim(),
+        });
+      }
 
       toast.success("Surgery confirmed successfully!");
       onSuccess();
@@ -223,6 +236,41 @@ export function ConfirmSurgeryModal({
                         onChange={(e) => setPlannedTime(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       />
+                    </div>
+                  </div>
+
+                  {/* Advance Payment (Optional) */}
+                  <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                        <IndianRupee className="h-3.5 w-3.5 text-emerald-600" />
+                        Advance Payment (Optional)
+                      </label>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">
+                        OPTIONAL
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-600">Advance Amount (₹)</label>
+                        <input
+                          type="number"
+                          value={advanceAmount}
+                          onChange={(e) => setAdvanceAmount(e.target.value)}
+                          placeholder="e.g. 5000"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-600">Payment Ref / Receipt #</label>
+                        <input
+                          type="text"
+                          value={paymentReference}
+                          onChange={(e) => setPaymentReference(e.target.value)}
+                          placeholder="e.g. UPI-984210"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                        />
+                      </div>
                     </div>
                   </div>
 

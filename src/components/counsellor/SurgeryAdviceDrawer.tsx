@@ -31,7 +31,9 @@ import { toast } from "sonner";
 import { LogInteractionModal } from "./LogInteractionModal";
 import { ConfirmSurgeryModal } from "./ConfirmSurgeryModal";
 import { PostponeCancelModal } from "./PostponeCancelModal";
+import { dayCareApi } from "@/services/dayCareApi";
 import { formatDateDisplay } from "@/utils/format";
+import Link from "next/link";
 
 interface SurgeryAdviceDrawerProps {
   isOpen: boolean;
@@ -74,10 +76,11 @@ export function SurgeryAdviceDrawer({
   const currentUserId = authState.user?.user_id;
   const currentUserName = authState.userDetails?.full_name || "counsellor";
   const [claiming, setClaiming] = useState(false);
-  const [completing, setCompleting] = useState(false);
 
   const [interactions, setInteractions] = useState<CounsellorInteraction[]>([]);
   const [history, setHistory] = useState<SurgeryAdviceHistory[]>([]);
+  const [dayCareVisit, setDayCareVisit] = useState<any | null>(null);
+  const [dischargeRecord, setDischargeRecord] = useState<any | null>(null);
   const [loadingData, setLoadingData] = useState(false);
 
   const handleClaimCase = async () => {
@@ -103,26 +106,6 @@ export function SurgeryAdviceDrawer({
     }
   };
 
-  const handleMarkCompleted = async () => {
-    if (!plannedSurgery) return;
-    setCompleting(true);
-    try {
-      await plannedSurgeriesApi.update(plannedSurgery.id, {
-        status: "surgery_completed" as any,
-      });
-      await counsellorApi.logInteraction(plannedSurgery.id, {
-        interaction_type: "surgery_completed",
-        notes: `Surgery marked completed by ${currentUserName}`,
-      });
-      toast.success("Surgery marked as successfully completed!");
-      onRefresh();
-    } catch (err) {
-      toast.error("Failed to mark surgery completed");
-    } finally {
-      setCompleting(false);
-    }
-  };
-
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [postponeModalOpen, setPostponeModalOpen] = useState(false);
@@ -135,10 +118,26 @@ export function SurgeryAdviceDrawer({
       Promise.all([
         counsellorApi.getInteractions(plannedSurgery.id),
         counsellorApi.getHistory(plannedSurgery.id),
+        dayCareApi.listVisits({ planned_surgery_id: plannedSurgery.id }),
       ])
-        .then(([intRows, histRows]) => {
+        .then(async ([intRows, histRows, visits]) => {
           setInteractions(intRows);
           setHistory(histRows);
+          if (visits && visits.length > 0) {
+            const v = visits[0];
+            setDayCareVisit(v);
+            if (v.id) {
+              try {
+                const dRec = await dayCareApi.getDischargeRecord(v.id);
+                setDischargeRecord(dRec);
+              } catch (e) {
+                setDischargeRecord(null);
+              }
+            }
+          } else {
+            setDayCareVisit(null);
+            setDischargeRecord(null);
+          }
         })
         .catch(console.error)
         .finally(() => setLoadingData(false));
@@ -255,16 +254,6 @@ export function SurgeryAdviceDrawer({
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Confirm Surgery
                           </button>
-                          {["confirmed", "in_ot_preparation"].includes(plannedSurgery.status) && (
-                            <button
-                              onClick={handleMarkCompleted}
-                              disabled={completing}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow hover:bg-teal-700 transition"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              {completing ? "Updating..." : "Mark Completed"}
-                            </button>
-                          )}
                           <button
                             onClick={() => setPostponeModalOpen(true)}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 transition"
@@ -384,6 +373,70 @@ export function SurgeryAdviceDrawer({
                             Cancellation Reason
                           </h4>
                           <p className="text-sm text-rose-950">{plannedSurgery.cancellation_reason}</p>
+                        </div>
+                      )}
+
+                      {/* Day Care Visit Status Banner */}
+                      {dayCareVisit && (
+                        <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs uppercase tracking-wider text-sky-900">
+                                Day Care Surgery Visit
+                              </span>
+                              <span className="bg-sky-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full capitalize">
+                                {dayCareVisit.status?.replace(/_/g, " ")}
+                              </span>
+                            </div>
+                            <Link
+                              href={`/day-care/workflow?id=${dayCareVisit.id}`}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-900 hover:underline"
+                            >
+                              View Live Workflow <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
+                          <p className="text-xs text-sky-800">
+                            Visit Date: {formatDateDisplay(dayCareVisit.visit_date)} | Surgeon: {dayCareVisit.surgeon_name || "N/A"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Discharge Summary (Read-Only) if completed */}
+                      {dischargeRecord && (
+                        <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4 space-y-3">
+                          <div className="flex items-center justify-between border-b border-teal-200/60 pb-2">
+                            <h4 className="text-xs font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <CheckCircle2 className="h-4 w-4 text-teal-600" />
+                              Discharge Summary (Read-Only)
+                            </h4>
+                            <span className="text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded">
+                              OFFICIAL MEDICAL RECORD
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <span className="font-semibold text-slate-600">Diagnosis:</span>
+                              <p className="font-medium text-slate-900 mt-0.5">{dischargeRecord.diagnosis || "N/A"}</p>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-slate-600">Procedure Performed:</span>
+                              <p className="font-medium text-slate-900 mt-0.5">{dischargeRecord.procedure_performed || "N/A"}</p>
+                            </div>
+                          </div>
+                          {dischargeRecord.discharge_summary && (
+                            <div className="text-xs">
+                              <span className="font-semibold text-slate-600">Summary:</span>
+                              <p className="text-slate-800 mt-0.5 whitespace-pre-line bg-white/70 p-2.5 rounded-lg border border-teal-100">
+                                {dischargeRecord.discharge_summary}
+                              </p>
+                            </div>
+                          )}
+                          {dischargeRecord.follow_up_instructions && (
+                            <div className="text-xs">
+                              <span className="font-semibold text-slate-600">Follow-up Advice:</span>
+                              <p className="text-slate-800 mt-0.5 italic">{dischargeRecord.follow_up_instructions}</p>
+                            </div>
+                          )}
                         </div>
                       )}
 

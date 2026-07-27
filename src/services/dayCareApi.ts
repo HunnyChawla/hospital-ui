@@ -16,6 +16,7 @@ export interface DayCareVisitParams {
   date?: string;
   surgeon_id?: string;
   status?: string;
+  planned_surgery_id?: string;
 }
 
 export const dayCareApi = {
