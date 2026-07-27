@@ -114,19 +114,15 @@ export function OptometristPanel() {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       optometristVisitsApi.getById(currentVisitId, tenantId || undefined)
         .then((visit) => {
-          if (visit.optometrist_id) {
-            setOptometristIdForVisit(visit.optometrist_id);
-          } else {
-            console.warn("Optometrist ID not found in visit details, setting to empty");
-            setOptometristIdForVisit("");
-          }
+          const targetOptId = visit.optometrist_id || "";
+          setOptometristIdForVisit((prev) => (prev === targetOptId ? prev : targetOptId));
         })
         .catch((err) => {
           console.error("Failed to fetch visit details for optometrist ID", err);
-          setOptometristIdForVisit("");
+          setOptometristIdForVisit((prev) => (prev === "" ? prev : ""));
         });
     } else {
-      setOptometristIdForVisit("");
+      setOptometristIdForVisit((prev) => (prev === "" ? prev : ""));
     }
   }, [currentVisitId, isDoctor]);
 

@@ -30,6 +30,16 @@ export function useSSE(
     maxReconnectAttempts = 10,
   } = options;
 
+  const onMessageRef = useRef(onMessage);
+  const onErrorRef = useRef(onError);
+  const onOpenRef = useRef(onOpen);
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onErrorRef.current = onError;
+    onOpenRef.current = onOpen;
+  });
+
   const [data, setData] = useState<any>(null);
   const [status, setStatus] = useState<SSEConnectionStatus>("disconnected");
   const [error, setError] = useState<Event | null>(null);
@@ -92,7 +102,7 @@ export function useSSE(
 
           setStatus("connected");
           reconnectAttemptsRef.current = 0;
-          onOpen?.();
+          onOpenRef.current?.();
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
@@ -153,11 +163,11 @@ export function useSSE(
                     try {
                       const parsedData = JSON.parse(dataStr);
                       setData(parsedData);
-                      onMessage?.(parsedData);
+                      onMessageRef.current?.(parsedData);
                     } catch (parseError) {
                       // If parsing fails, use raw data
                       setData(dataStr);
-                      onMessage?.(dataStr);
+                      onMessageRef.current?.(dataStr);
                     }
                   }
                 }
@@ -173,7 +183,7 @@ export function useSSE(
                 }
 
                 setError(err as Event);
-                onError?.(err as Event);
+                onErrorRef.current?.(err as Event);
 
                 // Attempt to reconnect on error
                 if (!isManualCloseRef.current && autoReconnect) {
@@ -206,7 +216,7 @@ export function useSSE(
 
           setError(err as Event);
           setStatus("error");
-          onError?.(err as Event);
+          onErrorRef.current?.(err as Event);
 
           // Attempt to reconnect on error
           if (!isManualCloseRef.current && autoReconnect) {
@@ -227,9 +237,9 @@ export function useSSE(
     } catch (err) {
       setError(err as Event);
       setStatus("error");
-      onError?.(err as Event);
+      onErrorRef.current?.(err as Event);
     }
-  }, [url, autoReconnect, reconnectInterval, maxReconnectAttempts, onMessage, onError, onOpen]);
+  }, [url, autoReconnect, reconnectInterval, maxReconnectAttempts]);
 
   const disconnect = useCallback(() => {
     isManualCloseRef.current = true;
