@@ -1,4 +1,5 @@
 "use client";
+/** Optometrist & Doctor Patient Queue Sidebar Component */
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { ChevronRight, ChevronLeft, Users, CheckCircle, Play, X, RotateCcw, AlertTriangle, Clock, Droplet } from "lucide-react";
@@ -137,11 +138,12 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
   }, [queuePatients, activeFilter, isDoctor, optometristId, allowOptometristPickAny]);
 
   // Get counts for each filter
+  // Get counts for each filter
   // For optometrists: counts respect isolation (in-progress by others are excluded from pending count)
   const queueCounts = React.useMemo(() => {
     if (!isDoctor) {
       // Build per-tab counts using the same isolation logic as filtering
-      const counts = { pending: 0, completed: 0, no_show: 0 };
+      const counts = { pending: 0, dilation: 0, completed: 0, no_show: 0 };
       queuePatients.forEach((patient) => {
         const status = patient.status;
         // no_show is always visible to all
@@ -149,9 +151,14 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
           counts.no_show++;
           return;
         }
+        // Dilation in progress tab
+        if (status === "dilation_in_progress") {
+          counts.dilation++;
+          return;
+        }
         // Completed (optometry done, sent to doctor) - always visible globally
         if (["optometrist_investigation_completed", "awaiting_doctor", "doctor_assigned",
-             "consultation_in_progress", "dilation_in_progress", "dilation_completed",
+             "consultation_in_progress", "dilation_completed",
              "consultation_completed"].includes(status)) {
           counts.completed++;
           return;
@@ -201,6 +208,7 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
     ]
     : [
       { key: "pending", label: "Pending", count: queueCounts.pending },
+      ...((queueCounts as any).dilation > 0 ? [{ key: "dilation", label: "Dilation", count: (queueCounts as any).dilation }] : []),
       { key: "completed", label: "Completed", count: queueCounts.completed },
       // Add optometrist NO SHOW support if needed
       ...((queueCounts as any).no_show > 0 ? [{ key: "no_show", label: "No Show", count: (queueCounts as any).no_show }] : [])
@@ -482,23 +490,86 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             )}
 
                             {patient.status === "optometrist_investigation_in_progress" && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onAction(patient.visit_id, "complete_investigation");
-                                }}
-                                disabled={updatingVisitId === patient.visit_id}
-                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-green-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                              >
-                                {updatingVisitId === patient.visit_id ? (
-                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                ) : (
-                                  <>
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                    Complete
-                                  </>
-                                )}
-                              </button>
+                              <div className="flex w-full items-center gap-2">
+                                {/* Dilation status/action - compact */}
+                                <div className="relative shrink-0 flex items-center gap-1">
+                                  {patient.dilation_completed_at && (
+                                    <div className="flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-semibold text-emerald-700 cursor-default" title="Dilation completed">
+                                      <CheckCircle className="h-3 w-3" />
+                                      <span className="hidden sm:inline">Done</span>
+                                    </div>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDilationDropdownVisitId(
+                                        dilationDropdownVisitId === patient.visit_id ? null : patient.visit_id
+                                      );
+                                    }}
+                                    disabled={updatingVisitId === patient.visit_id}
+                                    className="flex items-center gap-1 rounded-md bg-violet-500 px-2 py-1.5 text-[10px] font-semibold text-white transition-all hover:bg-violet-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                    title={patient.dilation_completed_at ? "Start dilation again" : "Start dilation"}
+                                  >
+                                    {updatingVisitId === patient.visit_id ? (
+                                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    ) : (
+                                      <>
+                                        <Droplet className="h-3 w-3" />
+                                        <span>{patient.dilation_completed_at ? "Re-dilate" : "Dilate"}</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {/* Duration Picker Dropdown */}
+                                      {dilationDropdownVisitId === patient.visit_id && (
+                                        <>
+                                          <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setDilationDropdownVisitId(null);
+                                            }}
+                                          />
+                                          <div className="absolute top-full left-0 mt-1 z-50 min-w-[120px] bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 animate-in fade-in zoom-in-95 duration-150">
+                                            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 px-1">Duration</p>
+                                            <div className="flex flex-col gap-0.5">
+                                              {[15, 20, 30, 45, 60].map((mins) => (
+                                                <button
+                                                  key={mins}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDilationDropdownVisitId(null);
+                                                    onAction(patient.visit_id, "start_dilation", mins);
+                                                  }}
+                                                  className="w-full text-left px-2 py-1.5 text-[10px] font-medium rounded border border-transparent text-slate-600 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all"
+                                                >
+                                                  {mins} min
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
+                                </div>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAction(patient.visit_id, "complete_investigation");
+                                  }}
+                                  disabled={updatingVisitId === patient.visit_id}
+                                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-green-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                >
+                                  {updatingVisitId === patient.visit_id ? (
+                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="h-3.5 w-3.5" />
+                                      Complete
+                                    </>
+                                  )}
+                                </button>
+                              </div>
                             )}
 
                             {patient.status === "no_show" && (
@@ -520,6 +591,42 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                   </>
                                 )}
                               </button>
+                            )}
+
+                            {patient.status === "dilation_in_progress" && (
+                              <div className="flex w-full items-center gap-2">
+                                {/* Dilation timer info */}
+                                {patient.dilation_started_at && (
+                                  <div className={`flex items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] font-medium ${new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-violet-50 text-violet-700 border-violet-200"
+                                    }`}>
+                                    <Clock className="h-3 w-3" />
+                                    <span>
+                                      {new Date() > new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000)
+                                        ? "Overdue"
+                                        : new Date(new Date(patient.dilation_started_at).getTime() + (patient.dilation_duration_minutes || 0) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAction(patient.visit_id, "complete_dilation");
+                                  }}
+                                  disabled={updatingVisitId === patient.visit_id}
+                                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-green-700 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                                >
+                                  {updatingVisitId === patient.visit_id ? (
+                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="h-3.5 w-3.5" />
+                                      Complete Dilation
+                                    </>
+                                  )}
+                                </button>
+                              </div>
                             )}
                           </>
                         )}
@@ -615,37 +722,36 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                             {patient.status === "consultation_in_progress" && (
                               <div className="flex w-full items-center gap-2">
                                 {/* Dilation status/action - compact */}
-                                <div className="relative shrink-0">
-                                  {patient.dilation_completed_at ? (
+                                <div className="relative shrink-0 flex items-center gap-1">
+                                  {patient.dilation_completed_at && (
                                     <div className="flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-semibold text-emerald-700 cursor-default" title="Dilation completed">
                                       <CheckCircle className="h-3 w-3" />
                                       <span className="hidden sm:inline">Done</span>
                                       <span className="text-emerald-600">{new Date(patient.dilation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
-                                  ) : (
-                                    <>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDilationDropdownVisitId(
-                                            dilationDropdownVisitId === patient.visit_id ? null : patient.visit_id
-                                          );
-                                        }}
-                                        disabled={updatingVisitId === patient.visit_id}
-                                        className="flex items-center gap-1 rounded-md bg-violet-500 px-2 py-1.5 text-[10px] font-semibold text-white transition-all hover:bg-violet-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                                        title="Start dilation"
-                                      >
-                                        {updatingVisitId === patient.visit_id ? (
-                                          <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                        ) : (
-                                          <>
-                                            <Droplet className="h-3 w-3" />
-                                            <span>Dilate</span>
-                                          </>
-                                        )}
-                                      </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDilationDropdownVisitId(
+                                        dilationDropdownVisitId === patient.visit_id ? null : patient.visit_id
+                                      );
+                                    }}
+                                    disabled={updatingVisitId === patient.visit_id}
+                                    className="flex items-center gap-1 rounded-md bg-violet-500 px-2 py-1.5 text-[10px] font-semibold text-white transition-all hover:bg-violet-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                    title={patient.dilation_completed_at ? "Start dilation again" : "Start dilation"}
+                                  >
+                                    {updatingVisitId === patient.visit_id ? (
+                                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    ) : (
+                                      <>
+                                        <Droplet className="h-3 w-3" />
+                                        <span>{patient.dilation_completed_at ? "Re-dilate" : "Dilate"}</span>
+                                      </>
+                                    )}
+                                  </button>
 
-                                      {/* Duration Picker Dropdown */}
+                                  {/* Duration Picker Dropdown */}
                                       {dilationDropdownVisitId === patient.visit_id && (
                                         <>
                                           <div
@@ -675,8 +781,6 @@ export const OptometristCollapsibleQueueSection: React.FC<OptometristCollapsible
                                           </div>
                                         </>
                                       )}
-                                    </>
-                                  )}
                                 </div>
                                 {/* Complete consultation - primary action */}
                                 <button
