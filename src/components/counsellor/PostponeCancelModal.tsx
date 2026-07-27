@@ -7,6 +7,7 @@ import { X, Loader2, AlertTriangle, Calendar } from "lucide-react";
 import { PlannedSurgery } from "@/types";
 import { counsellorApi } from "@/services/counsellorApi";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface PostponeCancelModalProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export function PostponeCancelModal({
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || `Failed to ${mode} surgery`);
+      toast.error(getErrorMessage(error));
     } finally {
       setSaving(false);
     }

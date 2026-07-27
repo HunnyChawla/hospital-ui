@@ -6,6 +6,7 @@ import {
     type FeatureFlagUpdate
 } from '@/services/featureFlagsApi';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/utils/errorHandler';
 
 /**
  * Hook to get and update feature flags
@@ -39,7 +40,7 @@ export function useFeatureFlags(featureKey?: string) {
             toast.success(`${variables.feature} settings updated successfully`);
         },
         onError: (error: any) => {
-            toast.error(error?.response?.data?.detail || 'Failed to update feature flags');
+            toast.error(getErrorMessage(error));
             console.error('Update error:', error);
         },
     });

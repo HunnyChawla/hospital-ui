@@ -1,8 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorHandler";
+
+// Patch sonner toast methods once on client side to guarantee non-string objects never reach React render tree
+if (typeof window !== "undefined") {
+  const originalError = toast.error;
+  const originalSuccess = toast.success;
+  const originalWarning = toast.warning;
+  const originalInfo = toast.info;
+
+  if (!(toast as any).__isPatchedForObjects) {
+    (toast as any).__isPatchedForObjects = true;
+
+    toast.error = (message: any, data?: any) => {
+      let safeMessage = message;
+      if (message && typeof message !== "string" && !React.isValidElement(message)) {
+        safeMessage = getErrorMessage(message);
+      }
+      return originalError(safeMessage, data);
+    };
+
+    toast.success = (message: any, data?: any) => {
+      let safeMessage = message;
+      if (message && typeof message !== "string" && !React.isValidElement(message)) {
+        safeMessage = typeof message === "object" ? (message.message || message.msg || getErrorMessage(message)) : String(message);
+      }
+      return originalSuccess(safeMessage, data);
+    };
+
+    toast.warning = (message: any, data?: any) => {
+      let safeMessage = message;
+      if (message && typeof message !== "string" && !React.isValidElement(message)) {
+        safeMessage = getErrorMessage(message);
+      }
+      return originalWarning(safeMessage, data);
+    };
+
+    toast.info = (message: any, data?: any) => {
+      let safeMessage = message;
+      if (message && typeof message !== "string" && !React.isValidElement(message)) {
+        safeMessage = getErrorMessage(message);
+      }
+      return originalInfo(safeMessage, data);
+    };
+  }
+}
 
 export function FullscreenAwareToaster() {
   const [target, setTarget] = useState<HTMLElement | null>(null);

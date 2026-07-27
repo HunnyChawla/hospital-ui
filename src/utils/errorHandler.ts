@@ -59,18 +59,24 @@ function parseDetail(detail: any): string | null {
   }
 
   if (Array.isArray(detail) && detail.length > 0) {
-    const messages = detail.map((err: any) => {
-      if (typeof err === "string") return err;
-      if (err?.msg) return err.msg;
-      if (err?.message) return err.message;
-      if (err?.ctx) {
-        const { resource_type, field, value } = err.ctx;
-        if (resource_type && field) {
-          return `${resource_type} with ${field} '${value || ""}' already exists`;
+    const messages = detail
+      .map((err: any) => {
+        if (typeof err === "string") return err;
+        if (err?.msg && typeof err.msg === "string") return err.msg;
+        if (err?.message && typeof err.message === "string") return err.message;
+        if (err?.ctx) {
+          const { resource_type, field, value } = err.ctx;
+          if (resource_type && field) {
+            return `${resource_type} with ${field} '${value || ""}' already exists`;
+          }
         }
-      }
-      return "Validation error";
-    });
+        if (typeof err === "object" && err !== null && err.loc && Array.isArray(err.loc)) {
+          const field = err.loc[err.loc.length - 1];
+          return `${field}: ${err.msg || "invalid value"}`;
+        }
+        return "Validation error";
+      })
+      .filter(Boolean);
     return messages.join(", ");
   }
 
@@ -83,6 +89,11 @@ function parseDetail(detail: any): string | null {
     }
     if ("detail" in detail) {
       return parseDetail(detail.detail);
+    }
+    if ("loc" in detail || "type" in detail) {
+      if (detail.msg && typeof detail.msg === "string") {
+        return detail.msg;
+      }
     }
   }
 
@@ -122,7 +133,10 @@ export function getErrorMessage(error: any): string {
     const msg = parseDetail(actualError.response.data.detail);
     if (msg) return msg;
   }
-  if (actualError?.response?.statusText) {
+  if (actualError?.response?.data?.message && typeof actualError.response.data.message === "string") {
+    return actualError.response.data.message;
+  }
+  if (actualError?.response?.statusText && typeof actualError.response.statusText === "string") {
     return actualError.response.statusText;
   }
 
@@ -142,6 +156,10 @@ export function getErrorMessage(error: any): string {
   if (actualError?.message && typeof actualError.message === "string") {
     return actualError.message;
   }
+
+  // 5. Try parsing actualError directly
+  const directMsg = parseDetail(actualError);
+  if (directMsg) return directMsg;
 
   // Default fallback
   return "An error occurred. Please try again.";

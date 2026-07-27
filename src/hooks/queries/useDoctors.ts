@@ -3,6 +3,7 @@ import { doctorsApi, Doctor, CreateDoctorRequest, UpdateDoctorRequest, Consultat
 import { usersApi } from '@/services/usersApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/utils/errorHandler';
 
 /**
  * Query Keys Factory for Doctors
@@ -124,7 +125,7 @@ export function useCreateDoctor() {
         queryClient.setQueryData(doctorKeys.list(tenantId), context.previousDoctors);
       }
 
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to create doctor';
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     },
     onSuccess: () => {
@@ -192,7 +193,7 @@ export function useUpdateDoctor() {
         queryClient.setQueryData(doctorKeys.list(tenantId), context.previousDoctors);
       }
 
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update doctor';
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     },
     onSuccess: () => {
@@ -233,7 +234,7 @@ export function useSetConsultationFees() {
       queryClient.invalidateQueries({ queryKey: doctorKeys.consultationFees(variables.doctorId) });
     },
     onError: (err) => {
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update consultation fees';
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     },
   });

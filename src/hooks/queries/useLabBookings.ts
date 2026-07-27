@@ -8,6 +8,7 @@ import {
 } from '@/services/labBookingsApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/utils/errorHandler';
 
 /**
  * Query Keys Factory for Lab Bookings
@@ -99,7 +100,7 @@ export function useCreateLabBooking() {
         });
       }
 
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to create lab booking';
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     },
     onSuccess: () => {
@@ -123,13 +124,16 @@ export function useUpdateLabBookingStatus() {
     mutationFn: async ({
       bookingId,
       status,
+      notes,
     }: {
       bookingId: string;
       status: BookingStatus;
+      notes?: string;
     }) => {
       return await labBookingsApi.updateStatus(
         bookingId,
         status,
+        notes,
         isPlatformOwner ? tenantId ?? undefined : undefined
       );
     },
@@ -175,7 +179,7 @@ export function useUpdateLabBookingStatus() {
         });
       }
 
-      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update booking status';
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     },
     onSuccess: () => {

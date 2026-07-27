@@ -9,6 +9,7 @@ import { counsellorApi } from "@/services/counsellorApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { getTodayDateLocal } from "@/utils/format";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface ConfirmSurgeryModalProps {
   isOpen: boolean;
@@ -107,7 +108,7 @@ export function ConfirmSurgeryModal({
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || "Failed to confirm surgery");
+      toast.error(getErrorMessage(error));
     } finally {
       setSaving(false);
     }

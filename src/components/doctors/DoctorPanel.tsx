@@ -314,7 +314,7 @@ export function DoctorPanel() {
       await refreshSchedule();
     } catch (error: any) {
       console.error("Failed to update visit status:", error);
-      toast.error(error?.response?.data?.detail || error?.response?.data?.message || "Failed to update status");
+      toast.error(getErrorMessage(error));
     } finally {
       setUpdatingVisitId(null);
     }
@@ -329,7 +329,7 @@ export function DoctorPanel() {
       await refreshSchedule();
     } catch (error: any) {
       console.error("Failed to pick patient:", error);
-      toast.error(error?.response?.data?.detail || "Failed to call patient");
+      toast.error(getErrorMessage(error));
     } finally {
       setUpdatingVisitId(null);
     }
@@ -343,7 +343,7 @@ export function DoctorPanel() {
       await refreshSchedule();
     } catch (error: any) {
       console.error("Failed to unpick patient:", error);
-      toast.error(error?.response?.data?.detail || "Failed to return patient");
+      toast.error(getErrorMessage(error));
     } finally {
       setUpdatingVisitId(null);
     }
