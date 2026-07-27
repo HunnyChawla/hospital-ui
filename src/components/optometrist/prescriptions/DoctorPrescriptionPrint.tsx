@@ -595,15 +595,6 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 <span className="text-slate-700 font-medium ml-1">
                                                     — {locationStr}
                                                 </span>
-                                                {surgery.planned_date ? (
-                                                    <span className="text-slate-600 ml-1">
-                                                        (Planned: {formatDate(surgery.planned_date)})
-                                                    </span>
-                                                ) : surgery.advised_date ? (
-                                                    <span className="text-slate-500 ml-1">
-                                                        (Advised: {formatDate(surgery.advised_date)})
-                                                    </span>
-                                                ) : null}
                                                 {surgery.urgency && surgery.urgency !== "elective" && (
                                                     <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
                                                         {surgery.urgency}
