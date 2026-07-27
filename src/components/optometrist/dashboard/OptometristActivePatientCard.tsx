@@ -94,29 +94,28 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   useEffect(() => {
     if (
       activeQueuePatient &&
-      visitData &&
-      (activeQueuePatient.visit_id === visitData.id || activeQueuePatient.patient_id === patientId)
+      (activeQueuePatient.visit_id === visitId || activeQueuePatient.patient_id === patientId)
     ) {
-      if (
-        activeQueuePatient.dilation_started_at !== visitData.dilation_started_at ||
-        activeQueuePatient.dilation_completed_at !== visitData.dilation_completed_at ||
-        activeQueuePatient.status !== visitData.status
-      ) {
-        setVisitData((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: activeQueuePatient.status,
-                dilation_started_at: activeQueuePatient.dilation_started_at,
-                dilation_duration_minutes: activeQueuePatient.dilation_duration_minutes,
-                dilation_completed_at: activeQueuePatient.dilation_completed_at,
-              }
-            : null
-        );
-        loadVisitData();
-      }
+      setVisitData((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: activeQueuePatient.status || prev.status,
+              dilation_started_at: activeQueuePatient.dilation_started_at ?? prev.dilation_started_at,
+              dilation_duration_minutes: activeQueuePatient.dilation_duration_minutes ?? prev.dilation_duration_minutes,
+              dilation_completed_at: activeQueuePatient.dilation_completed_at ?? prev.dilation_completed_at,
+            }
+          : null
+      );
     }
-  }, [activeQueuePatient, visitData, patientId, loadVisitData]);
+  }, [
+    visitId,
+    patientId,
+    activeQueuePatient?.status,
+    activeQueuePatient?.dilation_started_at,
+    activeQueuePatient?.dilation_duration_minutes,
+    activeQueuePatient?.dilation_completed_at,
+  ]);
 
   const handleStartDilation = async (minutes: number) => {
     if (!visitId) return;
