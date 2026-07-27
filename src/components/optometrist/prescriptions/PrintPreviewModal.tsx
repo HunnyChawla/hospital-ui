@@ -155,7 +155,7 @@ export function PrintPreviewModal({
         if (section === "Meds") hasData = !!(prescription.medicine_items?.length);
         if (section === "Lab Investigations") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "Lab Test" || a.advice_type === "lab-test"));
         if (section === "Advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action);
-        if (section === "Planned Surgery") hasData = !!(plannedSurgeries?.length);
+        if (section === "Planned Surgery") hasData = !!(plannedSurgeries?.some((s: any) => s.status !== "cancelled" && s.status !== "cancelled_by_patient" && s.status !== "cancelled_by_hospital"));
         if (section === "FollowUp") hasData = !!(prescription.followup_date);
         return hasData;
     });
