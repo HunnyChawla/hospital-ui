@@ -405,8 +405,8 @@ export function OptometristPanel() {
         (patient) => patient.patient_id === selectedPatientId
       );
 
-      // Prefer in_consultation, then checked_in
-      const inConsultation = patientSlots.find((p) => p.status === "in_consultation");
+      // Prefer in_consultation/consultation_in_progress, then checked_in
+      const inConsultation = patientSlots.find((p) => p.status === "in_consultation" || p.status === "consultation_in_progress");
       const checkedIn = patientSlots.find((p) => p.status === "checked_in");
 
       let chosen = inConsultation || checkedIn;
