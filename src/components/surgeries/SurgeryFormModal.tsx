@@ -249,9 +249,35 @@ export function SurgeryFormModal({
       return;
     }
 
+    // Validate mandatory package rates
+    if (isAnatomySpecific && selectedSiteIds.length > 0) {
+      for (const pkg of packages) {
+        for (const siteId of selectedSiteIds) {
+          const rawVal = pkg.anatomy_prices?.[siteId];
+          const valNum = typeof rawVal === "object" ? parseFloat(rawVal?.price) : parseFloat(rawVal);
+          if (isNaN(valNum) || valNum <= 0) {
+            const site = anatomySites.find((a) => a.id === siteId);
+            const siteLabel = site ? `${site.name} (${site.short_code})` : "anatomy site";
+            toast.error(`Price is mandatory for ${siteLabel} in package "${pkg.name}".`);
+            return;
+          }
+        }
+      }
+    } else {
+      for (const pkg of packages) {
+        const pNum = parseFloat(pkg.price);
+        if (isNaN(pNum) || pNum <= 0) {
+          toast.error(`Standard package rate is required for package "${pkg.name}".`);
+          return;
+        }
+      }
+    }
+
     // Determine primary base price from default package
     const defaultPkg = packages.find((p) => p.is_default) || packages[0];
-    const basePriceNum = parseFloat(defaultPkg.price) || 0;
+    const basePriceNum = isAnatomySpecific && selectedSiteIds.length > 0
+      ? (parseFloat(Object.values(defaultPkg.anatomy_prices || {})[0] as any) || 0)
+      : parseFloat(defaultPkg.price) || 0;
 
     const payloadPackages = packages.map((pkg) => {
       const formattedAnatomyPrices: Record<string, number> = {};
@@ -267,7 +293,7 @@ export function SurgeryFormModal({
         id: pkg.id,
         name: pkg.name.trim() || "Standard Package",
         description: pkg.description.trim() || undefined,
-        price: parseFloat(pkg.price) || 0,
+        price: parseFloat(pkg.price) || basePriceNum,
         anatomy_prices: formattedAnatomyPrices,
         is_default: pkg.is_default,
       };
@@ -291,7 +317,6 @@ export function SurgeryFormModal({
         is_active: isActive,
       });
       // Only close on success
-      onClose();
       onClose();
     } catch (error) {
       // Surface backend error (e.g. duplicate surgery name) as toast
@@ -675,18 +700,20 @@ export function SurgeryFormModal({
                                         <MapPin className="h-3.5 w-3.5 text-sky-600 shrink-0" />
                                         <span className="truncate">{site.name}</span>
                                         <span className="font-mono text-[10px] text-slate-500">({site.short_code})</span>
+                                        <span className="text-rose-500 font-bold">*</span>
                                       </div>
                                       <div className="flex items-center gap-1 shrink-0">
                                         <span className="text-slate-400 text-xs font-semibold">₹</span>
                                         <input
                                           type="number"
-                                          min="0"
-                                          placeholder="Price (₹)"
+                                          required
+                                          min="1"
+                                          placeholder="Rate (₹) *"
                                           value={sitePriceVal}
                                           onChange={(e) =>
                                             handleUpdatePackageAnatomyPrice(idx, siteId, e.target.value)
                                           }
-                                          className="w-28 rounded-md border border-slate-200 px-2 py-1 text-xs font-bold text-slate-900 outline-none focus:border-sky-400 bg-white"
+                                          className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs font-bold text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-200 bg-white"
                                         />
                                       </div>
                                     </div>
