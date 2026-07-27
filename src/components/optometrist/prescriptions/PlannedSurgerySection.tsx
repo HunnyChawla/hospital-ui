@@ -246,8 +246,27 @@ export function PlannedSurgerySection({
                                         <div className="flex items-center gap-3">
                                             <Scissors className="h-4 w-4 text-amber-600" />
                                             <div>
-                                                <p className="text-sm font-medium text-slate-900">{surgery.surgery_name}</p>
-                                                <div className="flex items-center gap-2 mt-0.5">
+                                                <div className="flex items-center gap-2">
+                                                     <p className="text-sm font-semibold text-slate-900">{surgery.surgery_name}</p>
+                                                     {(() => {
+                                                         switch (surgery.status) {
+                                                             case "completed":
+                                                                 return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase tracking-wider">Completed</span>;
+                                                             case "confirmed":
+                                                             case "scheduled":
+                                                                 return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300 uppercase tracking-wider">{surgery.status}</span>;
+                                                             case "postponed":
+                                                                 return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 uppercase tracking-wider">Postponed</span>;
+                                                             case "cancelled":
+                                                             case "cancelled_by_patient":
+                                                             case "cancelled_by_hospital":
+                                                                 return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 uppercase tracking-wider">Cancelled</span>;
+                                                             default:
+                                                                 return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 uppercase tracking-wider">Advised</span>;
+                                                         }
+                                                     })()}
+                                                 </div>
+                                                 <div className="flex items-center gap-2 mt-1">
                                                     {surgery.anatomy_site_name ? (
                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
                                                             <MapPin className="h-3 w-3" />
