@@ -64,9 +64,9 @@ export function SurgeryFormModal({
   // Multi-Package State
   const [packages, setPackages] = useState<PackageItemInput[]>([
     {
-      name: "Basic / Monofocal Package",
-      description: "Standard surgical procedure package including post-op medication.",
-      price: "25000",
+      name: "Standard Package",
+      description: "",
+      price: "",
       anatomy_prices: {},
       is_default: true,
     },
@@ -121,7 +121,7 @@ export function SurgeryFormModal({
               id: pkg.id,
               name: pkg.name,
               description: pkg.description || "",
-              price: pkg.price ? pkg.price.toString() : "0",
+              price: pkg.price !== undefined && pkg.price !== null ? pkg.price.toString() : "",
               anatomy_prices: strAnatomyPrices,
               is_default: pkg.is_default,
             };
@@ -139,9 +139,9 @@ export function SurgeryFormModal({
       setSelectedSiteIds([]);
       setPackages([
         {
-          name: "Basic / Monofocal Package",
-          description: "Standard surgical procedure package including post-op medication.",
-          price: "25000",
+          name: "Standard Package",
+          description: "",
+          price: "",
           anatomy_prices: {},
           is_default: true,
         },
@@ -171,7 +171,7 @@ export function SurgeryFormModal({
       {
         name: `Package ${prev.length + 1}`,
         description: "",
-        price: "35000",
+        price: "",
         is_default: false,
       },
     ]);
