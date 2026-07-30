@@ -50,7 +50,7 @@ function getConnectionBadge(status: SSEConnectionStatus) {
         case "connected":
             return {
                 icon: Wifi,
-                text: "Live",
+                text: "Live (SSE Stream)",
                 className: "bg-emerald-500 text-white",
                 iconClassName: "text-white",
                 pulse: true,

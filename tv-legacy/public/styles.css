@@ -362,6 +362,10 @@ body {
     background-color: #22c55e;
 }
 
+.status-polling {
+    background-color: #3b82f6;
+}
+
 .status-connecting {
     background-color: #f59e0b;
 }

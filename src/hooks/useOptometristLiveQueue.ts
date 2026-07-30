@@ -38,9 +38,12 @@ function mapSSEDataToQueuePatients(data: any): QueuePatient[] | null {
     return null;
   }
 
-  // Check for empty objects (common heartbeat format)
-  if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0) {
-    return null;
+  // Check for empty objects or timestamp heartbeat objects
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    if (Object.keys(data).length === 0) return null;
+    if (data.timestamp && !data.patient_id && !data.visit_id && !data.id && !data.queue && !data.items && !data.data && !data.entries && !data.slots) {
+      return null;
+    }
   }
 
   if (Array.isArray(data)) {
