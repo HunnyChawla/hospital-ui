@@ -180,6 +180,12 @@ export function PlannedSurgeryFormModal({
             return;
         }
 
+        const selectedSurgery = surgeries.find((s) => s.id === surgeryId);
+        if (selectedSurgery?.is_anatomy_specific && !anatomySiteId) {
+            toast.error("Please select an anatomy site for this surgery");
+            return;
+        }
+
         setSaving(true);
         try {
             if (isEditing && initialData) {

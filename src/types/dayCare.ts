@@ -49,6 +49,8 @@ export interface DayCareVisit {
   created_at: string;
   updated_at: string;
   timeline?: DayCareTimelineEntry[];
+  anatomy_site_name?: string | null;
+  eye?: string | null;
 }
 
 export interface CreateDayCareVisitRequest {

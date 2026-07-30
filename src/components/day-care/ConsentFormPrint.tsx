@@ -75,6 +75,12 @@ export const ConsentFormPrint = ({ visit }: ConsentFormPrintProps) => {
               <span className="font-bold">Planned Surgery</span>
               <span className="font-semibold text-sky-900">: {visit.surgery_name || "-"}</span>
             </div>
+            {visit.anatomy_site_name && (
+              <div className="grid grid-cols-[130px_1fr]">
+                <span className="font-bold">Site / Anatomy</span>
+                <span className="font-semibold text-slate-800">: {visit.anatomy_site_name} {visit.eye ? `(${visit.eye})` : ""}</span>
+              </div>
+            )}
           </div>
           <div className="p-3 space-y-2">
             <div className="grid grid-cols-[110px_1fr]">

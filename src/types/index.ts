@@ -667,6 +667,8 @@ export type PlannedSurgeryStatus =
   | "pending_investigations"
   | "pending_fitness"
   | "confirmed"
+  | "released_to_daycare"
+  | "pre_op_started"
   | "in_ot_preparation"
   | "surgery_completed"
   | "postponed"
@@ -701,6 +703,7 @@ export type PlannedSurgery = {
   planned_time: string | null;
   hospital_name: string | null;
   notes: string | null;
+  counsellor_notes?: string | null;
   cancellation_reason?: string | null;
   postponement_reason?: string | null;
   confirmed_at?: string | null;
@@ -747,13 +750,14 @@ export type UpdatePlannedSurgeryRequest = {
   planned_time?: string | null;
   hospital_name?: string | null;
   notes?: string | null;
+  counsellor_notes?: string | null;
   status?: PlannedSurgeryStatus;
 };
 
 export type ConfirmSurgeryRequest = {
   package_id: string;
   agreed_price: number;
-  planned_date: string;
+  planned_date?: string | null;  // Optional — can confirm intent without a fixed date
   planned_time?: string | null;
   notes?: string | null;
 };
@@ -793,6 +797,8 @@ export type CounsellorInteraction = {
   package_name?: string | null;
   payment_amount?: number | null;
   payment_reference?: string | null;
+  payment_id?: string | null;
+  payment_number?: string | null;
   notes: string;
   created_at: string;
 };
@@ -810,6 +816,60 @@ export type SurgeryAdviceHistory = {
   new_value?: string | null;
   reason?: string | null;
   notes?: string | null;
+};
+
+export type ConsentStatus = "pending" | "signed" | "not_required";
+export type InvestigationsStatus = "not_ordered" | "ordered" | "completed" | "cleared" | "not_required";
+export type FitnessStatus = "not_required" | "pending" | "cleared" | "not_fit";
+
+export type PreOpClearance = {
+  id: string;
+  tenant_id: string;
+  planned_surgery_id: string;
+  // Consent
+  consent_status: ConsentStatus;
+  consent_signed_at?: string | null;
+  consent_signed_by?: string | null;
+  consent_witness?: string | null;
+  consent_notes?: string | null;
+  // Investigations
+  investigations_status: InvestigationsStatus;
+  investigations_notes?: string | null;
+  // Cardiac fitness
+  cardiac_fitness_status: FitnessStatus;
+  cardiac_fitness_by?: string | null;
+  cardiac_fitness_notes?: string | null;
+  // Anaesthesia fitness
+  anaesthesia_status: FitnessStatus;
+  anaesthesia_cleared_by?: string | null;
+  anaesthesia_notes?: string | null;
+  // OT clearance
+  is_cleared_for_ot: boolean;
+  cleared_by?: string | null;
+  cleared_at?: string | null;
+  clearing_notes?: string | null;
+  // Audit
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+};
+
+export type UpsertPreOpClearanceRequest = {
+  consent_status?: ConsentStatus;
+  consent_signed_by?: string | null;
+  consent_witness?: string | null;
+  consent_notes?: string | null;
+  investigations_status?: InvestigationsStatus;
+  investigations_notes?: string | null;
+  cardiac_fitness_status?: FitnessStatus;
+  cardiac_fitness_by?: string | null;
+  cardiac_fitness_notes?: string | null;
+  anaesthesia_status?: FitnessStatus;
+  anaesthesia_cleared_by?: string | null;
+  anaesthesia_notes?: string | null;
+  is_cleared_for_ot?: boolean;
+  clearing_notes?: string | null;
 };
 
 // ============================================

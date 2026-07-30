@@ -24,7 +24,8 @@ import {
   Download,
   Eye,
   Upload,
-  X
+  X,
+  ClipboardCheck,
 } from "lucide-react";
 import { dayCareApi } from "@/services/dayCareApi";
 import { doctorsApi } from "@/services/doctorsApi";
@@ -35,7 +36,7 @@ import { advicesApi, Advice } from "@/services/advicesApi";
 import { medicinesApi, Medicine } from "@/services/medicinesApi";
 import { servicesApi, Service } from "@/services/servicesApi";
 import { Combobox } from "@/components/common/Combobox";
-import { Surgery } from "@/types";
+import { Surgery, PreOpClearance } from "@/types";
 import {
   DayCareVisit,
   DayCareStatus,
@@ -54,6 +55,10 @@ import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
 import { ConsentFormPrint } from "./ConsentFormPrint";
 import { mrdApi, MRDDocument, MRDDocumentCategory } from "@/services/mrdApi";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
+import { PreOpClearanceTab } from "@/components/counsellor/PreOpClearanceTab";
+import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
+import { counsellorApi } from "@/services/counsellorApi";
+import { preOpClearanceApi } from "@/services/preOpClearanceApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { Payment } from "@/services/paymentsApi";
 import { toast } from "sonner";
@@ -62,6 +67,7 @@ import { currency } from "@/utils/format";
 import clsx from "clsx";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Lock } from "lucide-react";
 
 interface DayCareWorkflowWizardProps {
   visitId: string;
@@ -125,7 +131,7 @@ const parseLocalDateTime = (localDateTimeStr: string): string | null => {
 
 const STAGES: { id: TabType; label: string; icon: React.ReactNode; defaultStatus: DayCareStatus[] }[] = [
   { id: "billing", label: "Admission & Check-in", icon: <IndianRupee className="h-4 w-4" />, defaultStatus: ["scheduled"] },
-  { id: "consent", label: "Consent & Documents", icon: <FilePlus2 className="h-4 w-4" />, defaultStatus: ["checked_in"] },
+  { id: "consent", label: "Consent & Clearance", icon: <FilePlus2 className="h-4 w-4" />, defaultStatus: ["checked_in"] },
   { id: "clinical", label: "Pre-Assessment", icon: <Heart className="h-4 w-4" />, defaultStatus: [] },
   { id: "checklist", label: "OT Prep", icon: <ClipboardList className="h-4 w-4" />, defaultStatus: ["pre_assessment_completed"] },
   { id: "ot", label: "OT Procedure", icon: <FileText className="h-4 w-4" />, defaultStatus: ["ready_for_ot", "in_ot"] },
@@ -139,6 +145,62 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("billing");
+  type SectionType = "pre_op" | "ot_procedure" | "post_op";
+  const [activeSection, setActiveSection] = useState<SectionType>("pre_op");
+
+  const getSectionForTab = (tab: TabType): SectionType => {
+    if (["billing", "consent", "clinical", "checklist"].includes(tab)) return "pre_op";
+    if (tab === "ot") return "ot_procedure";
+    return "post_op";
+  };
+
+  useEffect(() => {
+    setActiveSection(getSectionForTab(activeTab));
+  }, [activeTab]);
+
+  const [totalAdvancePaid, setTotalAdvancePaid] = useState<number>(0);
+  const [isPreOpCleared, setIsPreOpCleared] = useState(false);
+  const [preOpClearance, setPreOpClearance] = useState<PreOpClearance | null>(null);
+
+  const getIsTabRestricted = (tabId: TabType): boolean => {
+    const restrictedTabs: TabType[] = ["clinical", "checklist", "ot", "recovery", "discharge"];
+    if (restrictedTabs.includes(tabId)) {
+      if (!preOpClearance || preOpClearance.consent_status === "pending" || !preOpClearance.is_cleared_for_ot) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const isSectionAccessible = (section: SectionType): boolean => {
+    if (section === "pre_op") return true;
+    if (section === "ot_procedure") {
+      return isPreOpCleared;
+    }
+    if (section === "post_op") {
+      return ["recovery", "discharged"].includes(visit?.status || "");
+    }
+    return false;
+  };
+
+  const handleSectionChange = (section: SectionType) => {
+    if (!isSectionAccessible(section)) {
+      if (section === "ot_procedure") {
+        toast.error("Pre-Op Clearance (Consent, Investigations & Fitness) must be completed and marked Cleared for OT before entering OT.");
+      } else if (section === "post_op") {
+        toast.error("OT Procedure must be completed before entering Post-Op Recovery.");
+      }
+      return;
+    }
+    setActiveSection(section);
+    if (section === "pre_op") {
+      setActiveTab("billing");
+    } else if (section === "ot_procedure") {
+      setActiveTab("ot");
+    } else if (section === "post_op") {
+      setActiveTab("recovery");
+    }
+  };
   const [availableSurgeries, setAvailableSurgeries] = useState<Surgery[]>([]);
   const [availableConsumables, setAvailableConsumables] = useState<OTConsumable[]>([]);
   const [availableDiagnoses, setAvailableDiagnoses] = useState<Diagnosis[]>([]);
@@ -233,6 +295,22 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     try {
       const v = await dayCareApi.getVisit(visitId);
       setVisit(v);
+
+      if (v.planned_surgery_id) {
+        try {
+          const ints = await counsellorApi.getInteractions(v.planned_surgery_id);
+          const advancePaidSum = ints
+            .filter((i) => i.interaction_type === "advance_payment" && i.payment_amount)
+            .reduce((sum, i) => sum + (i.payment_amount || 0), 0);
+          setTotalAdvancePaid(advancePaidSum);
+
+          const clearance = await preOpClearanceApi.get(v.planned_surgery_id);
+          setPreOpClearance(clearance);
+          setIsPreOpCleared(clearance.is_cleared_for_ot);
+        } catch (psErr) {
+          console.error("Failed to load planned surgery data in daycare:", psErr);
+        }
+      }
       
       if (v.invoice_id) {
         try {
@@ -301,6 +379,19 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       const fileInput = document.getElementById("daycare-file-upload") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
 
+      // If uploading a consent form, automatically set consent status to signed in pre-op clearance
+      if (docCategory === "CONSENT_FORM") {
+        try {
+          await preOpClearanceApi.upsert(visit.planned_surgery_id, {
+            consent_status: "signed"
+          });
+          toast.success("Consent status auto-updated to Signed ✓");
+        } catch (clearanceErr) {
+          console.error("Failed to auto-update consent status:", clearanceErr);
+        }
+      }
+
+      await fetchAllDetails(false);
       await fetchMrdDocuments(visit.patient_id, visit.id);
     } catch (err) {
       toast.error(getErrorMessage(err) || "Failed to upload document");
@@ -804,31 +895,87 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
 
   return (
     <div className="w-full max-w-[1440px] mx-auto px-4 md:px-6 space-y-6 pb-20">
+      {/* 3-Section Horizontal Tab Switcher */}
+      <div className="flex flex-col sm:flex-row border border-slate-200 bg-white rounded-2xl p-2 shadow-xs gap-2">
+        <button
+          onClick={() => handleSectionChange("pre_op")}
+          className={clsx(
+            "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all",
+            activeSection === "pre_op" 
+              ? "bg-slate-900 text-white shadow-sm" 
+              : "text-slate-600 hover:bg-slate-50"
+          )}
+        >
+          <ClipboardCheck className="h-4 w-4" />
+          1. Pre-Op Clearance & Prep
+        </button>
+        <button
+          onClick={() => handleSectionChange("ot_procedure")}
+          className={clsx(
+            "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all",
+            activeSection === "ot_procedure" 
+              ? "bg-slate-900 text-white shadow-sm" 
+              : !isSectionAccessible("ot_procedure")
+                ? "text-slate-400 opacity-60 cursor-not-allowed"
+                : "text-slate-600 hover:bg-slate-50"
+          )}
+        >
+          {isSectionAccessible("ot_procedure") ? (
+            <FileText className="h-4 w-4" />
+          ) : (
+            <Lock className="h-4 w-4 text-slate-400" />
+          )}
+          2. OT Procedure
+        </button>
+        <button
+          onClick={() => handleSectionChange("post_op")}
+          className={clsx(
+            "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all",
+            activeSection === "post_op" 
+              ? "bg-slate-900 text-white shadow-sm" 
+              : !isSectionAccessible("post_op")
+                ? "text-slate-400 opacity-60 cursor-not-allowed"
+                : "text-slate-600 hover:bg-slate-50"
+          )}
+        >
+          {isSectionAccessible("post_op") ? (
+            <Activity className="h-4 w-4" />
+          ) : (
+            <Lock className="h-4 w-4 text-slate-400" />
+          )}
+          3. Post-Op Recovery
+        </button>
+      </div>
+
       {/* Stepper Navigation */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden">
         {/* Background Connecting Line */}
-        <div className="absolute left-[7.14%] right-[7.14%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-slate-100 -translate-y-1/2 z-0" />
-        
-        {/* Filled Connecting Line */}
-        <div 
-          className="absolute left-[7.14%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-emerald-500 -translate-y-1/2 transition-all duration-500 z-0" 
-          style={{ 
-            width: `calc(${Math.max(0, Math.min(6, Math.max(highestStageIndex, currentStageIndex))) / 6 * 100}% * 0.8572)` 
-          }} 
-        />
+        <div className="absolute left-[10%] right-[10%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-slate-100 -translate-y-1/2 z-0" />
 
         <div className="relative flex justify-between items-start w-full z-10">
-          {STAGES.map((stage, idx) => {
+          {STAGES.filter(s => getSectionForTab(s.id) === activeSection).map((stage) => {
+            const idx = STAGES.findIndex(s => s.id === stage.id);
             const isActive = activeTab === stage.id;
             const isCompleted = highestStageIndex > idx || currentStageIndex > idx || visit.status === "discharged";
             const isPendingPaymentAction = stage.id === "billing" && !visit.payment_id;
             const isActuallyCompleted = isCompleted && !isPendingPaymentAction;
-            const isSelectable = true; // Always allow navigating to any step to keep the workflow flexible
+            const isTabRestricted = getIsTabRestricted(stage.id);
+            const isSelectable = !isTabRestricted || idx <= currentStageIndex;
 
             return (
               <div key={stage.id} className="flex flex-col items-center flex-1 min-w-0">
                 <button
-                  onClick={() => isSelectable && setActiveTab(stage.id)}
+                  onClick={() => {
+                    if (isTabRestricted && idx > currentStageIndex) {
+                      if (!preOpClearance || preOpClearance.consent_status === "pending") {
+                        toast.error("Consent is pending. Please sign the consent form first.");
+                      } else {
+                        toast.error("Patient is not marked as Cleared for OT. Please complete pre-op clearance checklist first.");
+                      }
+                      return;
+                    }
+                    setActiveTab(stage.id);
+                  }}
                   disabled={!isSelectable}
                   className={clsx(
                     "flex items-center justify-center w-9 h-9 rounded-full border transition-all shrink-0 font-bold text-sm cursor-pointer z-10",
@@ -842,9 +989,6 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                    (isCompleted && isPendingPaymentAction && !isActive) ? <AlertCircle className="w-4.5 h-4.5" /> : stage.icon}
                 </button>
                 <div className="text-center mt-3 hidden md:block px-1 w-full">
-                  <p className={clsx("text-[9px] font-extrabold uppercase tracking-wider mb-0.5", isActive ? "text-sky-600" : isActuallyCompleted ? "text-emerald-600" : (isCompleted && isPendingPaymentAction) ? "text-amber-600" : "text-slate-400")}>
-                    Step {idx + 1}
-                  </p>
                   <p className={clsx("text-xs font-semibold leading-tight break-words max-w-[110px] mx-auto", isActive ? "text-slate-950 font-bold" : "text-slate-600")}>
                     {stage.label}
                   </p>
@@ -871,209 +1015,121 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* Left Column: Form Content */}
         <div className="flex-1 w-full order-2 lg:order-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        {/* 1. BILLING & ADMISSION */}
+        {/* 1. BILLING & ADMISSION â€” READ-ONLY SUMMARY */}
         {activeTab === "billing" && (
-          <div className="space-y-8 max-w-3xl mx-auto">
+          <div className="space-y-6 max-w-3xl mx-auto">
+            <div>
+              <h3 className="font-bold text-slate-800 text-lg">Payment & Billing Summary</h3>
+              <p className="text-sm text-slate-500 mt-0.5">All billing and payment activity is managed by the Counsellor Desk.</p>
+            </div>
 
+            {/* Payment status banner */}
+            {visit?.payment_id ? (
+              <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                <p className="text-sm font-bold text-emerald-800">Full payment received â€” patient is cleared for the procedure.</p>
+              </div>
+            ) : totalAdvancePaid > 0 ? (
+              <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+                <p className="text-sm font-semibold text-amber-800">Partial advance received. Balance due â€” to be collected by Counsellor.</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl">
+                <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+                <p className="text-sm font-semibold text-rose-800">No payment received yet. Please ensure Counsellor has recorded payment details.</p>
+              </div>
+            )}
 
-            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">Billing Information</h3>
-                  <p className="text-sm text-slate-500">Day care surgery package</p>
+            {/* Surgery package info */}
+            {visit.planned_surgery_id && (
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-4">
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Surgery Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs text-slate-500 font-semibold uppercase">Surgery</span>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{visit.surgery_name || "â€”"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 font-semibold uppercase">Surgeon</span>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{visit.surgeon_name || "â€”"}</p>
+                  </div>
                 </div>
-                {visit?.payment_id ? (
-                  <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                    Payment Confirmed
-                  </span>
-                ) : visit?.invoice_id ? (
-                  <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-                    Pending Payment
-                  </span>
-                ) : (
-                  <span className="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
-                    Invoice Not Generated
-                  </span>
+              </div>
+            )}
+
+            {/* Financial summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  {visit.invoice_id ? "Invoice Total" : "Agreed Price"}
+                </span>
+                <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                  {currency(invoice?.total_amount || 0)}
+                </p>
+                {visit.invoice_id && (
+                  <p className="text-xs text-slate-500 mt-1 font-mono">#{visit.invoice_number || visit.invoice_id}</p>
+                )}
+                {!visit.invoice_id && (
+                  <p className="text-xs text-amber-600 font-semibold mt-1">Invoice not yet generated by Counsellor</p>
                 )}
               </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 shadow-sm">
+                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Advance Paid</span>
+                <p className="text-2xl font-extrabold text-emerald-800 mt-1">{currency(totalAdvancePaid)}</p>
+                <p className="text-xs text-emerald-600 mt-1">Collected by Counsellor</p>
+              </div>
+              <div className={`border rounded-2xl p-5 shadow-sm ${(invoice?.total_amount || 0) - totalAdvancePaid <= 0 ? "bg-teal-50 border-teal-200" : "bg-rose-50 border-rose-200"}`}>
+                <span className={`text-xs font-bold uppercase tracking-wider ${(invoice?.total_amount || 0) - totalAdvancePaid <= 0 ? "text-teal-600" : "text-rose-600"}`}>Net Balance Due</span>
+                <p className={`text-2xl font-extrabold mt-1 ${(invoice?.total_amount || 0) - totalAdvancePaid <= 0 ? "text-teal-900" : "text-rose-900"}`}>
+                  {currency(Math.max(0, (invoice?.total_amount || 0) - totalAdvancePaid))}
+                </p>
+                <p className={`text-xs mt-1 font-semibold ${(invoice?.total_amount || 0) - totalAdvancePaid <= 0 ? "text-teal-600" : "text-rose-600"}`}>
+                  {(invoice?.total_amount || 0) - totalAdvancePaid <= 0 ? "Fully paid âœ“" : "To be collected by Counsellor"}
+                </p>
+              </div>
+            </div>
 
-              {!visit?.invoice_id ? (
-                <div className="space-y-6">
-                  {/* Proposed Items Table */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Service / Description</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Unit Price</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "100px" }}>Qty</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Total</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "80px" }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                          {invoiceLineItems.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="p-4 font-semibold text-slate-800">{item.description}</td>
-                              <td className="p-4 text-right text-slate-600 font-medium">{currency(item.unit_price)}</td>
-                              <td className="p-4 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => handleQuantityChange(idx, parseInt(e.target.value) || 1)}
-                                  className="w-16 px-2 py-1 text-center font-semibold rounded-lg border border-slate-200 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 bg-slate-50"
-                                />
-                              </td>
-                              <td className="p-4 text-right font-bold text-slate-900">{currency(item.unit_price * item.quantity)}</td>
-                              <td className="p-4 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveServiceItem(idx)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                  title="Remove item"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          {invoiceLineItems.length === 0 && (
-                            <tr>
-                              <td colSpan={5} className="p-8 text-center text-slate-400 font-medium">
-                                No billing items added yet. Please select a service below.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Add Service Catalog Input */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Add Service from Catalog</h4>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1">
-                        <Combobox
-                          value={selectedServiceId}
-                          onChange={(val) => {
-                            setSelectedServiceId(val);
-                            if (val) handleAddServiceItem(val);
-                          }}
-                          options={services.map(s => ({
-                            label: `${s.name} (₹${s.price})`,
-                            value: s.id
-                          }))}
-                          placeholder="Search or select service to add..."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total and Action */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-center sm:text-left">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Proposed Billing</span>
-                      <p className="text-sm text-slate-500 font-medium mt-0.5">{invoiceLineItems.length} items selected</p>
-                    </div>
-                    <div className="text-center sm:text-right mt-4 sm:mt-0">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Total</span>
-                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
-                        {currency(invoiceLineItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0))}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center pt-2">
-                    <button
-                      onClick={handleGenerateInvoice}
-                      disabled={submitting || invoiceLineItems.length === 0}
-                      className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
-                    >
-                      {submitting ? "Generating..." : "Generate Invoice Now"}
-                    </button>
-                  </div>
+            {/* Invoice line items (read-only) */}
+            {invoice?.line_items && invoice.line_items.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">Invoice Line Items</h4>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Generated Items Table */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Service / Description</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Unit Price</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "100px" }}>Qty</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Total</th>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="p-3 text-xs font-bold text-slate-600 uppercase">Service</th>
+                        <th className="p-3 text-xs font-bold text-slate-600 uppercase text-right">Unit Price</th>
+                        <th className="p-3 text-xs font-bold text-slate-600 uppercase text-center">Qty</th>
+                        <th className="p-3 text-xs font-bold text-slate-600 uppercase text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {invoice.line_items.map((item, idx) => {
+                        const up = typeof item.unit_price === "string" ? parseFloat(item.unit_price) : item.unit_price;
+                        const qty = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="p-3 font-semibold text-slate-800">{item.description}</td>
+                            <td className="p-3 text-right text-slate-600">{currency(up)}</td>
+                            <td className="p-3 text-center font-semibold text-slate-700">{qty}</td>
+                            <td className="p-3 text-right font-bold text-slate-900">{currency(up * qty)}</td>
                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                          {invoice?.line_items ? (
-                            invoice.line_items.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-4 font-semibold text-slate-800">{item.description}</td>
-                                <td className="p-4 text-right text-slate-600 font-medium">
-                                  {currency(typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : item.unit_price)}
-                                </td>
-                                <td className="p-4 text-center font-semibold text-slate-700">{item.quantity}</td>
-                                <td className="p-4 text-right font-bold text-slate-900">
-                                  {currency(
-                                    (typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : item.unit_price) * 
-                                    (typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity)
-                                  )}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="p-8 text-center text-slate-400 font-medium flex items-center justify-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                                Loading invoice line items...
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Summary Details */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-center sm:text-left">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Number</span>
-                      <p className="font-mono text-xl font-bold text-slate-800 mt-1">{visit.invoice_number || visit.invoice_id}</p>
-                    </div>
-                    <div className="text-center sm:text-right mt-4 sm:mt-0">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Total</span>
-                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
-                        {currency(invoice?.total_amount || 0)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 bg-sky-50 p-4 rounded-xl border border-sky-100 text-sky-800">
-                    <Info className="h-5 w-5 shrink-0 mt-0.5" />
-                    <p className="text-sm font-medium">
-                      Collect payments via the central billing counter. You can proceed with the clinical pre-assessment while payment is pending.
-                    </p>
-                  </div>
-
-                  {!visit.payment_id && (
-                    <div className="flex justify-center pt-2">
-                      <button
-                        onClick={handleOpenPayment}
-                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all"
-                      >
-                        <IndianRupee className="w-5 h-5" />
-                        Collect Payment
-                      </button>
-                    </div>
-                  )}
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
+            )}
+
+            <div className="flex items-start gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100 text-blue-800">
+              <Info className="h-5 w-5 shrink-0 mt-0.5" />
+              <p className="text-sm font-medium">
+                For any billing changes, invoice generation, or payment collection â€” please contact the <strong>Counsellor Desk</strong>.
+              </p>
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100">
@@ -1082,7 +1138,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                 disabled={submitting || isTerminalState}
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-all disabled:opacity-50"
               >
-                {visit?.status === "scheduled" ? "Check-in & Continue" : "Save & Continue"}
+                {visit?.status === "scheduled" ? "Check-in & Continue" : "Continue"}
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -1092,6 +1148,21 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         {/* 1.5. CONSENT & DOCUMENTS */}
         {activeTab === "consent" && (
           <div className="space-y-8 max-w-3xl mx-auto">
+            {/* Pre-Op Clearance Checks */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-slate-800 text-lg">Pre-Op Clearance Checklist</h3>
+                <p className="text-sm text-slate-500">Ensure patient is clinically cleared for surgery.</p>
+              </div>
+              <PreOpClearanceTab
+                plannedSurgery={{
+                  id: visit.planned_surgery_id,
+                  status: "confirmed" as any,
+                } as any}
+                readOnly={false}
+                onRefresh={() => fetchAllDetails(false)}
+              />
+            </div>
 
 
             {/* Part 1: Download Consent Form */}
@@ -1191,7 +1262,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
                           {docFile
-                            ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB • ${docFile.type || "Unknown"}`
+                            ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB â€¢ ${docFile.type || "Unknown"}`
                             : "PDF, JPG, JPEG, PNG (Max 10MB)"}
                         </p>
                       </div>
@@ -1320,6 +1391,14 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <button
                 type="button"
                 onClick={() => {
+                  if (!preOpClearance || preOpClearance.consent_status === "pending") {
+                    toast.error("Consent is pending. Please upload a signed consent form or set Consent status to Signed first.");
+                    return;
+                  }
+                  if (!preOpClearance.is_cleared_for_ot) {
+                    toast.error("Patient is not marked as Cleared for OT. Please complete clearance checklist first.");
+                    return;
+                  }
                   setActiveTab("clinical");
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
@@ -1331,6 +1410,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
             </div>
           </div>
         )}
+
 
         {/* 2. CLINICAL ASSESSMENT */}
         {activeTab === "clinical" && (
@@ -1372,7 +1452,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Temperature</label>
                   <div className="relative">
                     <input type="number" step="0.1" value={clinical.temperature || ""} onChange={(e) => setClinical({ ...clinical, temperature: parseFloat(e.target.value) || null })} className="w-full text-sm font-semibold rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" />
-                    <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400">°C</span>
+                    <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400">Â°C</span>
                   </div>
                 </div>
                 <div>
@@ -1484,7 +1564,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   </label>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Corneal Thickness</label>
-                    <input type="text" value={checklist.right_eye_details?.corneal_thickness || ""} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { dilated: !!checklist.right_eye_details?.dilated, iol_details: checklist.right_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 545 µm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
+                    <input type="text" value={checklist.right_eye_details?.corneal_thickness || ""} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { dilated: !!checklist.right_eye_details?.dilated, iol_details: checklist.right_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 545 Âµm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">IOL (Lens) Details</label>
@@ -1505,7 +1585,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                   </label>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Corneal Thickness</label>
-                    <input type="text" value={checklist.left_eye_details?.corneal_thickness || ""} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { dilated: !!checklist.left_eye_details?.dilated, iol_details: checklist.left_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 540 µm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
+                    <input type="text" value={checklist.left_eye_details?.corneal_thickness || ""} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { dilated: !!checklist.left_eye_details?.dilated, iol_details: checklist.left_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 540 Âµm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">IOL (Lens) Details</label>
@@ -1622,7 +1702,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                       <div className="flex items-center gap-3">
                         <input type="number" value={c.quantity} onChange={(e) => { const updated = [...otConsumables]; updated[i].quantity = parseInt(e.target.value) || 0; setOtConsumables(updated); }} placeholder="Qty" className="w-20 text-sm rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-sky-400" />
                         <div className="relative flex-1 sm:flex-none">
-                          <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₹</span>
+                          <span className="absolute left-3 top-2.5 text-slate-400 text-sm">â‚¹</span>
                           <input type="number" value={c.unit_price} onChange={(e) => { const updated = [...otConsumables]; updated[i].unit_price = parseFloat(e.target.value) || 0; setOtConsumables(updated); }} placeholder="Price" className="w-full sm:w-28 text-sm rounded-lg border border-slate-200 pl-7 pr-3 py-2 outline-none focus:border-sky-400" />
                         </div>
                         <button type="button" onClick={() => removeConsumable(i)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0">

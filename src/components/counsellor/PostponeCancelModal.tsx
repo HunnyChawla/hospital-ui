@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { X, Loader2, AlertTriangle, Calendar } from "lucide-react";
+import { X, Loader2, AlertTriangle, Calendar, IndianRupee } from "lucide-react";
 import { PlannedSurgery } from "@/types";
 import { counsellorApi } from "@/services/counsellorApi";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ interface PostponeCancelModalProps {
   onSuccess: () => void;
   plannedSurgery: PlannedSurgery;
   mode: "postpone" | "cancel";
+  totalAdvancePaid?: number;
 }
 
 export function PostponeCancelModal({
@@ -23,6 +24,7 @@ export function PostponeCancelModal({
   onSuccess,
   plannedSurgery,
   mode,
+  totalAdvancePaid = 0,
 }: PostponeCancelModalProps) {
   const isCancel = mode === "cancel";
   const [reason, setReason] = useState("");
@@ -31,10 +33,31 @@ export function PostponeCancelModal({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Refund tracking state
+  const [issueRefund, setIssueRefund] = useState(true);
+  const [refundAmount, setRefundAmount] = useState(String(totalAdvancePaid));
+  const [refundReference, setRefundReference] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setRefundAmount(String(totalAdvancePaid));
+      setIssueRefund(totalAdvancePaid > 0);
+      setRefundReference("");
+      setReason("");
+      setNotes("");
+    }
+  }, [isOpen, totalAdvancePaid]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
       toast.error(`Please provide a reason for ${isCancel ? "cancellation" : "postponement"}`);
+      return;
+    }
+
+    const refundAmtNum = parseFloat(refundAmount) || 0;
+    if (isCancel && issueRefund && refundAmtNum > totalAdvancePaid) {
+      toast.error(`Refund amount cannot exceed total advance paid: ₹${totalAdvancePaid.toLocaleString()}`);
       return;
     }
 
@@ -46,7 +69,16 @@ export function PostponeCancelModal({
           cancellation_reason: reason.trim(),
           notes: notes.trim() || undefined,
         });
-        toast.success("Surgery cancelled");
+
+        if (issueRefund && refundAmtNum > 0) {
+          await counsellorApi.logInteraction(plannedSurgery.id, {
+            interaction_type: "refund_payment",
+            payment_amount: -refundAmtNum,
+            payment_reference: refundReference.trim() || "Cancellation Refund",
+            notes: `Refund of ₹${refundAmtNum.toLocaleString()} processed due to cancellation. Refunded to patient.`,
+          });
+        }
+        toast.success("Surgery cancelled and refund recorded");
       } else {
         await counsellorApi.postpone(plannedSurgery.id, {
           postponement_reason: reason.trim(),
@@ -171,6 +203,59 @@ export function PostponeCancelModal({
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100 resize-none"
                     />
                   </div>
+
+                  {/* Refund section (Cancel mode only, if advance exists) */}
+                  {isCancel && totalAdvancePaid > 0 && (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1">
+                          Refund Advance Payment
+                        </span>
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">
+                          Paid: ₹{totalAdvancePaid.toLocaleString()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="issueRefund"
+                          checked={issueRefund}
+                          onChange={(e) => setIssueRefund(e.target.checked)}
+                          className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 h-4 w-4"
+                        />
+                        <label htmlFor="issueRefund" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                          Issue refund of advance payment
+                        </label>
+                      </div>
+
+                      {issueRefund && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-slate-600 block">Refund Amount (₹)</label>
+                            <input
+                              type="number"
+                              value={refundAmount}
+                              onChange={(e) => setRefundAmount(e.target.value)}
+                              max={totalAdvancePaid}
+                              min={0}
+                              className="w-full text-xs rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-rose-400 font-semibold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-slate-600 block">Refund Ref / Mode</label>
+                            <input
+                              type="text"
+                              value={refundReference}
+                              onChange={(e) => setRefundReference(e.target.value)}
+                              placeholder="e.g. GPay, Cash"
+                              className="w-full text-xs rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-rose-400"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* New Date (Postpone mode only) */}
                   {!isCancel && (

@@ -28,6 +28,7 @@ import {
   BarChart3,
   X,
   RotateCcw,
+  RefreshCw,
 } from "lucide-react";
 import { PlannedSurgery } from "@/types";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
@@ -37,13 +38,10 @@ import { formatDateDisplay, getTodayDateLocal } from "@/utils/format";
 
 const STATUS_TABS = [
   { id: "all", label: "All Cases" },
-  { id: "new_advised", label: "New Advice", statuses: ["advised"] },
-  { id: "in_counselling", label: "In Counselling", statuses: ["counselling_in_progress"] },
-  { id: "pending", label: "Pending Clearances", statuses: ["pending_patient_decision", "pending_insurance", "pending_investigations", "pending_fitness"] },
-  { id: "confirmed", label: "Confirmed & OT Ready", statuses: ["confirmed", "in_ot_preparation"] },
-  { id: "completed", label: "Completed / Operated", statuses: ["surgery_completed", "completed"] },
-  { id: "postponed", label: "Postponed", statuses: ["postponed"] },
-  { id: "lost_dormant", label: "Lost & Dormant", statuses: ["lost_to_followup", "cancelled_by_patient", "cancelled_by_hospital", "cancelled"] },
+  { id: "active_counselling", label: "Active Counselling", statuses: ["advised", "counselling_in_progress"] },
+  { id: "pending_clearance", label: "Pending Clearance", statuses: ["pending_patient_decision", "pending_insurance", "pending_investigations", "pending_fitness"] },
+  { id: "planned_day_care", label: "Planned / Day Care", statuses: ["confirmed", "released_to_daycare", "pre_op_started", "in_ot_preparation"] },
+  { id: "completed_inactive", label: "Completed & Inactive", statuses: ["surgery_completed", "completed", "postponed", "cancelled_by_patient", "cancelled_by_hospital", "cancelled", "lost_to_followup"] },
 ];
 
 const URGENCY_STYLES: Record<string, { label: string; style: string }> = {
@@ -59,8 +57,10 @@ const STATUS_STYLES: Record<string, { label: string; style: string }> = {
   pending_insurance: { label: "Pending Insurance", style: "bg-purple-50 text-purple-700 border-purple-200/80 font-semibold" },
   pending_investigations: { label: "Pending Reports", style: "bg-cyan-50 text-cyan-700 border-cyan-200/80 font-semibold" },
   pending_fitness: { label: "Pending Fitness", style: "bg-teal-50 text-teal-700 border-teal-200/80 font-semibold" },
-  confirmed: { label: "Confirmed", style: "bg-emerald-50 text-emerald-800 border-emerald-200/80 font-bold" },
-  in_ot_preparation: { label: "In OT Prep", style: "bg-blue-50 text-blue-700 border-blue-200/80 font-semibold" },
+  confirmed: { label: "Planned", style: "bg-emerald-50 text-emerald-800 border-emerald-200/80 font-bold" },
+  released_to_daycare: { label: "Released to Day Care", style: "bg-violet-50 text-violet-800 border-violet-300 font-bold" },
+  pre_op_started: { label: "Pre-Op Started", style: "bg-blue-50 text-blue-800 border-blue-300 font-bold" },
+  in_ot_preparation: { label: "Pre-Op Started", style: "bg-blue-50 text-blue-800 border-blue-300 font-bold" },
   surgery_completed: { label: "Completed", style: "bg-slate-100 text-slate-600 border-slate-200 font-medium" },
   completed: { label: "Completed", style: "bg-slate-100 text-slate-600 border-slate-200 font-medium" },
   postponed: { label: "Postponed", style: "bg-amber-50 text-amber-800 border-amber-200 font-semibold" },
@@ -112,6 +112,16 @@ export function CounsellorDashboard() {
     fetchSurgeries();
   }, []);
 
+  // Sync selectedItem state with refreshed items list so side drawer stays updated and open
+  useEffect(() => {
+    if (selectedItem) {
+      const updated = items.find((i) => i.id === selectedItem.id);
+      if (updated) {
+        setSelectedItem(updated);
+      }
+    }
+  }, [items]);
+
   const handleRowClick = (item: PlannedSurgery) => {
     setSelectedItem(item);
     setDrawerOpen(true);
@@ -135,17 +145,24 @@ export function CounsellorDashboard() {
     const pendingClearances = items.filter((i) =>
       ["pending_patient_decision", "pending_insurance", "pending_investigations", "pending_fitness"].includes(i.status)
     ).length;
-    const confirmedList = items.filter((i) => ["confirmed", "in_ot_preparation"].includes(i.status));
-    const confirmedRevenue = confirmedList.reduce((acc, curr) => acc + (curr.agreed_price || 0), 0);
+    const plannedList = items.filter((i) => i.status === "confirmed");
+    const releasedList = items.filter((i) => i.status === "released_to_daycare");
+    const preOpList = items.filter((i) => ["pre_op_started", "in_ot_preparation"].includes(i.status));
+    const activeList = [...plannedList, ...releasedList, ...preOpList];
+    const activeRevenue = activeList.reduce((acc, curr) => acc + (curr.agreed_price || 0), 0);
 
     return {
       freshNew,
       inProgress,
       pendingClearances,
-      confirmedCount: confirmedList.length,
-      confirmedRevenue,
+      plannedCount: plannedList.length,
+      releasedCount: releasedList.length,
+      preOpCount: preOpList.length,
+      confirmedCount: activeList.length,
+      confirmedRevenue: activeRevenue,
     };
   }, [items]);
+
 
   // Check if any filter is currently active
   const isAnyFilterActive = useMemo(() => {
@@ -343,6 +360,17 @@ export function CounsellorDashboard() {
             <option value="emergency">Emergency</option>
           </select>
 
+          {/* Refresh Action */}
+          <button
+            onClick={fetchSurgeries}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition cursor-pointer disabled:opacity-50"
+            title="Refresh patient list"
+          >
+            <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </button>
+
           {/* Reset Action */}
           {isAnyFilterActive && (
             <button
@@ -382,7 +410,7 @@ export function CounsellorDashboard() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {/* Stat 1: New Advice */}
             <div
-              onClick={() => setActiveTab("new_advised")}
+              onClick={() => setActiveTab("active_counselling")}
               className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-sky-50 to-sky-50/40 p-3.5 shadow-2xs transition hover:shadow-xs hover:border-sky-300"
             >
               <div className="relative flex items-start justify-between gap-2">
@@ -400,7 +428,7 @@ export function CounsellorDashboard() {
 
             {/* Stat 2: In Counselling */}
             <div
-              onClick={() => setActiveTab("in_counselling")}
+              onClick={() => setActiveTab("active_counselling")}
               className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-indigo-50 to-indigo-50/40 p-3.5 shadow-2xs transition hover:shadow-xs hover:border-indigo-300"
             >
               <div className="relative flex items-start justify-between gap-2">
@@ -418,7 +446,7 @@ export function CounsellorDashboard() {
 
             {/* Stat 3: Pending Clearances */}
             <div
-              onClick={() => setActiveTab("pending")}
+              onClick={() => setActiveTab("pending_clearance")}
               className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-amber-50 to-amber-50/40 p-3.5 shadow-2xs transition hover:shadow-xs hover:border-amber-300"
             >
               <div className="relative flex items-start justify-between gap-2">
@@ -434,24 +462,42 @@ export function CounsellorDashboard() {
               </div>
             </div>
 
-            {/* Stat 4: Confirmed OT */}
+            {/* Stat 4: Planned */}
             <div
-              onClick={() => setActiveTab("confirmed")}
+              onClick={() => setActiveTab("planned_day_care")}
               className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-emerald-50 to-emerald-50/40 p-3.5 shadow-2xs transition hover:shadow-xs hover:border-emerald-300"
             >
               <div className="relative flex items-start justify-between gap-2">
                 <div>
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight leading-tight">
-                    Confirmed OT Bookings
+                    Planned
                   </p>
                   <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-2xl font-extrabold text-emerald-800">{kpis.confirmedCount}</span>
+                    <span className="text-2xl font-extrabold text-emerald-800">{kpis.plannedCount}</span>
                     <span className="text-xs font-bold text-emerald-700">
-                      (₹{kpis.confirmedRevenue.toLocaleString("en-IN")})
+                      (₹{items.filter(i => i.status === "confirmed").reduce((a, c) => a + (c.agreed_price || 0), 0).toLocaleString("en-IN")})
                     </span>
                   </div>
                 </div>
                 <div className="rounded-lg bg-emerald-100 p-2 text-emerald-600 group-hover:scale-105 transition-transform">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+
+            {/* Stat 5: OT Ready */}
+            <div
+              onClick={() => setActiveTab("planned_day_care")}
+              className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-violet-50 to-violet-50/40 p-3.5 shadow-2xs transition hover:shadow-xs hover:border-violet-300"
+            >
+              <div className="relative flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight leading-tight">
+                    Day Care Released
+                  </p>
+                  <p className="mt-1 text-2xl font-extrabold text-violet-800">{kpis.releasedCount}</p>
+                </div>
+                <div className="rounded-lg bg-violet-100 p-2 text-violet-600 group-hover:scale-105 transition-transform">
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
               </div>
@@ -742,7 +788,6 @@ export function CounsellorDashboard() {
         plannedSurgery={selectedItem}
         onRefresh={() => {
           fetchSurgeries();
-          setDrawerOpen(false);
         }}
       />
     </div>

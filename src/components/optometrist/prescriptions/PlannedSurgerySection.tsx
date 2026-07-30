@@ -138,6 +138,12 @@ export function PlannedSurgerySection({
             return;
         }
 
+        const selectedSurgeryRecord = surgeries.find((s) => s.id === selectedSurgeryId);
+        if (selectedSurgeryRecord?.is_anatomy_specific && !selectedAnatomySiteId) {
+            toast.error("Please select an anatomy site for this surgery");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const newSurgery = await plannedSurgeriesApi.create({

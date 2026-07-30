@@ -1861,6 +1861,53 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     </div>
                   ) : (
                     <>
+                      {/* Active Surgery Banner */}
+                      {(() => {
+                        const ACTIVE_STATUSES = ["advised", "counselling_in_progress", "pending_patient_decision", "pending_insurance", "pending_investigations", "pending_fitness", "confirmed", "released_to_daycare", "pre_op_started", "in_ot_preparation"];
+                        const activeSurg = surgeries.find(s => ACTIVE_STATUSES.includes(s.status));
+                        if (!activeSurg) return null;
+                        const isDC = ["released_to_daycare", "pre_op_started", "in_ot_preparation"].includes(activeSurg.status);
+                        const ACTIVE_LABELS: Record<string, string> = {
+                          advised: "New Advice", counselling_in_progress: "In Counselling",
+                          pending_patient_decision: "Pending Decision", pending_insurance: "Pending Insurance",
+                          pending_investigations: "Pending Reports", pending_fitness: "Pending Fitness",
+                          confirmed: "Planned", released_to_daycare: "Released to Day Care",
+                          pre_op_started: "Pre-Op Started", in_ot_preparation: "Pre-Op Started",
+                        };
+                        return (
+                          <div className={`flex items-center justify-between gap-3 p-4 rounded-2xl border mb-2 ${isDC ? "bg-violet-50 border-violet-200" : "bg-sky-50 border-sky-200"}`}>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-lg shrink-0">{isDC ? "🏥" : "⚡"}</span>
+                              <div className="min-w-0">
+                                <p className={`text-xs font-bold uppercase tracking-wider ${isDC ? "text-violet-600" : "text-sky-600"}`}>Active Surgery In Progress</p>
+                                <p className="text-sm font-bold text-slate-800 truncate mt-0.5">{activeSurg.surgery_name}</p>
+                              </div>
+                              <span className={`shrink-0 px-2.5 py-0.5 rounded-full border text-xs font-bold ${isDC ? "bg-violet-100 text-violet-800 border-violet-300" : "bg-sky-100 text-sky-800 border-sky-200"}`}>
+                                {ACTIVE_LABELS[activeSurg.status] || activeSurg.status.replace(/_/g, " ")}
+                              </span>
+                            </div>
+                            {isDC ? (
+                              <a
+                                href={`/day-care?search=${encodeURIComponent(activeSurg.patient_name || "")}`}
+                                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                Day Care Panel
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => { setDrawerSurgery(activeSurg); setIsDrawerOpen(true); }}
+                                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Open in Counsellor
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       <div className="space-y-4">
                         {surgeries.map((surg) => {
                           const statusStyle = (() => {
@@ -1868,6 +1915,11 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                               case "confirmed":
                               case "scheduled":
                                 return { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-200" };
+                              case "released_to_daycare":
+                                return { bg: "bg-violet-50", text: "text-violet-800", border: "border-violet-300" };
+                              case "pre_op_started":
+                              case "in_ot_preparation":
+                                return { bg: "bg-blue-50", text: "text-blue-800", border: "border-blue-300" };
                               case "completed":
                               case "surgery_completed":
                                 return { bg: "bg-teal-50", text: "text-teal-800", border: "border-teal-200" };
@@ -1883,6 +1935,29 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                 return { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
                             }
                           })();
+
+                          const STATUS_LABELS: Record<string, string> = {
+                            advised: "New Advice",
+                            counselling_in_progress: "In Counselling",
+                            pending_patient_decision: "Pending Decision",
+                            pending_insurance: "Pending Insurance",
+                            pending_investigations: "Pending Reports",
+                            pending_fitness: "Pending Fitness",
+                            confirmed: "Planned",
+                            released_to_daycare: "Released to Day Care",
+                            pre_op_started: "Pre-Op Started",
+                            in_ot_preparation: "Pre-Op Started",
+                            surgery_completed: "Completed",
+                            completed: "Completed",
+                            postponed: "Postponed",
+                            cancelled_by_patient: "Cancelled (Patient)",
+                            cancelled_by_hospital: "Cancelled (Hospital)",
+                            cancelled: "Cancelled",
+                            lost_to_followup: "Lost to Follow-up",
+                          };
+
+                          const isDayCareStage = ["released_to_daycare", "pre_op_started", "in_ot_preparation"].includes(surg.status);
+                          const isCounsellorStage = !["released_to_daycare", "pre_op_started", "in_ot_preparation", "surgery_completed", "completed", "cancelled", "cancelled_by_patient", "cancelled_by_hospital", "lost_to_followup"].includes(surg.status);
 
                           const eyeLabel = surg.eye === "OD" ? "Right Eye (OD)" : surg.eye === "OS" ? "Left Eye (OS)" : surg.eye === "OU" ? "Both Eyes (OU)" : surg.eye || "General";
                           const eyeBadgeColor = surg.eye === "OD" ? "bg-blue-50 text-blue-800 border-blue-200" : surg.eye === "OS" ? "bg-purple-50 text-purple-800 border-purple-200" : surg.eye === "OU" ? "bg-amber-50 text-amber-900 border-amber-300" : "bg-slate-50 text-slate-700 border-slate-200";
@@ -1919,7 +1994,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
                                 <div className="flex items-center gap-2">
                                   <span className={`px-3 py-1 rounded-full border text-xs font-bold capitalize ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
-                                    {surg.status.replace(/_/g, " ")}
+                                    {STATUS_LABELS[surg.status] || surg.status.replace(/_/g, " ")}
                                   </span>
                                 </div>
                               </div>
@@ -1984,16 +2059,41 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                     <Pencil className="h-3.5 w-3.5 text-slate-500" /> Edit Advice
                                   </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setDrawerSurgery(surg);
-                                      setIsDrawerOpen(true);
-                                    }}
-                                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
-                                  >
-                                    <Sparkles className="h-3.5 w-3.5" /> View Details, Invoice & Advance
-                                  </button>
+                                  {isCounsellorStage && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setDrawerSurgery(surg);
+                                        setIsDrawerOpen(true);
+                                      }}
+                                      className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5" /> Open in Counsellor
+                                    </button>
+                                  )}
+
+                                  {isDayCareStage && (
+                                    <a
+                                      href={`/day-care?search=${encodeURIComponent(surg.patient_name || "")}`}
+                                      className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                      View Day Care Workflow
+                                    </a>
+                                  )}
+
+                                  {!isCounsellorStage && !isDayCareStage && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setDrawerSurgery(surg);
+                                        setIsDrawerOpen(true);
+                                      }}
+                                      className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5" /> View Details, Invoice & Advance
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>

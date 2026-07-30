@@ -56,10 +56,10 @@ export const dayCareApi = {
     return data;
   },
 
-  async generateInvoice(id: string, lineItems: any[], tenantId?: string): Promise<{ invoice_id: string }> {
+  async generateInvoice(id: string, lineItems: any[], tenantId?: string): Promise<{ id: string; invoice_id?: string }> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const { data } = await apiClient.post<{ invoice_id: string }>(`/day-care/visits/${id}/invoice`, { line_items: lineItems }, { params });
+    const { data } = await apiClient.post<{ id: string; invoice_id?: string }>(`/day-care/visits/${id}/invoice`, { line_items: lineItems }, { params });
     return data;
   },
 
