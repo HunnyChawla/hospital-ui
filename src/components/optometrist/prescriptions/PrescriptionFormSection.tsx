@@ -284,7 +284,7 @@ export function PrescriptionFormSection({
             if (patientId) {
                 try {
                     const [surgs, pat] = await Promise.all([
-                        plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
+                        plannedSurgeriesApi.list({ visit_id: visitId }),
                         patientsApi.getById(patientId),
                         fetchPatientLabBookings(patientId)
                     ]);
@@ -1335,7 +1335,7 @@ export function PrescriptionFormSection({
 
             if (options.print) {
                 try {
-                    const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+                    const surgs = await plannedSurgeriesApi.list({ visit_id: visitId });
                     setPlannedSurgeries(surgs.items || []);
                 } catch (e) {
                     console.error("Failed to fetch planned surgeries for print", e);
@@ -1393,7 +1393,7 @@ export function PrescriptionFormSection({
         // In read-only mode, fetch fresh data and open preview
         setIsSubmitting(true);
         try {
-            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+            const surgs = await plannedSurgeriesApi.list({ visit_id: visitId });
             setPlannedSurgeries(surgs.items || []);
 
             const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);

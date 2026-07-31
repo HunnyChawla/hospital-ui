@@ -69,7 +69,7 @@ export function PlannedSurgerySection({
         const loadPlannedSurgeries = async () => {
             setLoadingPlanned(true);
             try {
-                const response = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+                const response = await plannedSurgeriesApi.list({ visit_id: visitId });
                 setPlannedSurgeries(response.items);
             } catch (error) {
                 // API might not exist yet - silently fail
