@@ -32,6 +32,10 @@ export function FeatureFlagManagement() {
         allow_edit_after_visit_completed: false,
     });
 
+    const [abhaFlags, setAbhaFlags] = useState({
+        enabled: false,
+    });
+
     // Fetch tenants for platform owners
     useEffect(() => {
         if (isPlatformOwner) {
@@ -71,6 +75,11 @@ export function FeatureFlagManagement() {
                 allow_edit_after_visit_completed: allFlags.prescription.allow_edit_after_visit_completed as boolean,
             });
         }
+        if (allFlags?.abha) {
+            setAbhaFlags({
+                enabled: allFlags.abha.enabled as boolean,
+            });
+        }
     }, [allFlags]);
 
     const handleSaveQueue = () => {
@@ -79,6 +88,10 @@ export function FeatureFlagManagement() {
 
     const handleSavePrescription = () => {
         updateFlags({ feature: 'prescription', flags: prescriptionFlags });
+    };
+
+    const handleSaveAbha = () => {
+        updateFlags({ feature: 'abha', flags: abhaFlags });
     };
 
     const handleTenantChange = async (newTenantId: string) => {
@@ -278,6 +291,55 @@ export function FeatureFlagManagement() {
                     <div className="pt-4 border-t border-slate-200">
                         <button
                             onClick={handleSavePrescription}
+                            disabled={isUpdating}
+                            className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {isUpdating ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-4 w-4" />
+                                    Save Configuration
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ABHA Integration Card */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                    <h2 className="text-lg font-semibold text-slate-900">ABDM / ABHA Integration</h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Configure Ayushman Bharat Health Account (ABHA) enrollment and linking workflows
+                    </p>
+                </div>
+                <div className="p-6 space-y-6">
+                    <label className="flex items-start gap-4 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={abhaFlags.enabled}
+                            onChange={(e) => setAbhaFlags({ enabled: e.target.checked })}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        />
+                        <div className="flex-1">
+                            <div className="font-medium text-slate-900">
+                                Enable ABHA Enrollment & Linking
+                            </div>
+                            <div className="text-sm text-slate-500 mt-1">
+                                When enabled, hospital staff can enroll new patients in ABHA or link existing ABHA accounts during Add Patient and in Patient Details.
+                            </div>
+                        </div>
+                    </label>
+
+                    {/* Save Button */}
+                    <div className="pt-4 border-t border-slate-200">
+                        <button
+                            onClick={handleSaveAbha}
                             disabled={isUpdating}
                             className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >

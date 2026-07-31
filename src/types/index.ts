@@ -18,6 +18,10 @@ export type Patient = {
   state?: string;
   pincode?: string;
   category?: string;
+  abhaNumber?: string | null;
+  abhaAddress?: string | null;
+  abhaVerified?: boolean;
+  abhaLinkedAt?: string | null;
 };
 
 
