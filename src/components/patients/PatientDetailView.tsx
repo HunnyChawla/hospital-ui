@@ -931,7 +931,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
                 <div className="mt-2 flex items-center gap-2">
                   <AbhaStatusBadge
-                    abhaNumber={patient.abhaNumber || (patient.healthId && patient.healthId.includes("-") ? patient.healthId : null)}
+                    abhaNumber={patient.abhaNumber || patient.abhaId || null}
                     abhaAddress={patient.abhaAddress}
                     abhaVerified={patient.abhaVerified}
                     showEnrollButton={abhaEnabled}

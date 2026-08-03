@@ -133,6 +133,7 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     state: apiPatient.state || undefined,
     pincode: apiPatient.pincode || undefined,
     category: apiPatient.category || undefined,
+    abhaId: apiPatient.abha_id || undefined,
     abhaNumber: apiPatient.abha_number || undefined,
     abhaAddress: apiPatient.abha_address || undefined,
     abhaVerified: apiPatient.abha_verified || false,

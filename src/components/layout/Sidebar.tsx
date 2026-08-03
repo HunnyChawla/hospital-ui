@@ -27,6 +27,7 @@ import {
   Link as LinkIcon,
   LayoutTemplate,
   Settings,
+  IdCard,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -69,6 +70,7 @@ const iconMap: Record<string, LucideIcon> = {
   Radio,
   Monitor,
   Settings,
+  IdCard,
   Link: LinkIcon,
 };
 

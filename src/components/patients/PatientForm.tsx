@@ -55,6 +55,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
   const [abhaProfile, setAbhaProfile] = useState<any>(null);
   const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
+  const isAbhaVerified = abhaProfile ? true : (defaultValues?.abhaVerified || false);
 
   const handleAbhaSuccess = (profile: any, aadhaar?: string) => {
     setAbhaProfile(profile);
@@ -767,7 +768,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
               <AbhaStatusBadge
                 abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || watch("abha_id")}
                 abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress}
-                abhaVerified={abhaProfile ? true : (defaultValues?.abhaVerified || false)}
+                abhaVerified={isAbhaVerified}
                 showEnrollButton={abhaEnabled}
                 onEnrollClick={() => setIsAbhaModalOpen(true)}
                 size="sm"
@@ -775,9 +776,15 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             </div>
             <input
               {...register("abha_id")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+              readOnly={isAbhaVerified}
+              className={`w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 text-sm ${
+                isAbhaVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed" : "bg-white"
+              }`}
               placeholder="Enter ABHA ID"
             />
+            {isAbhaVerified && (
+              <span className="text-xs text-emerald-600">Verified via ABDM</span>
+            )}
           </label>
 
           <label className="space-y-1">

@@ -4,6 +4,8 @@ import { getTenantIdForApi } from "@/utils/auth";
 export interface TenantAbdmConfigDto {
   hip_id?: string | null;
   hip_name?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
 }
 
 export interface AbhaProfileDto {
