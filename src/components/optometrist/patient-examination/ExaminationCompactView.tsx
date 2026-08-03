@@ -103,6 +103,7 @@ interface ExaminationCompactViewProps {
     medicalConditions: MedicalConditionRecord[];
     patientOptometryHistory: any; // PatientOptometryTimeline | null
     historyLoading?: boolean;
+    onLoadMoreHistory?: () => void;
 
     // Loading states
     loading: {
@@ -167,6 +168,7 @@ export function ExaminationCompactView({
     medicalConditions,
     patientOptometryHistory,
     historyLoading,
+    onLoadMoreHistory,
     loading,
     refreshComplaints,
     refreshMedicalHistory,
@@ -483,6 +485,7 @@ export function ExaminationCompactView({
                         patientOptometryHistory={patientOptometryHistory}
                         loading={!!historyLoading}
                         currentVisitComplaints={complaints}
+                        onLoadMore={onLoadMoreHistory}
                     />
                 );
             default:

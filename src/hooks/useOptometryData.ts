@@ -61,7 +61,7 @@ export const useOptometryData = ({
         fetchPatientOptometryHistory({
           patient_id: patientId,
           page: 1,
-          page_size: 50,
+          page_size: 5,
         })
       );
 
@@ -152,11 +152,27 @@ export const useOptometryData = ({
         fetchPatientOptometryHistory({
           patient_id: patientId,
           page: 1,
-          page_size: 50,
+          page_size: 5,
         })
       );
     }
   }, [patientId, dispatch]);
+
+  const loadMoreHistory = useCallback(() => {
+    if (patientId && patientOptometryHistory) {
+      const currentPage = (patientOptometryHistory as any).page || 1;
+      const totalPages = (patientOptometryHistory as any).total_pages || 1;
+      if (currentPage < totalPages) {
+        dispatch(
+          fetchPatientOptometryHistory({
+            patient_id: patientId,
+            page: currentPage + 1,
+            page_size: 5,
+          })
+        );
+      }
+    }
+  }, [patientId, patientOptometryHistory, dispatch]);
 
   const refreshRefraction = useCallback(() => {
     if (patientId) {
@@ -300,6 +316,7 @@ export const useOptometryData = ({
 
     // Refresh functions
     refreshHistory,
+    loadMoreHistory,
     refreshRefraction,
     refreshIOP,
     refreshARData,

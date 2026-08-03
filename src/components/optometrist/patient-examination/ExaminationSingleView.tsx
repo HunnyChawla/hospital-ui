@@ -76,6 +76,7 @@ interface ExaminationSingleViewProps {
   medicalConditions: MedicalConditionRecord[];
   patientOptometryHistory: any; // PatientOptometryTimeline | null
   historyLoading?: boolean;
+  onLoadMoreHistory?: () => void;
 
   // Loading states
   loading: {
@@ -132,6 +133,7 @@ export function ExaminationSingleView({
   medicalConditions,
   patientOptometryHistory,
   historyLoading,
+  onLoadMoreHistory,
   loading,
   refreshComplaints,
   refreshMedicalHistory,
@@ -349,6 +351,7 @@ export function ExaminationSingleView({
             patientOptometryHistory={patientOptometryHistory}
             loading={!!historyLoading}
             currentVisitComplaints={complaints}
+            onLoadMore={onLoadMoreHistory}
           />
         );
       default:
