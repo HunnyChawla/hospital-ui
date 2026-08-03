@@ -152,13 +152,10 @@ function ExpandableActionButton({
                 e.stopPropagation();
                 onClick();
             }}
-            className={`group inline-flex h-8 items-center justify-start rounded-lg border px-2 text-xs font-semibold shadow-xs transition-all duration-300 ease-in-out shrink-0 max-w-[32px] lg:hover:max-w-[150px] ${variantClasses[variant]}`}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold shadow-xs transition-colors duration-200 shrink-0 ${variantClasses[variant]}`}
             title={title}
         >
             <Icon className="h-4 w-4 shrink-0" />
-            <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap lg:group-hover:max-w-[120px] lg:group-hover:opacity-100 lg:group-hover:ml-1.5 transition-all duration-300 ease-in-out font-semibold">
-                {label}
-            </span>
         </button>
     );
 }
