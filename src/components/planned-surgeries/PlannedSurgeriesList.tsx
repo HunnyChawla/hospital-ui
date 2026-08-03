@@ -22,6 +22,7 @@ import {
     CheckCircle2,
     XCircle,
     CalendarDays,
+    FileText,
     Loader2,
     AlertCircle,
     Plus,
@@ -53,6 +54,9 @@ import { SurgeryHistoryModal } from "./SurgeryHistoryModal";
 import { StatusTransitionModal } from "./StatusTransitionModal";
 import { RescheduleModal } from "./RescheduleModal";
 import { SurgeryDetailModal } from "./SurgeryDetailModal";
+import { AdvancePaymentModal } from "./AdvancePaymentModal";
+import { SurgeryInvoiceModal } from "./SurgeryInvoiceModal";
+import { RefundModal } from "./RefundModal";
 import { plannedSurgeriesApi, PlannedSurgeryParams } from "@/services/plannedSurgeriesApi";
 
 type DatePreset = "today" | "yesterday" | "7days" | "custom" | "all";
@@ -134,30 +138,27 @@ function ExpandableActionButton({
     label: string;
     variant: "sky" | "rose" | "amber" | "emerald";
 }) {
-    const [isHovered, setIsHovered] = useState(false);
-
     const variantClasses = {
-        sky: "bg-sky-500 hover:bg-sky-600 text-white shadow-sm shadow-sky-500/20",
-        rose: "bg-rose-500 hover:bg-rose-600 text-white shadow-sm shadow-rose-500/20",
-        amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/20",
-        emerald: "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm shadow-emerald-500/20",
+        sky: "bg-sky-500 hover:bg-sky-600 text-white shadow-sm shadow-sky-500/20 border-sky-500",
+        rose: "bg-rose-500 hover:bg-rose-600 text-white shadow-sm shadow-rose-500/20 border-rose-500",
+        amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/20 border-amber-500",
+        emerald: "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm shadow-emerald-500/20 border-emerald-500",
     };
 
     return (
         <button
+            type="button"
             onClick={(e) => {
                 e.stopPropagation();
                 onClick();
             }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className={`flex items-center justify-center overflow-hidden rounded-lg transition-all duration-200 text-xs font-semibold ${
-                isHovered ? "px-3 py-1.5" : "h-8 w-8"
-            } ${variantClasses[variant]}`}
+            className={`group inline-flex h-8 items-center justify-start rounded-lg border px-2 text-xs font-semibold shadow-xs transition-all duration-300 ease-in-out shrink-0 max-w-[32px] hover:max-w-[150px] ${variantClasses[variant]}`}
             title={title}
         >
             <Icon className="h-4 w-4 shrink-0" />
-            {isHovered && <span className="ml-1.5 whitespace-nowrap">{label}</span>}
+            <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out font-semibold">
+                {label}
+            </span>
         </button>
     );
 }
@@ -276,6 +277,11 @@ export function PlannedSurgeriesList({
 
     // Reschedule modal
     const [rescheduleModalSurgery, setRescheduleModalSurgery] = useState<PlannedSurgery | null>(null);
+
+    // Surgery Billing Modals
+    const [advanceModalSurgery, setAdvanceModalSurgery] = useState<PlannedSurgery | null>(null);
+    const [invoiceModalSurgery, setInvoiceModalSurgery] = useState<PlannedSurgery | null>(null);
+    const [refundModalSurgery, setRefundModalSurgery] = useState<PlannedSurgery | null>(null);
 
     // Sync external trigger for form modal if passed
     useEffect(() => {
@@ -413,16 +419,16 @@ export function PlannedSurgeriesList({
     };
 
     const getEyeBadge = (eye?: string | null) => {
-        if (!eye) return null;
-        switch (eye) {
+        const eyeVal = eye ? eye.toUpperCase() : null;
+        switch (eyeVal) {
             case "OD":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Right Eye (OD)</span>;
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100/90 text-blue-900 border border-blue-300 shadow-2xs">👁️ Right Eye (OD)</span>;
             case "OS":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Left Eye (OS)</span>;
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100/90 text-purple-900 border border-purple-300 shadow-2xs">👁️ Left Eye (OS)</span>;
             case "OU":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Both Eyes (OU)</span>;
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-900 border border-amber-300 shadow-2xs">👁️ Both Eyes (OU)</span>;
             default:
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200">{eye}</span>;
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Eye: Unspecified</span>;
         }
     };
 
@@ -1038,10 +1044,16 @@ export function PlannedSurgeriesList({
                                                     Package: {surgery.package_name} {surgery.package_price ? `(₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}
                                                 </div>
                                             )}
+                                            {surgery.surgery_invoice_id && (
+                                                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded border border-blue-200">
+                                                    <FileText className="h-3 w-3" />
+                                                    Invoice Generated
+                                                </div>
+                                            )}
                                             {surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0 ? (
                                                 <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded block">
                                                     <CreditCard className="h-3 w-3" />
-                                                    Advance: ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")} {surgery.advance_payment_method ? `(${surgery.advance_payment_method.toUpperCase()})` : ""}
+                                                    Amount Collected: ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")}
                                                 </div>
                                             ) : null}
                                         </div>
@@ -1095,16 +1107,7 @@ export function PlannedSurgeriesList({
                                         </span>
 
                                         <div className="flex items-center gap-1.5">
-                                            {/* History icon button */}
-                                            <ExpandableActionButton
-                                                onClick={() => handleViewHistory(surgery)}
-                                                icon={History}
-                                                title="View Surgery Timeline"
-                                                label="History"
-                                                variant="sky"
-                                            />
-
-                                            {/* Edit action button */}
+                                            {/* 1. Edit action button */}
                                             {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
                                                 <ExpandableActionButton
                                                     onClick={() => handleEdit(surgery)}
@@ -1115,7 +1118,16 @@ export function PlannedSurgeriesList({
                                                 />
                                             )}
 
-                                            {/* Primary contextual action button */}
+                                            {/* 2. Collect Payment / Billing quick action */}
+                                            <ExpandableActionButton
+                                                onClick={() => setInvoiceModalSurgery(surgery)}
+                                                icon={CreditCard}
+                                                title="Collect Payment / Manage Billing"
+                                                label="Collect Payment"
+                                                variant="emerald"
+                                            />
+
+                                            {/* 3. Reschedule action button */}
                                             {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
                                                 <ExpandableActionButton
                                                     onClick={() => handleReschedule(surgery)}
@@ -1125,6 +1137,15 @@ export function PlannedSurgeriesList({
                                                     variant="amber"
                                                 />
                                             )}
+
+                                            {/* 4. History icon button */}
+                                            <ExpandableActionButton
+                                                onClick={() => handleViewHistory(surgery)}
+                                                icon={History}
+                                                title="View Surgery Timeline"
+                                                label="History"
+                                                variant="sky"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -1196,7 +1217,7 @@ export function PlannedSurgeriesList({
                                                         )}
                                                         {surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0 ? (
                                                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md w-fit">
-                                                                Advance: ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")} {surgery.advance_payment_method ? `(${surgery.advance_payment_method.toUpperCase()})` : ""}
+                                                                Amount Collected: ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")}
                                                             </span>
                                                         ) : null}
                                                     </div>
@@ -1236,13 +1257,6 @@ export function PlannedSurgeriesList({
                                                 </td>
                                                 <td className="w-[16%] whitespace-nowrap px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex items-center justify-end gap-1.5">
-                                                        <ExpandableActionButton
-                                                            onClick={() => handleViewHistory(surgery)}
-                                                            icon={History}
-                                                            title="View Timeline"
-                                                            label="History"
-                                                            variant="sky"
-                                                        />
                                                         {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
                                                             <ExpandableActionButton
                                                                 onClick={() => handleEdit(surgery)}
@@ -1252,6 +1266,13 @@ export function PlannedSurgeriesList({
                                                                 variant="emerald"
                                                             />
                                                         )}
+                                                        <ExpandableActionButton
+                                                            onClick={() => setInvoiceModalSurgery(surgery)}
+                                                            icon={CreditCard}
+                                                            title="Collect Payment / Manage Billing"
+                                                            label="Collect Payment"
+                                                            variant="emerald"
+                                                        />
                                                         {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
                                                             <ExpandableActionButton
                                                                 onClick={() => handleReschedule(surgery)}
@@ -1261,6 +1282,13 @@ export function PlannedSurgeriesList({
                                                                 variant="amber"
                                                             />
                                                         )}
+                                                        <ExpandableActionButton
+                                                            onClick={() => handleViewHistory(surgery)}
+                                                            icon={History}
+                                                            title="View Timeline"
+                                                            label="History"
+                                                            variant="sky"
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1341,6 +1369,35 @@ export function PlannedSurgeriesList({
                 onViewHistory={handleViewHistory}
                 onReschedule={handleReschedule}
                 onTransition={handleTransition}
+                onOpenAdvanceModal={(s) => setAdvanceModalSurgery(s)}
+                onOpenInvoiceModal={(s) => setInvoiceModalSurgery(s)}
+                onOpenRefundModal={(s) => setRefundModalSurgery(s)}
+            />
+
+            {/* Advance Payment Modal */}
+            <AdvancePaymentModal
+                isOpen={!!advanceModalSurgery}
+                onClose={() => setAdvanceModalSurgery(null)}
+                surgery={advanceModalSurgery}
+            />
+
+            {/* Surgery Invoice Modal */}
+            <SurgeryInvoiceModal
+                isOpen={!!invoiceModalSurgery}
+                onClose={() => setInvoiceModalSurgery(null)}
+                surgery={invoiceModalSurgery}
+                onOpenAdvanceModal={() => {
+                    const currentSurgery = invoiceModalSurgery;
+                    setInvoiceModalSurgery(null);
+                    setAdvanceModalSurgery(currentSurgery);
+                }}
+            />
+
+            {/* Refund Modal */}
+            <RefundModal
+                isOpen={!!refundModalSurgery}
+                onClose={() => setRefundModalSurgery(null)}
+                surgery={refundModalSurgery}
             />
 
             {/* Form Modal */}

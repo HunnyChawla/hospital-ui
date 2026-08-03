@@ -3,13 +3,16 @@
 import { useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { X, Loader2, Calendar, User, Stethoscope, Eye, Clock, FileText, Building2, CheckCircle2, Package, CreditCard, ChevronDown, ChevronUp, Split, Edit2 } from "lucide-react";
+import { X, Loader2, Calendar, User, Stethoscope, Eye, Clock, FileText, Building2, CheckCircle2, Package, CreditCard, ChevronDown, ChevronUp, Split, Edit2, AlertCircle } from "lucide-react";
 import { PlannedSurgery, CreatePlannedSurgeryRequest, UpdatePlannedSurgeryRequest, Surgery, SurgeryPackage, PlannedSurgeryStatus } from "@/types";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { surgeryPackagesApi } from "@/services/surgeryPackagesApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { useAppSelector } from "@/redux/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { plannedSurgeryKeys } from "@/hooks/queries/usePlannedSurgeries";
+import { useSurgeryPaymentSummary, useSurgeryPayments, surgeryBillingKeys } from "@/hooks/queries/useSurgeryBilling";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTodayDateLocal, formatDate } from "@/utils/format";
@@ -27,10 +30,14 @@ export function PlannedSurgeryFormModal({
     onSuccess,
     initialData,
 }: PlannedSurgeryFormModalProps) {
+    const queryClient = useQueryClient();
     const doctors = useAppSelector((s) => s.doctors.list);
     const currentTenant = useAppSelector((s) => s.tenant.tenant);
     const isEditing = !!initialData;
-    const hasCollectedPayment = !!(initialData && initialData.advance_payment_amount && Number(initialData.advance_payment_amount) > 0);
+    const surgeryIdForBilling = initialData?.id || null;
+    const { data: summary } = useSurgeryPaymentSummary(surgeryIdForBilling);
+    const { data: payments = [] } = useSurgeryPayments(surgeryIdForBilling);
+    const hasCollectedPayment = !!(initialData && initialData.advance_payment_amount && Number(initialData.advance_payment_amount) > 0) || payments.length > 0;
 
     // Form state
     const [patientSearch, setPatientSearch] = useState("");
@@ -52,6 +59,7 @@ export function PlannedSurgeryFormModal({
     // Package state
     const [packages, setPackages] = useState<SurgeryPackage[]>([]);
     const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+    const [packageDiscount, setPackageDiscount] = useState<string>("0");
     const [loadingPackages, setLoadingPackages] = useState(false);
 
     // Advance Payment state
@@ -133,21 +141,13 @@ export function PlannedSurgeryFormModal({
             setStatus(initialData.status);
             setSelectedPackageId(initialData.package_id || null);
 
-            if (initialData.advance_payment_amount) {
-                setShowAdvancePayment(true);
-                setAdvanceAmount(initialData.advance_payment_amount.toString());
-                setPaymentMethod(initialData.advance_payment_method || "cash");
-                setPaymentReference(initialData.advance_payment_reference || "");
-                setPaymentDate(initialData.advance_payment_date || getTodayDateLocal());
-                setPaymentNotes(initialData.advance_payment_notes || "");
-            } else {
-                setShowAdvancePayment(false);
-                setAdvanceAmount("");
-                setPaymentMethod("cash");
-                setPaymentReference("");
-                setPaymentDate(getTodayDateLocal());
-                setPaymentNotes("");
-            }
+            // Reset advance payment collection inputs for optional additional collection
+            setShowAdvancePayment(false);
+            setAdvanceAmount("");
+            setPaymentMethod("cash");
+            setPaymentReference("");
+            setPaymentDate(getTodayDateLocal());
+            setPaymentNotes("");
         } else {
             // Reset form
             setPatientSearch("");
@@ -259,7 +259,9 @@ export function PlannedSurgeryFormModal({
         }
 
         const isEyeSurgery = selectedSurgery?.is_eye_surgery ?? true;
-        const numAdvance = advanceAmount ? parseFloat(advanceAmount) : null;
+        const numAdvance = (showAdvancePayment && advanceAmount && parseFloat(advanceAmount) > 0)
+            ? parseFloat(advanceAmount)
+            : undefined;
 
         setSaving(true);
         try {
@@ -267,11 +269,13 @@ export function PlannedSurgeryFormModal({
                 const updatePayload: UpdatePlannedSurgeryRequest = {
                     surgery_id: surgeryId,
                     surgery_name: surgeryName,
-                    eye: isEyeSurgery ? eye : null,
+                    eye: eye || initialData.eye || null,
+                    planned_date: plannedDate || null,
                     planned_time: plannedTime || null,
                     hospital_name: hospitalName || null,
                     notes: notes || null,
                     package_id: selectedPackageId,
+                    package_price: selectedPackageId ? netAgreedPrice : undefined,
                     advance_payment_amount: numAdvance,
                     advance_payment_method: numAdvance ? paymentMethod : null,
                     advance_payment_reference: numAdvance ? paymentReference || null : null,
@@ -294,6 +298,7 @@ export function PlannedSurgeryFormModal({
                         hospital_name: hospitalName || null,
                         notes: notes ? `${notes} (Right Eye - OD)` : "Right Eye (OD)",
                         package_id: selectedPackageId,
+                        package_price: selectedPackageId ? netAgreedPrice : undefined,
                         advance_payment_amount: numAdvance,
                         advance_payment_method: numAdvance ? paymentMethod : null,
                         advance_payment_reference: numAdvance ? paymentReference || null : null,
@@ -311,6 +316,7 @@ export function PlannedSurgeryFormModal({
                         hospital_name: hospitalName || null,
                         notes: notes ? `${notes} (Left Eye - OS)` : "Left Eye (OS)",
                         package_id: selectedPackageId,
+                        package_price: selectedPackageId ? netAgreedPrice : undefined,
                     };
 
                     await plannedSurgeriesApi.create(odPayload);
@@ -328,6 +334,7 @@ export function PlannedSurgeryFormModal({
                         hospital_name: hospitalName || null,
                         notes: notes || null,
                         package_id: selectedPackageId,
+                        package_price: selectedPackageId ? netAgreedPrice : undefined,
                         advance_payment_amount: numAdvance,
                         advance_payment_method: numAdvance ? paymentMethod : null,
                         advance_payment_reference: numAdvance ? paymentReference || null : null,
@@ -338,6 +345,8 @@ export function PlannedSurgeryFormModal({
                     toast.success("Planned surgery created successfully");
                 }
             }
+            queryClient.invalidateQueries({ queryKey: plannedSurgeryKeys.all });
+            queryClient.invalidateQueries({ queryKey: surgeryBillingKeys.all });
             onSuccess();
             onClose();
         } catch (error: any) {
@@ -349,10 +358,29 @@ export function PlannedSurgeryFormModal({
     };
 
     const isEyeSurgery = selectedSurgery?.is_eye_surgery ?? true;
+    const isInvoiceLocked = !!initialData?.surgery_invoice_id;
     const selectedPkg = packages.find((p) => p.id === selectedPackageId);
-    const calculatedOuPrice = selectedPkg
-        ? (selectedPkg.ou_price ?? selectedPkg.price * 2)
-        : 0;
+    const activeBasePrice = selectedPkg
+        ? (eye === "OU" ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price)
+        : (initialData?.package_price ? Number(initialData.package_price) : 0);
+    const netAgreedPrice = selectedPkg
+        ? Math.max(0, activeBasePrice - (parseFloat(packageDiscount) || 0))
+        : (initialData?.package_price ? Number(initialData.package_price) : 0);
+    const calculatedOuPrice = activeBasePrice;
+
+    // Sync package discount when initialData or selectedPkg changes
+    useEffect(() => {
+        if (initialData?.package_price && selectedPkg) {
+            const isOu = eye === "OU";
+            const basePrice = isOu ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price;
+            const storedPrice = Number(initialData.package_price);
+            if (basePrice > storedPrice) {
+                setPackageDiscount((basePrice - storedPrice).toString());
+            } else {
+                setPackageDiscount("0");
+            }
+        }
+    }, [initialData, selectedPkg, eye]);
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
@@ -451,21 +479,28 @@ export function PlannedSurgeryFormModal({
                                     <div className="space-y-1.5">
                                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                             <FileText className="h-4 w-4 text-slate-400" />
-                                            Surgery Type <span className="text-rose-500">*</span>
+                                            Surgery Type {isEditing && <span className="text-xs font-normal text-slate-400">(Prescribed by Doctor)</span>} {!isEditing && <span className="text-rose-500">*</span>}
                                         </label>
-                                        <select
-                                            value={surgeryId}
-                                            onChange={handleSurgeryChange}
-                                            disabled={loadingSurgeries}
-                                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
-                                        >
-                                            <option value="">Select surgery...</option>
-                                            {surgeries.map((surgery) => (
-                                                <option key={surgery.id} value={surgery.id}>
-                                                    {surgery.name} {surgery.category ? `(${surgery.category})` : ""}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        {isEditing ? (
+                                            <div className="w-full rounded-xl border border-slate-200 bg-slate-100/80 px-4 py-2.5 text-sm font-bold text-slate-800 flex items-center justify-between">
+                                                <span>{surgeryName || initialData?.surgery_name || "Prescribed Surgery"}</span>
+                                                <span className="text-xs font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">Prescribed by Doctor</span>
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={surgeryId}
+                                                onChange={handleSurgeryChange}
+                                                disabled={loadingSurgeries}
+                                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
+                                            >
+                                                <option value="">Select surgery...</option>
+                                                {surgeries.map((surgery) => (
+                                                    <option key={surgery.id} value={surgery.id}>
+                                                        {surgery.name} {surgery.category ? `(${surgery.category})` : ""}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
 
                                     {/* Surgeon Selection */}
@@ -489,148 +524,83 @@ export function PlannedSurgeryFormModal({
                                         </select>
                                     </div>
 
-                                    {/* Eye Selection (Only shown if surgery is_eye_surgery = true) */}
-                                    {isEyeSurgery && (
-                                        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                                    {/* Prescribed Eye Selection Section */}
+                                    {isEditing ? (
+                                        <div className="space-y-1.5">
                                             <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                                                <Eye className="h-4 w-4 text-slate-400" />
-                                                Eye Selection <span className="text-rose-500">*</span>
+                                                <Eye className="h-4 w-4 text-sky-600" />
+                                                Prescribed Operating Eye <span className="text-xs text-slate-400 font-normal">(Prescribed by Doctor)</span>
                                             </label>
-                                            <div className="flex gap-3">
-                                                {(["OD", "OS", "OU"] as const).map((eyeOption) => (
-                                                    <button
-                                                        key={eyeOption}
-                                                        type="button"
-                                                        onClick={() => setEye(eyeOption)}
-                                                        className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${eye === eyeOption
-                                                            ? "bg-sky-500 text-white shadow-md"
-                                                            : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                                            <div className="w-full rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 flex items-center justify-between">
+                                                <span className="text-xs font-semibold text-sky-950">Doctor Prescribed Eye:</span>
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold shadow-2xs ${
+                                                    eye === "OD"
+                                                        ? "bg-blue-100 text-blue-900 border border-blue-300"
+                                                        : eye === "OS"
+                                                        ? "bg-purple-100 text-purple-900 border border-purple-300"
+                                                        : "bg-amber-100 text-amber-900 border border-amber-300"
+                                                }`}>
+                                                    👁️ {eye === "OD" ? "Right Eye (OD)" : eye === "OS" ? "Left Eye (OS)" : "Both Eyes (OU)"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (isEyeSurgery || !!eye) ? (
+                                        <div className="space-y-2 rounded-xl border border-sky-200/80 bg-sky-50/40 p-4">
+                                            <div className="flex items-center justify-between">
+                                                <label className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                                                    <Eye className="h-4 w-4 text-sky-600" />
+                                                    Prescribed Operating Eye <span className="text-rose-500">*</span>
+                                                </label>
+                                                <span className="text-xs font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
+                                                    {eye === "OD" ? "👁️ Right Eye (OD)" : eye === "OS" ? "👁️ Left Eye (OS)" : "👁️ Both Eyes (OU)"}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-3 pt-1">
+                                                {(["OD", "OS", "OU"] as const).map((eyeOption) => {
+                                                    const isSelected = eye === eyeOption;
+                                                    return (
+                                                        <button
+                                                            key={eyeOption}
+                                                            type="button"
+                                                            onClick={() => setEye(eyeOption)}
+                                                            className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                                                isSelected
+                                                                    ? eyeOption === "OD"
+                                                                        ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-300"
+                                                                        : eyeOption === "OS"
+                                                                        ? "bg-purple-600 text-white shadow-md ring-2 ring-purple-300"
+                                                                        : "bg-amber-600 text-white shadow-md ring-2 ring-amber-300"
+                                                                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                                                             }`}
-                                                    >
-                                                        {eyeOption === "OD" ? "Right (OD)" : eyeOption === "OS" ? "Left (OS)" : "Both Eyes (OU)"}
-                                                    </button>
-                                                ))}
+                                                        >
+                                                            <span>👁️</span>
+                                                            <span>{eyeOption === "OD" ? "Right Eye (OD)" : eyeOption === "OS" ? "Left Eye (OS)" : "Both Eyes (OU)"}</span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
 
                                             {eye === "OU" && (
-                                                <div className="mt-2 space-y-2 rounded-lg bg-sky-50 border border-sky-200 p-3 text-xs text-sky-800">
-                                                    <p className="font-medium flex items-center gap-1">
-                                                        ℹ️ Both eyes (OU) selected — total price will be {calculatedOuPrice > 0 ? `₹${calculatedOuPrice.toLocaleString("en-IN")}` : "calculated"} at invoice time.
+                                                <div className="mt-2 space-y-2 rounded-lg bg-amber-50/80 border border-amber-200 p-3 text-xs text-amber-900 font-medium">
+                                                    <p className="flex items-center gap-1">
+                                                        ℹ️ Both eyes (OU) selected — package pricing applies to bilateral procedure.
                                                     </p>
-                                                    {!isEditing && (
-                                                        <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer pt-1 border-t border-sky-200/60">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={splitOuSurgeries}
-                                                                onChange={(e) => setSplitOuSurgeries(e.target.checked)}
-                                                                className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 h-4 w-4"
-                                                            />
-                                                            <Split className="h-3.5 w-3.5 text-sky-600" />
-                                                            Plan as 2 separate entries (OD & OS) for different dates
-                                                        </label>
-                                                    )}
+                                                    <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer pt-1 border-t border-sky-200/60">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={splitOuSurgeries}
+                                                            onChange={(e) => setSplitOuSurgeries(e.target.checked)}
+                                                            className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 h-4 w-4"
+                                                        />
+                                                        <Split className="h-3.5 w-3.5 text-sky-600" />
+                                                        Plan as 2 separate entries (OD & OS) for different dates
+                                                    </label>
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                    ) : null}
 
-                                    {/* Packages Selection Section */}
-                                    {surgeryId && (
-                                        <div className="space-y-2 border-t border-slate-100 pt-4">
-                                            <div className="flex items-center justify-between">
-                                                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                                                    <Package className="h-4 w-4 text-slate-400" />
-                                                    Surgery Package <span className="text-xs text-slate-400 font-normal">(optional)</span>
-                                                </label>
-                                                {selectedPackageId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedPackageId(null)}
-                                                        className="text-xs text-rose-600 hover:underline"
-                                                    >
-                                                        Clear selection
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {loadingPackages ? (
-                                                <div className="flex items-center gap-2 py-4 text-xs text-slate-500 justify-center">
-                                                    <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
-                                                    Loading packages...
-                                                </div>
-                                            ) : packages.length === 0 ? (
-                                                <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                                    No packages configured for this surgery. Proceeding with standard pricing.
-                                                </p>
-                                            ) : (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                                                    {packages.map((pkg) => {
-                                                        const isSelected = selectedPackageId === pkg.id;
-                                                        const isOu = eye === "OU";
-                                                        const activePrice = isOu ? (pkg.ou_price ?? pkg.price * 2) : pkg.price;
-                                                        const altPrice = isOu ? pkg.price : (pkg.ou_price ?? pkg.price * 2);
-                                                        const altLabel = isOu ? "Single Eye" : "Both Eyes (OU)";
-
-                                                        return (
-                                                            <button
-                                                                key={pkg.id}
-                                                                type="button"
-                                                                onClick={() => handlePackageSelect(pkg)}
-                                                                className={`flex flex-col text-left p-3.5 rounded-xl border transition-all relative ${
-                                                                    isSelected
-                                                                        ? "border-sky-500 bg-sky-50/50 shadow-md ring-2 ring-sky-200"
-                                                                        : "border-slate-200 bg-white hover:border-slate-300"
-                                                                }`}
-                                                            >
-                                                                <div className="flex items-center justify-between w-full mb-1">
-                                                                    <span className="font-semibold text-sm text-slate-900">
-                                                                        {pkg.name}
-                                                                    </span>
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className="text-sm font-extrabold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded-md border border-sky-200">
-                                                                            ₹{activePrice.toLocaleString("en-IN")}
-                                                                        </span>
-                                                                        <span className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                                                            {isOu ? "Both Eyes (OU)" : "Single Eye"}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                {pkg.description && (
-                                                                    <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
-                                                                        {pkg.description}
-                                                                    </p>
-                                                                )}
-                                                                <div className="mt-2.5 flex items-center justify-between w-full pt-2 border-t border-slate-100 text-[11px]">
-                                                                    <span className="text-slate-400">
-                                                                        {altLabel}: ₹{altPrice.toLocaleString("en-IN")}
-                                                                    </span>
-                                                                    {isSelected && (
-                                                                        <span className="font-semibold text-sky-700 flex items-center gap-1">
-                                                                            <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" /> Selected
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Date and Time */}
-                                    {isEditing ? (
-                                        /* In edit mode, show read-only current date. Use Reschedule button for date changes. */
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1">
-                                            <p className="text-xs font-medium text-slate-500">Planned Date & Time</p>
-                                            <p className="text-sm font-semibold text-slate-700">
-                                                {initialData?.planned_date
-                                                    ? `${initialData.planned_date}${initialData.planned_time ? ` at ${initialData.planned_time.slice(0, 5)}` : ""}`
-                                                    : "Not yet scheduled"}
-                                            </p>
-                                            <p className="text-[10px] text-slate-400">Use the Reschedule button to change the date.</p>
-                                        </div>
-                                    ) : (
+                                    {/* Planned Date and Time */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
@@ -676,100 +646,251 @@ export function PlannedSurgeryFormModal({
                                             </div>
                                         )}
                                     </div>
-                                    )}
 
-                                    {/* Advance Payment Section */}
-                                    {hasCollectedPayment && !isEditingPayment ? (
-                                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2.5 shadow-sm">
+                                    {/* Packages Selection Section */}
+                                    {surgeryId && (
+                                        <div className="space-y-2 border-t border-slate-100 pt-4">
                                             <div className="flex items-center justify-between">
-                                                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                                                    <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
-                                                    Advance Payment Already Collected
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setIsEditingPayment(true)}
-                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-800 underline"
-                                                >
-                                                    <Edit2 className="h-3 w-3" />
-                                                    Edit Payment Info
-                                                </button>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-700 pt-1">
-                                                <div>
-                                                    <span className="text-slate-500 block text-[11px]">Collected Amount</span>
-                                                    <span className="text-base font-bold text-slate-900">
-                                                        ₹{Number(initialData?.advance_payment_amount).toLocaleString("en-IN")}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-slate-500 block text-[11px]">Payment Method</span>
-                                                    <span className="font-semibold text-slate-800 uppercase bg-white px-2 py-0.5 rounded border border-slate-200 inline-block mt-0.5">
-                                                        {initialData?.advance_payment_method || "Cash"}
-                                                    </span>
-                                                </div>
-                                                {initialData?.advance_payment_date && (
-                                                    <div>
-                                                        <span className="text-slate-500 block text-[11px]">Payment Date</span>
-                                                        <span className="font-medium text-slate-800">
-                                                            {formatDate(initialData.advance_payment_date)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {initialData?.advance_payment_reference && (
-                                                    <div>
-                                                        <span className="text-slate-500 block text-[11px]">Ref / Txn No</span>
-                                                        <span className="font-medium text-slate-800 truncate block max-w-[120px]">
-                                                            {initialData.advance_payment_reference}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {initialData?.advance_payment_notes && (
-                                                <p className="text-[11px] text-slate-600 pt-1.5 border-t border-emerald-200/60">
-                                                    <span className="font-medium text-slate-700">Notes:</span> {initialData.advance_payment_notes}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
-                                            <div className="flex items-center justify-between px-4 py-3 bg-slate-100/70 border-b border-slate-200/60">
-                                                <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                                    <CreditCard className="h-4 w-4 text-sky-600" />
-                                                    {hasCollectedPayment ? "Modifying Advance Payment Information" : "Advance Payment Details (Optional)"}
-                                                </span>
-                                                {hasCollectedPayment && (
+                                                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                                    <Package className="h-4 w-4 text-slate-400" />
+                                                    Surgery Package <span className="text-xs text-slate-400 font-normal">(optional)</span>
+                                                </label>
+                                                {selectedPackageId && !isInvoiceLocked && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setIsEditingPayment(false)}
-                                                        className="text-xs text-slate-500 hover:text-slate-700 underline"
+                                                        onClick={() => setSelectedPackageId(null)}
+                                                        className="text-xs text-rose-600 hover:underline"
                                                     >
-                                                        Cancel Edit
+                                                        Clear selection
                                                     </button>
                                                 )}
                                             </div>
 
+                                            {isInvoiceLocked && (
+                                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-center gap-2 text-xs text-amber-900 font-medium">
+                                                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                                                    <span>Invoice generated — package selection & agreed pricing are locked to preserve billing integrity.</span>
+                                                </div>
+                                            )}
+
+                                            {loadingPackages ? (
+                                                <div className="flex items-center gap-2 py-4 text-xs text-slate-500 justify-center">
+                                                    <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                                                    Loading packages...
+                                                </div>
+                                            ) : packages.length === 0 ? (
+                                                <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                                    No packages configured for this surgery. Proceeding with standard pricing.
+                                                </p>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                                    {packages.map((pkg) => {
+                                                        const isSelected = selectedPackageId === pkg.id;
+                                                        const isOu = eye === "OU";
+                                                        const activePrice = isOu ? (pkg.ou_price ?? pkg.price * 2) : pkg.price;
+                                                        const altPrice = isOu ? pkg.price : (pkg.ou_price ?? pkg.price * 2);
+                                                        const altLabel = isOu ? "Single Eye" : "Both Eyes (OU)";
+
+                                                        return (
+                                                            <button
+                                                                key={pkg.id}
+                                                                type="button"
+                                                                disabled={isInvoiceLocked}
+                                                                onClick={() => handlePackageSelect(pkg)}
+                                                                className={`flex flex-col text-left p-3.5 rounded-xl border transition-all relative ${
+                                                                    isSelected
+                                                                        ? "border-sky-500 bg-sky-50/50 shadow-md ring-2 ring-sky-200"
+                                                                        : "border-slate-200 bg-white hover:border-slate-300"
+                                                                } ${isInvoiceLocked ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                            >
+                                                                <div className="flex items-center justify-between w-full mb-1">
+                                                                    <span className="font-semibold text-sm text-slate-900">
+                                                                        {pkg.name}
+                                                                    </span>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="text-sm font-extrabold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded-md border border-sky-200">
+                                                                            ₹{activePrice.toLocaleString("en-IN")}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                                                            {isOu ? "Both Eyes (OU)" : "Single Eye"}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                {pkg.description && (
+                                                                    <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
+                                                                        {pkg.description}
+                                                                    </p>
+                                                                )}
+                                                                <div className="mt-2.5 flex items-center justify-between w-full pt-2 border-t border-slate-100 text-[11px]">
+                                                                    <span className="text-slate-400">
+                                                                        {altLabel}: ₹{altPrice.toLocaleString("en-IN")}
+                                                                    </span>
+                                                                    {isSelected && (
+                                                                        <span className="font-semibold text-sky-700 flex items-center gap-1">
+                                                                            <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" /> Selected
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Agreed Package Pricing & Discount Section */}
+                                            {selectedPkg && (
+                                                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4 space-y-3 mt-3">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="font-bold text-sky-900 uppercase tracking-wide">Agreed Pricing & Discount</span>
+                                                        <span className="text-slate-600 font-medium">Standard Price: ₹{activeBasePrice.toLocaleString("en-IN")}</span>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                                                Special Discount / Concession (₹)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                max={activeBasePrice}
+                                                                disabled={isInvoiceLocked}
+                                                                value={packageDiscount}
+                                                                onChange={(e) => setPackageDiscount(e.target.value)}
+                                                                placeholder="0.00"
+                                                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none bg-white disabled:bg-slate-100 disabled:text-slate-500"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                                                Final Agreed Package Price (₹)
+                                                            </label>
+                                                            <div className="rounded-lg border border-sky-300 bg-white px-3.5 py-2 text-sm font-extrabold text-sky-800 flex items-center justify-between shadow-2xs">
+                                                                <span>₹{netAgreedPrice.toLocaleString("en-IN")}</span>
+                                                                <span className="text-[10px] font-normal text-slate-500">Fixed for Invoice</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Billing & Payments Summary Card */}
+                                    {isEditing && (summary || payments.length > 0 || hasCollectedPayment) && (
+                                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3 shadow-sm">
+                                            <div className="flex items-center justify-between">
+                                                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                                                    <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
+                                                    Recorded Payment(s) ({payments.length || (hasCollectedPayment ? 1 : 0)})
+                                                </span>
+                                                {summary?.invoice_status && (
+                                                    <span className={`text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${
+                                                        summary.invoice_status === "paid"
+                                                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                                            : summary.invoice_status === "partial"
+                                                            ? "bg-amber-100 text-amber-800 border-amber-300"
+                                                            : "bg-rose-100 text-rose-800 border-rose-300"
+                                                    }`}>
+                                                        Invoice {summary.invoice_status} ({summary.invoice_number})
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-700 pt-1">
+                                                <div>
+                                                    <span className="text-slate-500 block text-[11px]">Advances Paid</span>
+                                                    <span className="text-sm font-bold text-emerald-700">
+                                                        ₹{(summary?.total_advance_collected ?? Number(initialData?.advance_payment_amount || 0)).toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-500 block text-[11px]">Invoice Payments</span>
+                                                    <span className="text-sm font-bold text-blue-700">
+                                                        ₹{(summary?.total_paid_on_invoice || 0).toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-500 block text-[11px]">Total Payments</span>
+                                                    <span className="text-base font-extrabold text-emerald-900">
+                                                        ₹{((summary?.total_advance_collected || 0) + (summary?.total_paid_on_invoice || 0) || Number(initialData?.advance_payment_amount || 0)).toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-500 block text-[11px]">Balance Remaining</span>
+                                                    <span className={`text-sm font-extrabold ${(summary?.balance_due ?? summary?.pending_balance ?? 0) > 0 ? "text-rose-600" : "text-emerald-700"}`}>
+                                                        ₹{(summary?.balance_due ?? summary?.pending_balance ?? 0).toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Payments Audit Log List */}
+                                            {payments.length > 0 && (
+                                                <div className="pt-2 border-t border-emerald-200/80 space-y-1.5">
+                                                    <span className="text-[11px] font-bold text-slate-700 block">All Recorded Payments:</span>
+                                                    <div className="divide-y divide-slate-200/80 bg-white rounded-lg border border-emerald-200/80 overflow-hidden text-xs max-h-36 overflow-y-auto">
+                                                        {payments.map((p, idx) => (
+                                                            <div key={p.surgery_payment_id || idx} className="p-2 flex items-center justify-between hover:bg-slate-50">
+                                                                <div>
+                                                                    <span className="font-semibold text-slate-900">
+                                                                        {p.payment_number || `Pay #${idx + 1}`}
+                                                                    </span>{" "}
+                                                                    <span className="text-[10px] uppercase font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 ml-1">
+                                                                        {p.payment_type}
+                                                                    </span>
+                                                                    <div className="text-[11px] text-slate-500 mt-0.5">
+                                                                        {p.payment_date ? new Date(p.payment_date).toLocaleDateString("en-IN") : "Date N/A"} • {(p.payment_method || "cash").toUpperCase()} {p.payment_reference ? `• Ref: ${p.payment_reference}` : ""}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right font-extrabold text-emerald-700 text-sm">
+                                                                    +₹{Number(p.amount).toLocaleString("en-IN")}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Advance Payment Section */}
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+                                        <div className="flex items-center justify-between px-4 py-3 bg-slate-100/70 border-b border-slate-200/60">
+                                            <label className="flex items-center gap-2 text-sm font-semibold text-slate-800 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={showAdvancePayment}
+                                                    onChange={(e) => setShowAdvancePayment(e.target.checked)}
+                                                    disabled={!selectedPackageId}
+                                                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                                />
+                                                <CreditCard className="h-4 w-4 text-sky-600" />
+                                                {hasCollectedPayment ? "Collect Additional Advance Payment Now (Optional)" : "Collect Advance Payment Now (Optional)"}
+                                            </label>
+                                        </div>
+
+                                        {showAdvancePayment && (
                                             <div className="p-4 bg-white space-y-3">
-                                                {hasCollectedPayment && (
-                                                    <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 font-medium">
-                                                        ⚠️ You are updating the previously recorded advance payment details.
+                                                {!selectedPackageId && (
+                                                    <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 font-medium flex items-center gap-1.5">
+                                                        <span>⚠️</span> Select a surgery package above to enable advance payment collection.
                                                     </p>
                                                 )}
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
                                                         <label className="block text-xs font-medium text-slate-700 mb-1">
-                                                            Amount (₹)
+                                                            Amount (₹) <span className="text-rose-500">*</span>
                                                         </label>
                                                         <input
                                                             type="number"
                                                             min="0"
                                                             step="1"
+                                                            disabled={!selectedPackageId}
                                                             value={advanceAmount}
                                                             onChange={(e) => setAdvanceAmount(e.target.value)}
-                                                            placeholder="e.g. 5000"
-                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+                                                            placeholder={selectedPackageId ? "e.g. 5000" : "Select package first"}
+                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:bg-slate-100 disabled:text-slate-400"
                                                         />
                                                     </div>
                                                     <div>
@@ -777,9 +898,10 @@ export function PlannedSurgeryFormModal({
                                                             Payment Method
                                                         </label>
                                                         <select
+                                                            disabled={!selectedPackageId}
                                                             value={paymentMethod}
                                                             onChange={(e) => setPaymentMethod(e.target.value)}
-                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:bg-slate-100 disabled:text-slate-400"
                                                         >
                                                             <option value="cash">Cash</option>
                                                             <option value="upi">UPI</option>
@@ -827,33 +949,9 @@ export function PlannedSurgeryFormModal({
                                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
                                                     />
                                                 </div>
-                                                {selectedPkg && (
-                                                    <div className="rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50/70 via-slate-50 to-teal-50/70 p-3.5 mt-3">
-                                                        <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200/80">
-                                                            <div className="pr-1">
-                                                                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Package Total</span>
-                                                                <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
-                                                                    ₹{(eye === "OU" ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price).toLocaleString("en-IN")}
-                                                                </span>
-                                                            </div>
-                                                            <div className="px-1">
-                                                                <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">Advance Amount</span>
-                                                                <span className="text-sm font-extrabold text-emerald-700 block mt-0.5">
-                                                                    ₹{(advanceAmount ? parseFloat(advanceAmount) : 0).toLocaleString("en-IN")}
-                                                                </span>
-                                                            </div>
-                                                            <div className="pl-1">
-                                                                <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider block">Balance Due</span>
-                                                                <span className="text-sm font-extrabold text-amber-700 block mt-0.5">
-                                                                    ₹{Math.max(0, (eye === "OU" ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price) - (advanceAmount ? parseFloat(advanceAmount) : 0)).toLocaleString("en-IN")}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
 
                                     {/* Status Selection — only shown on create */}
                                     {isEditing ? (

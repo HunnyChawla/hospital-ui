@@ -691,6 +691,8 @@ export type PlannedSurgery = {
   advance_payment_reference?: string | null;
   advance_payment_date?: string | null;
   advance_payment_notes?: string | null;
+  advance_payment_id?: string | null;
+  surgery_invoice_id?: string | null;
   reschedule_count: number;
   followup_date?: string | null;
   denial_reason?: string | null;
@@ -714,6 +716,7 @@ export type CreatePlannedSurgeryRequest = {
   hospital_name?: string | null;
   notes?: string | null;
   package_id?: string | null;
+  package_price?: number | null;
   advance_payment_amount?: number | null;
   advance_payment_method?: string | null;
   advance_payment_reference?: string | null;
@@ -726,10 +729,12 @@ export type UpdatePlannedSurgeryRequest = {
   surgery_name?: string;
   eye?: "OD" | "OS" | "OU" | null;
   advised_date?: string | null;
+  planned_date?: string | null;
   planned_time?: string | null;
   hospital_name?: string | null;
   notes?: string | null;
   package_id?: string | null;
+  package_price?: number | null;
   advance_payment_amount?: number | null;
   advance_payment_method?: string | null;
   advance_payment_reference?: string | null;
@@ -915,4 +920,52 @@ export type AvailableScreen = {
   category: "main" | "clinical" | "admin" | "reports";
   description?: string;
 };
+
+// ============================================
+// SURGERY BILLING TYPES
+// ============================================
+
+export type SurgeryPaymentEntry = {
+  surgery_payment_id: string;
+  payment_id: string;
+  payment_type: "advance" | "final";
+  payment_number: string;
+  amount: number;
+  payment_method: string;
+  payment_reference?: string | null;
+  payment_date: string;
+  status: string;
+  notes?: string | null;
+  created_at: string;
+  created_by: string | null;
+};
+
+export type SurgeryPaymentSummary = {
+  surgery_invoice_id: string | null;
+  invoice_number: string | null;
+  invoice_status: "pending" | "partial" | "paid" | "cancelled" | "refunded" | null;
+  invoice_total: number | null;
+  total_advance_collected: number;
+  total_paid_on_invoice: number;
+  balance_due: number;
+  package_price?: number | null;
+  pending_balance?: number | null;
+  payments: SurgeryPaymentEntry[];
+};
+
+export type CollectSurgeryAdvanceRequest = {
+  amount: number;
+  payment_method: "cash" | "upi" | "card" | "cheque";
+  payment_reference?: string | null;
+  payment_date?: string | null;
+  notes?: string | null;
+};
+
+export type GenerateSurgeryInvoiceRequest = {
+  line_items: { description: string; quantity: number; unit_price: number; discount?: number }[];
+  discount?: number;
+  tax_rate?: number;
+  notes?: string | null;
+};
+
 

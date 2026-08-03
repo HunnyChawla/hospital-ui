@@ -146,6 +146,23 @@ export const paymentsApi = {
     const response = await apiClient.get<Blob>(url, { responseType: "blob" });
     return response.data;
   },
+
+  async createRefund(
+    paymentId: string,
+    refund: {
+      refund_amount: number;
+      refund_method: PaymentMethod;
+      refund_reference?: string | null;
+      reason: string;
+      notes?: string | null;
+    },
+    tenantId?: string
+  ) {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post(`/payments/${paymentId}/refund`, refund, { params });
+    return response.data;
+  },
 };
 
 

@@ -24,6 +24,8 @@ import {
     Eye as EyeIcon,
 } from "lucide-react";
 
+import { SurgeryPaymentSummaryPanel } from "./SurgeryPaymentSummaryPanel";
+
 interface SurgeryDetailModalProps {
     surgery: PlannedSurgery | null;
     isOpen: boolean;
@@ -32,6 +34,9 @@ interface SurgeryDetailModalProps {
     onViewHistory: (surgery: PlannedSurgery) => void;
     onReschedule: (surgery: PlannedSurgery) => void;
     onTransition: (surgery: PlannedSurgery, targetStatus: PlannedSurgeryStatus) => void;
+    onOpenAdvanceModal?: (surgery: PlannedSurgery) => void;
+    onOpenInvoiceModal?: (surgery: PlannedSurgery) => void;
+    onOpenRefundModal?: (surgery: PlannedSurgery) => void;
 }
 
 export function SurgeryDetailModal({
@@ -42,6 +47,9 @@ export function SurgeryDetailModal({
     onViewHistory,
     onReschedule,
     onTransition,
+    onOpenAdvanceModal,
+    onOpenInvoiceModal,
+    onOpenRefundModal,
 }: SurgeryDetailModalProps) {
     // Close on escape
     useEffect(() => {
@@ -83,18 +91,17 @@ export function SurgeryDetailModal({
     };
 
     const getEyeBadge = (eye?: string | null) => {
-        if (!eye) return null;
-        const labels: Record<string, string> = {
-            OD: "Right Eye (OD)",
-            OS: "Left Eye (OS)",
-            OU: "Both Eyes (OU)",
-        };
-        return (
-            <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
-                <EyeIcon className="h-3.5 w-3.5 text-sky-600" />
-                {labels[eye] || eye}
-            </span>
-        );
+        const eyeVal = eye ? eye.toUpperCase() : null;
+        switch (eyeVal) {
+            case "OD":
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100/90 text-blue-900 border border-blue-300 shadow-2xs">👁️ Right Eye (OD)</span>;
+            case "OS":
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100/90 text-purple-900 border border-purple-300 shadow-2xs">👁️ Left Eye (OS)</span>;
+            case "OU":
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-900 border border-amber-300 shadow-2xs">👁️ Both Eyes (OU)</span>;
+            default:
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Eye: Unspecified</span>;
+        }
     };
 
     const formatDateTime = (date: string, time: string | null) => {
@@ -177,37 +184,15 @@ export function SurgeryDetailModal({
                             </div>
                         )}
 
-                        {/* Advance Payment Details */}
-                        {surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0 ? (
-                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 space-y-1">
-                                <div className="flex items-center justify-between font-semibold">
-                                    <span className="flex items-center gap-1.5 text-emerald-800">
-                                        <CreditCard className="h-4 w-4 text-emerald-600" />
-                                        Advance Payment Collected
-                                    </span>
-                                    <span className="text-sm text-emerald-700 font-bold">
-                                        ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")}
-                                    </span>
-                                </div>
-                                <div className="flex flex-wrap gap-x-4 text-[11px] text-emerald-700 pt-0.5">
-                                    {surgery.advance_payment_method && (
-                                        <span>Method: <strong className="font-semibold">{surgery.advance_payment_method.toUpperCase()}</strong></span>
-                                    )}
-                                    {surgery.advance_payment_reference && (
-                                        <span>Ref: <strong className="font-semibold">{surgery.advance_payment_reference}</strong></span>
-                                    )}
-                                    {surgery.advance_payment_date && (
-                                        <span>Date: <strong className="font-semibold">{formatDate(surgery.advance_payment_date)}</strong></span>
-                                    )}
-                                </div>
-                                {surgery.advance_payment_notes && (
-                                    <p className="text-[11px] text-emerald-600 italic pt-0.5">
-                                        &quot;{surgery.advance_payment_notes}&quot;
-                                    </p>
-                                )}
-                            </div>
-                        ) : null}
                     </div>
+
+                    {/* Surgery Payment Summary Panel */}
+                    <SurgeryPaymentSummaryPanel
+                        surgery={surgery}
+                        onOpenAdvanceModal={() => onOpenAdvanceModal?.(surgery)}
+                        onOpenInvoiceModal={() => onOpenInvoiceModal?.(surgery)}
+                        onOpenRefundModal={() => onOpenRefundModal?.(surgery)}
+                    />
 
                     {/* Metadata Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -323,6 +308,15 @@ export function SurgeryDetailModal({
                                 <span>Edit</span>
                             </button>
                         )}
+
+                        {/* Collect Payment / Billing */}
+                        <button
+                            onClick={() => onOpenInvoiceModal?.(surgery)}
+                            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                        >
+                            <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Collect Payment</span>
+                        </button>
 
                         {/* Reschedule */}
                         {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
