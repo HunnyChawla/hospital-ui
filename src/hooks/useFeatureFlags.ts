@@ -121,3 +121,18 @@ export function usePrescriptionPermissions(options?: {
     };
 }
 
+/**
+ * Convenience hook for ABHA integration feature flags
+ */
+export function useAbhaFlags() {
+    const { featureFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags('abha');
+
+    return {
+        enabled: (featureFlags?.enabled as boolean) ?? false,
+        isLoading,
+        updateFlags: (flags: FeatureFlagUpdate) => updateFlags({ feature: 'abha', flags }),
+        isUpdating,
+    };
+}
+
+

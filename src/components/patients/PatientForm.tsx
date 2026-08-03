@@ -7,6 +7,10 @@ import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
 import { patientCategoriesApi } from "@/services/patientCategoriesApi";
 import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "lucide-react";
+import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
+import { abhaApi } from "@/services/abhaApi";
+import { toast } from "sonner";
 
 
 interface PatientFormProps {
@@ -45,6 +49,41 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     "EX_SERVICEMAN",
     "STAFF_FAMILY",
   ]);
+
+  // ABHA Integration State (Optional feature behind feature toggle)
+  const { enabled: abhaEnabled } = useAbhaFlags();
+  const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
+  const [abhaProfile, setAbhaProfile] = useState<any>(null);
+  const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
+
+  const handleAbhaSuccess = (profile: any, aadhaar?: string) => {
+    setAbhaProfile(profile);
+    if (aadhaar) setAadhaarNum(aadhaar);
+
+    // Auto-populate form fields from ABHA profile
+    if (profile.name) {
+      const parts = profile.name.trim().split(" ");
+      const first = parts[0];
+      const last = parts.slice(1).join(" ");
+      if (first) setValue("first_name", first, { shouldValidate: true });
+      if (last) setValue("last_name", last, { shouldValidate: true });
+    }
+    if (profile.mobile) {
+      setValue("mobile", profile.mobile, { shouldValidate: true });
+    }
+    if (profile.gender) {
+      const g = profile.gender.toLowerCase().startsWith("f") ? "female" : profile.gender.toLowerCase().startsWith("m") ? "male" : "other";
+      setValue("gender", g, { shouldValidate: true });
+    }
+    if (profile.dob) {
+      handleDobChange(profile.dob);
+    }
+    const abhaVal = profile.abha_number || profile.abha_address || "";
+    if (abhaVal) {
+      setValue("abha_id", abhaVal, { shouldValidate: true });
+    }
+    toast.success("Patient details auto-populated from ABHA profile!");
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -365,6 +404,17 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       };
     }
 
+    // Include optional ABHA details if enrolled or linked
+    if (abhaProfile) {
+      patientData.abha_number = abhaProfile.abha_number || null;
+      patientData.abha_address = abhaProfile.abha_address || null;
+      patientData.abha_verified = true;
+      patientData.photo_base64 = abhaProfile.photo_base64 || null;
+    }
+    if (aadhaarNum) {
+      patientData.aadhaar_number = aadhaarNum;
+    }
+
 
     if (defaultValues) {
       // Update existing patient
@@ -372,6 +422,16 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         patientId: defaultValues.id,
         updates: patientData,
       });
+      if (abhaProfile) {
+        try {
+          await abhaApi.syncToPatient(defaultValues.id, {
+            profile: abhaProfile,
+            aadhaar_number: aadhaarNum || null,
+          });
+        } catch (e) {
+          console.error("Failed to sync ABHA to patient:", e);
+        }
+      }
       // React Query mutation already shows toast and invalidates cache!
       onSuccess?.();
     } else {
@@ -387,6 +447,17 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             patient: newPatient
           }
         }));
+      }
+
+      if (abhaProfile) {
+        try {
+          await abhaApi.syncToPatient(newPatient.id, {
+            profile: abhaProfile,
+            aadhaar_number: aadhaarNum || null,
+          });
+        } catch (e) {
+          console.error("Failed to sync ABHA to new patient:", e);
+        }
       }
 
       // React Query mutation already shows toast and invalidates cache!
@@ -413,6 +484,23 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
               className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-sky-900 opacity-75"
             />
           </label>
+        </div>
+      )}
+
+      {/* ABHA Profile Photo Banner */}
+      {(abhaProfile?.photo_base64 || apiData?.photo_base64) && (
+        <div className="flex items-center gap-3 rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50 to-indigo-50/40 p-3">
+          <img
+            src={(abhaProfile?.photo_base64 || apiData?.photo_base64).startsWith("data:")
+              ? (abhaProfile?.photo_base64 || apiData?.photo_base64)
+              : `data:image/jpeg;base64,${abhaProfile?.photo_base64 || apiData?.photo_base64}`}
+            alt="ABHA Patient Profile"
+            className="h-12 w-12 rounded-full border-2 border-white shadow-sm object-cover"
+          />
+          <div>
+            <div className="text-sm font-semibold text-sky-900">ABHA Verified Profile Photo</div>
+            <div className="text-xs text-sky-700">Photo received from ABDM / Aadhaar KYC</div>
+          </div>
         </div>
       )}
 
@@ -674,7 +762,17 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600">ABHA/Health ID</span>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">ABHA/Health ID</span>
+              <AbhaStatusBadge
+                abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || watch("abha_id")}
+                abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress}
+                abhaVerified={abhaProfile ? true : (defaultValues?.abhaVerified || false)}
+                showEnrollButton={abhaEnabled}
+                onEnrollClick={() => setIsAbhaModalOpen(true)}
+                size="sm"
+              />
+            </div>
             <input
               {...register("abha_id")}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
@@ -749,6 +847,16 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           )}
         </button>
       </div>
+
+      {/* Optional ABHA Enrollment Modal */}
+      <AbhaEnrollmentModal
+        isOpen={isAbhaModalOpen}
+        onClose={() => setIsAbhaModalOpen(false)}
+        onSuccess={handleAbhaSuccess}
+        patientId={defaultValues?.id}
+        initialMobile={watch("mobile") || defaultValues?.mobile || ""}
+        initialName={`${watch("first_name") || ""} ${watch("last_name") || ""}`.trim() || defaultValues?.name || ""}
+      />
     </form>
   );
 }

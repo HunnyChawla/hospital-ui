@@ -10,6 +10,10 @@ import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
+import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
+import { abhaApi } from "@/services/abhaApi";
+
 import { opdVisitsApi, Visit, CreateVisitRequest } from "@/services/opdVisitsApi";
 import { labBookingsApi, LabBooking, LabBookingTest } from "@/services/labBookingsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
@@ -70,6 +74,24 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
+
+  const { enabled: abhaEnabled } = useAbhaFlags();
+  const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
+
+  const handleAbhaSuccessInDetail = async (profile: any, aadhaar?: string) => {
+    try {
+      await abhaApi.syncToPatient(patientId, {
+        profile,
+        aadhaar_number: aadhaar || null,
+      });
+      toast.success("ABHA profile attached to patient successfully!");
+      dispatch(fetchPatients({}) as any);
+      dispatch(getPatientById({ patientId }) as any);
+    } catch (e: any) {
+      toast.error(getErrorMessage(e) || "Failed to attach ABHA profile to patient");
+    }
+  };
+
   const [labBookings, setLabBookings] = useState<LabBooking[]>([]);
   const [labBookingsLoading, setLabBookingsLoading] = useState(false);
   const [labBookingsPage, setLabBookingsPage] = useState(1);
@@ -905,6 +927,17 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                       </span>
                     </>
                   )}
+                </div>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <AbhaStatusBadge
+                    abhaNumber={patient.abhaNumber || (patient.healthId && patient.healthId.includes("-") ? patient.healthId : null)}
+                    abhaAddress={patient.abhaAddress}
+                    abhaVerified={patient.abhaVerified}
+                    showEnrollButton={abhaEnabled}
+                    onEnrollClick={() => setIsAbhaModalOpen(true)}
+                    size="sm"
+                  />
                 </div>
 
                 {(patient.address || patient.city || patient.state || patient.pincode) && (
@@ -2017,6 +2050,18 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           onClose={() => setPrescriptionModalVisitId(null)}
           visitId={prescriptionModalVisitId}
           patientId={patientId}
+        />
+      )}
+
+      {/* ABHA Enrollment Modal */}
+      {patient && (
+        <AbhaEnrollmentModal
+          isOpen={isAbhaModalOpen}
+          onClose={() => setIsAbhaModalOpen(false)}
+          onSuccess={handleAbhaSuccessInDetail}
+          patientId={patient.id}
+          initialMobile={patient.mobile || ""}
+          initialName={patient.name || ""}
         />
       )}
     </div>
