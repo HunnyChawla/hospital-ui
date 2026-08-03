@@ -4,6 +4,7 @@ import { usersApi } from "@/services/usersApi";
 import { fetchTenant, clearTenant } from "./tenantSlice";
 import { fetchMyPermissions, clearPermissions } from "./permissionsSlice";
 import { UserPermissions } from "@/types";
+import { getAllFeatureFlags } from "@/services/featureFlagsApi";
 
 type AuthState = {
   user: LoginResponse | null;
@@ -64,6 +65,14 @@ export const login = createAsyncThunk(
         dispatch(fetchTenant(tenantId));
         dispatch(fetchUserDetails(response.user_id));
 
+        // Fetch feature flags on login and save to localStorage
+        try {
+          const featureFlags = await getAllFeatureFlags();
+          localStorage.setItem("feature_flags", JSON.stringify(featureFlags));
+        } catch (err) {
+          console.error("Failed to pre-fetch feature flags on login:", err);
+        }
+
         // Await permissions fetch - needed to determine where to navigate after login
         const permissionsResult = await dispatch(fetchMyPermissions());
 
@@ -91,6 +100,7 @@ export const logout = createAsyncThunk("auth/logout", async (_, { dispatch }) =>
     localStorage.removeItem("tenant_id");
     localStorage.removeItem("role");
     localStorage.removeItem("must_change_password");
+    localStorage.removeItem("feature_flags");
   }
 
   // Clear tenant data and permissions

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import {
     getAllFeatureFlags,
-    getFeatureFlags,
     updateFeatureFlags,
     type FeatureFlagUpdate
 } from '@/services/featureFlagsApi';
@@ -13,28 +13,50 @@ import { toast } from 'sonner';
  */
 export function useFeatureFlags(featureKey?: string) {
     const queryClient = useQueryClient();
+    const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenant_id') || '' : '';
 
     // Get all feature flags
-    const { data: allFlags, isLoading: isLoadingAll, error: errorAll, refetch: refetchAll } = useQuery({
-        queryKey: ['feature-flags'],
+    const { data: allFlags, isLoading, error, refetch } = useQuery({
+        queryKey: ['feature-flags', tenantId],
         queryFn: getAllFeatureFlags,
-        enabled: !featureKey,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: Infinity, // Prevent automatic refetching since we manage caching ourselves
     });
 
-    // Get feature-specific flags
-    const { data: featureFlags, isLoading: isLoadingFeature, error: errorFeature, refetch: refetchFeature } = useQuery({
-        queryKey: ['feature-flags', featureKey],
-        queryFn: () => getFeatureFlags(featureKey!),
-        enabled: !!featureKey,
-        staleTime: 5 * 60 * 1000,
-    });
+    // Save fetched feature flags to localStorage
+    useEffect(() => {
+        if (allFlags && typeof window !== 'undefined') {
+            const stored = localStorage.getItem('feature_flags');
+            if (!stored || stored !== JSON.stringify(allFlags)) {
+                localStorage.setItem('feature_flags', JSON.stringify(allFlags));
+            }
+        }
+    }, [allFlags]);
+
+    // Extract feature-specific flags from the consolidated flags object
+    const featureFlags = featureKey && allFlags ? allFlags[featureKey] : undefined;
 
     // Update mutation
     const updateMutation = useMutation({
         mutationFn: ({ feature, flags }: { feature: string; flags: FeatureFlagUpdate }) =>
             updateFeatureFlags(feature, flags),
-        onSuccess: (_, variables) => {
+        onSuccess: (updatedFeatureData, variables) => {
+            // Update localStorage and query cache immediately
+            if (typeof window !== 'undefined') {
+                const stored = localStorage.getItem('feature_flags');
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        parsed[variables.feature] = updatedFeatureData;
+                        localStorage.setItem('feature_flags', JSON.stringify(parsed));
+                        
+                        // Update cache for the current tenant
+                        queryClient.setQueryData(['feature-flags', tenantId], parsed);
+                    } catch (e) {
+                        console.error('Failed to update localStorage feature flags after mutation:', e);
+                    }
+                }
+            }
+            // Invalidate to keep in sync
             queryClient.invalidateQueries({ queryKey: ['feature-flags'] });
             toast.success(`${variables.feature} settings updated successfully`);
         },
@@ -47,11 +69,11 @@ export function useFeatureFlags(featureKey?: string) {
     return {
         allFlags,
         featureFlags,
-        isLoading: isLoadingAll || isLoadingFeature,
-        error: errorAll || errorFeature,
+        isLoading,
+        error,
         updateFlags: updateMutation.mutate,
         isUpdating: updateMutation.isPending,
-        refetch: featureKey ? refetchFeature : refetchAll,
+        refetch,
     };
 }
 
