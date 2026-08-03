@@ -588,11 +588,50 @@ export function MergedVisionSummary({
         return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
     const hasVision = !!visionRecord;
-    const hasAR = arRecord && (arRecord.od_sphere != null || arRecord.os_sphere != null);
+    const hasAR = arRecord && [
+        arRecord.od_sphere, arRecord.os_sphere,
+        arRecord.od_cylinder, arRecord.os_cylinder,
+        arRecord.od_axis, arRecord.os_axis,
+        arRecord.od_visual_acuity, arRecord.os_visual_acuity,
+        arRecord.pupillary_distance,
+        arRecord.od_wet_sphere, arRecord.os_wet_sphere,
+        arRecord.od_wet_cylinder, arRecord.os_wet_cylinder,
+        arRecord.od_wet_axis, arRecord.os_wet_axis
+    ].some(hasValue);
+
     const hasRef = refractionRecord && (
-        (refractionRecord.od?.sphere != null || refractionRecord.od_sphere != null) ||
-        (refractionRecord.os?.sphere != null || refractionRecord.os_sphere != null)
+        [
+            refractionRecord.od_sphere, refractionRecord.os_sphere,
+            refractionRecord.od_cylinder, refractionRecord.os_cylinder,
+            refractionRecord.od_axis, refractionRecord.os_axis,
+            refractionRecord.od_add_power, refractionRecord.os_add_power,
+            refractionRecord.od_prism, refractionRecord.os_prism,
+            refractionRecord.od_visual_acuity_uncorrected, refractionRecord.os_visual_acuity_uncorrected,
+            refractionRecord.od_visual_acuity_corrected, refractionRecord.os_visual_acuity_corrected,
+            refractionRecord.od_distance_bcva, refractionRecord.os_distance_bcva,
+            refractionRecord.od_near_bcva, refractionRecord.os_near_bcva,
+            refractionRecord.od_dilated_sphere, refractionRecord.os_dilated_sphere,
+            refractionRecord.od_dilated_cylinder, refractionRecord.os_dilated_cylinder,
+            refractionRecord.od_dilated_axis, refractionRecord.os_dilated_axis,
+            refractionRecord.od_dilated_visual_acuity, refractionRecord.os_dilated_visual_acuity,
+            refractionRecord.od_dilated_pinhole, refractionRecord.os_dilated_pinhole
+        ].some(hasValue) ||
+        (refractionRecord.od && [
+            refractionRecord.od.sphere, refractionRecord.od.cylinder, refractionRecord.od.axis, refractionRecord.od.add_power, refractionRecord.od.prism,
+            refractionRecord.od.visual_acuity_uncorrected, refractionRecord.od.visual_acuity_corrected,
+            refractionRecord.od.distance_bcva, refractionRecord.od.near_bcva,
+            refractionRecord.od_dilated_sphere, refractionRecord.od_dilated_cylinder, refractionRecord.od_dilated_axis,
+            refractionRecord.od_dilated_visual_acuity, refractionRecord.od_dilated_pinhole
+        ].some(hasValue)) ||
+        (refractionRecord.os && [
+            refractionRecord.os.sphere, refractionRecord.os.cylinder, refractionRecord.os.axis, refractionRecord.os.add_power, refractionRecord.os.prism,
+            refractionRecord.os.visual_acuity_uncorrected, refractionRecord.os.visual_acuity_corrected,
+            refractionRecord.os.distance_bcva, refractionRecord.os.near_bcva,
+            refractionRecord.os_dilated_sphere, refractionRecord.os_dilated_cylinder, refractionRecord.os_dilated_axis,
+            refractionRecord.os_dilated_visual_acuity, refractionRecord.os_dilated_pinhole
+        ].some(hasValue))
     );
     const hasSpecs = specsRecord && (specsRecord.od_sph != null || specsRecord.os_sph != null);
 

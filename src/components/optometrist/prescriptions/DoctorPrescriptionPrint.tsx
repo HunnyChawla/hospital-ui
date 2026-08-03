@@ -74,8 +74,29 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
         const complaintsCount = visitData?.complaints?.length || 0;
         const surgeriesCount = plannedSurgeries?.length || 0;
         const visionTableVisible = !!(visitData?.vision || visitData?.iop) && (!visibleSections || visibleSections.includes("Vision"));
-        const refractionDryVisible = !!(visitData?.refraction?.od_sphere || visitData?.refraction?.os_sphere) && (!visibleSections || visibleSections.includes("Refraction (Dry)"));
-        const refractionDilatedVisible = !!(visitData?.refraction?.od_dilated_sphere || visitData?.refraction?.os_dilated_sphere) && (!visibleSections || visibleSections.includes("Refraction (Dilated)"));
+        const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+        const hasDryRefractionData = visitData?.refraction ? [
+            visitData.refraction.od_sphere, visitData.refraction.os_sphere,
+            visitData.refraction.od_cylinder, visitData.refraction.os_cylinder,
+            visitData.refraction.od_axis, visitData.refraction.os_axis,
+            visitData.refraction.od_add_power, visitData.refraction.os_add_power,
+            visitData.refraction.od_prism, visitData.refraction.os_prism,
+            visitData.refraction.od_visual_acuity_uncorrected, visitData.refraction.os_visual_acuity_uncorrected,
+            visitData.refraction.od_visual_acuity_corrected, visitData.refraction.os_visual_acuity_corrected,
+            visitData.refraction.od_distance_bcva, visitData.refraction.os_distance_bcva,
+            visitData.refraction.od_near_bcva, visitData.refraction.os_near_bcva
+        ].some(hasValue) : false;
+
+        const hasDilatedRefractionData = visitData?.refraction ? [
+            visitData.refraction.od_dilated_sphere, visitData.refraction.os_dilated_sphere,
+            visitData.refraction.od_dilated_cylinder, visitData.refraction.os_dilated_cylinder,
+            visitData.refraction.od_dilated_axis, visitData.refraction.os_dilated_axis,
+            visitData.refraction.od_dilated_visual_acuity, visitData.refraction.os_dilated_visual_acuity,
+            visitData.refraction.od_dilated_pinhole, visitData.refraction.os_dilated_pinhole
+        ].some(hasValue) : false;
+
+        const refractionDryVisible = hasDryRefractionData && (!visibleSections || visibleSections.includes("Refraction (Dry)"));
+        const refractionDilatedVisible = hasDilatedRefractionData && (!visibleSections || visibleSections.includes("Refraction (Dilated)"));
         const glassesRxVisible = (prescription.items?.length || 0) > 0 && (!visibleSections || visibleSections.includes("Glasses Rx"));
         const opticalSpecsVisible = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (!visibleSections || visibleSections.includes("Optical Specs"));
 

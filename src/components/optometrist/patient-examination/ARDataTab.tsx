@@ -403,7 +403,9 @@ export function ARDataTab({
                   </div>
                 </div>
                 {/* Wet AR */}
-                {(visitCombinedRecord?.od_wet_sphere != null || visitOD?.od_wet_sphere != null) && (
+                {(visitCombinedRecord?.od_wet_sphere != null || visitOD?.od_wet_sphere != null ||
+                  visitCombinedRecord?.od_wet_cylinder != null || visitOD?.od_wet_cylinder != null ||
+                  visitCombinedRecord?.od_wet_axis != null || visitOD?.od_wet_axis != null) && (
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Wet AR (Dilated)</span>
                     <div className="grid grid-cols-3 gap-3 text-center mt-1 bg-white/50 rounded-lg p-2 border border-blue-100">
@@ -463,7 +465,9 @@ export function ARDataTab({
                   </div>
                 </div>
                 {/* Wet AR */}
-                {(visitCombinedRecord?.os_wet_sphere != null || visitOS?.os_wet_sphere != null) && (
+                {(visitCombinedRecord?.os_wet_sphere != null || visitOS?.os_wet_sphere != null ||
+                  visitCombinedRecord?.os_wet_cylinder != null || visitOS?.os_wet_cylinder != null ||
+                  visitCombinedRecord?.os_wet_axis != null || visitOS?.os_wet_axis != null) && (
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Wet AR (Dilated)</span>
                     <div className="grid grid-cols-3 gap-3 text-center mt-1 bg-white/50 rounded-lg p-2 border border-green-100">
