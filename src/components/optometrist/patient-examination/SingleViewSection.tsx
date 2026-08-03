@@ -226,9 +226,20 @@ export function getDrugAllergyStatus(allergies: any[]): SectionStatus {
 }
 
 export function getARDataStatus(arDataRecords: any[], visitId: string): SectionStatus {
-  const hasVisitData = arDataRecords.some(
-    (r) => r.visit_id === visitId && (r.od_sphere != null || r.os_sphere != null)
-  );
+  const hasVisitData = arDataRecords.some((r) => {
+    if (r.visit_id !== visitId) return false;
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+    return [
+      r.od_sphere, r.os_sphere,
+      r.od_cylinder, r.os_cylinder,
+      r.od_axis, r.os_axis,
+      r.od_visual_acuity, r.os_visual_acuity,
+      r.pupillary_distance,
+      r.od_wet_sphere, r.os_wet_sphere,
+      r.od_wet_cylinder, r.os_wet_cylinder,
+      r.od_wet_axis, r.os_wet_axis
+    ].some(hasValue);
+  });
   if (!hasVisitData) return "empty";
   return "complete";
 }
@@ -236,10 +247,43 @@ export function getARDataStatus(arDataRecords: any[], visitId: string): SectionS
 export function getRefractionStatus(refractionRecords: any[], visitId: string): SectionStatus {
   const hasVisitData = refractionRecords.some((r) => {
     if (r.visit_id !== visitId) return false;
-    // Check for combined record or per-eye records
-    const hasOD = r.od?.sphere != null || r.od_sphere != null;
-    const hasOS = r.os?.sphere != null || r.os_sphere != null;
-    return hasOD || hasOS;
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+    
+    // Check combined record flat fields
+    const hasFlatOD = [
+      r.od_sphere, r.od_cylinder, r.od_axis, r.od_add_power, r.od_prism,
+      r.od_visual_acuity_uncorrected, r.od_visual_acuity_corrected,
+      r.od_distance_bcva, r.od_near_bcva,
+      r.od_dilated_sphere, r.od_dilated_cylinder, r.od_dilated_axis,
+      r.od_dilated_visual_acuity, r.od_dilated_pinhole
+    ].some(hasValue);
+
+    const hasFlatOS = [
+      r.os_sphere, r.os_cylinder, r.os_axis, r.os_add_power, r.os_prism,
+      r.os_visual_acuity_uncorrected, r.os_visual_acuity_corrected,
+      r.os_distance_bcva, r.os_near_bcva,
+      r.os_dilated_sphere, r.os_dilated_cylinder, r.os_dilated_axis,
+      r.os_dilated_visual_acuity, r.os_dilated_pinhole
+    ].some(hasValue);
+
+    // Check nested records if present
+    const hasNestedOD = r.od && [
+      r.od.sphere, r.od.cylinder, r.od.axis, r.od.add_power, r.od.prism,
+      r.od.visual_acuity_uncorrected, r.od.visual_acuity_corrected,
+      r.od.distance_bcva, r.od.near_bcva,
+      r.od_dilated_sphere, r.od_dilated_cylinder, r.od_dilated_axis,
+      r.od_dilated_visual_acuity, r.od_dilated_pinhole
+    ].some(hasValue);
+
+    const hasNestedOS = r.os && [
+      r.os.sphere, r.os.cylinder, r.os.axis, r.os.add_power, r.os.prism,
+      r.os.visual_acuity_uncorrected, r.os.visual_acuity_corrected,
+      r.os.distance_bcva, r.os.near_bcva,
+      r.os_dilated_sphere, r.os_dilated_cylinder, r.os_dilated_axis,
+      r.os_dilated_visual_acuity, r.os_dilated_pinhole
+    ].some(hasValue);
+
+    return hasFlatOD || hasFlatOS || hasNestedOD || hasNestedOS;
   });
   if (!hasVisitData) return "empty";
   return "complete";

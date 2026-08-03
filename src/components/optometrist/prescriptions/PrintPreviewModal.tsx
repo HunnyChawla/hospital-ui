@@ -141,14 +141,36 @@ export function PrintPreviewModal({
         });
     };
 
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+
     // Filtered list of content sections that have data (visible to user in sidebar)
     const filteredContentOrder = contentOrder.filter(section => {
         let hasData = true;
         if (section === "Presenting Complaint") hasData = !!(visitData?.complaints?.length);
         if (section === "Symptoms") hasData = !!(prescription.symptoms?.length);
         if (section === "Vision") hasData = !!(visitData?.vision || visitData?.iop);
-        if (section === "Refraction (Dry)") hasData = !!(visitData?.refraction?.od_sphere || visitData?.refraction?.os_sphere);
-        if (section === "Refraction (Dilated)") hasData = !!(visitData?.refraction?.od_dilated_sphere || visitData?.refraction?.os_dilated_sphere);
+        if (section === "Refraction (Dry)") {
+            hasData = visitData?.refraction ? [
+                visitData.refraction.od_sphere, visitData.refraction.os_sphere,
+                visitData.refraction.od_cylinder, visitData.refraction.os_cylinder,
+                visitData.refraction.od_axis, visitData.refraction.os_axis,
+                visitData.refraction.od_add_power, visitData.refraction.os_add_power,
+                visitData.refraction.od_prism, visitData.refraction.os_prism,
+                visitData.refraction.od_visual_acuity_uncorrected, visitData.refraction.os_visual_acuity_uncorrected,
+                visitData.refraction.od_visual_acuity_corrected, visitData.refraction.os_visual_acuity_corrected,
+                visitData.refraction.od_distance_bcva, visitData.refraction.os_distance_bcva,
+                visitData.refraction.od_near_bcva, visitData.refraction.os_near_bcva
+            ].some(hasValue) : false;
+        }
+        if (section === "Refraction (Dilated)") {
+            hasData = visitData?.refraction ? [
+                visitData.refraction.od_dilated_sphere, visitData.refraction.os_dilated_sphere,
+                visitData.refraction.od_dilated_cylinder, visitData.refraction.os_dilated_cylinder,
+                visitData.refraction.od_dilated_axis, visitData.refraction.os_dilated_axis,
+                visitData.refraction.od_dilated_visual_acuity, visitData.refraction.os_dilated_visual_acuity,
+                visitData.refraction.od_dilated_pinhole, visitData.refraction.os_dilated_pinhole
+            ].some(hasValue) : false;
+        }
         if (section === "Glasses Rx") hasData = !!(prescription.items?.length);
         if (section === "Optical Specs") hasData = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0));
         if (section === "Diagnosis") hasData = !!(prescription.diagnosis);

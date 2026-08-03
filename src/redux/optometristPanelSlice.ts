@@ -139,7 +139,17 @@ const optometristPanelSlice = createSlice({
       })
       .addCase(fetchPatientOptometryHistory.fulfilled, (state, action) => {
         state.loading = false;
-        state.patientOptometryHistory = action.payload;
+        const page = action.meta.arg.page || 1;
+        if (page > 1 && state.patientOptometryHistory) {
+          const currentItems = (state.patientOptometryHistory as any).items || [];
+          const newItems = (action.payload as any).items || [];
+          state.patientOptometryHistory = {
+            ...action.payload,
+            items: [...currentItems, ...newItems],
+          } as any;
+        } else {
+          state.patientOptometryHistory = action.payload;
+        }
         state.error = null;
       })
       .addCase(fetchPatientOptometryHistory.rejected, (state, action) => {

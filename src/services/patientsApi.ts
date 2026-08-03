@@ -36,6 +36,11 @@ export interface PatientApiResponse {
   state: string | null;
   pincode: string | null;
   category: string | null;
+  abha_number?: string | null;
+  abha_address?: string | null;
+  abha_linked_at?: string | null;
+  abha_verified?: boolean;
+  aadhaar_number?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +60,11 @@ export interface CreatePatientRequest {
   state?: string | null;
   pincode?: string | null;
   category?: string | null;
+  abha_number?: string | null;
+  abha_address?: string | null;
+  abha_linked_at?: string | null;
+  abha_verified?: boolean;
+  aadhaar_number?: string | null;
 }
 
 
@@ -72,6 +82,11 @@ export interface UpdatePatientRequest {
   state?: string | null;
   pincode?: string | null;
   category?: string | null;
+  abha_number?: string | null;
+  abha_address?: string | null;
+  abha_linked_at?: string | null;
+  abha_verified?: boolean;
+  aadhaar_number?: string | null;
 }
 
 
@@ -118,6 +133,10 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     state: apiPatient.state || undefined,
     pincode: apiPatient.pincode || undefined,
     category: apiPatient.category || undefined,
+    abhaNumber: apiPatient.abha_number || undefined,
+    abhaAddress: apiPatient.abha_address || undefined,
+    abhaVerified: apiPatient.abha_verified || false,
+    abhaLinkedAt: apiPatient.abha_linked_at || undefined,
   };
 };
 

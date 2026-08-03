@@ -29,15 +29,17 @@ interface VisionHistoryItem {
 interface VisionHistorySectionProps {
     patientId: string;
     currentVisitId?: string;
+    initialExpanded?: boolean;
 }
 
 export function VisionHistorySection({
     patientId,
     currentVisitId,
+    initialExpanded = true,
 }: VisionHistorySectionProps) {
     const [loading, setLoading] = useState(true);
     const [historyRecords, setHistoryRecords] = useState<VisionHistoryItem[]>([]);
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(initialExpanded);
     const [error, setError] = useState<string | null>(null);
 
     const formatVA = (value: string | null | undefined) => {

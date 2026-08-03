@@ -63,6 +63,8 @@ export function ExaminationSummarySection({
         return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+
     return (
         <div className="p-4 space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
@@ -121,7 +123,7 @@ export function ExaminationSummarySection({
                                     </div>
                                 </div>
                             </div>
-                            {(data.ar_data.od_wet_sphere || data.ar_data.od_wet_cylinder || data.ar_data.od_wet_axis) && (
+                            {[data.ar_data.od_wet_sphere, data.ar_data.od_wet_cylinder, data.ar_data.od_wet_axis].some(hasValue) && (
                                 <div>
                                     <p className="text-[10px] font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
                                     <div className="space-y-1 text-sm">
@@ -160,7 +162,7 @@ export function ExaminationSummarySection({
                                     </div>
                                 </div>
                             </div>
-                            {(data.ar_data.os_wet_sphere || data.ar_data.os_wet_cylinder || data.ar_data.os_wet_axis) && (
+                            {[data.ar_data.os_wet_sphere, data.ar_data.os_wet_cylinder, data.ar_data.os_wet_axis].some(hasValue) && (
                                 <div>
                                     <p className="text-[10px] font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
                                     <div className="space-y-1 text-sm">

@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Plus, Edit3, Check, Circle, AlertCircle } from "lucide-react";
+import { Plus, Edit3, Check, Circle, AlertCircle, Eye } from "lucide-react";
 import clsx from "clsx";
 
 export type SummaryStatus = "empty" | "partial" | "complete";
@@ -14,7 +14,8 @@ interface CompactDataSummaryProps {
     statusText?: string;
     summary?: ReactNode;
     onEdit: () => void;
-    colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green" | "violet";
+    colorScheme?: "sky" | "emerald" | "amber" | "purple" | "rose" | "blue" | "green" | "violet" | "teal";
+    buttonTextOverride?: string;
 }
 
 const colorSchemes = {
@@ -106,6 +107,17 @@ const colorSchemes = {
         buttonBorder: "border-violet-200 hover:border-violet-300",
         buttonText: "text-violet-600",
     },
+    teal: {
+        bg: "bg-teal-50/50",
+        border: "border-teal-200/80",
+        borderHover: "hover:border-teal-300",
+        icon: "text-teal-500",
+        iconBg: "bg-teal-50",
+        title: "text-slate-700",
+        buttonBg: "bg-teal-50 hover:bg-teal-100",
+        buttonBorder: "border-teal-200 hover:border-teal-300",
+        buttonText: "text-teal-600",
+    },
 };
 
 const statusConfig = {
@@ -135,14 +147,15 @@ export function CompactDataSummary({
     summary,
     onEdit,
     colorScheme = "sky",
+    buttonTextOverride,
 }: CompactDataSummaryProps) {
     const colors = colorSchemes[colorScheme];
     const statusStyle = statusConfig[status];
     const StatusIcon = statusStyle.icon;
 
     const hasData = status !== "empty";
-    const buttonText = hasData ? "Edit" : "Fill";
-    const ButtonIcon = hasData ? Edit3 : Plus;
+    const buttonText = buttonTextOverride || (hasData ? "Edit" : "Fill");
+    const ButtonIcon = buttonTextOverride ? Eye : (hasData ? Edit3 : Plus);
 
     return (
         <div
@@ -588,11 +601,50 @@ export function MergedVisionSummary({
         return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
     };
 
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
     const hasVision = !!visionRecord;
-    const hasAR = arRecord && (arRecord.od_sphere != null || arRecord.os_sphere != null);
+    const hasAR = arRecord && [
+        arRecord.od_sphere, arRecord.os_sphere,
+        arRecord.od_cylinder, arRecord.os_cylinder,
+        arRecord.od_axis, arRecord.os_axis,
+        arRecord.od_visual_acuity, arRecord.os_visual_acuity,
+        arRecord.pupillary_distance,
+        arRecord.od_wet_sphere, arRecord.os_wet_sphere,
+        arRecord.od_wet_cylinder, arRecord.os_wet_cylinder,
+        arRecord.od_wet_axis, arRecord.os_wet_axis
+    ].some(hasValue);
+
     const hasRef = refractionRecord && (
-        (refractionRecord.od?.sphere != null || refractionRecord.od_sphere != null) ||
-        (refractionRecord.os?.sphere != null || refractionRecord.os_sphere != null)
+        [
+            refractionRecord.od_sphere, refractionRecord.os_sphere,
+            refractionRecord.od_cylinder, refractionRecord.os_cylinder,
+            refractionRecord.od_axis, refractionRecord.os_axis,
+            refractionRecord.od_add_power, refractionRecord.os_add_power,
+            refractionRecord.od_prism, refractionRecord.os_prism,
+            refractionRecord.od_visual_acuity_uncorrected, refractionRecord.os_visual_acuity_uncorrected,
+            refractionRecord.od_visual_acuity_corrected, refractionRecord.os_visual_acuity_corrected,
+            refractionRecord.od_distance_bcva, refractionRecord.os_distance_bcva,
+            refractionRecord.od_near_bcva, refractionRecord.os_near_bcva,
+            refractionRecord.od_dilated_sphere, refractionRecord.os_dilated_sphere,
+            refractionRecord.od_dilated_cylinder, refractionRecord.os_dilated_cylinder,
+            refractionRecord.od_dilated_axis, refractionRecord.os_dilated_axis,
+            refractionRecord.od_dilated_visual_acuity, refractionRecord.os_dilated_visual_acuity,
+            refractionRecord.od_dilated_pinhole, refractionRecord.os_dilated_pinhole
+        ].some(hasValue) ||
+        (refractionRecord.od && [
+            refractionRecord.od.sphere, refractionRecord.od.cylinder, refractionRecord.od.axis, refractionRecord.od.add_power, refractionRecord.od.prism,
+            refractionRecord.od.visual_acuity_uncorrected, refractionRecord.od.visual_acuity_corrected,
+            refractionRecord.od.distance_bcva, refractionRecord.od.near_bcva,
+            refractionRecord.od_dilated_sphere, refractionRecord.od_dilated_cylinder, refractionRecord.od_dilated_axis,
+            refractionRecord.od_dilated_visual_acuity, refractionRecord.od_dilated_pinhole
+        ].some(hasValue)) ||
+        (refractionRecord.os && [
+            refractionRecord.os.sphere, refractionRecord.os.cylinder, refractionRecord.os.axis, refractionRecord.os.add_power, refractionRecord.os.prism,
+            refractionRecord.os.visual_acuity_uncorrected, refractionRecord.os.visual_acuity_corrected,
+            refractionRecord.os.distance_bcva, refractionRecord.os.near_bcva,
+            refractionRecord.os_dilated_sphere, refractionRecord.os_dilated_cylinder, refractionRecord.os_dilated_axis,
+            refractionRecord.os_dilated_visual_acuity, refractionRecord.os_dilated_pinhole
+        ].some(hasValue))
     );
     const hasSpecs = specsRecord && (specsRecord.od_sph != null || specsRecord.os_sph != null);
 
@@ -649,6 +701,42 @@ export function MergedVisionSummary({
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+export function HistorySummary({ history }: { history: any }) {
+    const rawVisits = Array.isArray(history?.items) ? (history.items as any[]) : [];
+    if (rawVisits.length === 0) {
+        return (
+            <div className="text-xs text-slate-500 italic py-1">
+                No previous visit history found.
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-1.5 py-1">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Recent Visits</p>
+            <div className="flex flex-col gap-1.5 pl-2.5 border-l-2 border-teal-200">
+                {rawVisits.slice(0, 3).map((v: any, index: number) => {
+                    const dateStr = v.visit_date
+                        ? new Date(v.visit_date).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                          })
+                        : "Unknown Date";
+                    return (
+                        <div key={v.visit_id || index} className="text-xs text-slate-600 flex items-center justify-between">
+                            <span className="font-semibold text-slate-700">{dateStr}</span>
+                            <span className="text-[9px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
+                                Visit #{rawVisits.length - index}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }

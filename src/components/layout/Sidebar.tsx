@@ -136,7 +136,7 @@ export function Sidebar() {
     }
 
     // Platform Owner only screens
-    const platformOwnerScreens = ["/screens", "/tenants"];
+    const platformOwnerScreens = ["/screens", "/tenants", "/platform-billing"];
 
     if (userRole !== "platform_owner") {
       items = items.filter((i) => !platformOwnerScreens.includes(i.href));
@@ -152,6 +152,9 @@ export function Sidebar() {
       }
       if (!items.find((i) => i.href === "/feature-flags")) {
         items.push({ label: "Feature Flags", href: "/feature-flags", icon: Settings });
+      }
+      if (!items.find((i) => i.href === "/platform-billing")) {
+        items.push({ label: "Platform Billing", href: "/platform-billing", icon: FileText });
       }
     }
 
