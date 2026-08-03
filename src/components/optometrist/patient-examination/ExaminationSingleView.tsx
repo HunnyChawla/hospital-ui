@@ -16,6 +16,7 @@ import {
   EyeOff,
   CheckCircle2,
   Circle,
+  History,
 } from "lucide-react";
 
 import {
@@ -43,6 +44,7 @@ import { DrugAllergyTab } from "./DrugAllergyTab";
 import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
+import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
 
 import type {
   ComplaintRecord,
@@ -72,6 +74,8 @@ interface ExaminationSingleViewProps {
   visionRecords: VisionRecord[];
   currentSpecsRecords?: CurrentSpecsRecord[];
   medicalConditions: MedicalConditionRecord[];
+  patientOptometryHistory: any; // PatientOptometryTimeline | null
+  historyLoading?: boolean;
 
   // Loading states
   loading: {
@@ -109,6 +113,7 @@ const sections = [
   { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber" as const },
   { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet" as const },
   { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose" as const },
+  { id: "previous_history", title: "Previous History", icon: History, colorScheme: "emerald" as const },
 ] as const;
 
 export function ExaminationSingleView({
@@ -125,6 +130,8 @@ export function ExaminationSingleView({
   visionRecords,
   currentSpecsRecords,
   medicalConditions,
+  patientOptometryHistory,
+  historyLoading,
   loading,
   refreshComplaints,
   refreshMedicalHistory,
@@ -168,6 +175,9 @@ export function ExaminationSingleView({
       refraction: getRefractionStatus(refractionRecords, visitId),
       iop: getIOPStatus(iopRecords, visitId),
       current_specs: getCurrentSpecsStatus(currentSpecsRecords || [], visitId),
+      previous_history: (Array.isArray(patientOptometryHistory?.items) && patientOptometryHistory.items.length > 0
+        ? "complete"
+        : "empty") as SectionStatus,
     }),
     [
       complaints,
@@ -179,6 +189,7 @@ export function ExaminationSingleView({
       refractionRecords,
       iopRecords,
       currentSpecsRecords,
+      patientOptometryHistory,
       visitId,
     ]
   );
@@ -330,6 +341,14 @@ export function ExaminationSingleView({
             currentSpecsRecords={currentSpecsRecords || []}
             loading={loading.currentSpecs || false}
             onRefresh={refreshCurrentSpecs || (() => {})}
+          />
+        );
+      case "previous_history":
+        return (
+          <PreviousHistoryTimeline
+            patientOptometryHistory={patientOptometryHistory}
+            loading={!!historyLoading}
+            currentVisitComplaints={complaints}
           />
         );
       default:

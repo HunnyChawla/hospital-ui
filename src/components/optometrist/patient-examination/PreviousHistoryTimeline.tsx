@@ -22,6 +22,13 @@ export function PreviousHistoryTimeline({
     );
   }
 
+  const formatValue = (val: any) => {
+    if (val == null || val === "") return "—";
+    const num = parseFloat(val);
+    if (isNaN(num)) return val;
+    return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+  };
+
   const rawEvents = Array.isArray(patientOptometryHistory?.events)
     ? (patientOptometryHistory!.events as any[])
     : [];
@@ -284,38 +291,141 @@ export function PreviousHistoryTimeline({
                         {event.description && <p className="text-sm text-slate-700">{event.description}</p>}
 
                         {type === "refraction" && event.details && (
-                          <div className="mt-3 grid grid-cols-2 gap-4 rounded bg-white/50 p-3 text-xs">
-                            {event.details.od && (
-                              <div>
-                                <p className="font-semibold text-blue-900">OD (Right)</p>
-                                <p className="text-slate-700">SPH: {event.details.od.sphere ?? "—"} / CYL: {event.details.od.cylinder ?? "—"} / AXIS: {event.details.od.axis ?? "—"}</p>
+                          <div className="mt-3 space-y-3 rounded bg-white/50 p-3 text-xs">
+                            {/* Dry Refraction */}
+                            <div>
+                              <p className="font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Subjective Refraction (Dry)</p>
+                              <div className="grid grid-cols-2 gap-4">
+                                {event.details.od && (
+                                  <div>
+                                    <p className="font-semibold text-blue-900">OD (Right)</p>
+                                    <p className="text-slate-700">SPH: {formatValue(event.details.od.sphere)} / CYL: {formatValue(event.details.od.cylinder)} / AXIS: {event.details.od.axis ?? "—"}</p>
+                                    {(event.details.od.add_power != null || event.details.od.distance_bcva || event.details.od.near_bcva || event.details.od.prism) && (
+                                      <p className="text-slate-500 text-[10px] mt-0.5">
+                                        {event.details.od.add_power != null && `ADD: ${formatValue(event.details.od.add_power)}`}
+                                        {event.details.od.distance_bcva && ` • BCVA (D): ${event.details.od.distance_bcva}`}
+                                        {event.details.od.near_bcva && ` • BCVA (N): ${event.details.od.near_bcva}`}
+                                        {event.details.od.prism && ` • Prism: ${event.details.od.prism}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {event.details.os && (
+                                  <div>
+                                    <p className="font-semibold text-green-900">OS (Left)</p>
+                                    <p className="text-slate-700">SPH: {formatValue(event.details.os.sphere)} / CYL: {formatValue(event.details.os.cylinder)} / AXIS: {event.details.os.axis ?? "—"}</p>
+                                    {(event.details.os.add_power != null || event.details.os.distance_bcva || event.details.os.near_bcva || event.details.os.prism) && (
+                                      <p className="text-slate-500 text-[10px] mt-0.5">
+                                        {event.details.os.add_power != null && `ADD: ${formatValue(event.details.os.add_power)}`}
+                                        {event.details.os.distance_bcva && ` • BCVA (D): ${event.details.os.distance_bcva}`}
+                                        {event.details.os.near_bcva && ` • BCVA (N): ${event.details.os.near_bcva}`}
+                                        {event.details.os.prism && ` • Prism: ${event.details.os.prism}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Dilated Acceptance */}
+                            {((event.details.od && (event.details.od.dilated_sphere != null || event.details.od.dilated_cylinder != null || event.details.od.dilated_axis != null)) ||
+                              (event.details.os && (event.details.os.dilated_sphere != null || event.details.os.dilated_cylinder != null || event.details.os.dilated_axis != null))) && (
+                              <div className="pt-2 border-t border-slate-200/50">
+                                <p className="font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Dilated Acceptance (Wet)</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                  {event.details.od && (
+                                    <div>
+                                      <p className="font-semibold text-blue-900">OD (Right)</p>
+                                      <p className="text-slate-700">SPH: {formatValue(event.details.od.dilated_sphere)} / CYL: {formatValue(event.details.od.dilated_cylinder)} / AXIS: {event.details.od.dilated_axis ?? "—"}</p>
+                                      {(event.details.od.dilated_visual_acuity || event.details.od.dilated_pinhole) && (
+                                        <p className="text-slate-500 text-[10px] mt-0.5">
+                                          {event.details.od.dilated_visual_acuity && `VA: ${event.details.od.dilated_visual_acuity}`}
+                                          {event.details.od.dilated_pinhole && ` • PH: ${event.details.od.dilated_pinhole}`}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {event.details.os && (
+                                    <div>
+                                      <p className="font-semibold text-green-900">OS (Left)</p>
+                                      <p className="text-slate-700">SPH: {formatValue(event.details.os.dilated_sphere)} / CYL: {formatValue(event.details.os.dilated_cylinder)} / AXIS: {event.details.os.dilated_axis ?? "—"}</p>
+                                      {(event.details.os.dilated_visual_acuity || event.details.os.dilated_pinhole) && (
+                                        <p className="text-slate-500 text-[10px] mt-0.5">
+                                          {event.details.os.dilated_visual_acuity && `VA: ${event.details.os.dilated_visual_acuity}`}
+                                          {event.details.os.dilated_pinhole && ` • PH: ${event.details.os.dilated_pinhole}`}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
-                            {event.details.os && (
-                              <div>
-                                <p className="font-semibold text-green-900">OS (Left)</p>
-                                <p className="text-slate-700">SPH: {event.details.os.sphere ?? "—"} / CYL: {event.details.os.cylinder ?? "—"} / AXIS: {event.details.os.axis ?? "—"}</p>
+
+                            {event.details.pupillary_distance != null && (
+                              <div className="pt-2 border-t border-slate-200/50 text-[10px] text-slate-500 font-medium">
+                                Pupillary Distance (PD): {event.details.pupillary_distance} mm
+                              </div>
+                            )}
+                            {event.details.notes && (
+                              <div className="text-[10px] text-slate-500 italic mt-1">
+                                Notes: {event.details.notes}
                               </div>
                             )}
                           </div>
                         )}
 
                         {type === "ar_data" && event.details && (
-                          <div className="mt-3 grid grid-cols-2 gap-4 rounded bg-white/50 p-3 text-xs">
-                            {event.details.od && (
-                              <div>
-                                <p className="font-semibold text-blue-900">OD (Right)</p>
-                                <p className="text-slate-700">SPH: {event.details.od.sphere ?? "—"} / CYL: {event.details.od.cylinder ?? "—"} / AXIS: {event.details.od.axis ?? "—"}</p>
+                          <div className="mt-3 space-y-3 rounded bg-white/50 p-3 text-xs">
+                            {/* Dry AR */}
+                            <div>
+                              <p className="font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Dry AR</p>
+                              <div className="grid grid-cols-2 gap-4">
+                                {event.details.od && (
+                                  <div>
+                                    <p className="font-semibold text-blue-900">OD (Right)</p>
+                                    <p className="text-slate-700">SPH: {formatValue(event.details.od.sphere)} / CYL: {formatValue(event.details.od.cylinder)} / AXIS: {event.details.od.axis ?? "—"}</p>
+                                  </div>
+                                )}
+                                {event.details.os && (
+                                  <div>
+                                    <p className="font-semibold text-green-900">OS (Left)</p>
+                                    <p className="text-slate-700">SPH: {formatValue(event.details.os.sphere)} / CYL: {formatValue(event.details.os.cylinder)} / AXIS: {event.details.os.axis ?? "—"}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Wet AR */}
+                            {((event.details.od && (event.details.od.wet_sphere != null || event.details.od.wet_cylinder != null || event.details.od.wet_axis != null)) ||
+                              (event.details.os && (event.details.os.wet_sphere != null || event.details.os.wet_cylinder != null || event.details.os.wet_axis != null))) && (
+                              <div className="pt-2 border-t border-slate-200/50">
+                                <p className="font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Wet AR (Dilated Acceptance)</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                  {event.details.od && (
+                                    <div>
+                                      <p className="font-semibold text-blue-900">OD (Right)</p>
+                                      <p className="text-slate-700">SPH: {formatValue(event.details.od.wet_sphere)} / CYL: {formatValue(event.details.od.wet_cylinder)} / AXIS: {event.details.od.wet_axis ?? "—"}</p>
+                                    </div>
+                                  )}
+                                  {event.details.os && (
+                                    <div>
+                                      <p className="font-semibold text-green-900">OS (Left)</p>
+                                      <p className="text-slate-700">SPH: {formatValue(event.details.os.wet_sphere)} / CYL: {formatValue(event.details.os.wet_cylinder)} / AXIS: {event.details.os.wet_axis ?? "—"}</p>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
-                            {event.details.os && (
-                              <div>
-                                <p className="font-semibold text-green-900">OS (Left)</p>
-                                <p className="text-slate-700">SPH: {event.details.os.sphere ?? "—"} / CYL: {event.details.os.cylinder ?? "—"} / AXIS: {event.details.os.axis ?? "—"}</p>
-                              </div>
-                            )}
+
                             {event.details.pupillary_distance != null && (
-                              <div className="col-span-2 text-xs text-slate-600">PD: {event.details.pupillary_distance}</div>
+                              <div className="pt-2 border-t border-slate-200/50 text-[10px] text-slate-500 font-medium">
+                                Pupillary Distance (PD): {event.details.pupillary_distance} mm
+                              </div>
+                            )}
+                            {event.details.notes && (
+                              <div className="text-[10px] text-slate-500 italic mt-1">
+                                Notes: {event.details.notes}
+                              </div>
                             )}
                           </div>
                         )}

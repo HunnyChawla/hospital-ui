@@ -237,6 +237,8 @@ export function ExaminationTabs({
             visionRecords={visionRecords}
             currentSpecsRecords={currentSpecsRecords}
             medicalConditions={medicalConditions}
+            patientOptometryHistory={patientOptometryHistory}
+            historyLoading={!!historyLoading}
             loading={loading}
             refreshComplaints={refreshComplaints}
             refreshMedicalHistory={refreshMedicalHistory}
@@ -282,6 +284,8 @@ export function ExaminationTabs({
             visionRecords={visionRecords}
             currentSpecsRecords={currentSpecsRecords}
             medicalConditions={medicalConditions}
+            patientOptometryHistory={patientOptometryHistory}
+            historyLoading={!!historyLoading}
             loading={loading}
             refreshComplaints={refreshComplaints}
             refreshMedicalHistory={refreshMedicalHistory}
