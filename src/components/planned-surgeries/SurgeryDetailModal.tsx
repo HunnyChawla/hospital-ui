@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { PlannedSurgery, PlannedSurgeryStatus } from "@/types";
 import { formatDate } from "@/utils/format";
+import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
 import {
     X,
     User,
@@ -90,20 +91,6 @@ export function SurgeryDetailModal({
         );
     };
 
-    const getEyeBadge = (eye?: string | null) => {
-        const eyeVal = eye ? eye.toUpperCase() : null;
-        switch (eyeVal) {
-            case "OD":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100/90 text-blue-900 border border-blue-300 shadow-2xs">👁️ Right Eye (OD)</span>;
-            case "OS":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100/90 text-purple-900 border border-purple-300 shadow-2xs">👁️ Left Eye (OS)</span>;
-            case "OU":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-900 border border-amber-300 shadow-2xs">👁️ Both Eyes (OU)</span>;
-            default:
-                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Eye: Unspecified</span>;
-        }
-    };
-
     const formatDateTime = (date: string, time: string | null) => {
         const formattedDate = formatDate(date);
         if (time) {
@@ -132,7 +119,7 @@ export function SurgeryDetailModal({
                                 <h3 className="text-lg font-bold text-slate-900">
                                     {surgery.patient_name || `Patient ${surgery.patient_id.slice(0, 8)}`}
                                 </h3>
-                                {getEyeBadge(surgery.eye)}
+                                {surgery.body_part_name && <BodyPartBadge name={surgery.body_part_name} />}
                             </div>
                             <div className="mt-0.5 flex items-center gap-3 text-xs text-slate-500 font-medium">
                                 <span>UHID: <strong className="text-slate-700">{surgery.patient_uhid || surgery.patient_id.slice(0, 8)}</strong></span>

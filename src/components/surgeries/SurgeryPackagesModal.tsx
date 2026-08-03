@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { X, Plus, Pencil, Trash2, Package, Loader2, CheckCircle2, DollarSign } from "lucide-react";
+import { X, Plus, Pencil, Trash2, Package, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Surgery, SurgeryPackage, CreateSurgeryPackageRequest, UpdateSurgeryPackageRequest } from "@/types";
 import { surgeryPackagesApi } from "@/services/surgeryPackagesApi";
 import { toast } from "sonner";
@@ -28,10 +28,14 @@ export function SurgeryPackagesModal({
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [price, setPrice] = useState<string>("0");
-    const [ouPrice, setOuPrice] = useState<string>("");
+    const [overrides, setOverrides] = useState<Record<string, string>>({});
+    const [showOverrides, setShowOverrides] = useState(false);
     const [isActive, setIsActive] = useState(true);
     const [sortOrder, setSortOrder] = useState<number>(0);
     const [isSaving, setIsSaving] = useState(false);
+
+    const applicableBodyParts = surgery?.body_parts || [];
+    const showOverridesSection = applicableBodyParts.length > 1;
 
     const fetchPackages = async () => {
         if (!surgery) return;
@@ -57,7 +61,8 @@ export function SurgeryPackagesModal({
         setName("");
         setDescription("");
         setPrice("0");
-        setOuPrice("");
+        setOverrides({});
+        setShowOverrides(false);
         setIsActive(true);
         setSortOrder(packages.length);
         setIsEditing(false);
@@ -69,7 +74,12 @@ export function SurgeryPackagesModal({
         setName(pkg.name);
         setDescription(pkg.description || "");
         setPrice(pkg.price.toString());
-        setOuPrice(pkg.ou_price !== undefined && pkg.ou_price !== null ? pkg.ou_price.toString() : "");
+        const overrideMap: Record<string, string> = {};
+        for (const p of pkg.prices || []) {
+            overrideMap[p.body_part_id] = p.price.toString();
+        }
+        setOverrides(overrideMap);
+        setShowOverrides(Object.keys(overrideMap).length > 0);
         setIsActive(pkg.is_active);
         setSortOrder(pkg.sort_order);
         setIsEditing(true);
@@ -81,15 +91,14 @@ export function SurgeryPackagesModal({
 
         const numPrice = parseFloat(price);
         if (isNaN(numPrice) || numPrice < 0) {
-            toast.error("Please enter a valid price");
+            toast.error("Please enter a valid base price");
             return;
         }
 
-        const numOuPrice = parseFloat(ouPrice);
-        if (isNaN(numOuPrice) || numOuPrice < 0) {
-            toast.error("Please enter a valid price for both eyes (OU)");
-            return;
-        }
+        const prices = Object.entries(overrides)
+            .filter(([, val]) => val.trim() !== "")
+            .map(([body_part_id, val]) => ({ body_part_id, price: parseFloat(val) }))
+            .filter((p) => !isNaN(p.price) && p.price >= 0);
 
         try {
             setIsSaving(true);
@@ -98,7 +107,7 @@ export function SurgeryPackagesModal({
                     name,
                     description: description || null,
                     price: numPrice,
-                    ou_price: numOuPrice,
+                    prices,
                     is_active: isActive,
                     sort_order: Number(sortOrder),
                 };
@@ -109,7 +118,7 @@ export function SurgeryPackagesModal({
                     name,
                     description: description || null,
                     price: numPrice,
-                    ou_price: numOuPrice,
+                    prices,
                     is_active: isActive,
                     sort_order: Number(sortOrder),
                 };
@@ -223,9 +232,9 @@ export function SurgeryPackagesModal({
                                                 />
                                             </div>
 
-                                             <div>
+                                            <div>
                                                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                                                    Package Price (Single Eye) (₹) <span className="text-rose-500">*</span>
+                                                    Base Package Price (₹) <span className="text-rose-500">*</span>
                                                 </label>
                                                 <div className="relative">
                                                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs font-medium">₹</span>
@@ -240,26 +249,49 @@ export function SurgeryPackagesModal({
                                                     />
                                                 </div>
                                             </div>
-
-                                             <div>
-                                                <label className="block text-xs font-medium text-slate-700 mb-1">
-                                                    Both Eyes (OU) Package Price (₹) <span className="text-rose-500">*</span>
-                                                </label>
-                                                <div className="relative">
-                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs font-medium">₹</span>
-                                                    <input
-                                                        type="number"
-                                                        required
-                                                        min="0"
-                                                        step="1"
-                                                        placeholder="e.g. 50000"
-                                                        value={ouPrice}
-                                                        onChange={(e) => setOuPrice(e.target.value)}
-                                                        className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
+
+                                        {showOverridesSection && (
+                                            <div className="rounded-lg border border-slate-200 bg-white">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowOverrides((v) => !v)}
+                                                    className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700"
+                                                >
+                                                    <span>Per-Body-Part Price Overrides (optional)</span>
+                                                    {showOverrides ? (
+                                                        <ChevronUp className="h-4 w-4" />
+                                                    ) : (
+                                                        <ChevronDown className="h-4 w-4" />
+                                                    )}
+                                                </button>
+                                                {showOverrides && (
+                                                    <div className="space-y-2 border-t border-slate-100 p-3">
+                                                        {applicableBodyParts.map((bp) => (
+                                                            <div key={bp.id} className="flex items-center gap-2">
+                                                                <label className="w-32 shrink-0 text-xs text-slate-600">
+                                                                    {bp.name}
+                                                                </label>
+                                                                <div className="relative flex-1">
+                                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs font-medium">₹</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder={`Same as base price (₹${price || 0})`}
+                                                                        value={overrides[bp.id] || ""}
+                                                                        onChange={(e) =>
+                                                                            setOverrides((prev) => ({ ...prev, [bp.id]: e.target.value }))
+                                                                        }
+                                                                        className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-1.5 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         <div>
                                             <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -366,11 +398,16 @@ export function SurgeryPackagesModal({
                                                         <div className="flex items-center gap-4">
                                                             <div className="flex flex-col items-end gap-1">
                                                                 <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                                                                    Single Eye: ₹{pkg.price.toLocaleString("en-IN")}
+                                                                    Base: ₹{pkg.price.toLocaleString("en-IN")}
                                                                 </span>
-                                                                <span className="text-xs font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md">
-                                                                    Both Eyes (OU): ₹{(pkg.ou_price ?? pkg.price * 2).toLocaleString("en-IN")}
-                                                                </span>
+                                                                {(pkg.prices || []).map((p) => (
+                                                                    <span
+                                                                        key={p.body_part_id}
+                                                                        className="text-xs font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md"
+                                                                    >
+                                                                        {p.body_part_name}: ₹{p.price.toLocaleString("en-IN")}
+                                                                    </span>
+                                                                ))}
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <button

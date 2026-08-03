@@ -10,6 +10,7 @@ import {
 } from "@/hooks/queries/usePlannedSurgeries";
 import { PlannedSurgery, PlannedSurgeryStatus } from "@/types";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
+import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
 import {
     Search,
     Calendar,
@@ -415,20 +416,6 @@ export function PlannedSurgeriesList({
         }
     };
 
-    const getEyeBadge = (eye?: string | null) => {
-        const eyeVal = eye ? eye.toUpperCase() : null;
-        switch (eyeVal) {
-            case "OD":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100/90 text-blue-900 border border-blue-300 shadow-2xs">👁️ Right Eye (OD)</span>;
-            case "OS":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100/90 text-purple-900 border border-purple-300 shadow-2xs">👁️ Left Eye (OS)</span>;
-            case "OU":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100/90 text-amber-900 border border-amber-300 shadow-2xs">👁️ Both Eyes (OU)</span>;
-            default:
-                return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Eye: Unspecified</span>;
-        }
-    };
-
     const formatStatus = (status: string) => {
         return status.charAt(0).toUpperCase() + status.slice(1);
     };
@@ -592,7 +579,7 @@ export function PlannedSurgeriesList({
                 surgery.planned_date ? formatDate(surgery.planned_date) : `Advised: ${formatDate(surgery.advised_date || surgery.created_at)}`,
                 surgery.patient_name ? `${surgery.patient_name} (${surgery.patient_uhid || surgery.patient_id.slice(0, 8)})${surgery.patient_mobile ? ` - ${surgery.patient_mobile}` : ""}` : "-",
                 surgery.surgery_name,
-                surgery.eye || "-",
+                surgery.body_part_name || "-",
                 surgery.surgeon_name || "-",
                 formatStatus(surgery.status),
                 surgery.notes?.slice(0, 30) || "-",
@@ -602,7 +589,7 @@ export function PlannedSurgeriesList({
 
             autoTable(doc, {
                 startY: yPos,
-                head: [["Date", "Patient", "Surgery", "Eye", "Surgeon", "Status", "Notes"]],
+                head: [["Date", "Patient", "Surgery", "Body Part", "Surgeon", "Status", "Notes"]],
                 body: tableData,
                 theme: "striped",
                 headStyles: {
@@ -1026,7 +1013,11 @@ export function PlannedSurgeriesList({
                                                 </div>
                                             </div>
                                             <div className="shrink-0">
-                                                {getEyeBadge(surgery.eye)}
+                                                {surgery.body_part_name ? (
+                                                    <BodyPartBadge name={surgery.body_part_name} />
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Unspecified</span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1220,7 +1211,11 @@ export function PlannedSurgeriesList({
                                                     </div>
                                                 </td>
                                                 <td className="whitespace-nowrap px-5 py-3.5">
-                                                    {getEyeBadge(surgery.eye)}
+                                                    {surgery.body_part_name ? (
+                                                    <BodyPartBadge name={surgery.body_part_name} />
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Unspecified</span>
+                                                )}
                                                 </td>
                                                 <td className="whitespace-nowrap px-5 py-3.5">
                                                     <div className="flex items-center gap-1.5 text-slate-700 text-xs font-medium">

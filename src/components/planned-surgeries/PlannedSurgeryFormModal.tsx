@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { X, Loader2, Calendar, User, Stethoscope, Eye, Clock, FileText, Building2, CheckCircle2, Package, CreditCard, ChevronDown, ChevronUp, Split, Edit2, AlertCircle } from "lucide-react";
+import { X, Loader2, Calendar, User, Stethoscope, Clock, FileText, Building2, CheckCircle2, Package, CreditCard, ChevronDown, ChevronUp, Split, Edit2, AlertCircle, Search } from "lucide-react";
 import { PlannedSurgery, CreatePlannedSurgeryRequest, UpdatePlannedSurgeryRequest, Surgery, SurgeryPackage, PlannedSurgeryStatus } from "@/types";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { surgeriesApi } from "@/services/surgeriesApi";
@@ -16,6 +16,8 @@ import { useSurgeryPaymentSummary, useSurgeryPayments, surgeryBillingKeys } from
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTodayDateLocal, formatDate } from "@/utils/format";
+import { BodyPartPicker } from "./BodyPartPicker";
+import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
 
 interface PlannedSurgeryFormModalProps {
     isOpen: boolean;
@@ -45,10 +47,12 @@ export function PlannedSurgeryFormModal({
     const [patientName, setPatientName] = useState("");
     const [surgeryId, setSurgeryId] = useState("");
     const [surgeryName, setSurgeryName] = useState("");
+    const [surgerySearch, setSurgerySearch] = useState("");
+    const [showSurgeryDropdown, setShowSurgeryDropdown] = useState(false);
     const [selectedSurgery, setSelectedSurgery] = useState<Surgery | null>(null);
     const [surgeonId, setSurgeonId] = useState("");
-    const [eye, setEye] = useState<"OD" | "OS" | "OU">("OD");
-    const [splitOuSurgeries, setSplitOuSurgeries] = useState(false);
+    const [bodyPartId, setBodyPartId] = useState<string | null>(null);
+    const [splitBodyParts, setSplitBodyParts] = useState(false);
     const [osPlannedDate, setOsPlannedDate] = useState("");
     const [plannedDate, setPlannedDate] = useState(getTodayDateLocal());
     const [plannedTime, setPlannedTime] = useState("");
@@ -72,7 +76,7 @@ export function PlannedSurgeryFormModal({
     const [paymentNotes, setPaymentNotes] = useState<string>("");
 
     // Lists & Dropdown
-    const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+    const [surgeryResults, setSurgeryResults] = useState<Surgery[]>([]);
     const [patientResults, setPatientResults] = useState<any[]>([]);
     const [showPatientDropdown, setShowPatientDropdown] = useState(false);
 
@@ -81,23 +85,29 @@ export function PlannedSurgeryFormModal({
     const [loadingSurgeries, setLoadingSurgeries] = useState(false);
     const [searchingPatients, setSearchingPatients] = useState(false);
 
-    // Fetch surgeries list
+    // Backend-driven surgery search (replaces the old one-shot page_size:100
+    // fetch, which silently truncated once the catalog grew past 100 rows -
+    // reuses the same debounce pattern as the patient search below).
     useEffect(() => {
+        if (!isOpen) return;
         const fetchSurgeries = async () => {
             setLoadingSurgeries(true);
             try {
-                const response = await surgeriesApi.list({ is_active: true, page_size: 100 });
-                setSurgeries(response.items);
+                const response = await surgeriesApi.list({
+                    is_active: true,
+                    search: surgerySearch.trim() || undefined,
+                    page_size: 20,
+                });
+                setSurgeryResults(response.items);
             } catch (error) {
                 console.error("Failed to fetch surgeries:", error);
             } finally {
                 setLoadingSurgeries(false);
             }
         };
-        if (isOpen) {
-            fetchSurgeries();
-        }
-    }, [isOpen]);
+        const debounce = setTimeout(fetchSurgeries, 300);
+        return () => clearTimeout(debounce);
+    }, [isOpen, surgerySearch]);
 
     // Fetch packages when surgeryId changes
     useEffect(() => {
@@ -132,8 +142,9 @@ export function PlannedSurgeryFormModal({
             setPatientName(initialData.patient_name || "");
             setSurgeryId(initialData.surgery_id);
             setSurgeryName(initialData.surgery_name);
+            setSurgerySearch(initialData.surgery_name);
             setSurgeonId(initialData.surgeon_id);
-            setEye(initialData.eye || "OD");
+            setBodyPartId(initialData.body_part_id || null);
             setPlannedDate(initialData.planned_date || "");
             setPlannedTime(initialData.planned_time?.slice(0, 5) || "");
             setHospitalName(initialData.hospital_name || "");
@@ -155,10 +166,11 @@ export function PlannedSurgeryFormModal({
             setPatientName("");
             setSurgeryId("");
             setSurgeryName("");
+            setSurgerySearch("");
             setSelectedSurgery(null);
             setSurgeonId("");
-            setEye("OD");
-            setSplitOuSurgeries(false);
+            setBodyPartId(null);
+            setSplitBodyParts(false);
             setOsPlannedDate("");
             setPlannedDate(getTodayDateLocal());
             setPlannedTime("");
@@ -175,12 +187,6 @@ export function PlannedSurgeryFormModal({
             setPaymentNotes("");
         }
     }, [initialData, isOpen]);
-
-    // Update selectedSurgery object whenever surgeryId changes
-    useEffect(() => {
-        const found = surgeries.find((s) => s.id === surgeryId);
-        setSelectedSurgery(found || null);
-    }, [surgeryId, surgeries]);
 
     // Search patients
     useEffect(() => {
@@ -218,13 +224,15 @@ export function PlannedSurgeryFormModal({
         setPatientResults([]);
     };
 
-    const handleSurgeryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const selectedId = e.target.value;
-        setSurgeryId(selectedId);
-        const s = surgeries.find((item) => item.id === selectedId);
-        setSurgeryName(s?.name || "");
-        setSelectedSurgery(s || null);
+    const handleSelectSurgery = (s: Surgery) => {
+        setSurgeryId(s.id);
+        setSurgeryName(s.name);
+        setSurgerySearch(s.name);
+        setShowSurgeryDropdown(false);
+        setSelectedSurgery(s);
         setSelectedPackageId(null);
+        // 0/1/2+ semantics: single applicable body part auto-applies silently.
+        setBodyPartId(s.body_parts.length === 1 ? s.body_parts[0].id : null);
     };
 
     const handlePackageSelect = (pkg: SurgeryPackage) => {
@@ -257,8 +265,11 @@ export function PlannedSurgeryFormModal({
             toast.error("Please select a surgery package for scheduling");
             return;
         }
+        if (!isEditing && selectedSurgery && selectedSurgery.body_parts.length > 1 && !bodyPartId) {
+            toast.error("Please select the applicable body part");
+            return;
+        }
 
-        const isEyeSurgery = selectedSurgery?.is_eye_surgery ?? true;
         const numAdvance = (showAdvancePayment && advanceAmount && parseFloat(advanceAmount) > 0)
             ? parseFloat(advanceAmount)
             : undefined;
@@ -269,7 +280,7 @@ export function PlannedSurgeryFormModal({
                 const updatePayload: UpdatePlannedSurgeryRequest = {
                     surgery_id: surgeryId,
                     surgery_name: surgeryName,
-                    eye: eye || initialData.eye || null,
+                    body_part_id: bodyPartId ?? initialData.body_part_id ?? null,
                     planned_date: plannedDate || null,
                     planned_time: plannedTime || null,
                     hospital_name: hospitalName || null,
@@ -284,66 +295,67 @@ export function PlannedSurgeryFormModal({
                 };
                 await plannedSurgeriesApi.update(initialData.id, updatePayload);
                 toast.success("Planned surgery updated successfully");
-            } else {
-                // If OU eye is selected and receptionist chose to split into two entries
-                if (isEyeSurgery && eye === "OU" && splitOuSurgeries) {
-                    const odPayload: CreatePlannedSurgeryRequest = {
-                        patient_id: patientId,
-                        surgery_id: surgeryId,
-                        surgery_name: surgeryName,
-                        surgeon_id: surgeonId,
-                        eye: "OD",
-                        planned_date: plannedDate || null,
-                        planned_time: plannedTime || null,
-                        hospital_name: hospitalName || null,
-                        notes: notes ? `${notes} (Right Eye - OD)` : "Right Eye (OD)",
-                        package_id: selectedPackageId,
-                        package_price: selectedPackageId ? netAgreedPrice : undefined,
-                        advance_payment_amount: numAdvance,
-                        advance_payment_method: numAdvance ? paymentMethod : null,
-                        advance_payment_reference: numAdvance ? paymentReference || null : null,
-                        advance_payment_date: numAdvance ? paymentDate || null : null,
-                        advance_payment_notes: numAdvance ? paymentNotes || null : null,
-                    };
-                    const osPayload: CreatePlannedSurgeryRequest = {
-                        patient_id: patientId,
-                        surgery_id: surgeryId,
-                        surgery_name: surgeryName,
-                        surgeon_id: surgeonId,
-                        eye: "OS",
-                        planned_date: osPlannedDate || plannedDate || null,
-                        planned_time: plannedTime || null,
-                        hospital_name: hospitalName || null,
-                        notes: notes ? `${notes} (Left Eye - OS)` : "Left Eye (OS)",
-                        package_id: selectedPackageId,
-                        package_price: selectedPackageId ? netAgreedPrice : undefined,
-                    };
+            } else if (splitBodyParts && pairedSiblings.length === 2) {
+                // Selected body part is bilateral and has exactly 2 single-side
+                // siblings configured on this surgery (e.g. Right/Left Eye,
+                // Right/Left Knee) - split into two entries for different dates.
+                const [first, second] = pairedSiblings;
+                const firstPayload: CreatePlannedSurgeryRequest = {
+                    patient_id: patientId,
+                    surgery_id: surgeryId,
+                    surgery_name: surgeryName,
+                    surgeon_id: surgeonId,
+                    body_part_id: first.id,
+                    planned_date: plannedDate || null,
+                    planned_time: plannedTime || null,
+                    hospital_name: hospitalName || null,
+                    notes: notes ? `${notes} (${first.name})` : first.name,
+                    package_id: selectedPackageId,
+                    package_price: selectedPackageId ? netAgreedPrice : undefined,
+                    advance_payment_amount: numAdvance,
+                    advance_payment_method: numAdvance ? paymentMethod : null,
+                    advance_payment_reference: numAdvance ? paymentReference || null : null,
+                    advance_payment_date: numAdvance ? paymentDate || null : null,
+                    advance_payment_notes: numAdvance ? paymentNotes || null : null,
+                };
+                const secondPayload: CreatePlannedSurgeryRequest = {
+                    patient_id: patientId,
+                    surgery_id: surgeryId,
+                    surgery_name: surgeryName,
+                    surgeon_id: surgeonId,
+                    body_part_id: second.id,
+                    planned_date: osPlannedDate || plannedDate || null,
+                    planned_time: plannedTime || null,
+                    hospital_name: hospitalName || null,
+                    notes: notes ? `${notes} (${second.name})` : second.name,
+                    package_id: selectedPackageId,
+                    package_price: selectedPackageId ? netAgreedPrice : undefined,
+                };
 
-                    await plannedSurgeriesApi.create(odPayload);
-                    await plannedSurgeriesApi.create(osPayload);
-                    toast.success("Planned surgeries for Right Eye (OD) and Left Eye (OS) created successfully");
-                } else {
-                    const createPayload: CreatePlannedSurgeryRequest = {
-                        patient_id: patientId,
-                        surgery_id: surgeryId,
-                        surgery_name: surgeryName,
-                        surgeon_id: surgeonId,
-                        eye: isEyeSurgery ? eye : null,
-                        planned_date: plannedDate || null,
-                        planned_time: plannedTime || null,
-                        hospital_name: hospitalName || null,
-                        notes: notes || null,
-                        package_id: selectedPackageId,
-                        package_price: selectedPackageId ? netAgreedPrice : undefined,
-                        advance_payment_amount: numAdvance,
-                        advance_payment_method: numAdvance ? paymentMethod : null,
-                        advance_payment_reference: numAdvance ? paymentReference || null : null,
-                        advance_payment_date: numAdvance ? paymentDate || null : null,
-                        advance_payment_notes: numAdvance ? paymentNotes || null : null,
-                    };
-                    await plannedSurgeriesApi.create(createPayload);
-                    toast.success("Planned surgery created successfully");
-                }
+                await plannedSurgeriesApi.create(firstPayload);
+                await plannedSurgeriesApi.create(secondPayload);
+                toast.success(`Planned surgeries for ${first.name} and ${second.name} created successfully`);
+            } else {
+                const createPayload: CreatePlannedSurgeryRequest = {
+                    patient_id: patientId,
+                    surgery_id: surgeryId,
+                    surgery_name: surgeryName,
+                    surgeon_id: surgeonId,
+                    body_part_id: bodyPartId,
+                    planned_date: plannedDate || null,
+                    planned_time: plannedTime || null,
+                    hospital_name: hospitalName || null,
+                    notes: notes || null,
+                    package_id: selectedPackageId,
+                    package_price: selectedPackageId ? netAgreedPrice : undefined,
+                    advance_payment_amount: numAdvance,
+                    advance_payment_method: numAdvance ? paymentMethod : null,
+                    advance_payment_reference: numAdvance ? paymentReference || null : null,
+                    advance_payment_date: numAdvance ? paymentDate || null : null,
+                    advance_payment_notes: numAdvance ? paymentNotes || null : null,
+                };
+                await plannedSurgeriesApi.create(createPayload);
+                toast.success("Planned surgery created successfully");
             }
             queryClient.invalidateQueries({ queryKey: plannedSurgeryKeys.all });
             queryClient.invalidateQueries({ queryKey: surgeryBillingKeys.all });
@@ -357,22 +369,30 @@ export function PlannedSurgeryFormModal({
         }
     };
 
-    const isEyeSurgery = selectedSurgery?.is_eye_surgery ?? true;
     const isInvoiceLocked = !!initialData?.surgery_invoice_id;
     const selectedPkg = packages.find((p) => p.id === selectedPackageId);
+    const resolvePkgPrice = (pkg: SurgeryPackage) =>
+        pkg.prices?.find((p) => p.body_part_id === bodyPartId)?.price ?? pkg.price;
     const activeBasePrice = selectedPkg
-        ? (eye === "OU" ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price)
+        ? resolvePkgPrice(selectedPkg)
         : (initialData?.package_price ? Number(initialData.package_price) : 0);
     const netAgreedPrice = selectedPkg
         ? Math.max(0, activeBasePrice - (parseFloat(packageDiscount) || 0))
         : (initialData?.package_price ? Number(initialData.package_price) : 0);
-    const calculatedOuPrice = activeBasePrice;
+
+    // Bilateral split support: the selected body part is "bilateral" and the
+    // surgery has exactly 2 single-side siblings configured (e.g. Right/Left
+    // Eye, Right/Left Knee) - generalizes the old OD/OS-only split.
+    const selectedBodyPart = selectedSurgery?.body_parts.find((bp) => bp.id === bodyPartId);
+    const pairedSiblings = selectedSurgery?.body_parts.filter(
+        (bp) => bp.laterality === "left" || bp.laterality === "right"
+    ) ?? [];
+    const canSplitBodyParts = selectedBodyPart?.laterality === "bilateral" && pairedSiblings.length === 2;
 
     // Sync package discount when initialData or selectedPkg changes
     useEffect(() => {
         if (initialData?.package_price && selectedPkg) {
-            const isOu = eye === "OU";
-            const basePrice = isOu ? (selectedPkg.ou_price ?? selectedPkg.price * 2) : selectedPkg.price;
+            const basePrice = resolvePkgPrice(selectedPkg);
             const storedPrice = Number(initialData.package_price);
             if (basePrice > storedPrice) {
                 setPackageDiscount((basePrice - storedPrice).toString());
@@ -380,7 +400,8 @@ export function PlannedSurgeryFormModal({
                 setPackageDiscount("0");
             }
         }
-    }, [initialData, selectedPkg, eye]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialData, selectedPkg, bodyPartId]);
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
@@ -487,19 +508,53 @@ export function PlannedSurgeryFormModal({
                                                 <span className="text-xs font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">Prescribed by Doctor</span>
                                             </div>
                                         ) : (
-                                            <select
-                                                value={surgeryId}
-                                                onChange={handleSurgeryChange}
-                                                disabled={loadingSurgeries}
-                                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
-                                            >
-                                                <option value="">Select surgery...</option>
-                                                {surgeries.map((surgery) => (
-                                                    <option key={surgery.id} value={surgery.id}>
-                                                        {surgery.name} {surgery.category ? `(${surgery.category})` : ""}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <div className="relative">
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        value={surgerySearch}
+                                                        onChange={(e) => {
+                                                            setSurgerySearch(e.target.value);
+                                                            setSurgeryId("");
+                                                            setSelectedSurgery(null);
+                                                            setShowSurgeryDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowSurgeryDropdown(true)}
+                                                        placeholder="Search surgeries..."
+                                                        className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                                    />
+                                                    {loadingSurgeries && (
+                                                        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                                    )}
+                                                </div>
+                                                {showSurgeryDropdown && (
+                                                    <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                                        {surgeryResults.length === 0 ? (
+                                                            <p className="px-4 py-2 text-xs text-slate-500">No surgeries found.</p>
+                                                        ) : (
+                                                            surgeryResults.map((surgery) => (
+                                                                <button
+                                                                    key={surgery.id}
+                                                                    type="button"
+                                                                    onClick={() => handleSelectSurgery(surgery)}
+                                                                    className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
+                                                                >
+                                                                    <span className="font-medium text-slate-900">{surgery.name}</span>
+                                                                    {surgery.category && (
+                                                                        <span className="ml-2 text-slate-500">({surgery.category})</span>
+                                                                    )}
+                                                                </button>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {surgeryId && (
+                                                    <div className="mt-1 text-xs text-emerald-600">
+                                                        ✓ Selected: {surgeryName}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
 
@@ -524,76 +579,61 @@ export function PlannedSurgeryFormModal({
                                         </select>
                                     </div>
 
-                                    {/* Prescribed Eye Selection Section */}
+                                    {/* Body Part Selection */}
                                     {isEditing ? (
-                                        <div className="space-y-1.5">
-                                            <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                                                <Eye className="h-4 w-4 text-sky-600" />
-                                                Prescribed Operating Eye <span className="text-xs text-slate-400 font-normal">(Prescribed by Doctor)</span>
-                                            </label>
-                                            <div className="w-full rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 flex items-center justify-between">
-                                                <span className="text-xs font-semibold text-sky-950">Doctor Prescribed Eye:</span>
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold shadow-2xs ${
-                                                    eye === "OD"
-                                                        ? "bg-blue-100 text-blue-900 border border-blue-300"
-                                                        : eye === "OS"
-                                                        ? "bg-purple-100 text-purple-900 border border-purple-300"
-                                                        : "bg-amber-100 text-amber-900 border border-amber-300"
-                                                }`}>
-                                                    👁️ {eye === "OD" ? "Right Eye (OD)" : eye === "OS" ? "Left Eye (OS)" : "Both Eyes (OU)"}
-                                                </span>
+                                        initialData?.body_part_name && (
+                                            <div className="space-y-1.5">
+                                                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                                    Body Part <span className="text-xs text-slate-400 font-normal">(Prescribed by Doctor)</span>
+                                                </label>
+                                                <div className="w-full rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 flex items-center justify-between">
+                                                    <span className="text-xs font-semibold text-sky-950">Doctor Prescribed Body Part:</span>
+                                                    <BodyPartBadge name={initialData.body_part_name} />
+                                                </div>
                                             </div>
-                                        </div>
-                                    ) : (isEyeSurgery || !!eye) ? (
+                                        )
+                                    ) : selectedSurgery && selectedSurgery.body_parts.length > 0 ? (
                                         <div className="space-y-2 rounded-xl border border-sky-200/80 bg-sky-50/40 p-4">
                                             <div className="flex items-center justify-between">
                                                 <label className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
-                                                    <Eye className="h-4 w-4 text-sky-600" />
-                                                    Prescribed Operating Eye <span className="text-rose-500">*</span>
+                                                    Body Part {selectedSurgery.body_parts.length > 1 && <span className="text-rose-500">*</span>}
                                                 </label>
-                                                <span className="text-xs font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
-                                                    {eye === "OD" ? "👁️ Right Eye (OD)" : eye === "OS" ? "👁️ Left Eye (OS)" : "👁️ Both Eyes (OU)"}
-                                                </span>
+                                                {selectedBodyPart && (
+                                                    <BodyPartBadge
+                                                        name={selectedBodyPart.name}
+                                                        laterality={selectedBodyPart.laterality}
+                                                        department={selectedBodyPart.department}
+                                                    />
+                                                )}
                                             </div>
-                                            <div className="flex gap-3 pt-1">
-                                                {(["OD", "OS", "OU"] as const).map((eyeOption) => {
-                                                    const isSelected = eye === eyeOption;
-                                                    return (
-                                                        <button
-                                                            key={eyeOption}
-                                                            type="button"
-                                                            onClick={() => setEye(eyeOption)}
-                                                            className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                                                                isSelected
-                                                                    ? eyeOption === "OD"
-                                                                        ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-300"
-                                                                        : eyeOption === "OS"
-                                                                        ? "bg-purple-600 text-white shadow-md ring-2 ring-purple-300"
-                                                                        : "bg-amber-600 text-white shadow-md ring-2 ring-amber-300"
-                                                                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
-                                                            }`}
-                                                        >
-                                                            <span>👁️</span>
-                                                            <span>{eyeOption === "OD" ? "Right Eye (OD)" : eyeOption === "OS" ? "Left Eye (OS)" : "Both Eyes (OU)"}</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                            {selectedSurgery.body_parts.length > 1 ? (
+                                                <div className="pt-1">
+                                                    <BodyPartPicker
+                                                        bodyParts={selectedSurgery.body_parts}
+                                                        value={bodyPartId}
+                                                        onChange={setBodyPartId}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-500">
+                                                    Auto-applied — this surgery is only configured for {selectedSurgery.body_parts[0].name}.
+                                                </p>
+                                            )}
 
-                                            {eye === "OU" && (
+                                            {canSplitBodyParts && (
                                                 <div className="mt-2 space-y-2 rounded-lg bg-amber-50/80 border border-amber-200 p-3 text-xs text-amber-900 font-medium">
                                                     <p className="flex items-center gap-1">
-                                                        ℹ️ Both eyes (OU) selected — package pricing applies to bilateral procedure.
+                                                        ℹ️ Bilateral body part selected — package pricing applies to the combined procedure.
                                                     </p>
                                                     <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer pt-1 border-t border-sky-200/60">
                                                         <input
                                                             type="checkbox"
-                                                            checked={splitOuSurgeries}
-                                                            onChange={(e) => setSplitOuSurgeries(e.target.checked)}
+                                                            checked={splitBodyParts}
+                                                            onChange={(e) => setSplitBodyParts(e.target.checked)}
                                                             className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 h-4 w-4"
                                                         />
                                                         <Split className="h-3.5 w-3.5 text-sky-600" />
-                                                        Plan as 2 separate entries (OD & OS) for different dates
+                                                        Plan as 2 separate entries ({pairedSiblings.map((p) => p.name).join(" & ")}) for different dates
                                                     </label>
                                                 </div>
                                             )}
@@ -605,7 +645,7 @@ export function PlannedSurgeryFormModal({
                                         <div className="space-y-1.5">
                                             <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                                 <Calendar className="h-4 w-4 text-slate-400" />
-                                                {splitOuSurgeries ? "Right Eye (OD) Date" : "Planned Date"}{" "}
+                                                {splitBodyParts && pairedSiblings[0] ? `${pairedSiblings[0].name} Date` : "Planned Date"}{" "}
                                                 <span className="text-xs text-slate-400 font-normal">(optional)</span>
                                             </label>
                                             <input
@@ -617,11 +657,11 @@ export function PlannedSurgeryFormModal({
                                             />
                                         </div>
 
-                                        {splitOuSurgeries ? (
+                                        {splitBodyParts ? (
                                             <div className="space-y-1.5">
                                                 <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                                     <Calendar className="h-4 w-4 text-slate-400" />
-                                                    Left Eye (OS) Date
+                                                    {pairedSiblings[1]?.name || "Second"} Date
                                                 </label>
                                                 <input
                                                     type="date"
@@ -686,10 +726,10 @@ export function PlannedSurgeryFormModal({
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                                                     {packages.map((pkg) => {
                                                         const isSelected = selectedPackageId === pkg.id;
-                                                        const isOu = eye === "OU";
-                                                        const activePrice = isOu ? (pkg.ou_price ?? pkg.price * 2) : pkg.price;
-                                                        const altPrice = isOu ? pkg.price : (pkg.ou_price ?? pkg.price * 2);
-                                                        const altLabel = isOu ? "Single Eye" : "Both Eyes (OU)";
+                                                        const activePrice = resolvePkgPrice(pkg);
+                                                        const otherPrices = (pkg.prices || []).filter(
+                                                            (p) => p.body_part_id !== bodyPartId
+                                                        );
 
                                                         return (
                                                             <button
@@ -712,7 +752,7 @@ export function PlannedSurgeryFormModal({
                                                                             ₹{activePrice.toLocaleString("en-IN")}
                                                                         </span>
                                                                         <span className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                                                            {isOu ? "Both Eyes (OU)" : "Single Eye"}
+                                                                            {selectedBodyPart?.name || "Base"}
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -723,7 +763,7 @@ export function PlannedSurgeryFormModal({
                                                                 )}
                                                                 <div className="mt-2.5 flex items-center justify-between w-full pt-2 border-t border-slate-100 text-[11px]">
                                                                     <span className="text-slate-400">
-                                                                        {altLabel}: ₹{altPrice.toLocaleString("en-IN")}
+                                                                        {otherPrices.map((p) => `${p.body_part_name}: ₹${p.price.toLocaleString("en-IN")}`).join(" · ") || `Base: ₹${pkg.price.toLocaleString("en-IN")}`}
                                                                     </span>
                                                                     {isSelected && (
                                                                         <span className="font-semibold text-sky-700 flex items-center gap-1">

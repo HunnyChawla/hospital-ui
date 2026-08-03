@@ -479,10 +479,13 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       } else {
         desc = `${visit.surgery_name} Package Charges`;
       }
-      if (visit.eye) {
-        desc += ` - Eye: ${visit.eye}`;
+      if (visit.body_part_name) {
+        desc += ` - ${visit.body_part_name}`;
       }
 
+      // The backend already snapshots package_price per-body-part at scheduling
+      // time (SurgeryPackageService.resolve_package_price) - this fallback only
+      // covers the rare case where no snapshot exists at all.
       let price = visit.package_price ?? 0;
       if (price <= 0 && availableSurgeries.length > 0) {
         const sNameLower = visit.surgery_name.toLowerCase().trim();
@@ -490,15 +493,6 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         price = surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
       } else if (price <= 0) {
         price = 25000;
-      }
-
-      // Apply OU price if both eyes are selected and no package price was snapshotted
-      if (visit.eye === "OU" && (!visit.package_price || visit.package_price <= 0)) {
-        if (visit.ou_price && visit.ou_price > 0) {
-          price = visit.ou_price;
-        } else {
-          price = price * 2;
-        }
       }
 
       setInvoiceLineItems([
@@ -509,7 +503,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         }
       ]);
     }
-  }, [visit?.id, visit?.invoice_id, visit?.package_name, visit?.package_price, visit?.eye, visit?.ou_price, availableSurgeries, invoiceLineItems.length]);
+  }, [visit?.id, visit?.invoice_id, visit?.package_name, visit?.package_price, visit?.body_part_name, availableSurgeries, invoiceLineItems.length]);
 
   const handleAddServiceItem = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -1322,6 +1316,8 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               ))}
             </div>
 
+            {visit?.body_part_department === "Ophthalmology" && (
+              <>
             <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pt-6 pb-3">Eye-Specific Preparation Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Right Eye */}
@@ -1366,9 +1362,13 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                 </div>
               </div>
             </div>
+              </>
+            )}
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Preparation Notes</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                {visit?.body_part_department === "Ophthalmology" ? "Preparation Notes" : `${visit?.body_part_name || "Site"} Preparation Notes`}
+              </label>
               <textarea value={checklist.checklist_notes || ""} onChange={(e) => setChecklist({ ...checklist, checklist_notes: e.target.value })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 h-24 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" placeholder="Note pre-op drops timing, patient anxiety levels, etc..." />
             </div>
 

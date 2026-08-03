@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, FileText, IndianRupee, Printer, CheckCircle2, AlertCircle, CreditCard, Loader2 } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
 import {
   useSurgeryInvoice,
   useSurgeryPaymentSummary,
   useGenerateSurgeryInvoice,
   useCollectSurgeryBalance,
 } from "@/hooks/queries/useSurgeryBilling";
+import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import type { PlannedSurgery } from "@/types";
 import type { Invoice } from "@/services/invoicesApi";
 
@@ -45,6 +47,23 @@ export function SurgeryInvoiceModal({
       setBalanceAmount(summary.balance_due.toString());
     }
   }, [summary?.balance_due]);
+
+  const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
+  const printInvoiceRef = useRef<HTMLDivElement>(null);
+  const triggerPrintInvoice = useReactToPrint({
+    contentRef: printInvoiceRef,
+    documentTitle: invoice ? `Invoice_${invoice.invoice_number}` : "Invoice",
+  });
+
+  useEffect(() => {
+    if (invoice && shouldPrintInvoice && printInvoiceRef.current) {
+      const timeoutId = setTimeout(() => {
+        triggerPrintInvoice();
+        setShouldPrintInvoice(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [invoice, shouldPrintInvoice, triggerPrintInvoice]);
 
   if (!isOpen || !surgery) return null;
 
@@ -91,8 +110,8 @@ export function SurgeryInvoiceModal({
     );
   };
 
-  const handlePrintInvoice = (invId: string) => {
-    window.open(`/billing/invoice/${invId}`, "_blank");
+  const handlePrintInvoice = () => {
+    setShouldPrintInvoice(true);
   };
 
   return (
@@ -212,7 +231,7 @@ export function SurgeryInvoiceModal({
               <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"
-                  onClick={() => handlePrintInvoice(invoice.id)}
+                  onClick={handlePrintInvoice}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                 >
                   <Printer className="h-4 w-4" />
@@ -441,6 +460,19 @@ export function SurgeryInvoiceModal({
           )}
         </div>
       </div>
+
+      {/* Print Invoice (Hidden) */}
+      {invoice && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printInvoiceRef} className="print-content">
+            <InvoicePrint
+              invoice={invoice}
+              patientName={invoice.patient_name || surgery.patient_name || "Patient"}
+              patientMobile={invoice.patient_mobile || surgery.patient_mobile || undefined}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

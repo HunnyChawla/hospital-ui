@@ -1,5 +1,5 @@
 import { apiClient } from "./api";
-import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
+import { BodyPartSummary, CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
 
 export type SurgeryParams = {
     page?: number;
@@ -7,10 +7,33 @@ export type SurgeryParams = {
     search?: string;
     category?: string;
     is_active?: boolean;
+    body_part_id?: string;
 };
 
 export type PaginatedSurgeryResponse = {
     items: Surgery[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+};
+
+export type SurgeryPrescriptionOption = {
+    id: string;
+    name: string;
+    description: string | null;
+    category: string | null;
+    body_parts: BodyPartSummary[];
+};
+
+export type PrescriptionOptionsParams = {
+    page?: number;
+    page_size?: number;
+    search?: string;
+};
+
+export type PaginatedSurgeryPrescriptionOptionResponse = {
+    items: SurgeryPrescriptionOption[];
     total: number;
     page: number;
     page_size: number;
@@ -22,6 +45,16 @@ export const surgeriesApi = {
         const { data } = await apiClient.get<PaginatedSurgeryResponse>("/surgeries", {
             params,
         });
+        return data;
+    },
+
+    /** Metadata-light, searchable/paginated listing for the doctor/optometrist
+     * prescription panel - omits price/service_id/is_active/audit fields. */
+    listForPrescription: async (params?: PrescriptionOptionsParams) => {
+        const { data } = await apiClient.get<PaginatedSurgeryPrescriptionOptionResponse>(
+            "/surgeries/prescription-options",
+            { params }
+        );
         return data;
     },
 

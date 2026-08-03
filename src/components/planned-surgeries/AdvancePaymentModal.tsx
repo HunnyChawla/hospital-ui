@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, CreditCard, IndianRupee, Printer, CheckCircle2, History, Loader2, AlertCircle } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
 import { useCollectSurgeryAdvance, useSurgeryPayments, useSurgeryPaymentSummary } from "@/hooks/queries/useSurgeryBilling";
+import { SurgeryPaymentReceiptPrint } from "./SurgeryPaymentReceiptPrint";
 import type { PlannedSurgery } from "@/types";
 
 interface AdvancePaymentModalProps {
@@ -21,6 +23,23 @@ export function AdvancePaymentModal({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [lastPayment, setLastPayment] = useState<{ payment_number: string; payment_id: string; amount: number } | null>(null);
+  const [printPaymentId, setPrintPaymentId] = useState<string | null>(null);
+  const [shouldPrint, setShouldPrint] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+  const triggerPrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: printPaymentId ? `Receipt_${printPaymentId}` : "Payment Receipt",
+  });
+
+  useEffect(() => {
+    if (printPaymentId && shouldPrint && printRef.current) {
+      const timeoutId = setTimeout(() => {
+        triggerPrint();
+        setShouldPrint(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [printPaymentId, shouldPrint, triggerPrint]);
 
   const surgeryId = surgery?.id || null;
   const { data: payments = [], isLoading: isLoadingPayments } = useSurgeryPayments(surgeryId);
@@ -82,7 +101,7 @@ export function AdvancePaymentModal({
   };
 
   const handlePrintReceipt = (paymentId: string) => {
-    window.open(`/billing/receipt/${paymentId}`, "_blank");
+    setPrintPaymentId(paymentId);
   };
 
   return (
@@ -342,6 +361,18 @@ export function AdvancePaymentModal({
           </div>
         )}
       </div>
+
+      {/* Print Payment Receipt (Hidden) */}
+      {printPaymentId && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printRef} className="print-content">
+            <SurgeryPaymentReceiptPrint
+              paymentId={printPaymentId}
+              onReady={() => setShouldPrint(true)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
