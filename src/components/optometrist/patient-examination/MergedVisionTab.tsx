@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { toast } from "sonner";
 import clsx from "clsx";
-import { Save, Copy, RotateCcw, Import, FileClock } from "lucide-react";
+import { Save, Copy, RotateCcw, Import, FileClock, History } from "lucide-react";
 import { saveExamination } from "@/redux/optometryDataSlice";
 import { handleError, getFieldErrors } from "@/utils/errorHandler";
 import type {
@@ -13,6 +13,9 @@ import type {
   RefractionRecord,
   CurrentSpecsRecord,
 } from "@/types";
+import { VisionHistorySection } from "./VisionHistorySection";
+import { ARDataHistorySection } from "./ARDataHistorySection";
+import { RefractionHistorySection } from "./RefractionHistorySection";
 
 interface MergedVisionTabProps {
   patientId: string;
@@ -1603,6 +1606,31 @@ export function MergedVisionTab({
 
         {/* Left Eye (OS) Column */}
         {renderEyeColumn("Left Eye (OS)", "os_")}
+      </div>
+
+      {/* Patient Measurement History */}
+      <div className="mt-8 space-y-6">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+          <History className="h-5 w-5 text-slate-500" />
+          <h3 className="text-base font-bold text-slate-800">Patient Measurement History</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-6">
+          <VisionHistorySection
+            patientId={patientId}
+            currentVisitId={visitId}
+            initialExpanded={false}
+          />
+          <ARDataHistorySection
+            patientId={patientId}
+            currentVisitId={visitId}
+            initialExpanded={false}
+          />
+          <RefractionHistorySection
+            patientId={patientId}
+            currentVisitId={visitId}
+            initialExpanded={false}
+          />
+        </div>
       </div>
     </div>
   );

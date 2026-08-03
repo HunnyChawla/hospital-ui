@@ -18,6 +18,7 @@ interface RefractionHistoryItem {
         add_power: number | null;
         distance_bcva?: string | null;
         near_bcva?: string | null;
+        prism?: string | null;
     };
     os: {
         sphere: number | null;
@@ -26,6 +27,21 @@ interface RefractionHistoryItem {
         add_power: number | null;
         distance_bcva?: string | null;
         near_bcva?: string | null;
+        prism?: string | null;
+    };
+    od_dilated?: {
+        sphere: number | null;
+        cylinder: number | null;
+        axis: number | null;
+        visual_acuity?: string | null;
+        pinhole?: string | null;
+    };
+    os_dilated?: {
+        sphere: number | null;
+        cylinder: number | null;
+        axis: number | null;
+        visual_acuity?: string | null;
+        pinhole?: string | null;
     };
     pupillary_distance: number | null;
     notes?: string | null;
@@ -34,15 +50,17 @@ interface RefractionHistoryItem {
 interface RefractionHistorySectionProps {
     patientId: string;
     currentVisitId?: string;
+    initialExpanded?: boolean;
 }
 
 export function RefractionHistorySection({
     patientId,
     currentVisitId,
+    initialExpanded = true,
 }: RefractionHistorySectionProps) {
     const [loading, setLoading] = useState(true);
     const [historyRecords, setHistoryRecords] = useState<RefractionHistoryItem[]>([]);
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(initialExpanded);
     const [error, setError] = useState<string | null>(null);
 
     // Format refraction values for display
@@ -84,6 +102,7 @@ export function RefractionHistorySection({
                 add_power: hasNested ? toNumberOrNull(record.od.add_power) : toNumberOrNull(record.od_add_power),
                 distance_bcva: hasNested ? record.od.distance_bcva : record.od_distance_bcva,
                 near_bcva: hasNested ? record.od.near_bcva : record.od_near_bcva,
+                prism: record.od_prism || null,
             },
             os: {
                 sphere: hasNested ? toNumberOrNull(record.os.sphere) : toNumberOrNull(record.os_sphere),
@@ -92,10 +111,23 @@ export function RefractionHistorySection({
                 add_power: hasNested ? toNumberOrNull(record.os.add_power) : toNumberOrNull(record.os_add_power),
                 distance_bcva: hasNested ? record.os.distance_bcva : record.os_distance_bcva,
                 near_bcva: hasNested ? record.os.near_bcva : record.os_near_bcva,
+                prism: record.os_prism || null,
             },
-            pupillary_distance: hasNested
-                ? toNumberOrNull(record.pupillary_distance)
-                : toNumberOrNull(record.pupillary_distance),
+            od_dilated: {
+                sphere: toNumberOrNull(record.od_dilated_sphere),
+                cylinder: toNumberOrNull(record.od_dilated_cylinder),
+                axis: toNumberOrNull(record.od_dilated_axis),
+                visual_acuity: record.od_dilated_visual_acuity || null,
+                pinhole: record.od_dilated_pinhole || null,
+            },
+            os_dilated: {
+                sphere: toNumberOrNull(record.os_dilated_sphere),
+                cylinder: toNumberOrNull(record.os_dilated_cylinder),
+                axis: toNumberOrNull(record.os_dilated_axis),
+                visual_acuity: record.os_dilated_visual_acuity || null,
+                pinhole: record.os_dilated_pinhole || null,
+            },
+            pupillary_distance: toNumberOrNull(record.pupillary_distance),
             notes: record.notes,
         };
     };
@@ -256,98 +288,186 @@ export function RefractionHistorySection({
 
                                     {/* Values Grid */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        {/* OD Column */}
-                                        <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3">
-                                            <div className="flex items-center gap-1.5 mb-2">
-                                                <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                                <span className="text-xs font-semibold text-blue-900">
-                                                    OD (Right)
-                                                </span>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-1 text-center border-b border-blue-100 pb-2 mb-2">
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">SPH</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.sphere, "sphere")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">CYL</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.cylinder, "cylinder")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">AXIS</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.axis, "axis")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">ADD</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.add_power, "add")}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 text-center">
-                                                <div>
-                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Dist BCVA</p>
-                                                    <p className="text-xs font-medium text-slate-700">{record.od.distance_bcva || "—"}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Near BCVA</p>
-                                                    <p className="text-xs font-medium text-slate-700">{record.od.near_bcva || "—"}</p>
-                                                </div>
-                                            </div>
-                                        </div>
+                                         {/* OD Column */}
+                                         <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 flex flex-col gap-3">
+                                             <div className="flex items-center gap-1.5 pb-1 border-b border-blue-100/50">
+                                                 <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                                 <span className="text-xs font-bold text-blue-900">
+                                                     OD (Right Eye)
+                                                 </span>
+                                             </div>
+                                             
+                                             {/* Subjective Refraction */}
+                                             <div>
+                                                 <p className="text-[9px] font-bold uppercase text-blue-800/80 tracking-wider mb-1">Subjective Refraction</p>
+                                                 <div className="grid grid-cols-4 gap-1 text-center bg-white/50 rounded p-1 border border-blue-100/30 mb-1.5">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od.sphere, "sphere")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od.cylinder, "cylinder")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od.axis, "axis")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">ADD</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od.add_power, "add")}
+                                                         </p>
+                                                     </div>
+                                                 </div>
+                                                 <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-blue-100/30">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Dist BCVA</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.od.distance_bcva || "—"}</p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Near BCVA</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.od.near_bcva || "—"}</p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Prism</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.od.prism || "—"}</p>
+                                                     </div>
+                                                 </div>
+                                             </div>
 
-                                        {/* OS Column */}
-                                        <div className="rounded-lg border border-green-200 bg-green-50/70 p-3">
-                                            <div className="flex items-center gap-1.5 mb-2">
-                                                <div className="h-2 w-2 rounded-full bg-green-500" />
-                                                <span className="text-xs font-semibold text-green-900">
-                                                    OS (Left)
-                                                </span>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-1 text-center border-b border-green-100 pb-2 mb-2">
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">SPH</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.sphere, "sphere")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">CYL</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.cylinder, "cylinder")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">AXIS</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.axis, "axis")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">ADD</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.add_power, "add")}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 text-center">
-                                                <div>
-                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Dist BCVA</p>
-                                                    <p className="text-xs font-medium text-slate-700">{record.os.distance_bcva || "—"}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] uppercase text-slate-400 font-semibold">Near BCVA</p>
-                                                    <p className="text-xs font-medium text-slate-700">{record.os.near_bcva || "—"}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                             {/* Dilated Acceptance */}
+                                             <div>
+                                                 <p className="text-[9px] font-bold uppercase text-blue-800/80 tracking-wider mb-1">Dilated Acceptance</p>
+                                                 <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-blue-100/30 mb-1.5">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od_dilated?.sphere, "sphere")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od_dilated?.cylinder, "cylinder")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.od_dilated?.axis, "axis")}
+                                                         </p>
+                                                     </div>
+                                                 </div>
+                                                 <div className="grid grid-cols-2 gap-1 text-center bg-white/50 rounded p-1 border border-blue-100/30">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">VA</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.od_dilated?.visual_acuity || "—"}</p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Pinhole</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.od_dilated?.pinhole || "—"}</p>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+
+                                         {/* OS Column */}
+                                         <div className="rounded-lg border border-green-200 bg-green-50/70 p-3 flex flex-col gap-3">
+                                             <div className="flex items-center gap-1.5 pb-1 border-b border-green-100/50">
+                                                 <div className="h-2 w-2 rounded-full bg-green-500" />
+                                                 <span className="text-xs font-bold text-green-900">
+                                                     OS (Left Eye)
+                                                 </span>
+                                             </div>
+                                             
+                                             {/* Subjective Refraction */}
+                                             <div>
+                                                 <p className="text-[9px] font-bold uppercase text-green-800/80 tracking-wider mb-1">Subjective Refraction</p>
+                                                 <div className="grid grid-cols-4 gap-1 text-center bg-white/50 rounded p-1 border border-green-100/30 mb-1.5">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os.sphere, "sphere")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os.cylinder, "cylinder")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os.axis, "axis")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">ADD</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os.add_power, "add")}
+                                                         </p>
+                                                     </div>
+                                                 </div>
+                                                 <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-green-100/30">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Dist BCVA</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.os.distance_bcva || "—"}</p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Near BCVA</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.os.near_bcva || "—"}</p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Prism</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.os.prism || "—"}</p>
+                                                     </div>
+                                                 </div>
+                                             </div>
+
+                                             {/* Dilated Acceptance */}
+                                             <div>
+                                                 <p className="text-[9px] font-bold uppercase text-green-800/80 tracking-wider mb-1">Dilated Acceptance</p>
+                                                 <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-green-100/30 mb-1.5">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os_dilated?.sphere, "sphere")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os_dilated?.cylinder, "cylinder")}
+                                                         </p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                         <p className="text-xs font-bold text-slate-800">
+                                                             {formatValue(record.os_dilated?.axis, "axis")}
+                                                         </p>
+                                                     </div>
+                                                 </div>
+                                                 <div className="grid grid-cols-2 gap-1 text-center bg-white/50 rounded p-1 border border-green-100/30">
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">VA</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.os_dilated?.visual_acuity || "—"}</p>
+                                                     </div>
+                                                     <div>
+                                                         <p className="text-[9px] text-slate-400 font-semibold">Pinhole</p>
+                                                         <p className="text-xs font-medium text-slate-700">{record.os_dilated?.pinhole || "—"}</p>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
 
                                     {/* PD and Notes */}
                                     {(record.pupillary_distance || record.notes) && (
