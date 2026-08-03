@@ -20,6 +20,7 @@ export function SurgeryFormModal({
     const [category, setCategory] = useState("");
     const [description, setDescription] = useState("");
     const [isActive, setIsActive] = useState(true);
+    const [isEyeSurgery, setIsEyeSurgery] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -28,11 +29,13 @@ export function SurgeryFormModal({
             setCategory(initialData.category || "");
             setDescription(initialData.description || "");
             setIsActive(initialData.is_active);
+            setIsEyeSurgery(initialData.is_eye_surgery ?? true);
         } else {
             setName("");
             setCategory("");
             setDescription("");
             setIsActive(true);
+            setIsEyeSurgery(true);
         }
     }, [initialData, isOpen]);
 
@@ -45,6 +48,7 @@ export function SurgeryFormModal({
                 category: category || null,
                 description: description || null,
                 is_active: isActive,
+                is_eye_surgery: isEyeSurgery,
             });
             onClose();
         } catch (error) {
@@ -158,6 +162,30 @@ export function SurgeryFormModal({
                                                     onChange={(e) => setDescription(e.target.value)}
                                                 />
                                             </div>
+                                        </div>
+
+                                         {/* Eye Surgery Toggle */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="flex flex-grow flex-col">
+                                                <span className="text-sm font-medium leading-6 text-slate-900">
+                                                    Eye Surgery
+                                                </span>
+                                                <span className="text-sm text-slate-500">
+                                                    Enable if this surgery is eye specific (requires eye selection)
+                                                </span>
+                                            </span>
+                                            <Switch
+                                                checked={isEyeSurgery}
+                                                onChange={setIsEyeSurgery}
+                                                className={`${isEyeSurgery ? "bg-sky-600" : "bg-slate-200"
+                                                    } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2`}
+                                            >
+                                                <span
+                                                    aria-hidden="true"
+                                                    className={`${isEyeSurgery ? "translate-x-5" : "translate-x-0"
+                                                        } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                                                />
+                                            </Switch>
                                         </div>
 
                                         {/* Active Status */}

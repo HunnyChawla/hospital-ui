@@ -69,7 +69,7 @@ export function PlannedSurgerySection({
         const loadPlannedSurgeries = async () => {
             setLoadingPlanned(true);
             try {
-                const response = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+                const response = await plannedSurgeriesApi.list({ visit_id: visitId });
                 setPlannedSurgeries(response.items);
             } catch (error) {
                 // API might not exist yet - silently fail
@@ -205,12 +205,12 @@ export function PlannedSurgerySection({
                                             <div>
                                                 <p className="text-sm font-medium text-slate-900">{surgery.surgery_name}</p>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className={clsx(
-                                                        "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border",
-                                                        getEyeBadgeColor(surgery.eye)
-                                                    )}>
-                                                        {surgery.eye}
-                                                    </span>
+                                                     <span className={clsx(
+                                                         "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border",
+                                                         getEyeBadgeColor(surgery.eye || "")
+                                                     )}>
+                                                         {surgery.eye || "-"}
+                                                     </span>
                                                     <span className="text-xs text-slate-500 flex items-center gap-1">
                                                         <Calendar className="h-3 w-3" />
                                                         {surgery.planned_date
