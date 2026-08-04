@@ -331,6 +331,10 @@ export function BillingManagement({
         sort_by: sortColumn,
         sort_order: sortDirection,
         feed_scope: feedScope,
+        // Table view wants exactly page_size rows per page; card view wants
+        // the invoice grain (full payment history on expand) - see
+        // PaymentService._list_flattened_transactions.
+        flatten: viewMode === "table",
         tenant_id: getTenantIdForApi(tenantId),
       });
       setTransactions(response.items);
@@ -341,7 +345,7 @@ export function BillingManagement({
     } finally {
       setTransactionsLoading(false);
     }
-  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange, sortColumn, sortDirection, feedScope]);
+  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange, sortColumn, sortDirection, feedScope, viewMode]);
 
   useEffect(() => {
     fetchTransactions();
@@ -351,10 +355,10 @@ export function BillingManagement({
     fetchStats();
   }, [fetchStats]);
 
-  // Reset page when filters or sorting change
+  // Reset page when filters, sorting, or scope/view mode change
   useEffect(() => {
     setTransactionsPage(1);
-  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter, sortColumn, sortDirection, feedScope]);
+  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter, sortColumn, sortDirection, feedScope, viewMode]);
 
   const handlePatientSelect = useCallback((patient: any) => {
     setSelectedPatientId(patient.id);

@@ -134,6 +134,15 @@ export interface BillingTransactionsSearchParams {
   sort_by?: string;
   sort_order?: "asc" | "desc";
   feed_scope?: BillingFeedScope;
+  /**
+   * Combined/invoice scopes only: paginate at the row grain (one row per
+   * date-matching payment, or a placeholder for an invoice with none in
+   * range) instead of the invoice grain, so exactly page_size rows come
+   * back per page - table view wants this, card view doesn't (it shows an
+   * invoice's full payment history on expand, which the flattened feed
+   * can't represent). Ignored for "payment" scope, already row-grain.
+   */
+  flatten?: boolean;
   tenant_id?: string;
 }
 
@@ -279,6 +288,7 @@ export const paymentsApi = {
     if (params?.sort_by) queryParams.append("sort_by", params.sort_by);
     if (params?.sort_order) queryParams.append("sort_order", params.sort_order);
     if (params?.feed_scope) queryParams.append("feed_scope", params.feed_scope);
+    if (params?.flatten) queryParams.append("flatten", "true");
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 
