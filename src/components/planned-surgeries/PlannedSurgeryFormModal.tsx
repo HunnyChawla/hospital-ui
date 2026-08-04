@@ -331,6 +331,7 @@ export function PlannedSurgeryFormModal({
                     notes: notes || null,
                     package_id: selectedPackageId,
                     package_price: selectedPackageId ? netAgreedPrice : undefined,
+                    original_package_price: selectedPackageId ? activeBasePrice : undefined,
                     advance_payment_amount: numAdvance,
                     advance_payment_method: numAdvance ? paymentMethod : null,
                     advance_payment_reference: numAdvance ? paymentReference || null : null,
@@ -356,6 +357,7 @@ export function PlannedSurgeryFormModal({
                     notes: notes ? `${notes} (${first.name})` : first.name,
                     package_id: selectedPackageId,
                     package_price: selectedPackageId ? netAgreedPrice : undefined,
+                    original_package_price: selectedPackageId ? activeBasePrice : undefined,
                     advance_payment_amount: numAdvance,
                     advance_payment_method: numAdvance ? paymentMethod : null,
                     advance_payment_reference: numAdvance ? paymentReference || null : null,
@@ -374,6 +376,7 @@ export function PlannedSurgeryFormModal({
                     notes: notes ? `${notes} (${second.name})` : second.name,
                     package_id: selectedPackageId,
                     package_price: selectedPackageId ? netAgreedPrice : undefined,
+                    original_package_price: selectedPackageId ? activeBasePrice : undefined,
                 };
 
                 await plannedSurgeriesApi.create(firstPayload);
@@ -392,6 +395,7 @@ export function PlannedSurgeryFormModal({
                     notes: notes || null,
                     package_id: selectedPackageId,
                     package_price: selectedPackageId ? netAgreedPrice : undefined,
+                    original_package_price: selectedPackageId ? activeBasePrice : undefined,
                     advance_payment_amount: numAdvance,
                     advance_payment_method: numAdvance ? paymentMethod : null,
                     advance_payment_reference: numAdvance ? paymentReference || null : null,

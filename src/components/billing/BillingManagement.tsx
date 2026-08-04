@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi } from "@/services/paymentsApi";
+import { paymentsApi, BillingTransactionRow, PaymentMethod, PaymentMethodBreakdown, BillingStatsResponse, Payment } from "@/services/paymentsApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate } from "@/utils/format";
@@ -12,30 +12,31 @@ import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { InvoiceCreateModal } from "@/components/invoices/InvoiceCreateModal";
 import { Modal } from "@/components/common/Modal";
+import { Pagination } from "@/components/common/Pagination";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
-import { PaymentReportModal } from "@/components/payments/PaymentReportModal";
+import { BillingTransactionsPrint } from "@/components/billing/BillingTransactionsPrint";
 import { useReactToPrint } from "react-to-print";
-import { useRef } from "react";
 import {
   Search,
   User,
   Printer,
-  ChevronLeft,
-  ChevronRight,
   X,
   CreditCard,
   Receipt,
   Clock,
-  TrendingUp,
   DollarSign,
   FileText,
   AlertCircle,
   Calendar,
-  Filter,
   Download,
   Eye,
   PlusCircle,
-  BarChart3,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  FileWarning,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
 
@@ -64,33 +65,62 @@ export function BillingManagement({
   const [customEndDate, setCustomEndDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Invoices state
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [invoicesLoading, setInvoicesLoading] = useState(false);
-  const [invoicesPage, setInvoicesPage] = useState(1);
-  const [invoicesPageSize] = useState(10);
-  const [invoicesTotalPages, setInvoicesTotalPages] = useState(1);
-  const [invoicesTotal, setInvoicesTotal] = useState(0);
+  // Payment method filter (combined list only - narrows to invoices/payments using this method)
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<"all" | PaymentMethod>("all");
+
+  // Card vs table view - persisted so the user's preferred view sticks across visits
+  const [viewMode, setViewMode] = useState<"card" | "table">(() =>
+    typeof window !== "undefined" && localStorage.getItem("billing_transactions_view") === "table"
+      ? "table"
+      : "card"
+  );
+  const handleViewModeChange = (mode: "card" | "table") => {
+    setViewMode(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("billing_transactions_view", mode);
+    }
+  };
+
+  // Combined invoice+payment transactions state
+  const [transactions, setTransactions] = useState<BillingTransactionRow[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [transactionsPageSize] = useState(10);
+  const [transactionsTotal, setTransactionsTotal] = useState(0);
+  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(new Set());
+
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoicePayments, setSelectedInvoicePayments] = useState<Payment[]>([]);
   const [showInvoiceDetail, setShowInvoiceDetail] = useState(false);
 
-  // Stats state
+  // Stats state - sourced from the dedicated GET /payments/stats endpoint
   const [stats, setStats] = useState({
     totalRevenue: 0,
     pendingAmount: 0,
     paidAmount: 0,
     totalInvoices: 0,
   });
+  const [byPaymentMethod, setByPaymentMethod] = useState<PaymentMethodBreakdown[]>([]);
 
   // Payment collection state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+  const [collectingPaymentForId, setCollectingPaymentForId] = useState<string | null>(null);
 
   // Invoice creation state
   const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
 
-  // Payment report state
-  const [showPaymentReportModal, setShowPaymentReportModal] = useState(false);
+  // Refresh / export state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+  const [printReportData, setPrintReportData] = useState<{
+    items: BillingTransactionRow[];
+    total: number;
+    startDate?: string;
+    endDate?: string;
+    stats: BillingStatsResponse;
+  } | null>(null);
 
   // Print state
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
@@ -99,6 +129,7 @@ export function BillingManagement({
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
+  const printReportRef = useRef<HTMLDivElement>(null);
 
   const handlePrintInvoice = useReactToPrint({
     contentRef: printInvoiceRef,
@@ -108,6 +139,11 @@ export function BillingManagement({
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
     documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
+  });
+
+  const handlePrintReport = useReactToPrint({
+    contentRef: printReportRef,
+    documentTitle: `Billing_Transactions_${new Date().toISOString().split("T")[0]}`,
   });
 
   useEffect(() => {
@@ -129,6 +165,16 @@ export function BillingManagement({
       return () => clearTimeout(timeoutId);
     }
   }, [shouldPrintPayment, handlePrintPayment]);
+
+  useEffect(() => {
+    if (printReportData && printReportRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintReport();
+        setPrintReportData(null);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [printReportData, handlePrintReport]);
 
   // Calculate date range based on filter
   const getDateRange = useCallback(() => {
@@ -199,66 +245,73 @@ export function BillingManagement({
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  // Fetch invoices
-  const fetchInvoices = useCallback(async () => {
-    setInvoicesLoading(true);
+  // Fetch dashboard stats from the dedicated Billing stats endpoint - deliberately
+  // scoped to date range + patient only (not statusFilter/paymentMethodFilter),
+  // so these numbers stay stable while the transaction list below is narrowed.
+  const fetchStats = useCallback(async () => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const { start_date, end_date } = getDateRange();
 
-      const response = await invoicesApi.list({
-        page: invoicesPage,
-        page_size: invoicesPageSize,
+      const response = await paymentsApi.getBillingStats({
         patient_id: selectedPatientId || undefined,
+        start_date,
+        end_date,
+        tenant_id: getTenantIdForApi(tenantId) || undefined,
+      });
+
+      setStats({
+        totalRevenue: response.total_revenue,
+        pendingAmount: response.total_pending,
+        paidAmount: response.total_paid,
+        totalInvoices: response.total_invoices,
+      });
+      setByPaymentMethod(response.by_payment_method);
+    } catch (error) {
+      // Stats are secondary to the transactions list - fail quietly, don't block the screen.
+      console.error("Failed to fetch billing stats:", error);
+    }
+  }, [selectedPatientId, getDateRange]);
+
+  // Fetch the combined invoice+payment transactions feed
+  const fetchTransactions = useCallback(async () => {
+    setTransactionsLoading(true);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const { start_date, end_date } = getDateRange();
+
+      const response = await paymentsApi.listTransactions({
+        page: transactionsPage,
+        page_size: transactionsPageSize,
+        patient_id: selectedPatientId || undefined,
+        payment_method: paymentMethodFilter === "all" ? undefined : paymentMethodFilter,
         status: statusFilter === "all" ? undefined : statusFilter,
         start_date,
         end_date,
         tenant_id: getTenantIdForApi(tenantId),
       });
-      setInvoices(response.items);
-      setInvoicesTotalPages(response.total_pages);
-      setInvoicesTotal(response.total);
-
-      // Use server-side DB summary metrics if available, fallback to page sum
-      if (response.summary) {
-        setStats({
-          totalRevenue: response.summary.total_revenue,
-          pendingAmount: response.summary.total_pending,
-          paidAmount: response.summary.total_paid,
-          totalInvoices: response.summary.total_invoices,
-        });
-      } else {
-        const totalRevenue = response.items
-          .filter(inv => inv.status !== "refunded" && inv.status !== "cancelled")
-          .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-        const paidAmount = response.items.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
-        const pendingAmount = response.items
-          .filter(inv => inv.status === "pending" || inv.status === "partial")
-          .reduce((sum, inv) => sum + (inv.balance_amount || inv.total_amount || 0), 0);
-
-        setStats({
-          totalRevenue,
-          pendingAmount,
-          paidAmount,
-          totalInvoices: response.total,
-        });
-      }
+      setTransactions(response.items);
+      setTransactionsTotal(response.total);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to fetch invoices");
+      toast.error(errorMessage || "Failed to fetch billing transactions");
     } finally {
-      setInvoicesLoading(false);
+      setTransactionsLoading(false);
     }
-  }, [selectedPatientId, invoicesPage, invoicesPageSize, statusFilter, getDateRange]);
+  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange]);
 
   useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+    fetchTransactions();
+  }, [fetchTransactions]);
 
-  // Reset page when filter changes
   useEffect(() => {
-    setInvoicesPage(1);
-  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate]);
+    fetchStats();
+  }, [fetchStats]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setTransactionsPage(1);
+  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter]);
 
   const handlePatientSelect = useCallback((patient: any) => {
     setSelectedPatientId(patient.id);
@@ -272,24 +325,54 @@ export function BillingManagement({
     setSearchTerm("");
     setShowDropdown(false);
     setSearchResults([]);
-    setInvoicesPage(1);
+    setTransactionsPage(1);
   }, []);
 
-  const handleCollectPaymentClick = (e: React.MouseEvent, invoice: Invoice) => {
+  const toggleExpand = (id: string) => {
+    setExpandedInvoiceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleCollectPaymentClick = async (e: React.MouseEvent, txn: BillingTransactionRow) => {
     e.stopPropagation();
-    setSelectedInvoiceForPayment(invoice);
-    setShowPaymentModal(true);
+    if (txn.row_type !== "invoice") return;
+
+    setCollectingPaymentForId(txn.id);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const invoice = await invoicesApi.getById(txn.id, getTenantIdForApi(tenantId));
+      setSelectedInvoiceForPayment(invoice);
+      setShowPaymentModal(true);
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to load invoice for payment");
+    } finally {
+      setCollectingPaymentForId(null);
+    }
   };
 
   const handlePaymentSuccess = () => {
-    fetchInvoices();
+    fetchTransactions();
+    fetchStats();
   };
 
   const handleInvoiceClick = async (invoiceId: string) => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const invoice = await invoicesApi.getById(invoiceId, getTenantIdForApi(tenantId));
+      const apiTenantId = getTenantIdForApi(tenantId);
+      const [invoice, payments] = await Promise.all([
+        invoicesApi.getById(invoiceId, apiTenantId),
+        paymentsApi.getByInvoiceId(invoiceId, apiTenantId),
+      ]);
       setSelectedInvoice(invoice);
+      setSelectedInvoicePayments(payments);
       setShowInvoiceDetail(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
@@ -297,10 +380,10 @@ export function BillingManagement({
     }
   };
 
-  const handlePrintInvoiceClick = async (invoice: Invoice) => {
+  const handlePrintInvoiceClick = async (invoiceId: string) => {
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const fullInvoice = await invoicesApi.getById(invoice.id, getTenantIdForApi(tenantId));
+      const fullInvoice = await invoicesApi.getById(invoiceId, getTenantIdForApi(tenantId));
 
       let patientName = fullInvoice.patient_name || "Unknown";
       let patientMobile = fullInvoice.patient_mobile;
@@ -323,18 +406,95 @@ export function BillingManagement({
     }
   };
 
-  const handlePrintPaymentReceiptClick = async (invoice: Invoice) => {
-    if (!invoice.id) {
+  const handlePrintPaymentReceiptClick = async (invoiceId: string) => {
+    if (!invoiceId) {
       toast.error("Invoice ID not available");
       return;
     }
 
     try {
-      setPrintPaymentInvoiceId(invoice.id);
+      setPrintPaymentInvoiceId(invoiceId);
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage || "Failed to prepare payment receipt for printing");
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchTransactions(), fetchStats()]);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setIsExportingCsv(true);
+    try {
+      const { start_date, end_date } = getDateRange();
+      const blob = await paymentsApi.exportTransactionsCsv({
+        patient_id: selectedPatientId || undefined,
+        payment_method: paymentMethodFilter === "all" ? undefined : paymentMethodFilter,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        start_date,
+        end_date,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `billing_transactions_${start_date || "all"}_to_${end_date || "all"}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Billing transactions exported successfully");
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to export billing transactions");
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
+  const handlePrintPdfClick = async () => {
+    setIsPreparingPrint(true);
+    try {
+      const { start_date, end_date } = getDateRange();
+      const [response, printStats] = await Promise.all([
+        paymentsApi.listTransactions({
+          page: 1,
+          page_size: 1000,
+          patient_id: selectedPatientId || undefined,
+          payment_method: paymentMethodFilter === "all" ? undefined : paymentMethodFilter,
+          status: statusFilter === "all" ? undefined : statusFilter,
+          start_date,
+          end_date,
+        }),
+        paymentsApi.getBillingStats({
+          patient_id: selectedPatientId || undefined,
+          start_date,
+          end_date,
+        }),
+      ]);
+      if (response.total > response.items.length) {
+        toast.warning(
+          `Printed report shows the first ${response.items.length} of ${response.total} matching rows. Use "Export CSV" to get the complete data set.`
+        );
+      }
+      setPrintReportData({
+        items: response.items,
+        total: response.total,
+        startDate: start_date,
+        endDate: end_date,
+        stats: printStats,
+      });
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || "Failed to prepare report for printing");
+    } finally {
+      setIsPreparingPrint(false);
     }
   };
 
@@ -370,22 +530,6 @@ export function BillingManagement({
         return <FileText className="h-3.5 w-3.5" />;
     }
   };
-
-  const calculateDaysSince = (invoiceDate: string) => {
-    if (!invoiceDate) return "N/A";
-    const date = new Date(invoiceDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    const diffTime = Math.abs(today.getTime() - date.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "1 day ago";
-    return `${diffDays} days ago`;
-  };
-
-  const selectedPatient = searchResults.find((p) => p.id === selectedPatientId) ||
-    (searchTerm && selectedPatientId ? { name: searchTerm } : null);
 
   // Search box component
   const searchBox = useMemo(() => (
@@ -471,6 +615,31 @@ export function BillingManagement({
     </div>
   ), [statusFilter, onStatusFilterChange]);
 
+  // Payment method filter toggle component
+  const paymentMethodToggle = useMemo(() => (
+    <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Method</span>
+      {[
+        { value: "all", label: "All" },
+        { value: "cash", label: "Cash" },
+        { value: "upi", label: "UPI" },
+        { value: "card", label: "Card" },
+        { value: "cheque", label: "Cheque" },
+      ].map((filter) => (
+        <button
+          key={filter.value}
+          onClick={() => setPaymentMethodFilter(filter.value as any)}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${paymentMethodFilter === filter.value
+            ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-sm"
+            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+        >
+          {filter.label}
+        </button>
+      ))}
+    </div>
+  ), [paymentMethodFilter]);
+
   useEffect(() => {
     if (renderSearchInHeader) {
       renderSearchInHeader(searchBox);
@@ -482,6 +651,381 @@ export function BillingManagement({
       renderFilterInHeader(filterToggle);
     }
   }, [renderFilterInHeader, filterToggle]);
+
+  // Render one "invoice" row - status, amount (original vs agreed if discounted), and its
+  // nested payments (expandable). Collect Payment shows for pending AND partial invoices.
+  const renderInvoiceRow = (txn: BillingTransactionRow) => {
+    const isExpanded = expandedInvoiceIds.has(txn.id);
+    const hasPayments = txn.payments.length > 0;
+    const balance = (txn.total_amount || 0) - (txn.paid_amount || 0);
+    const canCollect = txn.invoice_status === "pending" || txn.invoice_status === "partial";
+
+    // Original vs agreed price: a generic invoice discount shows via `discount`;
+    // an OPD fee override or lab test price override shows via `original_amount`
+    // (the override was baked into the line-item price, so `discount` stays 0).
+    const hasDiscount = (txn.discount || 0) > 0;
+    const originalAmount = hasDiscount ? txn.subtotal : txn.original_amount;
+    const showOriginal = originalAmount != null && originalAmount !== (txn.total_amount || 0);
+    const displayDiscount = hasDiscount ? (txn.discount || 0) : (originalAmount || 0) - (txn.total_amount || 0);
+
+    // Received/Refunded/Actual breakdown - derived from this invoice's own
+    // payments (already on the wire, no extra fetch needed). `actual` should
+    // equal `txn.paid_amount`, which is already net of refunds.
+    const receivedGross = txn.payments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+    const refundedAmt = txn.payments.filter((p) => p.status === "refunded").reduce((s, p) => s + Math.abs(p.amount), 0);
+    const hasRefund = refundedAmt > 0;
+
+    return (
+      <div
+        key={txn.id}
+        className="group relative rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:border-sky-300 hover:shadow-md"
+      >
+        <div className="cursor-pointer p-4" onClick={() => handleInvoiceClick(txn.id)}>
+          {/* Top Section */}
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${getStatusColor(txn.invoice_status || "")}`}>
+                  {getStatusIcon(txn.invoice_status || "")}
+                  <span className="capitalize">{txn.invoice_status}</span>
+                </span>
+                <span className="text-sm font-bold text-slate-900">#{txn.invoice_number}</span>
+              </div>
+
+              {txn.patient_name && (
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-slate-400" />
+                  <span className="font-semibold text-slate-700">{txn.patient_name}</span>
+                  {txn.patient_mobile && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-500">{txn.patient_mobile}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Amount Breakdown - Total, Received, Pending together, with original-vs-agreed on top when applicable */}
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white px-4 py-2.5 text-right min-w-[150px]">
+              {showOriginal && (
+                <div className="mb-1.5 flex items-center justify-end gap-2 border-b border-slate-200 pb-1.5">
+                  <span className="text-[11px] text-slate-400 line-through">{currency(originalAmount || 0)}</span>
+                  <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                    {hasDiscount ? `-${currency(displayDiscount)}` : "Overridden"}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-medium text-slate-500">Total</span>
+                <span className="text-sm font-bold text-slate-900">{currency(txn.total_amount || 0)}</span>
+              </div>
+              {hasRefund ? (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-medium text-emerald-600">Received</span>
+                    <span className="text-sm font-bold text-emerald-700">{currency(receivedGross)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-medium text-rose-500">Refunded</span>
+                    <span className="text-sm font-bold text-rose-600">{currency(refundedAmt)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-1">
+                    <span className="text-[11px] font-medium text-slate-600">Actual</span>
+                    <span className="text-sm font-bold text-slate-900">{currency(receivedGross - refundedAmt)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-medium text-emerald-600">Received</span>
+                  <span className="text-sm font-bold text-emerald-700">{currency(txn.paid_amount || 0)}</span>
+                </div>
+              )}
+              {balance > 0 && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-medium text-amber-600">Pending</span>
+                  <span className="text-sm font-bold text-amber-700">{currency(balance)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Section */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatDate(txn.row_date)}
+              </span>
+              {hasPayments && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(txn.id);
+                  }}
+                  className="flex items-center gap-1 font-semibold text-sky-600 hover:text-sky-800"
+                >
+                  {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  {txn.payments.length} payment{txn.payments.length > 1 ? "s" : ""}
+                </button>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {canCollect && (
+                <button
+                  onClick={(e) => handleCollectPaymentClick(e, txn)}
+                  disabled={collectingPaymentForId === txn.id}
+                  className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
+                  title="Collect Payment"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  <span>{collectingPaymentForId === txn.id ? "Loading..." : "Collect"}</span>
+                </button>
+              )}
+              {(txn.paid_amount || 0) > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrintPaymentReceiptClick(txn.id);
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow"
+                  title="Print Receipt"
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                  <span>Receipt</span>
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrintInvoiceClick(txn.id);
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
+                title="Print Invoice"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>Print</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInvoiceClick(txn.id);
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300"
+                title="View Details"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span>View</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Nested payments */}
+        {isExpanded && hasPayments && (
+          <div className="rounded-b-xl border-t border-slate-100 bg-slate-50/60 px-4 py-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Payments against this invoice
+            </p>
+            <div className="space-y-1.5">
+              {txn.payments.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-mono font-semibold text-slate-700">{p.payment_number}</span>
+                    <span className="text-slate-500">{formatDate(p.payment_date)}</span>
+                    <span className="font-semibold uppercase text-sky-700">{p.payment_method}</span>
+                    {p.payment_reference && <span className="text-slate-400">Ref: {p.payment_reference}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">{currency(p.amount)}</span>
+                    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(p.status)}`}>
+                      {p.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render a "payment" row: a payment with no invoice at all (e.g. a surgery advance).
+  const renderPaymentOnlyRow = (txn: BillingTransactionRow) => {
+    const payment = txn.payment;
+    return (
+      <div
+        key={txn.id}
+        className="rounded-xl border border-dashed border-amber-300 bg-amber-50/40 p-4 shadow-sm"
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {payment && (
+                <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${getStatusColor(payment.status)}`}>
+                  {getStatusIcon(payment.status)}
+                  <span className="capitalize">{payment.status}</span>
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                <FileWarning className="h-3.5 w-3.5" />
+                Invoice not available
+              </span>
+            </div>
+
+            {txn.patient_name && (
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4 text-slate-400" />
+                <span className="font-semibold text-slate-700">{txn.patient_name}</span>
+                {txn.patient_mobile && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-500">{txn.patient_mobile}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
+            <p className="text-xs font-medium text-slate-500">Amount Collected</p>
+            <p className="text-lg font-bold text-amber-700">{currency(payment?.amount || 0)}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatDate(txn.row_date)}
+          </span>
+          {payment && (
+            <>
+              <span className="font-mono">{payment.payment_number}</span>
+              <span className="font-semibold uppercase text-sky-700">{payment.payment_method}</span>
+              {payment.payment_reference && <span>Ref: {payment.payment_reference}</span>}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Table view - flattened, one row per payment (matching the CSV export's
+  // shape). Actions render once per invoice, on its first payment row.
+  const renderInvoiceTableRows = (txn: BillingTransactionRow) => {
+    const balance = (txn.total_amount || 0) - (txn.paid_amount || 0);
+    const canCollect = txn.invoice_status === "pending" || txn.invoice_status === "partial";
+    const rows = txn.payments.length > 0 ? txn.payments : [null];
+
+    return rows.map((p, idx) => (
+      <tr key={p ? p.id : `${txn.id}-empty`} className="hover:bg-slate-50/50">
+        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(txn.row_date)}</td>
+        <td className="whitespace-nowrap px-3 py-2.5">
+          <button
+            onClick={() => handleInvoiceClick(txn.id)}
+            className="font-semibold text-sky-700 hover:underline"
+          >
+            #{txn.invoice_number}
+          </button>
+        </td>
+        <td className="px-3 py-2.5 text-slate-700">{txn.patient_name || "-"}</td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-slate-900">
+          {currency(txn.total_amount || 0)}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-emerald-700">
+          {currency(txn.paid_amount || 0)}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
+          {balance > 0 ? currency(balance) : "-"}
+        </td>
+        <td className="px-3 py-2.5 text-center uppercase text-slate-600">{p ? p.payment_method : "-"}</td>
+        <td className="px-3 py-2.5 text-center">
+          {p ? (
+            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(p.status)}`}>
+              {p.status}
+            </span>
+          ) : (
+            <span className="text-slate-400">No payments yet</span>
+          )}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5">
+          {idx === 0 && (
+            <div className="flex items-center justify-end gap-1.5">
+              {canCollect && (
+                <button
+                  onClick={(e) => handleCollectPaymentClick(e, txn)}
+                  disabled={collectingPaymentForId === txn.id}
+                  title="Collect Payment"
+                  className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {(txn.paid_amount || 0) > 0 && (
+                <button
+                  onClick={() => handlePrintPaymentReceiptClick(txn.id)}
+                  title="Print Receipt"
+                  className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-600"
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => handlePrintInvoiceClick(txn.id)}
+                title="Print Invoice"
+                className="rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-sky-600 hover:to-teal-600"
+              >
+                <Printer className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => handleInvoiceClick(txn.id)}
+                title="View Details"
+                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </td>
+      </tr>
+    ));
+  };
+
+  const renderPaymentOnlyTableRow = (txn: BillingTransactionRow) => {
+    const payment = txn.payment;
+    return (
+      <tr key={txn.id} className="bg-amber-50/30 hover:bg-amber-50/60">
+        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(txn.row_date)}</td>
+        <td className="whitespace-nowrap px-3 py-2.5">
+          <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            <FileWarning className="h-3 w-3" />
+            Invoice not available
+          </span>
+        </td>
+        <td className="px-3 py-2.5 text-slate-700">{txn.patient_name || "-"}</td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-400">-</td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
+          {currency(payment?.amount || 0)}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-400">-</td>
+        <td className="px-3 py-2.5 text-center uppercase text-slate-600">{payment?.payment_method || "-"}</td>
+        <td className="px-3 py-2.5 text-center">
+          {payment && (
+            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(payment.status)}`}>
+              {payment.status}
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-2.5" />
+      </tr>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -513,10 +1057,40 @@ export function BillingManagement({
         />
       </div>
 
+      {/* Collections by Payment Method */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Collections by Payment Method
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(["cash", "upi", "card", "cheque"] as const).map((method) => {
+            const item = byPaymentMethod.find((m) => m.payment_method === method);
+            return (
+              <div key={method} className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <p className="mb-1 text-[11px] font-semibold uppercase text-slate-500">{method}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium text-slate-500">Received</span>
+                  <span className="text-xs font-bold text-slate-900">{currency(item?.received_amount || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium text-rose-500">Refunded</span>
+                  <span className="text-xs font-bold text-rose-600">{currency(item?.refunded_amount || 0)}</span>
+                </div>
+                <div className="mt-0.5 flex items-center justify-between gap-2 border-t border-slate-200 pt-0.5">
+                  <span className="text-[10px] font-medium text-emerald-600">Actual</span>
+                  <span className="text-xs font-bold text-emerald-700">{currency(item?.actual_amount || 0)}</span>
+                </div>
+                <p className="mt-1 text-[10px] text-slate-400">{item?.transaction_count || 0} txn{(item?.transaction_count || 0) === 1 ? "" : "s"}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Filters Section */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowCreateInvoiceModal(true)}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
@@ -526,12 +1100,48 @@ export function BillingManagement({
             </button>
 
             <button
-              onClick={() => setShowPaymentReportModal(true)}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:bg-slate-50 active:scale-95 disabled:opacity-70"
             >
-              <BarChart3 className="h-4 w-4 text-sky-600" />
-              Payment Report
+              <RefreshCw className={`h-4 w-4 text-sky-500 transition-transform duration-300 ${isRefreshing ? "animate-spin" : "hover:rotate-180"}`} />
             </button>
+
+            <button
+              onClick={handleExportCsv}
+              disabled={isExportingCsv || transactionsTotal === 0}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-4 w-4 text-sky-600" />
+              {isExportingCsv ? "Exporting..." : "Export CSV"}
+            </button>
+
+            <button
+              onClick={handlePrintPdfClick}
+              disabled={isPreparingPrint || transactionsTotal === 0}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Printer className="h-4 w-4 text-sky-600" />
+              {isPreparingPrint ? "Preparing..." : "Print PDF"}
+            </button>
+
+            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+              <button
+                onClick={() => handleViewModeChange("card")}
+                className={`flex items-center justify-center rounded-lg p-2 transition ${viewMode === "card" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                title="Card View"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange("table")}
+                className={`flex items-center justify-center rounded-lg p-2 transition ${viewMode === "table" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                title="Table View"
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -656,176 +1266,76 @@ export function BillingManagement({
               )}
             </div>
           </div>
+        </div>
 
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {!renderFilterInHeader && filterToggle}
+          {paymentMethodToggle}
         </div>
       </div>
 
-      {/* Invoices List */}
+      {/* Combined Invoice + Payment Transactions List */}
       <div className="space-y-3">
-        {invoicesLoading ? (
+        {transactionsLoading ? (
           <div className="flex items-center justify-center py-12 rounded-xl border border-slate-200 bg-white">
             <div className="text-center">
               <div className="mx-auto mb-3 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500"></div>
-              <p className="text-sm text-slate-500">Loading invoices...</p>
+              <p className="text-sm text-slate-500">Loading billing transactions...</p>
             </div>
           </div>
-        ) : invoices.length === 0 ? (
+        ) : transactions.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
               <FileText className="h-8 w-8 text-slate-400" />
             </div>
-            <p className="text-sm font-semibold text-slate-900">No invoices found</p>
+            <p className="text-sm font-semibold text-slate-900">No billing transactions found</p>
             <p className="mt-1 text-xs text-slate-500">
               {selectedPatientId
-                ? `No ${statusFilter === "all" ? "" : statusFilter} invoices for this patient`
-                : `No ${statusFilter === "all" ? "" : statusFilter} invoices match your filters`}
+                ? "No transactions for this patient match your filters"
+                : "No transactions match your filters"}
             </p>
           </div>
         ) : (
           <>
-            <div className="space-y-2">
-              {invoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="group relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-sky-300 hover:shadow-md cursor-pointer"
-                  onClick={() => handleInvoiceClick(invoice.id)}
-                >
-                  {/* Top Section */}
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(invoice.status)}`}>
-                          {getStatusIcon(invoice.status)}
-                          <span className="capitalize">{invoice.status}</span>
-                        </span>
-                        <span className="text-sm font-bold text-slate-900">#{invoice.invoice_number}</span>
-                      </div>
-
-                      {invoice.patient_name && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <User className="h-4 w-4 text-slate-400" />
-                          <span className="font-semibold text-slate-700">{invoice.patient_name}</span>
-                          {invoice.patient_mobile && (
-                            <>
-                              <span className="text-slate-300">•</span>
-                              <span className="text-slate-500">{invoice.patient_mobile}</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Amount Badge */}
-                    <div className="rounded-xl bg-gradient-to-br from-sky-50 to-teal-50 px-4 py-2 text-right">
-                      <p className="text-xs font-medium text-slate-500">Total Amount</p>
-                      <p className="text-lg font-bold text-sky-700">{currency(invoice.total_amount || 0)}</p>
-                    </div>
-                  </div>
-
-                  {/* Bottom Section */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {formatDate(invoice.invoice_date)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {calculateDaysSince(invoice.invoice_date)}
-                      </span>
-                      {invoice.paid_amount > 0 && (
-                        <span className="font-semibold text-emerald-600">
-                          Paid: {currency(invoice.paid_amount)}
-                        </span>
-                      )}
-                      {invoice.balance_amount !== undefined && invoice.balance_amount > 0 && (
-                        <span className="font-semibold text-amber-600">
-                          Balance: {currency(invoice.balance_amount)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      {invoice.status === "pending" && (
-                        <button
-                          onClick={(e) => handleCollectPaymentClick(e, invoice)}
-                          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow"
-                          title="Collect Payment"
-                        >
-                          <CreditCard className="h-3.5 w-3.5" />
-                          <span>Collect</span>
-                        </button>
-                      )}
-                      {invoice.status === "paid" && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePrintPaymentReceiptClick(invoice);
-                          }}
-                          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow"
-                          title="Print Receipt"
-                        >
-                          <Receipt className="h-3.5 w-3.5" />
-                          <span>Receipt</span>
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePrintInvoiceClick(invoice);
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
-                        title="Print Invoice"
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                        <span>Print</span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleInvoiceClick(invoice.id);
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300"
-                        title="View Details"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>View</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {invoicesTotalPages > 1 && (
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <div className="text-sm text-slate-500">
-                  Page <span className="font-semibold text-slate-900">{invoicesPage}</span> of{" "}
-                  <span className="font-semibold text-slate-900">{invoicesTotalPages}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setInvoicesPage((p) => Math.max(1, p - 1))}
-                    disabled={invoicesPage === 1}
-                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setInvoicesPage((p) => Math.min(invoicesTotalPages, p + 1))}
-                    disabled={invoicesPage === invoicesTotalPages}
-                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
+            {viewMode === "card" ? (
+              <div className="space-y-2">
+                {transactions.map((txn) =>
+                  txn.row_type === "invoice" ? renderInvoiceRow(txn) : renderPaymentOnlyRow(txn)
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full text-xs">
+                  <thead className="border-b border-slate-200 bg-slate-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Date</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice #</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Patient</th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Total</th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Received</th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Pending</th>
+                      <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Method</th>
+                      <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Status</th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {transactions.map((txn) =>
+                      txn.row_type === "invoice" ? renderInvoiceTableRows(txn) : renderPaymentOnlyTableRow(txn)
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
+
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <Pagination
+                currentPage={transactionsPage}
+                total={transactionsTotal}
+                pageSize={transactionsPageSize}
+                onPageChange={setTransactionsPage}
+              />
+            </div>
           </>
         )}
       </div>
@@ -928,10 +1438,49 @@ export function BillingManagement({
               </div>
             )}
 
+            {/* Payment History */}
+            {selectedInvoicePayments.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700">
+                    Payment History ({selectedInvoicePayments.length})
+                  </p>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {selectedInvoicePayments.map((p) => (
+                    <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="font-mono font-semibold text-slate-700">{p.payment_number}</span>
+                        <span className="text-slate-500">{formatDate(p.payment_date)}</span>
+                        <span className="font-semibold uppercase text-sky-700">{p.payment_method}</span>
+                        {p.payment_reference && <span className="text-slate-400">Ref: {p.payment_reference}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">{currency(p.amount)}</span>
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(p.status)}`}>
+                          {p.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Financial Summary */}
             {selectedInvoice.subtotal !== undefined && (
               <div className="rounded-xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
                 <div className="space-y-2">
+                  {selectedInvoice.original_amount != null && selectedInvoice.original_amount !== selectedInvoice.total_amount && (
+                    <div className="flex justify-between items-center rounded-lg bg-amber-50 px-2 py-1.5">
+                      <span className="text-sm font-medium text-amber-800">
+                        {selectedInvoice.fee_overridden ? "Original Consultation Fee" : "Original Price"}
+                      </span>
+                      <span className="text-sm font-bold text-amber-800 line-through">
+                        {currency(selectedInvoice.original_amount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-slate-600">Subtotal</span>
                     <span className="text-sm font-semibold text-slate-900">
@@ -964,15 +1513,43 @@ export function BillingManagement({
                       <span className="text-xl font-bold text-sky-700">{currency(selectedInvoice.total_amount)}</span>
                     </div>
                   </div>
-                  {selectedInvoice.paid_amount > 0 && (
-                    <>
-                      <div className="border-t border-slate-200 pt-2"></div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-slate-600">Paid Amount</span>
-                        <span className="text-sm font-bold text-emerald-600">{currency(selectedInvoice.paid_amount)}</span>
-                      </div>
-                    </>
-                  )}
+                  {(() => {
+                    const receivedGross = selectedInvoicePayments
+                      .filter((p) => p.status === "completed")
+                      .reduce((s, p) => s + p.amount, 0);
+                    const refundedAmt = selectedInvoicePayments
+                      .filter((p) => p.status === "refunded")
+                      .reduce((s, p) => s + Math.abs(p.amount), 0);
+
+                    if (refundedAmt > 0) {
+                      return (
+                        <>
+                          <div className="border-t border-slate-200 pt-2"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-emerald-600">Received</span>
+                            <span className="text-sm font-bold text-emerald-700">{currency(receivedGross)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-rose-500">Refunded</span>
+                            <span className="text-sm font-bold text-rose-600">{currency(refundedAmt)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-slate-600">Actual (Paid Amount)</span>
+                            <span className="text-sm font-bold text-slate-900">{currency(receivedGross - refundedAmt)}</span>
+                          </div>
+                        </>
+                      );
+                    }
+                    return selectedInvoice.paid_amount > 0 ? (
+                      <>
+                        <div className="border-t border-slate-200 pt-2"></div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-slate-600">Paid Amount</span>
+                          <span className="text-sm font-bold text-emerald-600">{currency(selectedInvoice.paid_amount)}</span>
+                        </div>
+                      </>
+                    ) : null;
+                  })()}
                   {selectedInvoice.balance_amount !== undefined && selectedInvoice.balance_amount > 0 && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-slate-600">Balance Due</span>
@@ -997,16 +1574,17 @@ export function BillingManagement({
                 onClick={() => {
                   setShowInvoiceDetail(false);
                   setSelectedInvoice(null);
+                  setSelectedInvoicePayments([]);
                 }}
                 className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
               >
                 Close
               </button>
-              {selectedInvoice.status === "paid" && (
+              {selectedInvoice.paid_amount > 0 && (
                 <button
                   onClick={() => {
                     if (selectedInvoice) {
-                      handlePrintPaymentReceiptClick(selectedInvoice);
+                      handlePrintPaymentReceiptClick(selectedInvoice.id);
                     }
                   }}
                   className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow"
@@ -1018,7 +1596,7 @@ export function BillingManagement({
               <button
                 onClick={() => {
                   if (selectedInvoice) {
-                    handlePrintInvoiceClick(selectedInvoice);
+                    handlePrintInvoiceClick(selectedInvoice.id);
                   }
                 }}
                 className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow"
@@ -1036,14 +1614,9 @@ export function BillingManagement({
         isOpen={showCreateInvoiceModal}
         onClose={() => setShowCreateInvoiceModal(false)}
         onSuccess={() => {
-          fetchInvoices();
+          fetchTransactions();
+          fetchStats();
         }}
-      />
-
-      {/* Payment Report Modal */}
-      <PaymentReportModal
-        isOpen={showPaymentReportModal}
-        onClose={() => setShowPaymentReportModal(false)}
       />
 
       {/* Payment Collection Modal */}
@@ -1075,6 +1648,21 @@ export function BillingManagement({
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
             <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
+          </div>
+        </div>
+      )}
+
+      {/* Print Billing Transactions Report (Hidden) */}
+      {printReportData && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
+          <div ref={printReportRef} className="print-content">
+            <BillingTransactionsPrint
+              items={printReportData.items}
+              total={printReportData.total}
+              startDate={printReportData.startDate}
+              endDate={printReportData.endDate}
+              stats={printReportData.stats}
+            />
           </div>
         </div>
       )}

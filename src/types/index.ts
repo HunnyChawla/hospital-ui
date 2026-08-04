@@ -725,6 +725,8 @@ export type PlannedSurgery = {
   package_id?: string | null;
   package_name?: string | null;
   package_price?: number | null;
+  /** Pre-discount catalog price, when package_price reflects a discount */
+  original_package_price?: number | null;
   advance_payment_amount?: number | null;
   advance_payment_method?: string | null;
   advance_payment_reference?: string | null;
@@ -758,6 +760,7 @@ export type CreatePlannedSurgeryRequest = {
   notes?: string | null;
   package_id?: string | null;
   package_price?: number | null;
+  original_package_price?: number | null;
   advance_payment_amount?: number | null;
   advance_payment_method?: string | null;
   advance_payment_reference?: string | null;
@@ -778,6 +781,7 @@ export type UpdatePlannedSurgeryRequest = {
   notes?: string | null;
   package_id?: string | null;
   package_price?: number | null;
+  original_package_price?: number | null;
   advance_payment_amount?: number | null;
   advance_payment_method?: string | null;
   advance_payment_reference?: string | null;

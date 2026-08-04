@@ -37,6 +37,9 @@ export interface Invoice {
   payment_id?: string | null;
   gst_number: string | null;
   notes: string | null;
+  fee_overridden?: boolean;
+  original_consultation_fee?: number | null;
+  original_amount?: number | null;
   created_at: string;
   updated_at: string;
 }
