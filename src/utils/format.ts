@@ -78,6 +78,14 @@ export const formatAbhaOrMobileInput = (value: string): string => {
     .join("-");
 };
 
+// Display-only formatting for a 12-digit Aadhaar number, grouped as
+// "XXXX XXXX XXXX". The underlying value stays plain digits (no spaces)
+// so it can be passed straight to the backend.
+export const formatAadhaarDisplay = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 12);
+  return digits.match(/.{1,4}/g)?.join(" ") ?? digits;
+};
+
 export const timeAgo = (dateString: string): string => {
   try {
     const date = new Date(dateString);

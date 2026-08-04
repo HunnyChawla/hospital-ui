@@ -27,7 +27,7 @@ import {
   type AbhaProfileDto,
 } from "@/services/abhaApi";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { formatAbhaOrMobileInput } from "@/utils/format";
+import { formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
 
 
 export interface AbhaEnrollmentExistingPatientDetails {
@@ -716,11 +716,11 @@ export function AbhaEnrollmentModal({
                   </label>
                   <input
                     type="text"
-                    maxLength={12}
-                    value={aadhaarNumber}
-                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ""))}
+                    maxLength={14}
+                    value={formatAadhaarDisplay(aadhaarNumber)}
+                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
                     disabled={otpSent}
-                    placeholder="e.g. 123456789012"
+                    placeholder="e.g. 1234 5678 9012"
                     className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
                   />
                 </div>
