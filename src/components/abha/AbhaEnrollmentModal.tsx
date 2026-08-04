@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ArrowRight,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
@@ -26,6 +27,18 @@ import {
 import { getErrorMessage } from "@/utils/errorHandler";
 
 
+export interface AbhaEnrollmentExistingPatientDetails {
+  firstName?: string | null;
+  middleName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+}
+
 export interface AbhaEnrollmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -33,7 +46,17 @@ export interface AbhaEnrollmentModalProps {
   patientId?: string;
   initialMobile?: string;
   initialName?: string;
+  /** Personal details of the existing patient this enrollment is meant to link to. When
+   * provided, the document (Driving License) tab auto-fills its personal-details form
+   * from these once mobile OTP is verified, instead of leaving them blank. */
+  existingPatientDetails?: AbhaEnrollmentExistingPatientDetails;
 }
+
+const genderToCode = (gender?: string | null): string | null => {
+  if (!gender) return null;
+  const letter = gender.trim().charAt(0).toUpperCase();
+  return letter === "M" || letter === "F" || letter === "O" ? letter : null;
+};
 
 type TabType = "aadhaar_otp" | "demographic" | "biometric" | "document" | "link_existing";
 
@@ -52,6 +75,7 @@ export function AbhaEnrollmentModal({
   patientId,
   initialMobile = "",
   initialName = "",
+  existingPatientDetails,
 }: AbhaEnrollmentModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>("aadhaar_otp");
 
@@ -74,6 +98,22 @@ export function AbhaEnrollmentModal({
   // Document State
   const [docType, setDocType] = useState("DRIVING_LICENCE");
   const [docId, setDocId] = useState("");
+  const [docMobile, setDocMobile] = useState(initialMobile);
+  const [docSessionKey, setDocSessionKey] = useState<string | null>(null);
+  const [docOtp, setDocOtp] = useState("");
+  const [docOtpSent, setDocOtpSent] = useState(false);
+  const [docOtpVerified, setDocOtpVerified] = useState(false);
+  const [docFirstName, setDocFirstName] = useState("");
+  const [docMiddleName, setDocMiddleName] = useState("");
+  const [docLastName, setDocLastName] = useState("");
+  const [docGender, setDocGender] = useState("M");
+  const [docDob, setDocDob] = useState("");
+  const [docAddress, setDocAddress] = useState("");
+  const [docState, setDocState] = useState("");
+  const [docDistrict, setDocDistrict] = useState("");
+  const [docPinCode, setDocPinCode] = useState("");
+  const [docFrontPhoto, setDocFrontPhoto] = useState<string | null>(null);
+  const [docBackPhoto, setDocBackPhoto] = useState<string | null>(null);
 
   // Link Existing State
   const [linkAbhaNumber, setLinkAbhaNumber] = useState("");
@@ -110,6 +150,22 @@ export function AbhaEnrollmentModal({
     setSelectedAddress("");
     setShowAddressSelection(false);
     setResultProfile(null);
+    setDocMobile(initialMobile);
+    setDocSessionKey(null);
+    setDocOtp("");
+    setDocOtpSent(false);
+    setDocOtpVerified(false);
+    setDocFirstName("");
+    setDocMiddleName("");
+    setDocLastName("");
+    setDocGender("M");
+    setDocDob("");
+    setDocAddress("");
+    setDocState("");
+    setDocDistrict("");
+    setDocPinCode("");
+    setDocFrontPhoto(null);
+    setDocBackPhoto(null);
   };
 
   // --------------------------------------------------------------------------
@@ -205,21 +261,116 @@ export function AbhaEnrollmentModal({
   // --------------------------------------------------------------------------
   // Handlers: Document Auth (e.g. Driving License)
   // --------------------------------------------------------------------------
+  const handleRequestDocumentOtp = async () => {
+    if (!docMobile || docMobile.length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await abhaApi.requestDocumentOtp({ mobile: docMobile });
+      setDocSessionKey(res.session_key);
+      setDocOtpSent(true);
+      toast.success(res.message || "OTP sent to the provided mobile number");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error) || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Populate the document-detail form from the patient record we're linking to, so the
+  // user isn't re-typing details already on file after verifying their mobile via OTP.
+  const prefillDocumentFieldsFromExistingPatient = () => {
+    if (!existingPatientDetails) return;
+    const {
+      firstName, middleName, lastName, gender, dateOfBirth, address, city, state, pincode,
+    } = existingPatientDetails;
+    if (firstName) setDocFirstName(firstName);
+    if (middleName) setDocMiddleName(middleName);
+    if (lastName) setDocLastName(lastName);
+    const genderCode = genderToCode(gender);
+    if (genderCode) setDocGender(genderCode);
+    if (dateOfBirth) setDocDob(dateOfBirth);
+    if (address) setDocAddress(address);
+    if (state) setDocState(state);
+    if (city) setDocDistrict(city);
+    if (pincode) setDocPinCode(pincode);
+  };
+
+  const handleVerifyDocumentOtp = async () => {
+    if (!docSessionKey || !docOtp) {
+      toast.error("Please enter OTP");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await abhaApi.verifyDocumentOtp({ session_key: docSessionKey, otp: docOtp });
+      setDocSessionKey(res.session_key);
+      setDocOtpVerified(true);
+      prefillDocumentFieldsFromExistingPatient();
+      toast.success(res.message || "Mobile number verified successfully");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error) || "OTP verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDocPhotoUpload = (side: "front" | "back") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Photo file size must be less than 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      if (side === "front") setDocFrontPhoto(base64String);
+      else setDocBackPhoto(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveDocPhoto = (side: "front" | "back") => {
+    const inputId = side === "front" ? "doc-front-photo-upload" : "doc-back-photo-upload";
+    if (side === "front") setDocFrontPhoto(null);
+    else setDocBackPhoto(null);
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    if (input) input.value = "";
+  };
+
   const handleDocumentEnroll = async () => {
-    if (!docId || !demoName || !demoDob) {
-      toast.error("Please provide document ID and demographic details");
+    if (!docSessionKey || !docOtpVerified) {
+      toast.error("Please verify your mobile number first");
+      return;
+    }
+    if (!docId || !docFirstName || !docDob || !docAddress || !docState || !docDistrict || !docPinCode) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    if (!docFrontPhoto || !docBackPhoto) {
+      toast.error("Please upload both front and back side photos of the document");
       return;
     }
     setLoading(true);
     try {
       const res = await abhaApi.enrolByDocument({
+        session_key: docSessionKey,
         document_type: docType,
         document_id: docId,
-        demographics: {
-          name: demoName,
-          gender: demoGender,
-          dob: demoDob,
-        },
+        first_name: docFirstName,
+        middle_name: docMiddleName || undefined,
+        last_name: docLastName || undefined,
+        dob: docDob,
+        gender: docGender,
+        front_side_photo: docFrontPhoto,
+        back_side_photo: docBackPhoto,
+        address: docAddress,
+        state: docState,
+        district: docDistrict,
+        pin_code: docPinCode,
       });
       handleEnrollmentSuccess(res);
     } catch (error: any) {
@@ -745,74 +896,280 @@ export function AbhaEnrollmentModal({
               </div>
             )}
 
-            {/* TAB 4: DOCUMENT ENROLLMENT */}
+            {/* TAB 4: DOCUMENT ENROLLMENT (Driving License) */}
             {activeTab === "document" && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Document Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={docType}
-                      onChange={(e) => setDocType(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                {!docOtpVerified ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        value={docMobile}
+                        onChange={(e) => setDocMobile(e.target.value.replace(/\D/g, ""))}
+                        disabled={docOtpSent}
+                        placeholder="10-digit mobile number"
+                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
+                      />
+                      <p className="mt-1 text-xs text-slate-400">
+                        Driving License enrollment requires mobile OTP verification before document details.
+                      </p>
+                    </div>
+
+                    {!docOtpSent ? (
+                      <button
+                        type="button"
+                        onClick={handleRequestDocumentOtp}
+                        disabled={loading || docMobile.length !== 10}
+                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                      >
+                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                        <span>Send OTP</span>
+                      </button>
+                    ) : (
+                      <div className="space-y-4 pt-2 border-t border-slate-100">
+                        <ResendableOtpField
+                          value={docOtp}
+                          onChange={setDocOtp}
+                          onResend={handleRequestDocumentOtp}
+                          disabled={loading}
+                          autoFocus
+                          startCooldownOnMount
+                        />
+
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setDocOtpSent(false)}
+                            className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                          >
+                            Change Mobile Number
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleVerifyDocumentOtp}
+                            disabled={loading || !docOtp}
+                            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          >
+                            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                            <span>Verify OTP</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {existingPatientDetails && (
+                      <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                        Personal details below were auto-filled from this patient&apos;s existing record. Please verify them against the document before submitting.
+                      </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Document Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={docType}
+                          onChange={(e) => setDocType(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        >
+                          <option value="DRIVING_LICENCE">Driving License</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Document ID / Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={docId}
+                          onChange={(e) => setDocId(e.target.value)}
+                          placeholder="e.g. HR06BB5258"
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          First Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={docFirstName}
+                          onChange={(e) => setDocFirstName(e.target.value)}
+                          placeholder="First name as in document"
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Middle Name
+                        </label>
+                        <input
+                          type="text"
+                          value={docMiddleName}
+                          onChange={(e) => setDocMiddleName(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Last Name
+                        </label>
+                        <input
+                          type="text"
+                          value={docLastName}
+                          onChange={(e) => setDocLastName(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Gender <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={docGender}
+                          onChange={(e) => setDocGender(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        >
+                          <option value="M">Male (M)</option>
+                          <option value="F">Female (F)</option>
+                          <option value="O">Other (O)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Date of Birth (YYYY-MM-DD) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={docDob}
+                          onChange={(e) => setDocDob(e.target.value)}
+                          placeholder="1990-05-15"
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={docAddress}
+                        onChange={(e) => setDocAddress(e.target.value)}
+                        placeholder="Street number 4, Sector 12"
+                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          State <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={docState}
+                          onChange={(e) => setDocState(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          District <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={docDistrict}
+                          onChange={(e) => setDocDistrict(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          PIN Code <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={docPinCode}
+                          onChange={(e) => setDocPinCode(e.target.value.replace(/\D/g, ""))}
+                          className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                      {(["front", "back"] as const).map((side) => {
+                        const preview = side === "front" ? docFrontPhoto : docBackPhoto;
+                        return (
+                          <div key={side}>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              {side === "front" ? "Front" : "Back"} Side Photo <span className="text-red-500">*</span>
+                            </label>
+                            {preview ? (
+                              <div className="relative group">
+                                <div className="h-24 border border-slate-200 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+                                  <img src={preview} alt={`Document ${side} side`} className="max-h-24 max-w-full object-contain" />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDocPhoto(side)}
+                                  className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title={`Remove ${side} side photo`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <input
+                                type="file"
+                                id={`doc-${side}-photo-upload`}
+                                accept="image/*"
+                                onChange={handleDocPhotoUpload(side)}
+                                className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-400">Supported formats: PNG, JPG. Max size: 2MB each.</p>
+
+                    <button
+                      type="button"
+                      onClick={handleDocumentEnroll}
+                      disabled={
+                        loading ||
+                        !docId ||
+                        !docFirstName ||
+                        !docDob ||
+                        !docAddress ||
+                        !docState ||
+                        !docDistrict ||
+                        !docPinCode ||
+                        !docFrontPhoto ||
+                        !docBackPhoto
+                      }
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
                     >
-                      <option value="DRIVING_LICENCE">Driving License</option>
-                      <option value="PAN_CARD">PAN Card</option>
-                      <option value="VOTER_ID">Voter ID</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Document ID / Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={docId}
-                      onChange={(e) => setDocId(e.target.value)}
-                      placeholder="e.g. DL-1234567890"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Full Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={demoName}
-                      onChange={(e) => setDemoName(e.target.value)}
-                      placeholder="Name as in document"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Date of Birth (YYYY-MM-DD) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={demoDob}
-                      onChange={(e) => setDemoDob(e.target.value)}
-                      placeholder="1990-05-15"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleDocumentEnroll}
-                  disabled={loading || !docId || !demoName || !demoDob}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span>Enroll by Government Document</span>
-                </button>
+                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <span>Enroll by Government Document</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

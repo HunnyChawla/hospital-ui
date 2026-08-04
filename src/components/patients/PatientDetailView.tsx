@@ -13,6 +13,7 @@ import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
 import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
+import { usePatient } from "@/hooks/queries/usePatients";
 
 import { opdVisitsApi, Visit, CreateVisitRequest } from "@/services/opdVisitsApi";
 import { labBookingsApi, LabBooking, LabBookingTest } from "@/services/labBookingsApi";
@@ -77,6 +78,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
+  const { data: fullPatientData } = usePatient(isAbhaModalOpen ? patientId : null);
+  const abhaApiPatientData = fullPatientData as any;
 
   const handleAbhaSuccessInDetail = async (profile: any, aadhaar?: string) => {
     try {
@@ -2062,6 +2065,20 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           patientId={patient.id}
           initialMobile={patient.mobile || ""}
           initialName={patient.name || ""}
+          existingPatientDetails={
+            abhaApiPatientData
+              ? {
+                  firstName: abhaApiPatientData.first_name,
+                  lastName: abhaApiPatientData.last_name,
+                  gender: abhaApiPatientData.gender,
+                  dateOfBirth: abhaApiPatientData.date_of_birth,
+                  address: abhaApiPatientData.address,
+                  city: abhaApiPatientData.city,
+                  state: abhaApiPatientData.state,
+                  pincode: abhaApiPatientData.pincode,
+                }
+              : undefined
+          }
         />
       )}
     </div>

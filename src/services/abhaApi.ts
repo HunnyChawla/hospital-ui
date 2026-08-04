@@ -63,10 +63,30 @@ export interface AbhaBiometricRequestDto {
   mobile: string;
 }
 
+export interface AbhaDocumentOtpRequestDto {
+  mobile: string;
+}
+
+export interface AbhaDocumentVerifyOtpDto {
+  session_key: string;
+  otp: string;
+}
+
 export interface AbhaDocumentEnrollRequestDto {
+  session_key: string;
   document_type: string;
   document_id: string;
-  demographics: Record<string, any>;
+  first_name: string;
+  middle_name?: string | null;
+  last_name?: string | null;
+  dob: string;
+  gender: string;
+  front_side_photo: string;
+  back_side_photo: string;
+  address: string;
+  state: string;
+  district: string;
+  pin_code: string;
 }
 
 export interface AbhaConfirmAddressDto {
@@ -130,6 +150,20 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<AbhaEnrollmentResult>("/abha/enroll/biometric", req, { params });
+    return response.data;
+  },
+
+  async requestDocumentOtp(req: AbhaDocumentOtpRequestDto, tenantId?: string): Promise<{ session_key: string; message: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post("/abha/enroll/document/request-otp", req, { params });
+    return response.data;
+  },
+
+  async verifyDocumentOtp(req: AbhaDocumentVerifyOtpDto, tenantId?: string): Promise<{ session_key: string; message: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post("/abha/enroll/document/verify-otp", req, { params });
     return response.data;
   },
 
