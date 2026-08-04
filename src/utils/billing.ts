@@ -25,12 +25,19 @@ export function filterPaymentsToDateRange(payments: Payment[], startDate?: strin
 export interface BillingTableRow {
   key: string;
   paymentDate: string | null;
-  invoiceDate: string;
+  // Null for standalone (invoice-less) payments - there's no invoice, so
+  // showing a date under this label would be misleading.
+  invoiceDate: string | null;
   paymentId: string | null;
   invoiceNumber: string | null;
   patientName: string | null;
   patientUhid: string | null;
   patientMobile: string | null;
+  // The invoice's service type (opd/ipd/lab/surgery) for invoice rows; for
+  // standalone (invoice-less) payments there's no invoice to derive a type
+  // from, so this falls back to the payment's own service_category (already
+  // derived server-side, e.g. "Surgery Advance: ...").
+  serviceType: string | null;
   // This specific transaction's own amount - distinct from total/received/
   // pending below, which are the invoice's aggregate state and repeat
   // identically across every payment row belonging to the same invoice.
@@ -59,6 +66,7 @@ export function buildTableRows(
       const common = {
         invoiceDate: txn.row_date,
         invoiceNumber: txn.invoice_number,
+        serviceType: txn.invoice_type,
         patientName: txn.patient_name,
         patientUhid: txn.patient_uhid,
         patientMobile: txn.patient_mobile,
@@ -98,9 +106,10 @@ export function buildTableRows(
       rows.push({
         key: txn.id,
         paymentDate: payment?.payment_date ?? null,
-        invoiceDate: txn.row_date,
+        invoiceDate: null,
         paymentId: payment?.payment_number ?? null,
         invoiceNumber: null,
+        serviceType: payment?.service_category ?? null,
         patientName: txn.patient_name,
         patientUhid: txn.patient_uhid,
         patientMobile: txn.patient_mobile,

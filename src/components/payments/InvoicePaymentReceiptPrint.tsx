@@ -10,11 +10,16 @@ import { getTenantIdForApi } from "@/utils/auth";
 import { PatientApiResponse, patientsApi } from "@/services/patientsApi";
 
 interface InvoicePaymentReceiptPrintProps {
-  invoiceId: string;
+  // Pass exactly one: `invoiceId` prints every payment against that invoice;
+  // `paymentId` prints a single invoice-less payment directly (e.g. a surgery
+  // advance collected before an invoice exists) - there's no invoice to key
+  // off of in that case.
+  invoiceId?: string;
+  paymentId?: string;
   onReady?: () => void;
 }
 
-export function InvoicePaymentReceiptPrint({ invoiceId, onReady }: InvoicePaymentReceiptPrintProps) {
+export function InvoicePaymentReceiptPrint({ invoiceId, paymentId, onReady }: InvoicePaymentReceiptPrintProps) {
   const { tenant } = useTenant();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -27,22 +32,29 @@ export function InvoicePaymentReceiptPrint({ invoiceId, onReady }: InvoicePaymen
       try {
         setLoading(true);
         setError(null);
-        
+
         const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
         const apiTenantId = getTenantIdForApi(tenantId || undefined);
-        
-        // Fetch payments and invoice in parallel
-        const [paymentsData, invoiceData] = await Promise.all([
-          paymentsApi.getByInvoiceId(invoiceId, apiTenantId),
-          invoicesApi.getById(invoiceId, apiTenantId),
-        ]);
-        
-        setPayments(paymentsData);
-        setInvoice(invoiceData);
 
-        if (invoiceData?.patient_id) {
+        let patientIdForLookup: string | undefined;
+
+        if (invoiceId) {
+          const [paymentsData, invoiceData] = await Promise.all([
+            paymentsApi.getByInvoiceId(invoiceId, apiTenantId),
+            invoicesApi.getById(invoiceId, apiTenantId),
+          ]);
+          setPayments(paymentsData);
+          setInvoice(invoiceData);
+          patientIdForLookup = invoiceData?.patient_id;
+        } else if (paymentId) {
+          const paymentData = await paymentsApi.getById(paymentId, apiTenantId);
+          setPayments([paymentData]);
+          patientIdForLookup = paymentData.patient_id;
+        }
+
+        if (patientIdForLookup) {
           try {
-            const patientData = await patientsApi.getById(invoiceData.patient_id, apiTenantId);
+            const patientData = await patientsApi.getById(patientIdForLookup, apiTenantId);
             setPatient(patientData);
           } catch (patErr) {
             console.error("Failed to fetch patient details:", patErr);
@@ -59,10 +71,10 @@ export function InvoicePaymentReceiptPrint({ invoiceId, onReady }: InvoicePaymen
       }
     };
 
-    if (invoiceId) {
+    if (invoiceId || paymentId) {
       fetchData();
     }
-  }, [invoiceId, onReady]);
+  }, [invoiceId, paymentId, onReady]);
 
 
   if (loading) {

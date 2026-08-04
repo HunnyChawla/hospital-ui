@@ -129,15 +129,14 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
         <table className="w-full text-left text-[11px] border-collapse">
           <thead>
             <tr className="border-b border-slate-300 bg-slate-100 print:bg-slate-200 font-semibold text-slate-700">
-              <th className="py-1.5 px-2">Payment Date</th>
-              <th className="py-1.5 px-2">Invoice Date</th>
-              <th className="py-1.5 px-2">Payment ID</th>
-              <th className="py-1.5 px-2 text-right">Amount (₹)</th>
-              <th className="py-1.5 px-2">Invoice ID</th>
+              <th className="py-1.5 px-2">Date</th>
+              <th className="py-1.5 px-2">ID</th>
               <th className="py-1.5 px-2">Patient</th>
               <th className="py-1.5 px-2 text-right">Total (₹)</th>
               <th className="py-1.5 px-2 text-right">Received (₹)</th>
               <th className="py-1.5 px-2 text-right">Pending (₹)</th>
+              <th className="py-1.5 px-2 text-right">Amount (₹)</th>
+              <th className="py-1.5 px-2">Type</th>
               <th className="py-1.5 px-2">Method</th>
               <th className="py-1.5 px-2 text-center">Status</th>
             </tr>
@@ -145,18 +144,21 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
           <tbody className="divide-y divide-slate-200">
             {rows.map((row) => (
               <tr key={row.key} className="hover:bg-slate-50">
-                <td className="py-1.5 px-2 text-slate-700">{row.paymentDate ? formatDateTime(row.paymentDate) : "-"}</td>
-                <td className="py-1.5 px-2 text-slate-700">{formatDate(row.invoiceDate)}</td>
-                <td className="py-1.5 px-2 font-mono text-slate-800">{row.paymentId || "-"}</td>
-                <td className="py-1.5 px-2 text-right font-semibold text-slate-800">
-                  {row.transactionAmount != null ? currency(row.transactionAmount) : "-"}
+                <td className="py-1.5 px-2 text-slate-700">
+                  <p>{row.paymentDate ? formatDateTime(row.paymentDate) : "-"}</p>
+                  <p className="text-[9px] text-slate-500">
+                    Inv: {row.invoiceDate ? formatDate(row.invoiceDate) : "-"}
+                  </p>
                 </td>
                 <td className="py-1.5 px-2 font-mono text-slate-800">
-                  {row.isStandalone ? (
-                    <span className="italic text-amber-700">Invoice not available</span>
-                  ) : (
-                    `#${row.invoiceNumber}`
-                  )}
+                  <p>{row.paymentId || "-"}</p>
+                  <p className="text-[9px] text-slate-500">
+                    {row.isStandalone ? (
+                      <span className="italic text-amber-700">No invoice</span>
+                    ) : (
+                      `Inv: #${row.invoiceNumber}`
+                    )}
+                  </p>
                 </td>
                 <td className="py-1.5 px-2">
                   <p className="font-semibold text-slate-900">{row.patientName || "N/A"}</p>
@@ -169,6 +171,16 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
                 <td className="py-1.5 px-2 text-right text-slate-700">{row.total != null ? currency(row.total) : "-"}</td>
                 <td className="py-1.5 px-2 text-right font-semibold text-slate-900">{row.received != null ? currency(row.received) : "-"}</td>
                 <td className="py-1.5 px-2 text-right text-amber-700">{row.pending != null ? currency(row.pending) : "-"}</td>
+                <td className="py-1.5 px-2 text-right">
+                  {row.transactionAmount != null ? (
+                    <span className="inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-bold text-indigo-700">
+                      {currency(row.transactionAmount)}
+                    </span>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td className="py-1.5 px-2 capitalize text-slate-700">{row.serviceType || "-"}</td>
                 <td className="py-1.5 px-2 uppercase text-slate-700">{row.method || "-"}</td>
                 <td className="py-1.5 px-2 text-center capitalize text-slate-700">
                   {row.hasPayment && row.status ? row.status : !row.isStandalone ? "No payments yet" : "-"}

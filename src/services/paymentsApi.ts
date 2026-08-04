@@ -95,6 +95,7 @@ export interface BillingTransactionRow {
   patient_mobile: string | null;
   patient_uhid: string | null;
   invoice_number: string | null;
+  invoice_type: string | null;
   invoice_status: InvoiceStatus | null;
   subtotal: number | null; // original, pre-discount amount
   discount: number | null;

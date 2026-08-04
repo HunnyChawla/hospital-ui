@@ -144,7 +144,10 @@ export function BillingManagement({
   // Print state
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
-  const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
+  // Receipt print target - "invoice" fetches by invoice id (payments nested
+  // under it), "payment" fetches a single invoice-less payment directly by
+  // its own id (e.g. a surgery advance with no invoice yet).
+  const [printReceiptTarget, setPrintReceiptTarget] = useState<{ type: "invoice" | "payment"; id: string } | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
@@ -157,7 +160,11 @@ export function BillingManagement({
 
   const handlePrintPayment = useReactToPrint({
     contentRef: printPaymentRef,
-    documentTitle: printPaymentInvoiceId ? `PaymentReceipt_Invoice_${printPaymentInvoiceId}` : "Payment Receipt",
+    documentTitle: printReceiptTarget
+      ? printReceiptTarget.type === "invoice"
+        ? `PaymentReceipt_Invoice_${printReceiptTarget.id}`
+        : `PaymentReceipt_${printReceiptTarget.id}`
+      : "Payment Receipt",
   });
 
   const handlePrintReport = useReactToPrint({
@@ -434,12 +441,23 @@ export function BillingManagement({
     }
 
     try {
-      setPrintPaymentInvoiceId(invoiceId);
+      setPrintReceiptTarget({ type: "invoice", id: invoiceId });
       setShouldPrintPayment(true);
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage || "Failed to prepare payment receipt for printing");
     }
+  };
+
+  // Standalone (invoice-less) payments have no invoice to key the receipt
+  // off of - print directly from the payment's own id instead.
+  const handlePrintStandalonePaymentReceiptClick = (paymentId: string) => {
+    if (!paymentId) {
+      toast.error("Payment ID not available");
+      return;
+    }
+    setPrintReceiptTarget({ type: "payment", id: paymentId });
+    setShouldPrintPayment(true);
   };
 
   const handleRefresh = async () => {
@@ -864,7 +882,7 @@ export function BillingManagement({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900">{currency(p.amount)}</span>
-                    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(p.status)}`}>
+                    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold capitalize ${getStatusColor(p.status)}`}>
                       {p.status}
                     </span>
                   </div>
@@ -920,17 +938,28 @@ export function BillingManagement({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {formatDate(txn.row_date)}
-          </span>
-          {payment && (
-            <>
-              <span className="font-mono">{payment.payment_number}</span>
-              <span className="font-semibold uppercase text-sky-700">{payment.payment_method}</span>
-              {payment.payment_reference && <span>Ref: {payment.payment_reference}</span>}
-            </>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatDate(txn.row_date)}
+            </span>
+            {payment && (
+              <>
+                <span className="font-mono">{payment.payment_number}</span>
+                <span className="font-semibold uppercase text-sky-700">{payment.payment_method}</span>
+                {payment.payment_reference && <span>Ref: {payment.payment_reference}</span>}
+              </>
+            )}
+          </div>
+          {(payment?.amount || 0) > 0 && (
+            <button
+              onClick={() => handlePrintStandalonePaymentReceiptClick(txn.id)}
+              title="Print Receipt"
+              className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-600"
+            >
+              <Receipt className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </div>
@@ -947,22 +976,21 @@ export function BillingManagement({
     return (
       <tr key={row.key} className={row.isStandalone ? "bg-amber-50/30 hover:bg-amber-50/60" : "hover:bg-slate-50/50"}>
         <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
-          {row.paymentDate ? formatDateTime(row.paymentDate) : "-"}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(row.invoiceDate)}</td>
-        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{row.paymentId || "-"}</td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-slate-800">
-          {row.transactionAmount != null ? currency(row.transactionAmount) : "-"}
+          <p>{row.paymentDate ? formatDateTime(row.paymentDate) : "-"}</p>
+          <p className="text-[10px] text-slate-400">
+            Inv: {row.invoiceDate ? formatDate(row.invoiceDate) : "-"}
+          </p>
         </td>
         <td className="whitespace-nowrap px-3 py-2.5">
+          <p className="font-mono text-slate-700">{row.paymentId || "-"}</p>
           {row.isStandalone ? (
-            <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700">
               <FileWarning className="h-3 w-3" />
-              Invoice not available
+              No invoice
             </span>
           ) : (
-            <button onClick={() => handleInvoiceClick(txn.id)} className="font-semibold text-sky-700 hover:underline">
-              #{row.invoiceNumber}
+            <button onClick={() => handleInvoiceClick(txn.id)} className="font-mono text-[10px] text-sky-700 hover:underline">
+              Inv: #{row.invoiceNumber}
             </button>
           )}
         </td>
@@ -983,10 +1011,24 @@ export function BillingManagement({
         <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
           {row.pending != null ? currency(row.pending) : "-"}
         </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right">
+          {row.transactionAmount != null ? (
+            <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-sm font-bold text-indigo-700">
+              {currency(row.transactionAmount)}
+            </span>
+          ) : (
+            <span className="text-slate-400">-</span>
+          )}
+        </td>
+        <td className="px-3 py-2.5 text-center capitalize text-slate-600">
+          <span className="truncate" title={row.serviceType || undefined}>
+            {row.serviceType || "-"}
+          </span>
+        </td>
         <td className="px-3 py-2.5 text-center uppercase text-slate-600">{row.method || "-"}</td>
         <td className="px-3 py-2.5 text-center">
           {row.hasPayment && row.status ? (
-            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(row.status)}`}>
+            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold capitalize ${getStatusColor(row.status)}`}>
               {row.status}
             </span>
           ) : !row.isStandalone ? (
@@ -994,7 +1036,19 @@ export function BillingManagement({
           ) : null}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5">
-          {!row.isStandalone && (
+          {row.isStandalone ? (
+            (txn.payment?.amount || 0) > 0 && (
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  onClick={() => handlePrintStandalonePaymentReceiptClick(txn.id)}
+                  title="Print Receipt"
+                  className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-600"
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )
+          ) : (
             <div className="flex items-center justify-end gap-1.5">
               {canCollect && (
                 <button
@@ -1340,15 +1394,14 @@ export function BillingManagement({
                 <table className="w-full text-xs">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
-                      {sortHeader("Payment Date", "payment_date")}
-                      {sortHeader("Invoice Date", "invoice_date")}
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment ID</th>
-                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Amount</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice ID</th>
+                      {sortHeader("Date", "payment_date")}
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">ID</th>
                       {sortHeader("Patient", "patient_name")}
                       {sortHeader("Total", "total", "right")}
                       {sortHeader("Received", "received", "right")}
                       {sortHeader("Pending", "pending", "right")}
+                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Amount</th>
+                      <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Type</th>
                       <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Method</th>
                       <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Status</th>
                       <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Actions</th>
@@ -1490,7 +1543,7 @@ export function BillingManagement({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900">{currency(p.amount)}</span>
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(p.status)}`}>
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold capitalize ${getStatusColor(p.status)}`}>
                           {p.status}
                         </span>
                       </div>
@@ -1677,10 +1730,14 @@ export function BillingManagement({
       )}
 
       {/* Print Payment Receipt (Hidden) */}
-      {printPaymentInvoiceId && (
+      {printReceiptTarget && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
           <div ref={printPaymentRef} className="print-content">
-            <InvoicePaymentReceiptPrint invoiceId={printPaymentInvoiceId} />
+            {printReceiptTarget.type === "invoice" ? (
+              <InvoicePaymentReceiptPrint invoiceId={printReceiptTarget.id} />
+            ) : (
+              <InvoicePaymentReceiptPrint paymentId={printReceiptTarget.id} />
+            )}
           </div>
         </div>
       )}
