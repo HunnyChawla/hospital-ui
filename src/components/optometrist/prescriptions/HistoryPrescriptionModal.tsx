@@ -67,7 +67,7 @@ export function HistoryPrescriptionModal({
 
             // Resolve target doctor ID from prescription or OPD visit details
             let targetDoctorId = prescription?.doctor_id;
-            let targetDoctorName = prescription?.doctor_name;
+            const targetDoctorName = prescription?.doctor_name;
 
             if (!targetDoctorId) {
                 try {
