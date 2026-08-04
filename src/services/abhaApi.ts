@@ -41,26 +41,12 @@ export interface AbhaPatientProfileResponseDto {
 export interface AbhaOtpRequestDto {
   aadhaar_number: string;
   scope?: string[];
+  consent_accepted: boolean;
 }
 
 export interface AbhaVerifyOtpDto {
   session_key: string;
   otp: string;
-  mobile: string;
-}
-
-export interface AbhaDemoAuthRequestDto {
-  aadhaar_number: string;
-  name: string;
-  gender: string;
-  date_of_birth: string;
-  mobile?: string;
-}
-
-export interface AbhaBiometricRequestDto {
-  aadhaar_number: string;
-  bio_type: "bio" | "face" | "iris";
-  pid_data: string;
   mobile: string;
 }
 
@@ -97,6 +83,7 @@ export interface AbhaConfirmAddressDto {
 
 export interface AbhaLinkOtpRequestDto {
   abha_number: string;
+  consent_accepted: boolean;
 }
 
 export interface AbhaLinkVerifyOtpDto {
@@ -137,20 +124,6 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<AbhaEnrollmentResult>("/abha/enroll/aadhaar/verify-otp", req, { params });
-    return response.data;
-  },
-
-  async enrolByDemographic(req: AbhaDemoAuthRequestDto, tenantId?: string): Promise<AbhaEnrollmentResult> {
-    const apiTenantId = getTenantIdForApi(tenantId);
-    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.post<AbhaEnrollmentResult>("/abha/enroll/demographic", req, { params });
-    return response.data;
-  },
-
-  async enrolByBiometric(req: AbhaBiometricRequestDto, tenantId?: string): Promise<AbhaEnrollmentResult> {
-    const apiTenantId = getTenantIdForApi(tenantId);
-    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
-    const response = await apiClient.post<AbhaEnrollmentResult>("/abha/enroll/biometric", req, { params });
     return response.data;
   },
 

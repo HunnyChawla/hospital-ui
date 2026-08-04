@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   Smartphone,
   User,
-  Fingerprint,
   FileText,
   CheckCircle,
   Loader2,
@@ -20,12 +19,15 @@ import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { Tabs, type TabItem } from "@/components/common/Tabs";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
+import { AbhaConsentPanel } from "@/components/abha/AbhaConsentPanel";
+import { AbhaCardPreviewModal } from "@/components/abha/AbhaCardPreviewModal";
 import {
   abhaApi,
   type AbhaEnrollmentResult,
   type AbhaProfileDto,
 } from "@/services/abhaApi";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { formatAbhaOrMobileInput } from "@/utils/format";
 
 
 export interface AbhaEnrollmentExistingPatientDetails {
@@ -64,12 +66,10 @@ const ALLOWED_DOC_PHOTO_TYPES = ["image/jpeg", "image/jpg", "image/png"];
 /** ABDM expects a bare base64 string for document photos, not a Data-URL. */
 const toBareBase64 = (dataUrl: string): string => dataUrl.split(",")[1] ?? dataUrl;
 
-type TabType = "aadhaar_otp" | "demographic" | "biometric" | "document" | "link_existing";
+type TabType = "aadhaar_otp" | "document" | "link_existing";
 
 const TABS: TabItem<TabType>[] = [
   { key: "aadhaar_otp", label: "Aadhaar OTP", icon: Smartphone },
-  { key: "demographic", label: "Demographic", icon: User },
-  { key: "biometric", label: "Biometric", icon: Fingerprint },
   { key: "document", label: "Driving License", icon: FileText },
   { key: "link_existing", label: "Link Existing", icon: ShieldCheck },
 ];
@@ -91,15 +91,7 @@ export function AbhaEnrollmentModal({
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-
-  // Demographic State
-  const [demoName, setDemoName] = useState(initialName);
-  const [demoGender, setDemoGender] = useState("M");
-  const [demoDob, setDemoDob] = useState("");
-
-  // Biometric State
-  const [bioType, setBioType] = useState<"bio" | "face" | "iris">("bio");
-  const [pidData, setPidData] = useState("");
+  const [aadhaarConsentAccepted, setAadhaarConsentAccepted] = useState(false);
 
   // Document State
   const [docType, setDocType] = useState("DRIVING_LICENCE");
@@ -126,6 +118,7 @@ export function AbhaEnrollmentModal({
   const [linkSessionKey, setLinkSessionKey] = useState<string | null>(null);
   const [linkOtp, setLinkOtp] = useState("");
   const [linkOtpSent, setLinkOtpSent] = useState(false);
+  const [linkConsentAccepted, setLinkConsentAccepted] = useState(false);
 
   // Address Suggestions State
   const [suggestedAddresses, setSuggestedAddresses] = useState<string[]>([]);
@@ -136,6 +129,8 @@ export function AbhaEnrollmentModal({
   const [loading, setLoading] = useState(false);
   const [resultProfile, setResultProfile] = useState<AbhaProfileDto | null>(null);
   const [cardSessionKey, setCardSessionKey] = useState<string | null>(null);
+  const [cardPreviewUrl, setCardPreviewUrl] = useState<string | null>(null);
+  const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
 
   // Tenant HIP configuration - warn instead of letting enrollment silently fail
   const { data: abdmConfig } = useQuery({
@@ -150,9 +145,11 @@ export function AbhaEnrollmentModal({
     setSessionKey(null);
     setOtp("");
     setOtpSent(false);
+    setAadhaarConsentAccepted(false);
     setLinkSessionKey(null);
     setLinkOtp("");
     setLinkOtpSent(false);
+    setLinkConsentAccepted(false);
     setSuggestedAddresses([]);
     setSelectedAddress("");
     setShowAddressSelection(false);
@@ -189,9 +186,16 @@ export function AbhaEnrollmentModal({
       toast.error("Please enter a valid 12-digit Aadhaar number");
       return;
     }
+    if (!aadhaarConsentAccepted) {
+      toast.error("Please read and accept the consent to proceed");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await abhaApi.requestAadhaarOtp({ aadhaar_number: aadhaarNumber });
+      const res = await abhaApi.requestAadhaarOtp({
+        aadhaar_number: aadhaarNumber,
+        consent_accepted: aadhaarConsentAccepted,
+      });
       setSessionKey(res.session_key);
       setOtpSent(true);
       toast.success(res.message || "OTP sent to Aadhaar registered mobile");
@@ -224,55 +228,6 @@ export function AbhaEnrollmentModal({
       } else {
         toast.error(getErrorMessage(error) || "OTP verification failed");
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --------------------------------------------------------------------------
-  // Handlers: Demographic Auth
-  // --------------------------------------------------------------------------
-  const handleDemographicEnroll = async () => {
-    if (!aadhaarNumber || !demoName || !demoDob) {
-      toast.error("Please fill all required demographic fields");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await abhaApi.enrolByDemographic({
-        aadhaar_number: aadhaarNumber,
-        name: demoName,
-        gender: demoGender,
-        date_of_birth: demoDob,
-        mobile: aadhaarMobile,
-      });
-      handleEnrollmentSuccess(res);
-    } catch (error: any) {
-      toast.error(getErrorMessage(error) || "Demographic enrollment failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --------------------------------------------------------------------------
-  // Handlers: Biometric Auth
-  // --------------------------------------------------------------------------
-  const handleBiometricEnroll = async () => {
-    if (!aadhaarNumber || !pidData) {
-      toast.error("Please provide Aadhaar and biometric PID data");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await abhaApi.enrolByBiometric({
-        aadhaar_number: aadhaarNumber,
-        bio_type: bioType,
-        pid_data: pidData,
-        mobile: aadhaarMobile,
-      });
-      handleEnrollmentSuccess(res);
-    } catch (error: any) {
-      toast.error(getErrorMessage(error) || "Biometric enrollment failed");
     } finally {
       setLoading(false);
     }
@@ -427,9 +382,16 @@ export function AbhaEnrollmentModal({
       toast.error("Please enter existing ABHA Number or registered Mobile");
       return;
     }
+    if (!linkConsentAccepted) {
+      toast.error("Please read and accept the consent to proceed");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await abhaApi.requestLinkOtp({ abha_number: linkAbhaNumber });
+      const res = await abhaApi.requestLinkOtp({
+        abha_number: linkAbhaNumber,
+        consent_accepted: linkConsentAccepted,
+      });
       setLinkSessionKey(res.session_key);
       setLinkOtpSent(true);
       toast.success(res.message || "OTP sent to registered mobile");
@@ -522,13 +484,18 @@ export function AbhaEnrollmentModal({
     try {
       const blob = await abhaApi.downloadAbhaCard(cardSessionKey);
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "abha-card.png";
-      a.click();
-      window.URL.revokeObjectURL(url);
+      setCardPreviewUrl(url);
+      setIsCardPreviewOpen(true);
     } catch (error: any) {
       toast.error(getErrorMessage(error) || "Failed to download ABHA card");
+    }
+  };
+
+  const handleCardPreviewClose = () => {
+    setIsCardPreviewOpen(false);
+    if (cardPreviewUrl) {
+      window.URL.revokeObjectURL(cardPreviewUrl);
+      setCardPreviewUrl(null);
     }
   };
 
@@ -549,6 +516,7 @@ export function AbhaEnrollmentModal({
   );
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="lg" closeOnOutsideClick={false}>
       <div className="space-y-6">
         {hipNotConfigured && (
@@ -772,15 +740,22 @@ export function AbhaEnrollmentModal({
                 </div>
 
                 {!otpSent ? (
-                  <button
-                    type="button"
-                    onClick={handleRequestAadhaarOtp}
-                    disabled={loading || aadhaarNumber.length !== 12}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                  >
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <span>Send Aadhaar OTP</span>
-                  </button>
+                  <>
+                    <AbhaConsentPanel
+                      checked={aadhaarConsentAccepted}
+                      onChange={setAadhaarConsentAccepted}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRequestAadhaarOtp}
+                      disabled={loading || aadhaarNumber.length !== 12 || !aadhaarConsentAccepted}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <span>Send Aadhaar OTP</span>
+                    </button>
+                  </>
                 ) : (
                   <div className="space-y-4 pt-2 border-t border-slate-100">
                     <ResendableOtpField
@@ -815,165 +790,7 @@ export function AbhaEnrollmentModal({
               </div>
             )}
 
-            {/* TAB 2: DEMOGRAPHIC AUTH */}
-            {activeTab === "demographic" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    12-digit Aadhaar Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={12}
-                    value={aadhaarNumber}
-                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ""))}
-                    placeholder="e.g. 123456789012"
-                    className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Full Name (as in Aadhaar) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={demoName}
-                      onChange={(e) => setDemoName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Gender <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={demoGender}
-                      onChange={(e) => setDemoGender(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    >
-                      <option value="M">Male (M)</option>
-                      <option value="F">Female (F)</option>
-                      <option value="O">Other (O)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Date of Birth (YYYY-MM-DD or YYYY) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={demoDob}
-                      onChange={(e) => setDemoDob(e.target.value)}
-                      placeholder="e.g. 1990-05-15 or 1990"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Mobile Number
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={10}
-                      value={aadhaarMobile}
-                      onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ""))}
-                      placeholder="10-digit mobile"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleDemographicEnroll}
-                  disabled={loading || aadhaarNumber.length !== 12 || !demoName || !demoDob}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span>Enroll by Demographic Auth</span>
-                </button>
-              </div>
-            )}
-
-            {/* TAB 3: BIOMETRIC AUTH */}
-            {activeTab === "biometric" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    12-digit Aadhaar Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={12}
-                    value={aadhaarNumber}
-                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ""))}
-                    placeholder="e.g. 123456789012"
-                    className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Biometric Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={bioType}
-                      onChange={(e) => setBioType(e.target.value as any)}
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    >
-                      <option value="bio">Fingerprint (Bio)</option>
-                      <option value="face">Face Auth (RD Service)</option>
-                      <option value="iris">Iris Scan</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Mobile Number
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={10}
-                      value={aadhaarMobile}
-                      onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ""))}
-                      placeholder="10-digit mobile"
-                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    PID Data (from RD Device) <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={pidData}
-                    onChange={(e) => setPidData(e.target.value)}
-                    placeholder="Base64 encoded PID XML/JSON from RD Service..."
-                    className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-mono text-xs"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleBiometricEnroll}
-                  disabled={loading || aadhaarNumber.length !== 12 || !pidData}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span>Enroll by Biometric Auth</span>
-                </button>
-              </div>
-            )}
-
-            {/* TAB 4: DOCUMENT ENROLLMENT (Driving License) */}
+            {/* TAB 2: DOCUMENT ENROLLMENT (Driving License) */}
             {activeTab === "document" && (
               <div className="space-y-4">
                 {!docOtpVerified ? (
@@ -1250,7 +1067,7 @@ export function AbhaEnrollmentModal({
               </div>
             )}
 
-            {/* TAB 5: LINK EXISTING ABHA */}
+            {/* TAB 3: LINK EXISTING ABHA */}
             {activeTab === "link_existing" && (
               <div className="space-y-4">
                 <div>
@@ -1260,7 +1077,7 @@ export function AbhaEnrollmentModal({
                   <input
                     type="text"
                     value={linkAbhaNumber}
-                    onChange={(e) => setLinkAbhaNumber(e.target.value)}
+                    onChange={(e) => setLinkAbhaNumber(formatAbhaOrMobileInput(e.target.value))}
                     disabled={linkOtpSent}
                     placeholder="e.g. 12-3456-7890-1234 or 9876543210"
                     className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
@@ -1268,15 +1085,22 @@ export function AbhaEnrollmentModal({
                 </div>
 
                 {!linkOtpSent ? (
-                  <button
-                    type="button"
-                    onClick={handleRequestLinkOtp}
-                    disabled={loading || !linkAbhaNumber}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                  >
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <span>Request Link OTP</span>
-                  </button>
+                  <>
+                    <AbhaConsentPanel
+                      checked={linkConsentAccepted}
+                      onChange={setLinkConsentAccepted}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRequestLinkOtp}
+                      disabled={loading || !linkAbhaNumber || !linkConsentAccepted}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <span>Request Link OTP</span>
+                    </button>
+                  </>
                 ) : (
                   <div className="space-y-4 pt-2 border-t border-slate-100">
                     <ResendableOtpField
@@ -1320,5 +1144,8 @@ export function AbhaEnrollmentModal({
         </div>
       </div>
     </Modal>
+
+    <AbhaCardPreviewModal isOpen={isCardPreviewOpen} onClose={handleCardPreviewClose} imageUrl={cardPreviewUrl} />
+    </>
   );
 }
