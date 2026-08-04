@@ -289,9 +289,9 @@ export function InvoiceTemplatesManagement({
                             </div>
                             <div className="flex-1">
                                 <p className="text-slate-700 mb-2">
-                                    Are you sure you want to delete the template &quot;
+                                    Are you sure you want to delete the template "
                                     <span className="font-semibold">{templateToDelete.name}</span>
-                                    &quot;?
+                                    "?
                                 </p>
                                 <p className="text-sm text-slate-500">
                                     This will archive the template. You can restore it later from

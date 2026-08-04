@@ -562,7 +562,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           </div>
         ) : (
           <label className="col-span-1 md:col-span-2 space-y-1">
-            <span className="text-slate-600 text-sm">Mother&apos;s/Parent&apos;s Name <span className="text-rose-500">*</span></span>
+            <span className="text-slate-600 text-sm">Mother's/Parent's Name <span className="text-rose-500">*</span></span>
             <input
               value={parentName}
               onChange={(e) => setParentName(e.target.value)}

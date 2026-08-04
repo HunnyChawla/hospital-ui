@@ -379,7 +379,7 @@ export function PrescriptionFormSection({
                     setSavedPrescription(existing);
 
                     // Parse existing diagnosis to chips and extract eye information
-                    const diagnosisNames: string[] = [];
+                    let diagnosisNames: string[] = [];
                     const eyeMap: Record<string, "OD" | "OS" | "OU" | "NA"> = {};
 
                     if (existing.diagnosis) {
@@ -2239,7 +2239,7 @@ export function PrescriptionFormSection({
                                     />
                                     {testSearchQuery.length >= 2 && !searchingTests && testSearchResults.length === 0 && (
                                         <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                            <p className="text-sm text-slate-500">No lab tests found matching &quot;{testSearchQuery}&quot;</p>
+                                            <p className="text-sm text-slate-500">No lab tests found matching "{testSearchQuery}"</p>
                                         </div>
                                     )}
                                     {testSearchResults.length > 0 && (
@@ -2657,7 +2657,7 @@ export function PrescriptionFormSection({
                                     />
                                     {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
                                         <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                            <p className="text-sm text-slate-500">No advice found matching &quot;{adviceSearchQuery}&quot;</p>
+                                            <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
                                         </div>
                                     )}
                                     {adviceSearchResults.length > 0 && (

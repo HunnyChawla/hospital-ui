@@ -24,6 +24,7 @@ export const getEnv = (key: string, fallback: string = ""): string => {
         return process.env.NEXT_PUBLIC_DOMAIN_URL || fallback;
     }
 
+    // @ts-ignore - process.env is replaced at build time (works on server-side)
     return process.env[key] || fallback;
 };
 
