@@ -126,6 +126,9 @@ const get7DaysAgoDateLocal = (): string => {
     return `${year}-${month}-${day}`;
 };
 
+const canManageSchedule = (status: PlannedSurgeryStatus) =>
+    status === "scheduled" || status === "postponed";
+
 function ExpandableActionButton({
     onClick,
     icon: Icon,
@@ -147,17 +150,25 @@ function ExpandableActionButton({
     };
 
     return (
-        <button
-            type="button"
-            onClick={(e) => {
-                e.stopPropagation();
-                onClick();
-            }}
-            className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold shadow-xs transition-colors duration-200 shrink-0 ${variantClasses[variant]}`}
-            title={title}
-        >
-            <Icon className="h-4 w-4 shrink-0" />
-        </button>
+        <div className="group/action relative inline-flex shrink-0">
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClick();
+                }}
+                aria-label={title}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold shadow-xs transition-colors duration-150 shrink-0 ${variantClasses[variant]}`}
+            >
+                <Icon className="h-4 w-4 shrink-0" />
+            </button>
+            <span
+                role="tooltip"
+                className="pointer-events-none absolute -top-8 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/action:opacity-100"
+            >
+                {label}
+            </span>
+        </div>
     );
 }
 
@@ -416,8 +427,34 @@ export function PlannedSurgeriesList({
         }
     };
 
+    const getStatusAccent = (status: PlannedSurgeryStatus) => {
+        switch (status) {
+            case "advised":
+                return "bg-amber-400";
+            case "scheduled":
+                return "bg-sky-500";
+            case "postponed":
+                return "bg-orange-400";
+            case "completed":
+                return "bg-emerald-500";
+            case "cancelled":
+                return "bg-rose-500";
+            case "denied":
+                return "bg-red-500";
+            default:
+                return "bg-slate-300";
+        }
+    };
+
     const formatStatus = (status: string) => {
         return status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
+    const getInitials = (name: string | null | undefined) => {
+        if (!name) return "PT";
+        const parts = name.trim().split(/\s+/);
+        const initials = parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : parts[0].slice(0, 2);
+        return initials.toUpperCase();
     };
 
     const formatDateTime = (date: string, time: string | null) => {
@@ -993,23 +1030,31 @@ export function PlannedSurgeriesList({
                                 <div
                                     key={surgery.id}
                                     onClick={() => setDetailModalSurgery(surgery)}
-                                    className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:shadow-md h-full cursor-pointer group min-w-0"
+                                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg h-full cursor-pointer min-w-0"
                                 >
-                                    <div className="flex flex-col gap-3">
-                                        {/* Card Header: Patient Name & Eye Tag */}
+                                    {/* Status accent bar */}
+                                    <div className={`h-1 w-full shrink-0 ${getStatusAccent(surgery.status)}`} />
+
+                                    <div className="flex flex-col gap-3 p-4 flex-1">
+                                        {/* Card Header: Avatar, Patient Name & Body Part Tag */}
                                         <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-semibold text-slate-900 truncate group-hover:text-sky-600 transition-colors" title={surgery.patient_name || ""}>
-                                                    {surgery.patient_name || `Patient ${surgery.patient_id.slice(0, 8)}...`}
-                                                </p>
-                                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">
-                                                    <span>UHID: <strong className="font-medium text-slate-700">{surgery.patient_uhid || surgery.patient_id.slice(0, 8)}</strong></span>
-                                                    {surgery.patient_mobile && (
-                                                        <span className="flex items-center gap-1 font-medium text-slate-600">
-                                                            <Phone className="h-3 w-3 text-slate-400" />
-                                                            {surgery.patient_mobile}
-                                                        </span>
-                                                    )}
+                                            <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-teal-500 text-xs font-bold text-white shadow-sm">
+                                                    {getInitials(surgery.patient_name)}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-semibold text-slate-900 truncate group-hover:text-sky-600 transition-colors" title={surgery.patient_name || ""}>
+                                                        {surgery.patient_name || `Patient ${surgery.patient_id.slice(0, 8)}...`}
+                                                    </p>
+                                                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">
+                                                        <span>UHID: <strong className="font-medium text-slate-700">{surgery.patient_uhid || surgery.patient_id.slice(0, 8)}</strong></span>
+                                                        {surgery.patient_mobile && (
+                                                            <span className="flex items-center gap-1 font-medium text-slate-600">
+                                                                <Phone className="h-3 w-3 text-slate-400" />
+                                                                {surgery.patient_mobile}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="shrink-0">
@@ -1022,43 +1067,50 @@ export function PlannedSurgeriesList({
                                         </div>
 
                                         {/* Surgery Name & Package details */}
-                                        <div className="rounded-lg bg-slate-50 p-2.5 text-xs space-y-1.5 border border-slate-100">
-                                            <div className="font-medium text-slate-800 text-sm">
-                                                {surgery.surgery_name}
+                                        <div className="rounded-xl bg-slate-50/70 p-3 text-xs space-y-2 border border-slate-100">
+                                            <div className="flex items-start gap-1.5">
+                                                <Stethoscope className="h-3.5 w-3.5 text-sky-500 mt-0.5 shrink-0" />
+                                                <span className="font-semibold text-slate-800 text-sm leading-snug">
+                                                    {surgery.surgery_name}
+                                                </span>
                                             </div>
-                                            {surgery.package_name && (
-                                                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-100/60 px-2 py-0.5 rounded">
-                                                    <Package className="h-3 w-3" />
-                                                    Package: {surgery.package_name} {surgery.package_price ? `(₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}
+                                            {(surgery.package_name || surgery.surgery_invoice_id || (surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0)) && (
+                                                <div className="flex flex-wrap gap-1.5 border-t border-slate-200/70 pt-2">
+                                                    {surgery.package_name && (
+                                                        <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-100/60 px-2 py-0.5 rounded-md">
+                                                            <Package className="h-3 w-3" />
+                                                            {surgery.package_name} {surgery.package_price ? `(₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}
+                                                        </div>
+                                                    )}
+                                                    {surgery.surgery_invoice_id && (
+                                                        <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-md border border-blue-200">
+                                                            <FileText className="h-3 w-3" />
+                                                            Invoice Generated
+                                                        </div>
+                                                    )}
+                                                    {surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0 ? (
+                                                        <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md">
+                                                            <CreditCard className="h-3 w-3" />
+                                                            ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")} collected
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             )}
-                                            {surgery.surgery_invoice_id && (
-                                                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded border border-blue-200">
-                                                    <FileText className="h-3 w-3" />
-                                                    Invoice Generated
-                                                </div>
-                                            )}
-                                            {surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0 ? (
-                                                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded block">
-                                                    <CreditCard className="h-3 w-3" />
-                                                    Amount Collected: ₹{Number(surgery.advance_payment_amount).toLocaleString("en-IN")}
-                                                </div>
-                                            ) : null}
                                         </div>
 
                                         {/* Surgeon & Date Info */}
-                                        <div className="space-y-1 text-xs text-slate-600">
-                                            <div className="flex items-center gap-1.5">
+                                        <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-600 sm:grid-cols-2">
+                                            <div className="flex items-center gap-1.5 min-w-0">
                                                 <Stethoscope className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                                <span className="truncate">Surgeon: <strong className="font-medium text-slate-700">{surgery.surgeon_name || "Unassigned"}</strong></span>
+                                                <span className="truncate">Dr. <strong className="font-medium text-slate-700">{surgery.surgeon_name || "Unassigned"}</strong></span>
                                             </div>
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex items-center gap-1.5 min-w-0">
                                                 <Calendar className="h-3.5 w-3.5 text-sky-500 shrink-0" />
-                                                <span>
+                                                <span className="truncate">
                                                     {surgery.planned_date ? (
-                                                        <>Planned: <strong className="font-medium text-slate-800">{formatDateTime(surgery.planned_date, surgery.planned_time)}</strong></>
+                                                        <strong className="font-medium text-slate-800">{formatDateTime(surgery.planned_date, surgery.planned_time)}</strong>
                                                     ) : (
-                                                        <>Advised: <strong className="font-medium text-amber-700">{formatDate(surgery.advised_date || surgery.created_at)}</strong></>
+                                                        <strong className="font-medium text-amber-700">Advised {formatDate(surgery.advised_date || surgery.created_at)}</strong>
                                                     )}
                                                 </span>
                                             </div>
@@ -1088,7 +1140,7 @@ export function PlannedSurgeriesList({
                                     </div>
 
                                     {/* Card Footer: Streamlined Status Pill & Key Actions */}
-                                    <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
                                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${getStatusColor(surgery.status)}`}>
                                             {getStatusIcon(surgery.status)}
                                             <span className="capitalize">{formatStatus(surgery.status)}</span>
@@ -1100,28 +1152,30 @@ export function PlannedSurgeriesList({
                                                 <ExpandableActionButton
                                                     onClick={() => handleEdit(surgery)}
                                                     icon={Pencil}
-                                                    title="Edit Surgery Details"
-                                                    label="Edit"
+                                                    title="Plan Surgery (Package & Date)"
+                                                    label="Plan"
                                                     variant="emerald"
                                                 />
                                             )}
 
                                             {/* 2. Collect Payment / Billing quick action */}
-                                            <ExpandableActionButton
-                                                onClick={() => setInvoiceModalSurgery(surgery)}
-                                                icon={CreditCard}
-                                                title="Collect Payment / Manage Billing"
-                                                label="Collect Payment"
-                                                variant="emerald"
-                                            />
+                                            {canManageSchedule(surgery.status) && (
+                                                <ExpandableActionButton
+                                                    onClick={() => setInvoiceModalSurgery(surgery)}
+                                                    icon={CreditCard}
+                                                    title="Collect Payment / Manage Billing"
+                                                    label="Collect Payment"
+                                                    variant="emerald"
+                                                />
+                                            )}
 
                                             {/* 3. Reschedule action button */}
-                                            {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
+                                            {canManageSchedule(surgery.status) && (
                                                 <ExpandableActionButton
                                                     onClick={() => handleReschedule(surgery)}
                                                     icon={CalendarClock}
-                                                    title={surgery.status === "advised" ? "Schedule Date" : "Reschedule Date"}
-                                                    label={surgery.status === "advised" ? "Schedule" : "Reschedule"}
+                                                    title="Reschedule Date"
+                                                    label="Reschedule"
                                                     variant="amber"
                                                 />
                                             )}
@@ -1253,19 +1307,21 @@ export function PlannedSurgeriesList({
                                                             <ExpandableActionButton
                                                                 onClick={() => handleEdit(surgery)}
                                                                 icon={Pencil}
-                                                                title="Edit Surgery Details"
-                                                                label="Edit"
+                                                                title="Plan Surgery (Package & Date)"
+                                                                label="Plan"
                                                                 variant="emerald"
                                                             />
                                                         )}
-                                                        <ExpandableActionButton
-                                                            onClick={() => setInvoiceModalSurgery(surgery)}
-                                                            icon={CreditCard}
-                                                            title="Collect Payment / Manage Billing"
-                                                            label="Collect Payment"
-                                                            variant="emerald"
-                                                        />
-                                                        {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
+                                                        {canManageSchedule(surgery.status) && (
+                                                            <ExpandableActionButton
+                                                                onClick={() => setInvoiceModalSurgery(surgery)}
+                                                                icon={CreditCard}
+                                                                title="Collect Payment / Manage Billing"
+                                                                label="Collect Payment"
+                                                                variant="emerald"
+                                                            />
+                                                        )}
+                                                        {canManageSchedule(surgery.status) && (
                                                             <ExpandableActionButton
                                                                 onClick={() => handleReschedule(surgery)}
                                                                 icon={CalendarClock}

@@ -205,14 +205,16 @@ export function SurgeryPaymentSummaryPanel({
       {/* Quick Actions Footer */}
       <div className="flex items-center justify-between pt-2 border-t text-xs">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenAdvanceModal}
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Collect Advance
-          </button>
+          {(surgery.status === "scheduled" || surgery.status === "postponed") && (
+            <button
+              type="button"
+              onClick={onOpenAdvanceModal}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Collect Advance
+            </button>
+          )}
 
           <button
             type="button"

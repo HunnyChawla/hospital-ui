@@ -12,7 +12,6 @@ import {
     Calendar,
     Clock,
     Package,
-    CreditCard,
     History,
     Pencil,
     CalendarClock,
@@ -22,7 +21,6 @@ import {
     RefreshCw,
     FileText,
     AlertCircle,
-    Eye as EyeIcon,
 } from "lucide-react";
 
 import { SurgeryPaymentSummaryPanel } from "./SurgeryPaymentSummaryPanel";
@@ -38,6 +36,57 @@ interface SurgeryDetailModalProps {
     onOpenAdvanceModal?: (surgery: PlannedSurgery) => void;
     onOpenInvoiceModal?: (surgery: PlannedSurgery) => void;
     onOpenRefundModal?: (surgery: PlannedSurgery) => void;
+}
+
+// Expand-on-hover footer action button — matches the CompactActionButton /
+// "Create OPD" pattern used in OpdList.tsx & AppointmentsList.tsx so modal
+// actions read consistently with the rest of the app instead of bordered chips.
+function FooterActionButton({
+    onClick,
+    icon: Icon,
+    label,
+    color,
+}: {
+    onClick: () => void;
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    color: "sky" | "amber" | "emerald" | "rose" | "red" | "slate" | "orange";
+}) {
+    const colorClasses: Record<string, string> = {
+        sky: "bg-sky-500 hover:bg-sky-600",
+        amber: "bg-amber-500 hover:bg-amber-600",
+        emerald: "bg-emerald-600 hover:bg-emerald-700",
+        rose: "bg-rose-500 hover:bg-rose-600",
+        red: "bg-red-500 hover:bg-red-600",
+        slate: "bg-slate-500 hover:bg-slate-600",
+        orange: "bg-orange-500 hover:bg-orange-600",
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+            }}
+            className={`group relative flex items-center justify-center overflow-hidden rounded-xl p-2.5 text-xs font-semibold text-white shadow-sm transition-all duration-300 ${colorClasses[color]}`}
+            style={{ width: "2.5rem" }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.width = "auto";
+                e.currentTarget.style.paddingLeft = "0.875rem";
+                e.currentTarget.style.paddingRight = "0.875rem";
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.width = "2.5rem";
+                e.currentTarget.style.paddingLeft = "0.625rem";
+                e.currentTarget.style.paddingRight = "0.625rem";
+            }}
+            title={label}
+        >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">{label}</span>
+        </button>
+    );
 }
 
 export function SurgeryDetailModal({
@@ -145,45 +194,22 @@ export function SurgeryDetailModal({
 
                 {/* Content Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                    {/* Surgery & Package Overview */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Surgery Name</span>
-                                <h4 className="text-base font-bold text-slate-900">{surgery.surgery_name}</h4>
-                            </div>
-                            {surgery.reschedule_count > 0 && (
-                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                                    <RefreshCw className="h-3 w-3" />
-                                    Rescheduled {surgery.reschedule_count}x
-                                </span>
-                            )}
+                    {/* Surgery Name */}
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Surgery</span>
+                            <h4 className="text-base font-bold text-slate-900">{surgery.surgery_name}</h4>
                         </div>
-
-                        {/* Package Details */}
-                        {surgery.package_name && (
-                            <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 font-medium">
-                                <Package className="h-4 w-4 shrink-0 text-sky-600" />
-                                <span>
-                                    Package: <strong className="font-semibold">{surgery.package_name}</strong>
-                                    {surgery.package_price ? ` (₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}
-                                </span>
-                            </div>
+                        {surgery.reschedule_count > 0 && (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full shrink-0">
+                                <RefreshCw className="h-3 w-3" />
+                                Rescheduled {surgery.reschedule_count}x
+                            </span>
                         )}
-
                     </div>
 
-                    {/* Surgery Payment Summary Panel */}
-                    <SurgeryPaymentSummaryPanel
-                        surgery={surgery}
-                        onOpenAdvanceModal={() => onOpenAdvanceModal?.(surgery)}
-                        onOpenInvoiceModal={() => onOpenInvoiceModal?.(surgery)}
-                        onOpenRefundModal={() => onOpenRefundModal?.(surgery)}
-                    />
-
-                    {/* Metadata Grid */}
+                    {/* 1. Advised Details: Surgeon & Advised Date (known from the outset) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        {/* Surgeon */}
                         <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1 shadow-2xs">
                             <span className="text-slate-500 font-medium flex items-center gap-1">
                                 <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
@@ -193,20 +219,83 @@ export function SurgeryDetailModal({
                                 {surgery.surgeon_name || "Unassigned"}
                             </p>
                         </div>
-
-                        {/* Planned / Advised Date */}
                         <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1 shadow-2xs">
                             <span className="text-slate-500 font-medium flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5 text-sky-500" />
-                                {surgery.planned_date ? "Planned Date" : "Advised Date"}
+                                <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                                Advised Date
                             </span>
                             <p className="text-sm font-semibold text-slate-800">
-                                {surgery.planned_date
-                                    ? formatDateTime(surgery.planned_date, surgery.planned_time)
-                                    : formatDate(surgery.advised_date || surgery.created_at)}
+                                {formatDate(surgery.advised_date || surgery.created_at)}
                             </p>
                         </div>
+                    </div>
 
+                    {/* 2. Surgical Plan: Package & Planned Date once finalized, else a call-to-action */}
+                    {surgery.planned_date ? (
+                        <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700">Surgical Plan</span>
+                                {!isTerminal && (
+                                    <button
+                                        onClick={() => onEdit(surgery)}
+                                        className="flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-800"
+                                    >
+                                        <Pencil className="h-3 w-3" />
+                                        Update Plan
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <span className="text-slate-500 font-medium flex items-center gap-1">
+                                        <Calendar className="h-3.5 w-3.5 text-sky-500" />
+                                        Planned Date
+                                    </span>
+                                    <p className="text-sm font-semibold text-slate-800">
+                                        {formatDateTime(surgery.planned_date, surgery.planned_time)}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-slate-500 font-medium flex items-center gap-1">
+                                        <Package className="h-3.5 w-3.5 text-sky-500" />
+                                        Package
+                                    </span>
+                                    <p className="text-sm font-semibold text-slate-800">
+                                        {surgery.package_name
+                                            ? `${surgery.package_name}${surgery.package_price ? ` (₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}`
+                                            : "No package selected"}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                                <AlertCircle className="h-4 w-4 shrink-0" />
+                                Surgery plan not finalized yet
+                            </div>
+                            {!isTerminal && (
+                                <button
+                                    onClick={() => onEdit(surgery)}
+                                    className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    Plan Surgery
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 3. Payment Info */}
+                    <SurgeryPaymentSummaryPanel
+                        surgery={surgery}
+                        onOpenAdvanceModal={() => onOpenAdvanceModal?.(surgery)}
+                        onOpenInvoiceModal={() => onOpenInvoiceModal?.(surgery)}
+                        onOpenRefundModal={() => onOpenRefundModal?.(surgery)}
+                    />
+
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         {/* Follow-up Date (if postponed) */}
                         {surgery.status === "postponed" && surgery.followup_date && (
                             <div className="rounded-xl border border-orange-200 bg-orange-50 p-3.5 space-y-1 sm:col-span-2 shadow-2xs">
@@ -274,90 +363,67 @@ export function SurgeryDetailModal({
 
                 {/* Footer Action Bar */}
                 <div className="border-t border-slate-200 bg-slate-50/70 p-4 flex flex-wrap items-center justify-between gap-3">
-                    {/* View History Button */}
-                    <button
+                    <FooterActionButton
                         onClick={() => onViewHistory(surgery)}
-                        className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
-                    >
-                        <History className="h-4 w-4" />
-                        <span>Timeline History</span>
-                    </button>
+                        icon={History}
+                        label="Timeline History"
+                        color="sky"
+                    />
 
                     {/* Right-aligned action buttons */}
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Edit Details */}
                         {!isTerminal && (
-                            <button
+                            <FooterActionButton
                                 onClick={() => onEdit(surgery)}
-                                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                            >
-                                <Pencil className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                            </button>
+                                icon={Pencil}
+                                label="Plan"
+                                color="slate"
+                            />
                         )}
 
-                        {/* Collect Payment / Billing */}
-                        <button
-                            onClick={() => onOpenInvoiceModal?.(surgery)}
-                            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                        >
-                            <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
-                            <span>Collect Payment</span>
-                        </button>
-
-                        {/* Reschedule */}
-                        {(surgery.status === "advised" || surgery.status === "scheduled" || surgery.status === "postponed") && (
-                            <button
+                        {(surgery.status === "scheduled" || surgery.status === "postponed") && (
+                            <FooterActionButton
                                 onClick={() => onReschedule(surgery)}
-                                className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                            >
-                                <CalendarClock className="h-3.5 w-3.5 text-amber-600" />
-                                <span>{surgery.status === "advised" ? "Schedule Date" : "Reschedule"}</span>
-                            </button>
+                                icon={CalendarClock}
+                                label="Reschedule"
+                                color="amber"
+                            />
                         )}
 
-                        {/* Complete */}
                         {surgery.status === "scheduled" && (
-                            <button
+                            <FooterActionButton
                                 onClick={() => onTransition(surgery, "completed")}
-                                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 shadow-2xs"
-                            >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>Mark Completed</span>
-                            </button>
+                                icon={CheckCircle2}
+                                label="Mark Completed"
+                                color="emerald"
+                            />
                         )}
 
-                        {/* Postpone */}
-                        {(surgery.status === "advised" || surgery.status === "scheduled") && (
-                            <button
+                        {!isTerminal && (surgery.status === "advised" || surgery.status === "scheduled") && (
+                            <FooterActionButton
                                 onClick={() => onTransition(surgery, "postponed")}
-                                className="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-2 text-xs font-semibold text-orange-800 transition hover:bg-orange-100"
-                            >
-                                <Clock className="h-3.5 w-3.5 text-orange-600" />
-                                <span>Postpone</span>
-                            </button>
+                                icon={Clock}
+                                label="Postpone"
+                                color="orange"
+                            />
                         )}
 
-                        {/* Deny */}
                         {!isTerminal && (
-                            <button
+                            <FooterActionButton
                                 onClick={() => onTransition(surgery, "denied")}
-                                className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                            >
-                                <Ban className="h-3.5 w-3.5 text-red-600" />
-                                <span>Patient Denied</span>
-                            </button>
+                                icon={Ban}
+                                label="Patient Denied"
+                                color="red"
+                            />
                         )}
 
-                        {/* Cancel */}
                         {!isTerminal && (
-                            <button
+                            <FooterActionButton
                                 onClick={() => onTransition(surgery, "cancelled")}
-                                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-                            >
-                                <XCircle className="h-3.5 w-3.5 text-rose-600" />
-                                <span>Cancel</span>
-                            </button>
+                                icon={XCircle}
+                                label="Cancel"
+                                color="rose"
+                            />
                         )}
                     </div>
                 </div>

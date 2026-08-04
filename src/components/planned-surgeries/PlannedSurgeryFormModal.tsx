@@ -26,6 +26,53 @@ interface PlannedSurgeryFormModalProps {
     initialData?: PlannedSurgery | null;
 }
 
+// Section eyebrow header — same label convention as the Surgery/Surgical Plan
+// eyebrows in SurgeryDetailModal, so the plan flow reads as one system with
+// the detail view instead of an undifferentiated stack of fields.
+function FormSection({
+    icon: Icon,
+    label,
+    children,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+// Read-only value display — for facts that were fixed at the "advised" stage
+// (patient, prescribed surgery, surgeon) and can no longer be edited here.
+// Rendering these as plain labeled text instead of disabled input-look boxes
+// keeps the form from implying they're editable fields.
+function InfoTile({
+    icon: Icon,
+    label,
+    children,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="min-w-0">
+            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <Icon className="h-3 w-3" />
+                {label}
+            </span>
+            <div className="mt-1 truncate text-sm font-semibold text-slate-800">{children}</div>
+        </div>
+    );
+}
+
 export function PlannedSurgeryFormModal({
     isOpen,
     onClose,
@@ -120,9 +167,6 @@ export function PlannedSurgeryFormModal({
             try {
                 const data = await surgeryPackagesApi.list(surgeryId, true);
                 setPackages(data);
-                if (data.length > 0 && !selectedPackageId) {
-                    setSelectedPackageId(data[0].id);
-                }
             } catch (error) {
                 console.error("Failed to fetch packages:", error);
                 setPackages([]);
@@ -403,6 +447,8 @@ export function PlannedSurgeryFormModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData, selectedPkg, bodyPartId]);
 
+    const hasBillingSummary = isEditing && !!(summary || payments.length > 0 || hasCollectedPayment);
+
     return (
         <Transition appear show={isOpen} as={Fragment}>
             <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -429,133 +475,160 @@ export function PlannedSurgeryFormModal({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+                            <Dialog.Panel className="flex w-full max-w-3xl max-h-[90vh] transform flex-col overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
                                 {/* Header */}
-                                <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-sky-50 to-teal-50 px-6 py-4">
-                                    <Dialog.Title className="text-lg font-semibold text-slate-900">
-                                        {isEditing ? "Edit Planned Surgery" : "Plan New Surgery"}
-                                    </Dialog.Title>
+                                <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-sky-50 to-teal-50 px-6 py-4 shrink-0">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-white shadow-2xs">
+                                            <Stethoscope className="h-5 w-5 text-sky-600" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <Dialog.Title className="text-lg font-bold text-slate-900">
+                                                {isEditing ? "Plan Surgery" : "Plan New Surgery"}
+                                            </Dialog.Title>
+                                            <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                                                {isEditing
+                                                    ? `${patientName || "Patient"} — ${surgeryName || "Surgery"}`
+                                                    : "Schedule the date, choose a package, and optionally collect an advance"}
+                                            </p>
+                                        </div>
+                                    </div>
                                     <button
                                         onClick={onClose}
-                                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 shrink-0"
                                     >
                                         <X className="h-5 w-5" />
                                     </button>
                                 </div>
 
                                 {/* Form */}
-                                <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+                                <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+                                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                                    {/* Prescribed Details — read-only facts fixed at the advised stage */}
+                                    {isEditing && (
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-sky-200 bg-sky-50/40 p-4 sm:grid-cols-4">
+                                            <InfoTile icon={User} label="Patient">
+                                                {patientName || "Unknown Patient"}
+                                            </InfoTile>
+                                            <InfoTile icon={FileText} label="Surgery">
+                                                {surgeryName || initialData?.surgery_name || "Prescribed Surgery"}
+                                            </InfoTile>
+                                            <InfoTile icon={Stethoscope} label="Surgeon">
+                                                {doctors.find((d) => d.id === surgeonId)?.name
+                                                    || doctors.find((d) => d.id === surgeonId)?.user?.name
+                                                    || doctors.find((d) => d.id === surgeonId)?.user_name
+                                                    || "Unassigned"}
+                                            </InfoTile>
+                                            {initialData?.body_part_name && (
+                                                <InfoTile icon={Package} label="Body Part">
+                                                    <BodyPartBadge name={initialData.body_part_name} />
+                                                </InfoTile>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Patient Selection */}
+                                    {!isEditing && (
                                     <div className="space-y-1.5">
                                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                             <User className="h-4 w-4 text-slate-400" />
                                             Patient <span className="text-rose-500">*</span>
                                         </label>
-                                        {isEditing ? (
-                                            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
-                                                {patientName || "Unknown Patient"}
-                                            </div>
-                                        ) : (
-                                            <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    value={patientSearch}
-                                                    onChange={(e) => setPatientSearch(e.target.value)}
-                                                    onFocus={() => patientResults.length > 0 && setShowPatientDropdown(true)}
-                                                    placeholder="Search patient by name or mobile..."
-                                                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                                                />
-                                                {searchingPatients && (
-                                                    <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-                                                )}
-                                                {showPatientDropdown && patientResults.length > 0 && (
-                                                    <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
-                                                        {patientResults.map((patient) => (
-                                                            <button
-                                                                key={patient.id}
-                                                                type="button"
-                                                                onClick={() => handlePatientSelect(patient)}
-                                                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
-                                                            >
-                                                                <span className="font-medium text-slate-900">
-                                                                    {patient.first_name} {patient.last_name}
-                                                                </span>
-                                                                <span className="ml-2 text-slate-500">
-                                                                    {patient.mobile}
-                                                                </span>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {patientId && (
-                                                    <div className="mt-1 text-xs text-emerald-600">
-                                                        ✓ Selected: {patientName}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={patientSearch}
+                                                onChange={(e) => setPatientSearch(e.target.value)}
+                                                onFocus={() => patientResults.length > 0 && setShowPatientDropdown(true)}
+                                                placeholder="Search patient by name or mobile..."
+                                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                            />
+                                            {searchingPatients && (
+                                                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                            )}
+                                            {showPatientDropdown && patientResults.length > 0 && (
+                                                <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-48 overflow-y-auto">
+                                                    {patientResults.map((patient) => (
+                                                        <button
+                                                            key={patient.id}
+                                                            type="button"
+                                                            onClick={() => handlePatientSelect(patient)}
+                                                            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
+                                                        >
+                                                            <span className="font-medium text-slate-900">
+                                                                {patient.first_name} {patient.last_name}
+                                                            </span>
+                                                            <span className="ml-2 text-slate-500">
+                                                                {patient.mobile}
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {patientId && (
+                                                <div className="mt-1 text-xs text-emerald-600">
+                                                    ✓ Selected: {patientName}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    )}
 
+                                    {!isEditing && (
+                                    <FormSection icon={Stethoscope} label="Surgery & Surgeon">
                                     {/* Surgery Selection */}
                                     <div className="space-y-1.5">
                                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                             <FileText className="h-4 w-4 text-slate-400" />
-                                            Surgery Type {isEditing && <span className="text-xs font-normal text-slate-400">(Prescribed by Doctor)</span>} {!isEditing && <span className="text-rose-500">*</span>}
+                                            Surgery Type <span className="text-rose-500">*</span>
                                         </label>
-                                        {isEditing ? (
-                                            <div className="w-full rounded-xl border border-slate-200 bg-slate-100/80 px-4 py-2.5 text-sm font-bold text-slate-800 flex items-center justify-between">
-                                                <span>{surgeryName || initialData?.surgery_name || "Prescribed Surgery"}</span>
-                                                <span className="text-xs font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">Prescribed by Doctor</span>
-                                            </div>
-                                        ) : (
+                                        <div className="relative">
                                             <div className="relative">
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                                    <input
-                                                        type="text"
-                                                        value={surgerySearch}
-                                                        onChange={(e) => {
-                                                            setSurgerySearch(e.target.value);
-                                                            setSurgeryId("");
-                                                            setSelectedSurgery(null);
-                                                            setShowSurgeryDropdown(true);
-                                                        }}
-                                                        onFocus={() => setShowSurgeryDropdown(true)}
-                                                        placeholder="Search surgeries..."
-                                                        className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                                                    />
-                                                    {loadingSurgeries && (
-                                                        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    value={surgerySearch}
+                                                    onChange={(e) => {
+                                                        setSurgerySearch(e.target.value);
+                                                        setSurgeryId("");
+                                                        setSelectedSurgery(null);
+                                                        setShowSurgeryDropdown(true);
+                                                    }}
+                                                    onFocus={() => setShowSurgeryDropdown(true)}
+                                                    placeholder="Search surgeries..."
+                                                    className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                                />
+                                                {loadingSurgeries && (
+                                                    <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                                )}
+                                            </div>
+                                            {showSurgeryDropdown && (
+                                                <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                                    {surgeryResults.length === 0 ? (
+                                                        <p className="px-4 py-2 text-xs text-slate-500">No surgeries found.</p>
+                                                    ) : (
+                                                        surgeryResults.map((surgery) => (
+                                                            <button
+                                                                key={surgery.id}
+                                                                type="button"
+                                                                onClick={() => handleSelectSurgery(surgery)}
+                                                                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
+                                                            >
+                                                                <span className="font-medium text-slate-900">{surgery.name}</span>
+                                                                {surgery.category && (
+                                                                    <span className="ml-2 text-slate-500">({surgery.category})</span>
+                                                                )}
+                                                            </button>
+                                                        ))
                                                     )}
                                                 </div>
-                                                {showSurgeryDropdown && (
-                                                    <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                                                        {surgeryResults.length === 0 ? (
-                                                            <p className="px-4 py-2 text-xs text-slate-500">No surgeries found.</p>
-                                                        ) : (
-                                                            surgeryResults.map((surgery) => (
-                                                                <button
-                                                                    key={surgery.id}
-                                                                    type="button"
-                                                                    onClick={() => handleSelectSurgery(surgery)}
-                                                                    className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
-                                                                >
-                                                                    <span className="font-medium text-slate-900">{surgery.name}</span>
-                                                                    {surgery.category && (
-                                                                        <span className="ml-2 text-slate-500">({surgery.category})</span>
-                                                                    )}
-                                                                </button>
-                                                            ))
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {surgeryId && (
-                                                    <div className="mt-1 text-xs text-emerald-600">
-                                                        ✓ Selected: {surgeryName}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
+                                            )}
+                                            {surgeryId && (
+                                                <div className="mt-1 text-xs text-emerald-600">
+                                                    ✓ Selected: {surgeryName}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Surgeon Selection */}
@@ -567,8 +640,7 @@ export function PlannedSurgeryFormModal({
                                         <select
                                             value={surgeonId}
                                             onChange={(e) => setSurgeonId(e.target.value)}
-                                            disabled={isEditing}
-                                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                         >
                                             <option value="">Select surgeon...</option>
                                             {doctors.map((doctor) => (
@@ -580,19 +652,7 @@ export function PlannedSurgeryFormModal({
                                     </div>
 
                                     {/* Body Part Selection */}
-                                    {isEditing ? (
-                                        initialData?.body_part_name && (
-                                            <div className="space-y-1.5">
-                                                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                                                    Body Part <span className="text-xs text-slate-400 font-normal">(Prescribed by Doctor)</span>
-                                                </label>
-                                                <div className="w-full rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 flex items-center justify-between">
-                                                    <span className="text-xs font-semibold text-sky-950">Doctor Prescribed Body Part:</span>
-                                                    <BodyPartBadge name={initialData.body_part_name} />
-                                                </div>
-                                            </div>
-                                        )
-                                    ) : selectedSurgery && selectedSurgery.body_parts.length > 0 ? (
+                                    {selectedSurgery && selectedSurgery.body_parts.length > 0 ? (
                                         <div className="space-y-2 rounded-xl border border-sky-200/80 bg-sky-50/40 p-4">
                                             <div className="flex items-center justify-between">
                                                 <label className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
@@ -639,7 +699,10 @@ export function PlannedSurgeryFormModal({
                                             )}
                                         </div>
                                     ) : null}
+                                    </FormSection>
+                                    )}
 
+                                    <FormSection icon={Calendar} label="Schedule">
                                     {/* Planned Date and Time */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
@@ -686,6 +749,7 @@ export function PlannedSurgeryFormModal({
                                             </div>
                                         )}
                                     </div>
+                                    </FormSection>
 
                                     {/* Packages Selection Section */}
                                     {surgeryId && (
@@ -817,8 +881,9 @@ export function PlannedSurgeryFormModal({
                                         </div>
                                     )}
 
-                                    {/* Billing & Payments Summary Card */}
-                                    {isEditing && (summary || payments.length > 0 || hasCollectedPayment) && (
+                                    {/* Billing & Payments Summary + Advance Payment Collection, paired side by side */}
+                                    <div className={hasBillingSummary ? "grid grid-cols-1 gap-5 lg:grid-cols-2" : ""}>
+                                    {hasBillingSummary && (
                                         <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3 shadow-sm">
                                             <div className="flex items-center justify-between">
                                                 <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wide">
@@ -992,7 +1057,10 @@ export function PlannedSurgeryFormModal({
                                             </div>
                                         )}
                                     </div>
+                                    </div>
 
+                                    {/* Status + Notes, paired side by side */}
+                                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                     {/* Status Selection — only shown on create */}
                                     {isEditing ? (
                                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1">
@@ -1029,35 +1097,37 @@ export function PlannedSurgeryFormModal({
                                             value={notes}
                                             onChange={(e) => setNotes(e.target.value)}
                                             placeholder="Add any additional notes..."
-                                            rows={2}
+                                            rows={4}
                                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100 resize-none"
                                         />
                                     </div>
-
-                                    {/* Actions */}
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={saving}
-                                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:opacity-50"
-                                        >
-                                            {saving ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                    {isEditing ? "Updating..." : "Planning..."}
-                                                </>
-                                            ) : (
-                                                <>{isEditing ? "Update Plan" : "Plan Surgery"}</>
-                                            )}
-                                        </button>
                                     </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-slate-50/70 px-6 py-4">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={saving}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:opacity-50"
+                                    >
+                                        {saving ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                {isEditing ? "Updating..." : "Planning..."}
+                                            </>
+                                        ) : (
+                                            <>{isEditing ? "Update Plan" : "Plan Surgery"}</>
+                                        )}
+                                    </button>
+                                </div>
                                 </form>
                             </Dialog.Panel>
                         </Transition.Child>
