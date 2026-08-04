@@ -92,8 +92,9 @@ export interface AbhaLinkVerifyOtpDto {
 }
 
 export interface AbhaPatientSyncRequestDto {
-  profile: AbhaProfileDto;
+  session_key: string;
   aadhaar_number?: string | null;
+  override_mismatch?: boolean;
 }
 
 export const abhaApi = {

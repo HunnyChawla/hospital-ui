@@ -54,11 +54,13 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
   const [abhaProfile, setAbhaProfile] = useState<any>(null);
+  const [abhaSessionKey, setAbhaSessionKey] = useState<string | null>(null);
   const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
   const isAbhaVerified = abhaProfile ? true : (defaultValues?.abhaVerified || false);
 
-  const handleAbhaSuccess = (profile: any, aadhaar?: string) => {
+  const handleAbhaSuccess = (profile: any, sessionKey: string, aadhaar?: string) => {
     setAbhaProfile(profile);
+    setAbhaSessionKey(sessionKey);
     if (aadhaar) setAadhaarNum(aadhaar);
 
     // Auto-populate form fields from ABHA profile
@@ -78,10 +80,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     }
     if (profile.dob) {
       handleDobChange(profile.dob);
-    }
-    const abhaVal = profile.abha_number || profile.abha_address || "";
-    if (abhaVal) {
-      setValue("abha_id", abhaVal, { shouldValidate: true });
     }
     toast.success("Patient details auto-populated from ABHA profile!");
   };
@@ -293,7 +291,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: apiData.email || "",
         date_of_birth: dob,
         gender: apiData.gender?.toLowerCase() as "male" | "female" | "other",
-        abha_id: apiData.abha_id || "",
         address: apiData.address || "",
         city: apiData.city || "",
         state: apiData.state || "",
@@ -332,7 +329,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: "",
         date_of_birth: "",
         gender: "male",
-        abha_id: "",
         address: "",
         city: "",
         state: "",
@@ -380,7 +376,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: values.email?.trim() || null,
         date_of_birth: dobValue,
         gender,
-        abha_id: values.abha_id?.trim() || null,
         address: values.address?.trim() || null,
         city: values.city?.trim() || null,
         state: values.state?.trim() || null,
@@ -396,7 +391,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: values.email?.trim() || null,
         date_of_birth: values.date_of_birth,
         gender,
-        abha_id: values.abha_id?.trim() || null,
         address: values.address?.trim() || null,
         city: values.city?.trim() || null,
         state: values.state?.trim() || null,
@@ -405,12 +399,11 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       };
     }
 
-    // Include optional ABHA details if enrolled or linked
-    if (abhaProfile) {
-      patientData.abha_number = abhaProfile.abha_number || null;
-      patientData.abha_address = abhaProfile.abha_address || null;
-      patientData.abha_verified = true;
-      patientData.photo_base64 = abhaProfile.photo_base64 || null;
+    // ABHA identity fields (abha_number/abha_address/abha_verified) are never sent here -
+    // they're only ever written by the verified abhaApi.syncToPatient call below. The photo
+    // is a general patient-profile field, so it's fine to carry it through directly.
+    if (abhaProfile?.photo_base64) {
+      patientData.photo_base64 = abhaProfile.photo_base64;
     }
     if (aadhaarNum) {
       patientData.aadhaar_number = aadhaarNum;
@@ -423,10 +416,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         patientId: defaultValues.id,
         updates: patientData,
       });
-      if (abhaProfile) {
+      if (abhaProfile && abhaSessionKey) {
         try {
           await abhaApi.syncToPatient(defaultValues.id, {
-            profile: abhaProfile,
+            session_key: abhaSessionKey,
             aadhaar_number: aadhaarNum || null,
           });
         } catch (e) {
@@ -450,10 +443,10 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         }));
       }
 
-      if (abhaProfile) {
+      if (abhaProfile && abhaSessionKey) {
         try {
           await abhaApi.syncToPatient(newPatient.id, {
-            profile: abhaProfile,
+            session_key: abhaSessionKey,
             aadhaar_number: aadhaarNum || null,
           });
         } catch (e) {
@@ -766,7 +759,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <div className="flex items-center justify-between">
               <span className="text-slate-600">ABHA/Health ID</span>
               <AbhaStatusBadge
-                abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || watch("abha_id")}
+                abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number}
                 abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress}
                 abhaVerified={isAbhaVerified}
                 showEnrollButton={abhaEnabled}
@@ -774,16 +767,17 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
                 size="sm"
               />
             </div>
-            <input
-              {...register("abha_id")}
-              readOnly={isAbhaVerified}
-              className={`w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-400 text-sm ${
-                isAbhaVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed" : "bg-white"
-              }`}
-              placeholder="Enter ABHA ID"
-            />
-            {isAbhaVerified && (
+            {/* ABHA can only be linked through ABDM verification (see "Link ABHA" above) -
+                it is never a free-text field the user can type into directly. */}
+            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              {abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number || "Not linked"}
+            </div>
+            {isAbhaVerified ? (
               <span className="text-xs text-emerald-600">Verified via ABDM</span>
+            ) : (
+              <span className="text-xs text-slate-400">
+                Use &quot;Link ABHA&quot; above to verify and attach an ABHA ID.
+              </span>
             )}
           </label>
 

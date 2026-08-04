@@ -45,7 +45,7 @@ export interface AbhaEnrollmentExistingPatientDetails {
 export interface AbhaEnrollmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (profile: AbhaProfileDto, aadhaarNumber?: string) => void;
+  onSuccess: (profile: AbhaProfileDto, sessionKey: string, aadhaarNumber?: string) => void;
   patientId?: string;
   initialMobile?: string;
   initialName?: string;
@@ -128,6 +128,9 @@ export function AbhaEnrollmentModal({
   // Loading & Result
   const [loading, setLoading] = useState(false);
   const [resultProfile, setResultProfile] = useState<AbhaProfileDto | null>(null);
+  // Session key backing the verified resultProfile - looked up server-side at sync time, so the
+  // patient record can only ever be updated with data that actually came from ABDM.
+  const [resultSessionKey, setResultSessionKey] = useState<string | null>(null);
   const [cardSessionKey, setCardSessionKey] = useState<string | null>(null);
   const [cardPreviewUrl, setCardPreviewUrl] = useState<string | null>(null);
   const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
@@ -154,6 +157,7 @@ export function AbhaEnrollmentModal({
     setSelectedAddress("");
     setShowAddressSelection(false);
     setResultProfile(null);
+    setResultSessionKey(null);
     setCardSessionKey(null);
     setDocMobile(initialMobile);
     setDocSessionKey(null);
@@ -433,16 +437,19 @@ export function AbhaEnrollmentModal({
   // --------------------------------------------------------------------------
   const handleEnrollmentSuccess = (res: AbhaEnrollmentResult) => {
     if (res.card_session_key) setCardSessionKey(res.card_session_key);
+    const effectiveSessionKey = res.session_key || sessionKey;
     if (res.suggested_addresses && res.suggested_addresses.length > 0) {
       setSuggestedAddresses(res.suggested_addresses);
       // Auto-select first suggested address as default
       const defaultAddr = res.auto_selected_address || res.suggested_addresses[0];
       setSelectedAddress(defaultAddr);
       setShowAddressSelection(true);
-      setSessionKey(res.session_key || sessionKey);
+      setSessionKey(effectiveSessionKey);
       setResultProfile(res.profile);
+      setResultSessionKey(effectiveSessionKey);
     } else {
       setResultProfile(res.profile);
+      setResultSessionKey(effectiveSessionKey);
       toast.success(res.message || "ABHA profile retrieved successfully");
     }
   };
@@ -459,6 +466,7 @@ export function AbhaEnrollmentModal({
         abha_address: selectedAddress,
       });
       setResultProfile(res.profile);
+      setResultSessionKey(res.session_key || sessionKey);
       setShowAddressSelection(false);
       toast.success("ABHA address confirmed successfully");
     } catch (error: any) {
@@ -474,8 +482,8 @@ export function AbhaEnrollmentModal({
   };
 
   const handleCompleteAndSync = () => {
-    if (!resultProfile) return;
-    onSuccess(resultProfile, aadhaarNumber || undefined);
+    if (!resultProfile || !resultSessionKey) return;
+    onSuccess(resultProfile, resultSessionKey, aadhaarNumber || undefined);
     onClose();
   };
 

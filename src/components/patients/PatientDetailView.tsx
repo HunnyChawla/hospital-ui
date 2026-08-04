@@ -83,10 +83,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const { data: fullPatientData } = usePatient(isAbhaModalOpen ? patientId : null);
   const abhaApiPatientData = fullPatientData as any;
 
-  const handleAbhaSuccessInDetail = async (profile: any, aadhaar?: string) => {
+  const handleAbhaSuccessInDetail = async (profile: any, sessionKey: string, aadhaar?: string) => {
     try {
       await abhaApi.syncToPatient(patientId, {
-        profile,
+        session_key: sessionKey,
         aadhaar_number: aadhaar || null,
       });
       toast.success("ABHA profile attached to patient successfully!");
