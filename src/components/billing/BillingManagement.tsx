@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi, BillingTransactionRow, PaymentMethod, PaymentMethodBreakdown, BillingStatsResponse, Payment } from "@/services/paymentsApi";
+import { paymentsApi, BillingTransactionRow, PaymentMethod, PaymentMethodBreakdown, BillingStatsResponse, Payment, BillingFeedScope } from "@/services/paymentsApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate, formatDateTime } from "@/utils/format";
@@ -84,6 +84,20 @@ export function BillingManagement({
     setViewMode(mode);
     if (typeof window !== "undefined") {
       localStorage.setItem("billing_transactions_view", mode);
+    }
+  };
+
+  // Combined (invoices + invoice-less payments) / Invoices-only / Payments-only
+  // scope - persisted the same way as viewMode above.
+  const [feedScope, setFeedScope] = useState<BillingFeedScope>(() => {
+    if (typeof window === "undefined") return "combined";
+    const stored = localStorage.getItem("billing_feed_scope");
+    return stored === "invoice" || stored === "payment" ? stored : "combined";
+  });
+  const handleFeedScopeChange = (scope: BillingFeedScope) => {
+    setFeedScope(scope);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("billing_feed_scope", scope);
     }
   };
 
@@ -316,6 +330,7 @@ export function BillingManagement({
         end_date,
         sort_by: sortColumn,
         sort_order: sortDirection,
+        feed_scope: feedScope,
         tenant_id: getTenantIdForApi(tenantId),
       });
       setTransactions(response.items);
@@ -326,7 +341,7 @@ export function BillingManagement({
     } finally {
       setTransactionsLoading(false);
     }
-  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange, sortColumn, sortDirection]);
+  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange, sortColumn, sortDirection, feedScope]);
 
   useEffect(() => {
     fetchTransactions();
@@ -339,7 +354,7 @@ export function BillingManagement({
   // Reset page when filters or sorting change
   useEffect(() => {
     setTransactionsPage(1);
-  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter, sortColumn, sortDirection]);
+  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter, sortColumn, sortDirection, feedScope]);
 
   const handlePatientSelect = useCallback((patient: any) => {
     setSelectedPatientId(patient.id);
@@ -368,14 +383,13 @@ export function BillingManagement({
     });
   };
 
-  const handleCollectPaymentClick = async (e: React.MouseEvent, txn: BillingTransactionRow) => {
+  const handleCollectPaymentClick = async (e: React.MouseEvent, invoiceId: string) => {
     e.stopPropagation();
-    if (txn.row_type !== "invoice") return;
 
-    setCollectingPaymentForId(txn.id);
+    setCollectingPaymentForId(invoiceId);
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-      const invoice = await invoicesApi.getById(txn.id, getTenantIdForApi(tenantId));
+      const invoice = await invoicesApi.getById(invoiceId, getTenantIdForApi(tenantId));
       setSelectedInvoiceForPayment(invoice);
       setShowPaymentModal(true);
     } catch (error: any) {
@@ -479,6 +493,7 @@ export function BillingManagement({
         status: statusFilter === "all" ? undefined : statusFilter,
         start_date,
         end_date,
+        feed_scope: feedScope,
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -510,6 +525,7 @@ export function BillingManagement({
           status: statusFilter === "all" ? undefined : statusFilter,
           start_date,
           end_date,
+          feed_scope: feedScope,
         }),
         paymentsApi.getBillingStats({
           patient_id: selectedPatientId || undefined,
@@ -814,7 +830,7 @@ export function BillingManagement({
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               {canCollect && (
                 <button
-                  onClick={(e) => handleCollectPaymentClick(e, txn)}
+                  onClick={(e) => handleCollectPaymentClick(e, txn.id)}
                   disabled={collectingPaymentForId === txn.id}
                   className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
                   title="Collect Payment"
@@ -895,13 +911,17 @@ export function BillingManagement({
     );
   };
 
-  // Render a "payment" row: a payment with no invoice at all (e.g. a surgery advance).
+  // Render a "payment" row. In Combined/Invoices scope this is always an
+  // invoice-less payment (e.g. a surgery advance); in Payments scope it may
+  // carry a real linked invoice - branch on txn.invoice_number presence.
   const renderPaymentOnlyRow = (txn: BillingTransactionRow) => {
     const payment = txn.payment;
+    const hasInvoice = !!txn.invoice_number;
+    const balance = hasInvoice ? (txn.total_amount || 0) - (txn.paid_amount || 0) : 0;
     return (
       <div
         key={txn.id}
-        className="rounded-xl border border-dashed border-amber-300 bg-amber-50/40 p-4 shadow-sm"
+        className={`rounded-xl border p-4 shadow-sm ${hasInvoice ? "border-slate-200 bg-white" : "border-dashed border-amber-300 bg-amber-50/40"}`}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex-1">
@@ -912,10 +932,19 @@ export function BillingManagement({
                   <span className="capitalize">{payment.status}</span>
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                <FileWarning className="h-3.5 w-3.5" />
-                Invoice not available
-              </span>
+              {hasInvoice ? (
+                <button
+                  onClick={() => handleInvoiceClick(txn.invoice_id as string)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                >
+                  #{txn.invoice_number}
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                  <FileWarning className="h-3.5 w-3.5" />
+                  Invoice not available
+                </span>
+              )}
             </div>
 
             {txn.patient_name && (
@@ -932,10 +961,33 @@ export function BillingManagement({
             )}
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
-            <p className="text-xs font-medium text-slate-500">Amount Collected</p>
-            <p className="text-lg font-bold text-amber-700">{currency(payment?.amount || 0)}</p>
-          </div>
+          {hasInvoice ? (
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white px-4 py-2.5 text-right min-w-[140px]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-medium text-slate-500">Total</span>
+                <span className="text-sm font-bold text-slate-900">{currency(txn.total_amount || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-medium text-emerald-600">Received</span>
+                <span className="text-sm font-bold text-emerald-700">{currency(txn.paid_amount || 0)}</span>
+              </div>
+              {balance > 0 && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-medium text-amber-600">Pending</span>
+                  <span className="text-sm font-bold text-amber-700">{currency(balance)}</span>
+                </div>
+              )}
+              <div className="mt-1 flex items-center justify-between gap-3 border-t border-slate-200 pt-1">
+                <span className="text-[11px] font-medium text-indigo-500">This payment</span>
+                <span className="text-sm font-bold text-indigo-700">{currency(payment?.amount || 0)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
+              <p className="text-xs font-medium text-slate-500">Amount Collected</p>
+              <p className="text-lg font-bold text-amber-700">{currency(payment?.amount || 0)}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -944,6 +996,7 @@ export function BillingManagement({
               <Calendar className="h-3.5 w-3.5" />
               {formatDate(txn.row_date)}
             </span>
+            {hasInvoice && txn.invoice_date && <span>Inv: {formatDate(txn.invoice_date)}</span>}
             {payment && (
               <>
                 <span className="font-mono">{payment.payment_number}</span>
@@ -983,13 +1036,13 @@ export function BillingManagement({
         </td>
         <td className="whitespace-nowrap px-3 py-2.5">
           <p className="font-mono text-slate-700">{row.paymentId || "-"}</p>
-          {row.isStandalone ? (
+          {row.isStandalone || !row.invoiceId ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700">
               <FileWarning className="h-3 w-3" />
               No invoice
             </span>
           ) : (
-            <button onClick={() => handleInvoiceClick(txn.id)} className="font-mono text-[10px] text-sky-700 hover:underline">
+            <button onClick={() => handleInvoiceClick(row.invoiceId as string)} className="font-mono text-[10px] text-sky-700 hover:underline">
               Inv: #{row.invoiceNumber}
             </button>
           )}
@@ -1036,7 +1089,7 @@ export function BillingManagement({
           ) : null}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5">
-          {row.isStandalone ? (
+          {row.isStandalone || !row.invoiceId ? (
             (txn.payment?.amount || 0) > 0 && (
               <div className="flex items-center justify-end gap-1.5">
                 <button
@@ -1052,17 +1105,17 @@ export function BillingManagement({
             <div className="flex items-center justify-end gap-1.5">
               {canCollect && (
                 <button
-                  onClick={(e) => handleCollectPaymentClick(e, txn)}
-                  disabled={collectingPaymentForId === txn.id}
+                  onClick={(e) => handleCollectPaymentClick(e, row.invoiceId as string)}
+                  disabled={collectingPaymentForId === row.invoiceId}
                   title="Collect Payment"
                   className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <CreditCard className="h-3.5 w-3.5" />
                 </button>
               )}
-              {(txn.paid_amount || 0) > 0 && (
+              {row.received != null && row.received > 0 && (
                 <button
-                  onClick={() => handlePrintPaymentReceiptClick(txn.id)}
+                  onClick={() => handlePrintPaymentReceiptClick(row.invoiceId as string)}
                   title="Print Receipt"
                   className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-600"
                 >
@@ -1070,14 +1123,14 @@ export function BillingManagement({
                 </button>
               )}
               <button
-                onClick={() => handlePrintInvoiceClick(txn.id)}
+                onClick={() => handlePrintInvoiceClick(row.invoiceId as string)}
                 title="Print Invoice"
                 className="rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 p-1.5 text-white shadow-sm transition hover:from-sky-600 hover:to-teal-600"
               >
                 <Printer className="h-3.5 w-3.5" />
               </button>
               <button
-                onClick={() => handleInvoiceClick(txn.id)}
+                onClick={() => handleInvoiceClick(row.invoiceId as string)}
                 title="View Details"
                 className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
@@ -1211,6 +1264,30 @@ export function BillingManagement({
               <Printer className="h-4 w-4 text-sky-600" />
               {isPreparingPrint ? "Preparing..." : "Print PDF"}
             </button>
+
+            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+              <button
+                onClick={() => handleFeedScopeChange("combined")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${feedScope === "combined" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                title="Invoices + invoice-less payments together"
+              >
+                Combined
+              </button>
+              <button
+                onClick={() => handleFeedScopeChange("invoice")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${feedScope === "invoice" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                title="Invoices only"
+              >
+                Invoices
+              </button>
+              <button
+                onClick={() => handleFeedScopeChange("payment")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${feedScope === "payment" ? "bg-sky-500 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                title="Every payment, with or without an invoice"
+              >
+                Payments
+              </button>
+            </div>
 
             <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
               <button

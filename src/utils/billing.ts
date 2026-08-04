@@ -30,6 +30,11 @@ export interface BillingTableRow {
   invoiceDate: string | null;
   paymentId: string | null;
   invoiceNumber: string | null;
+  // The invoice's own id, resolved regardless of row shape - `txn.id` for a
+  // row_type="invoice" row, `txn.invoice_id` for a row_type="payment" row
+  // that has one (Payments feed scope). Null when there's genuinely no
+  // invoice. Use this (not txn.id) to key Collect/Print Invoice/View actions.
+  invoiceId: string | null;
   patientName: string | null;
   patientUhid: string | null;
   patientMobile: string | null;
@@ -66,6 +71,7 @@ export function buildTableRows(
       const common = {
         invoiceDate: txn.row_date,
         invoiceNumber: txn.invoice_number,
+        invoiceId: txn.id,
         serviceType: txn.invoice_type,
         patientName: txn.patient_name,
         patientUhid: txn.patient_uhid,
@@ -102,25 +108,31 @@ export function buildTableRows(
         });
       }
     } else {
+      // row_type="payment": invoice-less in Combined/Invoices scope, but in
+      // Payments scope may carry a real linked invoice - key off
+      // txn.invoice_number presence rather than assuming invoice-less.
       const payment = txn.payment;
+      const hasInvoice = !!txn.invoice_number;
+      const balance = hasInvoice ? (txn.total_amount || 0) - (txn.paid_amount || 0) : 0;
       rows.push({
         key: txn.id,
         paymentDate: payment?.payment_date ?? null,
-        invoiceDate: null,
+        invoiceDate: txn.invoice_date ?? null,
         paymentId: payment?.payment_number ?? null,
-        invoiceNumber: null,
-        serviceType: payment?.service_category ?? null,
+        invoiceNumber: txn.invoice_number ?? null,
+        invoiceId: txn.invoice_id ?? null,
+        serviceType: txn.invoice_type ?? payment?.service_category ?? null,
         patientName: txn.patient_name,
         patientUhid: txn.patient_uhid,
         patientMobile: txn.patient_mobile,
         transactionAmount: payment?.amount ?? null,
-        total: null,
-        received: payment?.amount ?? null,
-        pending: null,
+        total: hasInvoice ? txn.total_amount : null,
+        received: hasInvoice ? txn.paid_amount : (payment?.amount ?? null),
+        pending: hasInvoice && balance > 0 ? balance : null,
         method: payment?.payment_method ?? null,
         status: payment?.status ?? null,
         hasPayment: !!payment,
-        isStandalone: true,
+        isStandalone: !hasInvoice,
         txn,
       });
     }

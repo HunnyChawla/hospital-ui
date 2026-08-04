@@ -94,6 +94,13 @@ export interface BillingTransactionRow {
   patient_name: string | null;
   patient_mobile: string | null;
   patient_uhid: string | null;
+  /**
+   * Linked invoice's ID/date - only ever set on a row_type="payment" row
+   * from the "payment" feed scope (see BillingTransactionsSearchParams.feed_scope).
+   * Distinct from `id`/`row_date`, which are the payment's own identity/date.
+   */
+  invoice_id: string | null;
+  invoice_date: string | null;
   invoice_number: string | null;
   invoice_type: string | null;
   invoice_status: InvoiceStatus | null;
@@ -114,6 +121,8 @@ export interface BillingTransactionRow {
   payment: Payment | null;
 }
 
+export type BillingFeedScope = "combined" | "invoice" | "payment";
+
 export interface BillingTransactionsSearchParams {
   page?: number;
   page_size?: number;
@@ -124,6 +133,7 @@ export interface BillingTransactionsSearchParams {
   end_date?: string;
   sort_by?: string;
   sort_order?: "asc" | "desc";
+  feed_scope?: BillingFeedScope;
   tenant_id?: string;
 }
 
@@ -268,6 +278,7 @@ export const paymentsApi = {
     if (params?.end_date) queryParams.append("end_date", params.end_date);
     if (params?.sort_by) queryParams.append("sort_by", params.sort_by);
     if (params?.sort_order) queryParams.append("sort_order", params.sort_order);
+    if (params?.feed_scope) queryParams.append("feed_scope", params.feed_scope);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 
@@ -286,6 +297,7 @@ export const paymentsApi = {
     if (params?.status) queryParams.append("status", params.status);
     if (params?.start_date) queryParams.append("start_date", params.start_date);
     if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (params?.feed_scope) queryParams.append("feed_scope", params.feed_scope);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 
