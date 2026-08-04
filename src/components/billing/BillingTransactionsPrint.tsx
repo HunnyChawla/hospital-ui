@@ -2,8 +2,8 @@
 
 import { BillingTransactionRow, BillingStatsResponse } from "@/services/paymentsApi";
 import { useTenant } from "@/hooks/useTenant";
-import { formatDate, currency } from "@/utils/format";
-import { filterPaymentsToDateRange } from "@/utils/billing";
+import { formatDate, formatDateTime, currency } from "@/utils/format";
+import { buildTableRows } from "@/utils/billing";
 import { PrintHeader } from "@/components/common/PrintHeader";
 
 interface BillingTransactionsPrintProps {
@@ -16,6 +16,9 @@ interface BillingTransactionsPrintProps {
 
 export function BillingTransactionsPrint({ items, total, startDate, endDate, stats }: BillingTransactionsPrintProps) {
   const { tenant } = useTenant();
+  // Same flattening the on-screen table view uses, so the report matches it
+  // column-for-column - one row per date-matching payment.
+  const rows = buildTableRows(items, startDate, endDate);
 
   return (
     <div className="mx-auto max-w-4xl bg-white p-6 print:p-4 text-slate-900 font-sans">
@@ -121,80 +124,53 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
 
       <div className="mb-6 space-y-2">
         <h2 className="border-b-2 border-slate-800 pb-1 text-sm font-bold text-slate-900 uppercase tracking-wider">
-          Transactions ({items.length})
+          Transactions ({rows.length})
         </h2>
         <table className="w-full text-left text-[11px] border-collapse">
           <thead>
             <tr className="border-b border-slate-300 bg-slate-100 print:bg-slate-200 font-semibold text-slate-700">
-              <th className="py-1.5 px-2">Date</th>
+              <th className="py-1.5 px-2">Payment Date</th>
+              <th className="py-1.5 px-2">Invoice Date</th>
+              <th className="py-1.5 px-2">Payment ID</th>
+              <th className="py-1.5 px-2">Invoice ID</th>
               <th className="py-1.5 px-2">Patient</th>
-              <th className="py-1.5 px-2">Invoice</th>
-              <th className="py-1.5 px-2 text-right">Original (₹)</th>
-              <th className="py-1.5 px-2 text-right">Discount (₹)</th>
-              <th className="py-1.5 px-2 text-right">Agreed (₹)</th>
-              <th className="py-1.5 px-2">Payment</th>
+              <th className="py-1.5 px-2 text-right">Total (₹)</th>
+              <th className="py-1.5 px-2 text-right">Received (₹)</th>
+              <th className="py-1.5 px-2 text-right">Pending (₹)</th>
               <th className="py-1.5 px-2">Method</th>
-              <th className="py-1.5 px-2 text-right">Paid (₹)</th>
               <th className="py-1.5 px-2 text-center">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {items.map((txn) => {
-              const base = (
-                <>
-                  <td className="py-1.5 px-2 text-slate-700">{formatDate(txn.row_date)}</td>
-                  <td className="py-1.5 px-2 font-semibold text-slate-900">{txn.patient_name || "N/A"}</td>
-                  <td className="py-1.5 px-2 font-mono text-slate-800">
-                    {txn.row_type === "invoice" ? `#${txn.invoice_number}` : (
-                      <span className="italic text-amber-700">Invoice not available</span>
-                    )}
-                  </td>
-                  <td className="py-1.5 px-2 text-right text-slate-600">
-                    {txn.row_type === "invoice" ? currency(txn.subtotal || 0) : "-"}
-                  </td>
-                  <td className="py-1.5 px-2 text-right text-slate-600">
-                    {txn.row_type === "invoice" && txn.discount ? `-${currency(txn.discount)}` : "-"}
-                  </td>
-                  <td className="py-1.5 px-2 text-right font-bold text-slate-900">
-                    {txn.row_type === "invoice" ? currency(txn.total_amount || 0) : "-"}
-                  </td>
-                </>
-              );
-
-              if (txn.row_type === "invoice") {
-                const reportPayments = filterPaymentsToDateRange(txn.payments, startDate, endDate);
-                if (reportPayments.length === 0) {
-                  return (
-                    <tr key={txn.id} className="hover:bg-slate-50">
-                      {base}
-                      <td className="py-1.5 px-2 text-slate-400" colSpan={2}>No payments yet</td>
-                      <td className="py-1.5 px-2 text-right text-slate-600">{currency(txn.paid_amount || 0)}</td>
-                      <td className="py-1.5 px-2 text-center capitalize text-slate-700">{txn.invoice_status}</td>
-                    </tr>
-                  );
-                }
-                return reportPayments.map((p, idx) => (
-                  <tr key={`${txn.id}-${p.id}`} className="hover:bg-slate-50">
-                    {idx === 0 ? base : <td className="py-1.5 px-2" colSpan={6} />}
-                    <td className="py-1.5 px-2 font-mono text-slate-800">{p.payment_number}</td>
-                    <td className="py-1.5 px-2 uppercase text-slate-700">{p.payment_method}</td>
-                    <td className="py-1.5 px-2 text-right font-semibold text-slate-900">{currency(p.amount)}</td>
-                    <td className="py-1.5 px-2 text-center capitalize text-slate-700">{p.status}</td>
-                  </tr>
-                ));
-              }
-
-              const payment = txn.payment;
-              return (
-                <tr key={txn.id} className="hover:bg-slate-50">
-                  {base}
-                  <td className="py-1.5 px-2 font-mono text-slate-800">{payment?.payment_number}</td>
-                  <td className="py-1.5 px-2 uppercase text-slate-700">{payment?.payment_method}</td>
-                  <td className="py-1.5 px-2 text-right font-semibold text-slate-900">{currency(payment?.amount || 0)}</td>
-                  <td className="py-1.5 px-2 text-center capitalize text-slate-700">{payment?.status}</td>
-                </tr>
-              );
-            })}
+            {rows.map((row) => (
+              <tr key={row.key} className="hover:bg-slate-50">
+                <td className="py-1.5 px-2 text-slate-700">{row.paymentDate ? formatDateTime(row.paymentDate) : "-"}</td>
+                <td className="py-1.5 px-2 text-slate-700">{formatDate(row.invoiceDate)}</td>
+                <td className="py-1.5 px-2 font-mono text-slate-800">{row.paymentId || "-"}</td>
+                <td className="py-1.5 px-2 font-mono text-slate-800">
+                  {row.isStandalone ? (
+                    <span className="italic text-amber-700">Invoice not available</span>
+                  ) : (
+                    `#${row.invoiceNumber}`
+                  )}
+                </td>
+                <td className="py-1.5 px-2">
+                  <p className="font-semibold text-slate-900">{row.patientName || "N/A"}</p>
+                  {(row.patientUhid || row.patientMobile) && (
+                    <p className="text-[9px] text-slate-500">
+                      {[row.patientUhid, row.patientMobile].filter(Boolean).join(" • ")}
+                    </p>
+                  )}
+                </td>
+                <td className="py-1.5 px-2 text-right text-slate-700">{row.total != null ? currency(row.total) : "-"}</td>
+                <td className="py-1.5 px-2 text-right font-semibold text-slate-900">{row.received != null ? currency(row.received) : "-"}</td>
+                <td className="py-1.5 px-2 text-right text-amber-700">{row.pending != null ? currency(row.pending) : "-"}</td>
+                <td className="py-1.5 px-2 uppercase text-slate-700">{row.method || "-"}</td>
+                <td className="py-1.5 px-2 text-center capitalize text-slate-700">
+                  {row.hasPayment && row.status ? row.status : !row.isStandalone ? "No payments yet" : "-"}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

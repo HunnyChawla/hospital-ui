@@ -6,7 +6,7 @@ import { paymentsApi, BillingTransactionRow, PaymentMethod, PaymentMethodBreakdo
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency, formatDate, formatDateTime } from "@/utils/format";
-import { filterPaymentsToDateRange } from "@/utils/billing";
+import { buildTableRows, BillingTableRow } from "@/utils/billing";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
@@ -52,102 +52,6 @@ interface BillingManagementProps {
 // Values match the backend's TRANSACTION_SORT_FIELDS (hms/payments/api/payments.py)
 // 1:1 so they can be sent straight through as sort_by, no translation needed.
 type TableSortColumn = "payment_date" | "invoice_date" | "patient_name" | "total" | "received" | "pending";
-
-// One flattened, sortable row of the table view: one per date-matching
-// payment (or one placeholder per invoice with none in range, or one per
-// standalone invoice-less payment) - table view shows same-date payments
-// only (unlike the card view, which keeps showing an invoice's full history
-// on expand), matching the printed/exported report's convention.
-interface BillingTableRow {
-  key: string;
-  paymentDate: string | null;
-  invoiceDate: string;
-  paymentId: string | null;
-  invoiceNumber: string | null;
-  patientName: string | null;
-  patientUhid: string | null;
-  patientMobile: string | null;
-  total: number | null;
-  received: number | null;
-  pending: number | null;
-  method: string | null;
-  status: string | null;
-  hasPayment: boolean;
-  isStandalone: boolean;
-  txn: BillingTransactionRow;
-}
-
-function buildTableRows(
-  transactions: BillingTransactionRow[],
-  startDate: string | undefined,
-  endDate: string | undefined
-): BillingTableRow[] {
-  const rows: BillingTableRow[] = [];
-
-  transactions.forEach((txn) => {
-    if (txn.row_type === "invoice") {
-      const balance = (txn.total_amount || 0) - (txn.paid_amount || 0);
-      const datedPayments = filterPaymentsToDateRange(txn.payments, startDate, endDate);
-      const common = {
-        invoiceDate: txn.row_date,
-        invoiceNumber: txn.invoice_number,
-        patientName: txn.patient_name,
-        patientUhid: txn.patient_uhid,
-        patientMobile: txn.patient_mobile,
-        total: txn.total_amount,
-        received: txn.paid_amount,
-        pending: balance > 0 ? balance : null,
-        isStandalone: false,
-        txn,
-      };
-      if (datedPayments.length === 0) {
-        rows.push({
-          ...common,
-          key: `${txn.id}-empty`,
-          paymentDate: null,
-          paymentId: null,
-          method: null,
-          status: null,
-          hasPayment: false,
-        });
-      } else {
-        datedPayments.forEach((p) => {
-          rows.push({
-            ...common,
-            key: p.id,
-            paymentDate: p.payment_date,
-            paymentId: p.payment_number,
-            method: p.payment_method,
-            status: p.status,
-            hasPayment: true,
-          });
-        });
-      }
-    } else {
-      const payment = txn.payment;
-      rows.push({
-        key: txn.id,
-        paymentDate: payment?.payment_date ?? null,
-        invoiceDate: txn.row_date,
-        paymentId: payment?.payment_number ?? null,
-        invoiceNumber: null,
-        patientName: txn.patient_name,
-        patientUhid: txn.patient_uhid,
-        patientMobile: txn.patient_mobile,
-        total: null,
-        received: payment?.amount ?? null,
-        pending: null,
-        method: payment?.payment_method ?? null,
-        status: payment?.status ?? null,
-        hasPayment: !!payment,
-        isStandalone: true,
-        txn,
-      });
-    }
-  });
-
-  return rows;
-}
 
 export function BillingManagement({
   renderSearchInHeader,
