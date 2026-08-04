@@ -31,6 +31,10 @@ export interface BillingTableRow {
   patientName: string | null;
   patientUhid: string | null;
   patientMobile: string | null;
+  // This specific transaction's own amount - distinct from total/received/
+  // pending below, which are the invoice's aggregate state and repeat
+  // identically across every payment row belonging to the same invoice.
+  transactionAmount: number | null;
   total: number | null;
   received: number | null;
   pending: number | null;
@@ -70,6 +74,7 @@ export function buildTableRows(
           key: `${txn.id}-empty`,
           paymentDate: null,
           paymentId: null,
+          transactionAmount: null,
           method: null,
           status: null,
           hasPayment: false,
@@ -81,6 +86,7 @@ export function buildTableRows(
             key: p.id,
             paymentDate: p.payment_date,
             paymentId: p.payment_number,
+            transactionAmount: p.amount,
             method: p.payment_method,
             status: p.status,
             hasPayment: true,
@@ -98,6 +104,7 @@ export function buildTableRows(
         patientName: txn.patient_name,
         patientUhid: txn.patient_uhid,
         patientMobile: txn.patient_mobile,
+        transactionAmount: payment?.amount ?? null,
         total: null,
         received: payment?.amount ?? null,
         pending: null,

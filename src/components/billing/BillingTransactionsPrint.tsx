@@ -132,6 +132,7 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
               <th className="py-1.5 px-2">Payment Date</th>
               <th className="py-1.5 px-2">Invoice Date</th>
               <th className="py-1.5 px-2">Payment ID</th>
+              <th className="py-1.5 px-2 text-right">Amount (₹)</th>
               <th className="py-1.5 px-2">Invoice ID</th>
               <th className="py-1.5 px-2">Patient</th>
               <th className="py-1.5 px-2 text-right">Total (₹)</th>
@@ -147,6 +148,9 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
                 <td className="py-1.5 px-2 text-slate-700">{row.paymentDate ? formatDateTime(row.paymentDate) : "-"}</td>
                 <td className="py-1.5 px-2 text-slate-700">{formatDate(row.invoiceDate)}</td>
                 <td className="py-1.5 px-2 font-mono text-slate-800">{row.paymentId || "-"}</td>
+                <td className="py-1.5 px-2 text-right font-semibold text-slate-800">
+                  {row.transactionAmount != null ? currency(row.transactionAmount) : "-"}
+                </td>
                 <td className="py-1.5 px-2 font-mono text-slate-800">
                   {row.isStandalone ? (
                     <span className="italic text-amber-700">Invoice not available</span>

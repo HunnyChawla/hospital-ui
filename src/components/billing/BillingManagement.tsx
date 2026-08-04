@@ -951,6 +951,9 @@ export function BillingManagement({
         </td>
         <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(row.invoiceDate)}</td>
         <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{row.paymentId || "-"}</td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-slate-800">
+          {row.transactionAmount != null ? currency(row.transactionAmount) : "-"}
+        </td>
         <td className="whitespace-nowrap px-3 py-2.5">
           {row.isStandalone ? (
             <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
@@ -1340,6 +1343,7 @@ export function BillingManagement({
                       {sortHeader("Payment Date", "payment_date")}
                       {sortHeader("Invoice Date", "invoice_date")}
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment ID</th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Amount</th>
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice ID</th>
                       {sortHeader("Patient", "patient_name")}
                       {sortHeader("Total", "total", "right")}
