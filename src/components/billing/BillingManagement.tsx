@@ -944,6 +944,8 @@ export function BillingManagement({
         <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
           {balance > 0 ? currency(balance) : "-"}
         </td>
+        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{p ? p.payment_number : "-"}</td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{p ? formatDate(p.payment_date) : "-"}</td>
         <td className="px-3 py-2.5 text-center uppercase text-slate-600">{p ? p.payment_method : "-"}</td>
         <td className="px-3 py-2.5 text-center">
           {p ? (
@@ -1014,6 +1016,8 @@ export function BillingManagement({
           {currency(payment?.amount || 0)}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-400">-</td>
+        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{payment?.payment_number || "-"}</td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{payment ? formatDate(payment.payment_date) : "-"}</td>
         <td className="px-3 py-2.5 text-center uppercase text-slate-600">{payment?.payment_method || "-"}</td>
         <td className="px-3 py-2.5 text-center">
           {payment && (
@@ -1308,12 +1312,14 @@ export function BillingManagement({
                 <table className="w-full text-xs">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Date</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice Date</th>
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice #</th>
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Patient</th>
                       <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Total</th>
                       <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Received</th>
                       <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Pending</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment ID</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment Date</th>
                       <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Method</th>
                       <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Status</th>
                       <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Actions</th>
