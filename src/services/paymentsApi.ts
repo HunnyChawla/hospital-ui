@@ -121,6 +121,8 @@ export interface BillingTransactionsSearchParams {
   status?: InvoiceStatus;
   start_date?: string;
   end_date?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
   tenant_id?: string;
 }
 
@@ -263,6 +265,8 @@ export const paymentsApi = {
     if (params?.status) queryParams.append("status", params.status);
     if (params?.start_date) queryParams.append("start_date", params.start_date);
     if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (params?.sort_by) queryParams.append("sort_by", params.sort_by);
+    if (params?.sort_order) queryParams.append("sort_order", params.sort_order);
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
     if (apiTenantId) queryParams.append("tenant_id", apiTenantId);
 

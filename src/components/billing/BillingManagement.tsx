@@ -49,7 +49,9 @@ interface BillingManagementProps {
   onStatusFilterChange: (filter: "all" | "pending" | "paid" | "partial" | "refunded") => void;
 }
 
-type TableSortColumn = "paymentDate" | "invoiceDate" | "patientName" | "total" | "received" | "pending";
+// Values match the backend's TRANSACTION_SORT_FIELDS (hms/payments/api/payments.py)
+// 1:1 so they can be sent straight through as sort_by, no translation needed.
+type TableSortColumn = "payment_date" | "invoice_date" | "patient_name" | "total" | "received" | "pending";
 
 // One flattened, sortable row of the table view: one per date-matching
 // payment (or one placeholder per invoice with none in range, or one per
@@ -147,19 +149,6 @@ function buildTableRows(
   return rows;
 }
 
-function sortTableRows(rows: BillingTableRow[], column: TableSortColumn, direction: "asc" | "desc"): BillingTableRow[] {
-  const sorted = [...rows].sort((a, b) => {
-    const av = a[column];
-    const bv = b[column];
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1; // nulls always last, regardless of direction
-    if (bv == null) return -1;
-    const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
-    return direction === "asc" ? cmp : -cmp;
-  });
-  return sorted;
-}
-
 export function BillingManagement({
   renderSearchInHeader,
   renderFilterInHeader,
@@ -194,9 +183,9 @@ export function BillingManagement({
     }
   };
 
-  // Table view sort state - sorts within the current page only, same scope as
-  // the date-range row filtering below.
-  const [sortColumn, setSortColumn] = useState<TableSortColumn>("paymentDate");
+  // Table view sort state - drives sort_by/sort_order on the backend request,
+  // so ordering holds correctly across pages (not just within the fetched page).
+  const [sortColumn, setSortColumn] = useState<TableSortColumn>("payment_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const handleSort = (column: TableSortColumn) => {
     if (sortColumn === column) {
@@ -414,6 +403,8 @@ export function BillingManagement({
         status: statusFilter === "all" ? undefined : statusFilter,
         start_date,
         end_date,
+        sort_by: sortColumn,
+        sort_order: sortDirection,
         tenant_id: getTenantIdForApi(tenantId),
       });
       setTransactions(response.items);
@@ -424,7 +415,7 @@ export function BillingManagement({
     } finally {
       setTransactionsLoading(false);
     }
-  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange]);
+  }, [selectedPatientId, transactionsPage, transactionsPageSize, paymentMethodFilter, statusFilter, getDateRange, sortColumn, sortDirection]);
 
   useEffect(() => {
     fetchTransactions();
@@ -434,10 +425,10 @@ export function BillingManagement({
     fetchStats();
   }, [fetchStats]);
 
-  // Reset page when filters change
+  // Reset page when filters or sorting change
   useEffect(() => {
     setTransactionsPage(1);
-  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter]);
+  }, [statusFilter, selectedPatientId, dateFilter, customStartDate, customEndDate, paymentMethodFilter, sortColumn, sortDirection]);
 
   const handlePatientSelect = useCallback((patient: any) => {
     setSelectedPatientId(patient.id);
@@ -1158,8 +1149,8 @@ export function BillingManagement({
 
   const tableRows = useMemo(() => {
     const { start_date, end_date } = getDateRange();
-    return sortTableRows(buildTableRows(transactions, start_date, end_date), sortColumn, sortDirection);
-  }, [transactions, getDateRange, sortColumn, sortDirection]);
+    return buildTableRows(transactions, start_date, end_date);
+  }, [transactions, getDateRange]);
 
   return (
     <div className="space-y-4">
@@ -1442,11 +1433,11 @@ export function BillingManagement({
                 <table className="w-full text-xs">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
-                      {sortHeader("Payment Date", "paymentDate")}
-                      {sortHeader("Invoice Date", "invoiceDate")}
+                      {sortHeader("Payment Date", "payment_date")}
+                      {sortHeader("Invoice Date", "invoice_date")}
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment ID</th>
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice ID</th>
-                      {sortHeader("Patient", "patientName")}
+                      {sortHeader("Patient", "patient_name")}
                       {sortHeader("Total", "total", "right")}
                       {sortHeader("Received", "received", "right")}
                       {sortHeader("Pending", "pending", "right")}
