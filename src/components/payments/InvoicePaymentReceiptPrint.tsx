@@ -131,9 +131,9 @@ export function InvoicePaymentReceiptPrint({ invoiceId, paymentId, onReady }: In
   
   const netAmount = totalPaid - totalRefunded;
 
-  // Sort payments by date (oldest first)
+  // Sort payments by date, most recent (including refunds) first
   const sortedPayments = [...payments].sort(
-    (a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime()
+    (a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
   );
 
   const getPaymentMethodLabel = (method: string) => {
