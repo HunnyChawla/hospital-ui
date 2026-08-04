@@ -3,6 +3,7 @@
 import { BillingTransactionRow, BillingStatsResponse } from "@/services/paymentsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate, currency } from "@/utils/format";
+import { filterPaymentsToDateRange } from "@/utils/billing";
 import { PrintHeader } from "@/components/common/PrintHeader";
 
 interface BillingTransactionsPrintProps {
@@ -11,25 +12,6 @@ interface BillingTransactionsPrintProps {
   startDate?: string;
   endDate?: string;
   stats: BillingStatsResponse;
-}
-
-// A filed report should be a same-day ledger: an invoice can appear here
-// because it was billed in range OR because it merely received a payment in
-// range (see backend _build_transaction_filters), so restrict the payment
-// rows themselves to the selected date range - matching the CSV export's
-// equivalent filtering - rather than dumping an invoice's full history.
-function filterPaymentsToRange(
-  payments: BillingTransactionRow["payments"],
-  startDate?: string,
-  endDate?: string
-) {
-  if (!startDate && !endDate) return payments;
-  return payments.filter((p) => {
-    const d = p.payment_date.slice(0, 10);
-    if (startDate && d < startDate) return false;
-    if (endDate && d > endDate) return false;
-    return true;
-  });
 }
 
 export function BillingTransactionsPrint({ items, total, startDate, endDate, stats }: BillingTransactionsPrintProps) {
@@ -180,7 +162,7 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
               );
 
               if (txn.row_type === "invoice") {
-                const reportPayments = filterPaymentsToRange(txn.payments, startDate, endDate);
+                const reportPayments = filterPaymentsToDateRange(txn.payments, startDate, endDate);
                 if (reportPayments.length === 0) {
                   return (
                     <tr key={txn.id} className="hover:bg-slate-50">

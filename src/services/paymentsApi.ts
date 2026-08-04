@@ -93,6 +93,7 @@ export interface BillingTransactionRow {
   patient_id: string | null;
   patient_name: string | null;
   patient_mobile: string | null;
+  patient_uhid: string | null;
   invoice_number: string | null;
   invoice_status: InvoiceStatus | null;
   subtotal: number | null; // original, pre-discount amount

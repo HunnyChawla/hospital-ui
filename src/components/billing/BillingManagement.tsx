@@ -5,7 +5,8 @@ import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, BillingTransactionRow, PaymentMethod, PaymentMethodBreakdown, BillingStatsResponse, Payment } from "@/services/paymentsApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { getTenantIdForApi } from "@/utils/auth";
-import { currency, formatDate } from "@/utils/format";
+import { currency, formatDate, formatDateTime } from "@/utils/format";
+import { filterPaymentsToDateRange } from "@/utils/billing";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
@@ -34,6 +35,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   FileWarning,
   LayoutGrid,
   List,
@@ -45,6 +47,117 @@ interface BillingManagementProps {
   renderFilterInHeader?: (filterToggle: React.ReactNode) => void;
   statusFilter: "all" | "pending" | "paid" | "partial" | "refunded";
   onStatusFilterChange: (filter: "all" | "pending" | "paid" | "partial" | "refunded") => void;
+}
+
+type TableSortColumn = "paymentDate" | "invoiceDate" | "patientName" | "total" | "received" | "pending";
+
+// One flattened, sortable row of the table view: one per date-matching
+// payment (or one placeholder per invoice with none in range, or one per
+// standalone invoice-less payment) - table view shows same-date payments
+// only (unlike the card view, which keeps showing an invoice's full history
+// on expand), matching the printed/exported report's convention.
+interface BillingTableRow {
+  key: string;
+  paymentDate: string | null;
+  invoiceDate: string;
+  paymentId: string | null;
+  invoiceNumber: string | null;
+  patientName: string | null;
+  patientUhid: string | null;
+  patientMobile: string | null;
+  total: number | null;
+  received: number | null;
+  pending: number | null;
+  method: string | null;
+  status: string | null;
+  hasPayment: boolean;
+  isStandalone: boolean;
+  txn: BillingTransactionRow;
+}
+
+function buildTableRows(
+  transactions: BillingTransactionRow[],
+  startDate: string | undefined,
+  endDate: string | undefined
+): BillingTableRow[] {
+  const rows: BillingTableRow[] = [];
+
+  transactions.forEach((txn) => {
+    if (txn.row_type === "invoice") {
+      const balance = (txn.total_amount || 0) - (txn.paid_amount || 0);
+      const datedPayments = filterPaymentsToDateRange(txn.payments, startDate, endDate);
+      const common = {
+        invoiceDate: txn.row_date,
+        invoiceNumber: txn.invoice_number,
+        patientName: txn.patient_name,
+        patientUhid: txn.patient_uhid,
+        patientMobile: txn.patient_mobile,
+        total: txn.total_amount,
+        received: txn.paid_amount,
+        pending: balance > 0 ? balance : null,
+        isStandalone: false,
+        txn,
+      };
+      if (datedPayments.length === 0) {
+        rows.push({
+          ...common,
+          key: `${txn.id}-empty`,
+          paymentDate: null,
+          paymentId: null,
+          method: null,
+          status: null,
+          hasPayment: false,
+        });
+      } else {
+        datedPayments.forEach((p) => {
+          rows.push({
+            ...common,
+            key: p.id,
+            paymentDate: p.payment_date,
+            paymentId: p.payment_number,
+            method: p.payment_method,
+            status: p.status,
+            hasPayment: true,
+          });
+        });
+      }
+    } else {
+      const payment = txn.payment;
+      rows.push({
+        key: txn.id,
+        paymentDate: payment?.payment_date ?? null,
+        invoiceDate: txn.row_date,
+        paymentId: payment?.payment_number ?? null,
+        invoiceNumber: null,
+        patientName: txn.patient_name,
+        patientUhid: txn.patient_uhid,
+        patientMobile: txn.patient_mobile,
+        total: null,
+        received: payment?.amount ?? null,
+        pending: null,
+        method: payment?.payment_method ?? null,
+        status: payment?.status ?? null,
+        hasPayment: !!payment,
+        isStandalone: true,
+        txn,
+      });
+    }
+  });
+
+  return rows;
+}
+
+function sortTableRows(rows: BillingTableRow[], column: TableSortColumn, direction: "asc" | "desc"): BillingTableRow[] {
+  const sorted = [...rows].sort((a, b) => {
+    const av = a[column];
+    const bv = b[column];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1; // nulls always last, regardless of direction
+    if (bv == null) return -1;
+    const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+    return direction === "asc" ? cmp : -cmp;
+  });
+  return sorted;
 }
 
 export function BillingManagement({
@@ -78,6 +191,19 @@ export function BillingManagement({
     setViewMode(mode);
     if (typeof window !== "undefined") {
       localStorage.setItem("billing_transactions_view", mode);
+    }
+  };
+
+  // Table view sort state - sorts within the current page only, same scope as
+  // the date-range row filtering below.
+  const [sortColumn, setSortColumn] = useState<TableSortColumn>("paymentDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const handleSort = (column: TableSortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
     }
   };
 
@@ -916,48 +1042,61 @@ export function BillingManagement({
     );
   };
 
-  // Table view - flattened, one row per payment (matching the CSV export's
-  // shape). Actions render once per invoice, on its first payment row.
-  const renderInvoiceTableRows = (txn: BillingTransactionRow) => {
-    const balance = (txn.total_amount || 0) - (txn.paid_amount || 0);
-    const canCollect = txn.invoice_status === "pending" || txn.invoice_status === "partial";
-    const rows = txn.payments.length > 0 ? txn.payments : [null];
+  // Table view row - one <tr> per BillingTableRow (already flattened/filtered/
+  // sorted before this is called). Actions render on every row now, not just
+  // an invoice's first payment.
+  const renderTableRow = (row: BillingTableRow) => {
+    const txn = row.txn;
+    const canCollect = !row.isStandalone && (txn.invoice_status === "pending" || txn.invoice_status === "partial");
 
-    return rows.map((p, idx) => (
-      <tr key={p ? p.id : `${txn.id}-empty`} className="hover:bg-slate-50/50">
-        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(txn.row_date)}</td>
+    return (
+      <tr key={row.key} className={row.isStandalone ? "bg-amber-50/30 hover:bg-amber-50/60" : "hover:bg-slate-50/50"}>
+        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
+          {row.paymentDate ? formatDateTime(row.paymentDate) : "-"}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(row.invoiceDate)}</td>
+        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{row.paymentId || "-"}</td>
         <td className="whitespace-nowrap px-3 py-2.5">
-          <button
-            onClick={() => handleInvoiceClick(txn.id)}
-            className="font-semibold text-sky-700 hover:underline"
-          >
-            #{txn.invoice_number}
-          </button>
-        </td>
-        <td className="px-3 py-2.5 text-slate-700">{txn.patient_name || "-"}</td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-slate-900">
-          {currency(txn.total_amount || 0)}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-emerald-700">
-          {currency(txn.paid_amount || 0)}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
-          {balance > 0 ? currency(balance) : "-"}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{p ? p.payment_number : "-"}</td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{p ? formatDate(p.payment_date) : "-"}</td>
-        <td className="px-3 py-2.5 text-center uppercase text-slate-600">{p ? p.payment_method : "-"}</td>
-        <td className="px-3 py-2.5 text-center">
-          {p ? (
-            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(p.status)}`}>
-              {p.status}
+          {row.isStandalone ? (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+              <FileWarning className="h-3 w-3" />
+              Invoice not available
             </span>
           ) : (
-            <span className="text-slate-400">No payments yet</span>
+            <button onClick={() => handleInvoiceClick(txn.id)} className="font-semibold text-sky-700 hover:underline">
+              #{row.invoiceNumber}
+            </button>
           )}
         </td>
+        <td className="px-3 py-2.5">
+          <p className="font-semibold text-slate-800">{row.patientName || "-"}</p>
+          {(row.patientUhid || row.patientMobile) && (
+            <p className="text-[10px] text-slate-400">
+              {[row.patientUhid, row.patientMobile].filter(Boolean).join(" • ")}
+            </p>
+          )}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-slate-900">
+          {row.total != null ? currency(row.total) : "-"}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-emerald-700">
+          {row.received != null ? currency(row.received) : "-"}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
+          {row.pending != null ? currency(row.pending) : "-"}
+        </td>
+        <td className="px-3 py-2.5 text-center uppercase text-slate-600">{row.method || "-"}</td>
+        <td className="px-3 py-2.5 text-center">
+          {row.hasPayment && row.status ? (
+            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(row.status)}`}>
+              {row.status}
+            </span>
+          ) : !row.isStandalone ? (
+            <span className="text-slate-400">No payments yet</span>
+          ) : null}
+        </td>
         <td className="whitespace-nowrap px-3 py-2.5">
-          {idx === 0 && (
+          {!row.isStandalone && (
             <div className="flex items-center justify-end gap-1.5">
               {canCollect && (
                 <button
@@ -996,40 +1135,31 @@ export function BillingManagement({
           )}
         </td>
       </tr>
-    ));
-  };
-
-  const renderPaymentOnlyTableRow = (txn: BillingTransactionRow) => {
-    const payment = txn.payment;
-    return (
-      <tr key={txn.id} className="bg-amber-50/30 hover:bg-amber-50/60">
-        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{formatDate(txn.row_date)}</td>
-        <td className="whitespace-nowrap px-3 py-2.5">
-          <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-            <FileWarning className="h-3 w-3" />
-            Invoice not available
-          </span>
-        </td>
-        <td className="px-3 py-2.5 text-slate-700">{txn.patient_name || "-"}</td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-400">-</td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-700">
-          {currency(payment?.amount || 0)}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-400">-</td>
-        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-slate-700">{payment?.payment_number || "-"}</td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{payment ? formatDate(payment.payment_date) : "-"}</td>
-        <td className="px-3 py-2.5 text-center uppercase text-slate-600">{payment?.payment_method || "-"}</td>
-        <td className="px-3 py-2.5 text-center">
-          {payment && (
-            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getStatusColor(payment.status)}`}>
-              {payment.status}
-            </span>
-          )}
-        </td>
-        <td className="px-3 py-2.5" />
-      </tr>
     );
   };
+
+  const sortHeader = (label: string, column: TableSortColumn, align: "left" | "right" | "center" = "left") => (
+    <th
+      className={`px-3 py-2 font-semibold uppercase text-slate-500 cursor-pointer select-none hover:text-slate-800 ${
+        align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
+      }`}
+      onClick={() => handleSort(column)}
+    >
+      <span className={`inline-flex items-center gap-1 ${align === "right" ? "flex-row-reverse" : ""}`}>
+        {label}
+        {sortColumn === column ? (
+          sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronsUpDown className="h-3 w-3 text-slate-300" />
+        )}
+      </span>
+    </th>
+  );
+
+  const tableRows = useMemo(() => {
+    const { start_date, end_date } = getDateRange();
+    return sortTableRows(buildTableRows(transactions, start_date, end_date), sortColumn, sortDirection);
+  }, [transactions, getDateRange, sortColumn, sortDirection]);
 
   return (
     <div className="space-y-4">
@@ -1312,23 +1442,21 @@ export function BillingManagement({
                 <table className="w-full text-xs">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice Date</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice #</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Patient</th>
-                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Total</th>
-                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Received</th>
-                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Pending</th>
+                      {sortHeader("Payment Date", "paymentDate")}
+                      {sortHeader("Invoice Date", "invoiceDate")}
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment ID</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Payment Date</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">Invoice ID</th>
+                      {sortHeader("Patient", "patientName")}
+                      {sortHeader("Total", "total", "right")}
+                      {sortHeader("Received", "received", "right")}
+                      {sortHeader("Pending", "pending", "right")}
                       <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Method</th>
                       <th className="px-3 py-2 text-center font-semibold uppercase text-slate-500">Status</th>
                       <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {transactions.map((txn) =>
-                      txn.row_type === "invoice" ? renderInvoiceTableRows(txn) : renderPaymentOnlyTableRow(txn)
-                    )}
+                    {tableRows.map((row) => renderTableRow(row))}
                   </tbody>
                 </table>
               </div>
