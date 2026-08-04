@@ -26,6 +26,7 @@ export interface AbhaEnrollmentResult {
   suggested_addresses?: string[];
   auto_selected_address?: string | null;
   session_key?: string | null;
+  card_session_key?: string | null;
 }
 
 export interface AbhaPatientProfileResponseDto {
@@ -209,6 +210,14 @@ export const abhaApi = {
       req,
       { params }
     );
+    return response.data;
+  },
+
+  // Card Download
+  async downloadAbhaCard(sessionKey: string, tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(`/abha/card/${sessionKey}`, { params, responseType: "blob" });
     return response.data;
   },
 };

@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ArrowRight,
   RefreshCw,
+  Download,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +58,11 @@ const genderToCode = (gender?: string | null): string | null => {
   const letter = gender.trim().charAt(0).toUpperCase();
   return letter === "M" || letter === "F" || letter === "O" ? letter : null;
 };
+
+const ALLOWED_DOC_PHOTO_TYPES = ["image/jpeg", "image/jpg", "image/png"];
+
+/** ABDM expects a bare base64 string for document photos, not a Data-URL. */
+const toBareBase64 = (dataUrl: string): string => dataUrl.split(",")[1] ?? dataUrl;
 
 type TabType = "aadhaar_otp" | "demographic" | "biometric" | "document" | "link_existing";
 
@@ -129,6 +135,7 @@ export function AbhaEnrollmentModal({
   // Loading & Result
   const [loading, setLoading] = useState(false);
   const [resultProfile, setResultProfile] = useState<AbhaProfileDto | null>(null);
+  const [cardSessionKey, setCardSessionKey] = useState<string | null>(null);
 
   // Tenant HIP configuration - warn instead of letting enrollment silently fail
   const { data: abdmConfig } = useQuery({
@@ -150,6 +157,7 @@ export function AbhaEnrollmentModal({
     setSelectedAddress("");
     setShowAddressSelection(false);
     setResultProfile(null);
+    setCardSessionKey(null);
     setDocMobile(initialMobile);
     setDocSessionKey(null);
     setDocOtp("");
@@ -166,6 +174,11 @@ export function AbhaEnrollmentModal({
     setDocPinCode("");
     setDocFrontPhoto(null);
     setDocBackPhoto(null);
+  };
+
+  const isSessionExpiredError = (error: any) => {
+    const msg = getErrorMessage(error);
+    return typeof msg === "string" && msg.toLowerCase().includes("session expired");
   };
 
   // --------------------------------------------------------------------------
@@ -203,7 +216,14 @@ export function AbhaEnrollmentModal({
       });
       handleEnrollmentSuccess(res);
     } catch (error: any) {
-      toast.error(getErrorMessage(error) || "OTP verification failed");
+      if (isSessionExpiredError(error)) {
+        setSessionKey(null);
+        setOtp("");
+        setOtpSent(false);
+        toast.error("Your OTP session has expired. Please request a new OTP.");
+      } else {
+        toast.error(getErrorMessage(error) || "OTP verification failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -311,7 +331,14 @@ export function AbhaEnrollmentModal({
       prefillDocumentFieldsFromExistingPatient();
       toast.success(res.message || "Mobile number verified successfully");
     } catch (error: any) {
-      toast.error(getErrorMessage(error) || "OTP verification failed");
+      if (isSessionExpiredError(error)) {
+        setDocSessionKey(null);
+        setDocOtp("");
+        setDocOtpSent(false);
+        toast.error("Your OTP session has expired. Please request a new OTP.");
+      } else {
+        toast.error(getErrorMessage(error) || "OTP verification failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -320,6 +347,10 @@ export function AbhaEnrollmentModal({
   const handleDocPhotoUpload = (side: "front" | "back") => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!ALLOWED_DOC_PHOTO_TYPES.includes(file.type)) {
+      toast.error("Only PNG or JPG photos are allowed");
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
       toast.error("Photo file size must be less than 2MB");
       return;
@@ -365,8 +396,8 @@ export function AbhaEnrollmentModal({
         last_name: docLastName || undefined,
         dob: docDob,
         gender: docGender,
-        front_side_photo: docFrontPhoto,
-        back_side_photo: docBackPhoto,
+        front_side_photo: toBareBase64(docFrontPhoto),
+        back_side_photo: toBareBase64(docBackPhoto),
         address: docAddress,
         state: docState,
         district: docDistrict,
@@ -374,7 +405,15 @@ export function AbhaEnrollmentModal({
       });
       handleEnrollmentSuccess(res);
     } catch (error: any) {
-      toast.error(getErrorMessage(error) || "Document enrollment failed");
+      if (isSessionExpiredError(error)) {
+        setDocSessionKey(null);
+        setDocOtp("");
+        setDocOtpSent(false);
+        setDocOtpVerified(false);
+        toast.error("Your OTP session has expired. Please request a new OTP.");
+      } else {
+        toast.error(getErrorMessage(error) || "Document enrollment failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -414,7 +453,14 @@ export function AbhaEnrollmentModal({
       });
       handleEnrollmentSuccess(res);
     } catch (error: any) {
-      toast.error(getErrorMessage(error) || "Failed to verify link OTP");
+      if (isSessionExpiredError(error)) {
+        setLinkSessionKey(null);
+        setLinkOtp("");
+        setLinkOtpSent(false);
+        toast.error("Your OTP session has expired. Please request a new OTP.");
+      } else {
+        toast.error(getErrorMessage(error) || "Failed to verify link OTP");
+      }
     } finally {
       setLoading(false);
     }
@@ -424,6 +470,7 @@ export function AbhaEnrollmentModal({
   // Common Success & Address Selection Handlers
   // --------------------------------------------------------------------------
   const handleEnrollmentSuccess = (res: AbhaEnrollmentResult) => {
+    if (res.card_session_key) setCardSessionKey(res.card_session_key);
     if (res.suggested_addresses && res.suggested_addresses.length > 0) {
       setSuggestedAddresses(res.suggested_addresses);
       // Auto-select first suggested address as default
@@ -453,7 +500,12 @@ export function AbhaEnrollmentModal({
       setShowAddressSelection(false);
       toast.success("ABHA address confirmed successfully");
     } catch (error: any) {
-      toast.error(getErrorMessage(error) || "Failed to confirm ABHA address");
+      if (isSessionExpiredError(error)) {
+        resetState();
+        toast.error("Your session has expired. Please start enrollment again.");
+      } else {
+        toast.error(getErrorMessage(error) || "Failed to confirm ABHA address");
+      }
     } finally {
       setLoading(false);
     }
@@ -463,6 +515,21 @@ export function AbhaEnrollmentModal({
     if (!resultProfile) return;
     onSuccess(resultProfile, aadhaarNumber || undefined);
     onClose();
+  };
+
+  const handleDownloadCard = async () => {
+    if (!cardSessionKey) return;
+    try {
+      const blob = await abhaApi.downloadAbhaCard(cardSessionKey);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "abha-card.png";
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error(getErrorMessage(error) || "Failed to download ABHA card");
+    }
   };
 
   const modalTitle = (
@@ -647,6 +714,16 @@ export function AbhaEnrollmentModal({
                 <RefreshCw className="h-4 w-4" />
                 <span>Start Over</span>
               </button>
+              {cardSessionKey && (
+                <button
+                  type="button"
+                  onClick={handleDownloadCard}
+                  className="flex items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download ABHA Card</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleCompleteAndSync}

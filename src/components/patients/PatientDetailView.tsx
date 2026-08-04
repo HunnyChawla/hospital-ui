@@ -10,7 +10,7 @@ import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
-import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
+import { AbhaStatusBadge, AbhaEnrollmentModal, AbhaCardDownloadModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { usePatient } from "@/hooks/queries/usePatients";
@@ -55,6 +55,7 @@ import {
   Edit2,
   MapPin,
   FileText,
+  Download,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -78,6 +79,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
+  const [isCardDownloadModalOpen, setIsCardDownloadModalOpen] = useState(false);
   const { data: fullPatientData } = usePatient(isAbhaModalOpen ? patientId : null);
   const abhaApiPatientData = fullPatientData as any;
 
@@ -941,6 +943,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     onEnrollClick={() => setIsAbhaModalOpen(true)}
                     size="sm"
                   />
+                  {(patient.abhaNumber || patient.abhaId) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCardDownloadModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 hover:bg-sky-100 transition-colors"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>Download Card</span>
+                    </button>
+                  )}
                 </div>
 
                 {(patient.address || patient.city || patient.state || patient.pincode) && (
@@ -2079,6 +2091,15 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 }
               : undefined
           }
+        />
+      )}
+
+      {/* ABHA Card Download Modal (already-linked patients) */}
+      {patient && (patient.abhaNumber || patient.abhaId) && (
+        <AbhaCardDownloadModal
+          isOpen={isCardDownloadModalOpen}
+          onClose={() => setIsCardDownloadModalOpen(false)}
+          abhaNumber={(patient.abhaNumber || patient.abhaId) as string}
         />
       )}
     </div>
