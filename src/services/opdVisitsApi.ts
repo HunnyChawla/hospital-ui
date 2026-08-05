@@ -41,6 +41,16 @@ export interface Visit {
   consultation_started_at: string | null;
   consultation_ended_at: string | null;
   invoice_id: string | null;
+  /**
+   * Consultation fee, sourced from the linked invoice - null until one
+   * exists. `consultation_fee` is the agreed/cleared amount actually
+   * charged; `original_consultation_fee` is the system-calculated fee
+   * before any override (only set when `fee_overridden` is true and the
+   * pre-override fee was non-zero).
+   */
+  consultation_fee?: number | null;
+  original_consultation_fee?: number | null;
+  fee_overridden?: boolean;
   payment_id: string | null;
   created_at: string;
   updated_at: string;

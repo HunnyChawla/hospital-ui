@@ -430,6 +430,17 @@ function VisitCard({
         </div>
       )}
 
+      {/* Consultation Fee - actual vs agreed, when an invoice exists */}
+      {visit.consultation_fee != null && (
+        <div className="mt-2 flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-600 w-fit" title="Consultation Fee">
+          <span>Fee:</span>
+          {visit.fee_overridden && visit.original_consultation_fee != null && (
+            <span className="text-slate-400 line-through">₹{Number(visit.original_consultation_fee).toLocaleString("en-IN")}</span>
+          )}
+          <span className="font-semibold text-slate-800">₹{Number(visit.consultation_fee).toLocaleString("en-IN")}</span>
+        </div>
+      )}
+
       {/* Footer: Status + Actions - Unified Compact Layout */}
       <div className="mt-4 border-t border-slate-50 pt-3">
         <div className="flex items-center justify-between gap-2">
