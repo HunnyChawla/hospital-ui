@@ -32,6 +32,7 @@ import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions
 import { currency, formatDate } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getAbhaError } from "@/utils/abhaErrors";
 import { getTenantIdForApi } from "@/utils/auth";
 import { paymentsApi } from "@/services/paymentsApi";
 import {
@@ -95,7 +96,11 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);
     } catch (e: any) {
-      toast.error(getErrorMessage(e) || "Failed to attach ABHA profile to patient");
+      // getAbhaError, not getErrorMessage: strips the ABHA_DUPLICATE:/ABHA_MISMATCH: machine
+      // prefixes the backend uses so they never reach the operator.
+      toast.error(getAbhaError(e, "Failed to attach ABHA profile to patient").message, {
+        duration: 10000,
+      });
     }
   };
 
