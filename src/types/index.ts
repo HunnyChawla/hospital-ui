@@ -997,6 +997,7 @@ export type SurgeryPaymentSummary = {
   total_paid_on_invoice: number;
   balance_due: number;
   package_price?: number | null;
+  original_package_price?: number | null;
   pending_balance?: number | null;
   payments: SurgeryPaymentEntry[];
 };

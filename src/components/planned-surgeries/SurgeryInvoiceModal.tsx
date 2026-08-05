@@ -69,6 +69,9 @@ export function SurgeryInvoiceModal({
 
   const isPackageFinalized = !!(surgery.package_id || surgery.package_price || summary?.package_price);
   const agreedPackagePrice = summary?.package_price ?? (surgery.package_price ? Number(surgery.package_price) : 0);
+  const originalPackagePriceRaw = summary?.original_package_price ?? surgery.original_package_price ?? null;
+  const originalPackagePrice =
+    originalPackagePriceRaw != null && originalPackagePriceRaw !== agreedPackagePrice ? originalPackagePriceRaw : null;
   const totalAdvancesCollected = summary?.total_advance_collected ?? 0;
   const estimatedBalance = Math.max(0, agreedPackagePrice - totalAdvancesCollected);
 
@@ -372,9 +375,16 @@ export function SurgeryInvoiceModal({
                         {surgery.package_name || surgery.surgery_name || "Surgery Package"}
                       </h4>
                     </div>
-                    <span className="text-lg font-extrabold text-sky-800 bg-white px-3 py-1 rounded-lg border border-sky-200 shadow-2xs">
-                      ₹{agreedPackagePrice.toLocaleString("en-IN")}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {originalPackagePrice != null && (
+                        <span className="text-xs text-slate-400 line-through">
+                          ₹{originalPackagePrice.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                      <span className="text-lg font-extrabold text-sky-800 bg-white px-3 py-1 rounded-lg border border-sky-200 shadow-2xs">
+                        ₹{agreedPackagePrice.toLocaleString("en-IN")}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-sky-200/70 text-xs">

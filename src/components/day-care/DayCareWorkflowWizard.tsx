@@ -1939,6 +1939,20 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <ClipboardList className="w-4 h-4 text-sky-500 shrink-0" />
               <span>Procedure: <strong className="text-slate-800">{visit.surgery_name}</strong></span>
             </div>
+            {visit.package_price != null && (
+              <div className="flex items-center gap-2 bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100/80 flex-1 lg:flex-none">
+                <span className="text-[9px] font-extrabold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">₹</span>
+                <span>
+                  Package Price:{" "}
+                  {visit.original_package_price != null && visit.original_package_price !== visit.package_price && (
+                    <span className="line-through text-slate-400">
+                      ₹{Number(visit.original_package_price).toLocaleString("en-IN")}{" "}
+                    </span>
+                  )}
+                  <strong className="text-slate-800">₹{Number(visit.package_price).toLocaleString("en-IN")}</strong>
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

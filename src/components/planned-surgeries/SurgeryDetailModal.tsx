@@ -261,10 +261,19 @@ export function SurgeryDetailModal({
                                         Package
                                     </span>
                                     <p className="text-sm font-semibold text-slate-800">
-                                        {surgery.package_name
-                                            ? `${surgery.package_name}${surgery.package_price ? ` (₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}`
-                                            : "No package selected"}
+                                        {surgery.package_name || "No package selected"}
                                     </p>
+                                    {surgery.package_price != null && (
+                                        <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                                            {surgery.original_package_price != null &&
+                                                surgery.original_package_price !== surgery.package_price && (
+                                                    <span className="text-[11px] text-slate-400 line-through">
+                                                        ₹{Number(surgery.original_package_price).toLocaleString("en-IN")}
+                                                    </span>
+                                                )}
+                                            <span>₹{Number(surgery.package_price).toLocaleString("en-IN")}</span>
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>

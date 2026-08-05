@@ -1079,7 +1079,15 @@ export function PlannedSurgeriesList({
                                                     {surgery.package_name && (
                                                         <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-100/60 px-2 py-0.5 rounded-md">
                                                             <Package className="h-3 w-3" />
-                                                            {surgery.package_name} {surgery.package_price ? `(₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}
+                                                            {surgery.package_name}{" "}
+                                                            {surgery.package_price ? (
+                                                                <>
+                                                                    ({surgery.original_package_price != null && surgery.original_package_price !== surgery.package_price && (
+                                                                        <span className="line-through text-sky-400">₹{Number(surgery.original_package_price).toLocaleString("en-IN")} </span>
+                                                                    )}
+                                                                    ₹{Number(surgery.package_price).toLocaleString("en-IN")})
+                                                                </>
+                                                            ) : ""}
                                                         </div>
                                                     )}
                                                     {surgery.surgery_invoice_id && (
@@ -1254,7 +1262,15 @@ export function PlannedSurgeriesList({
                                                         </span>
                                                         {surgery.package_name && (
                                                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md w-fit">
-                                                                Package: {surgery.package_name} {surgery.package_price ? `(₹${Number(surgery.package_price).toLocaleString("en-IN")})` : ""}
+                                                                Package: {surgery.package_name}{" "}
+                                                                {surgery.package_price ? (
+                                                                    <>
+                                                                        ({surgery.original_package_price != null && surgery.original_package_price !== surgery.package_price && (
+                                                                            <span className="line-through text-sky-400">₹{Number(surgery.original_package_price).toLocaleString("en-IN")} </span>
+                                                                        )}
+                                                                        ₹{Number(surgery.package_price).toLocaleString("en-IN")})
+                                                                    </>
+                                                                ) : ""}
                                                             </span>
                                                         )}
                                                         {surgery.advance_payment_amount && Number(surgery.advance_payment_amount) > 0 ? (
