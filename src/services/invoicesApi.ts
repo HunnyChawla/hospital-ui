@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled" | "refunded";
+export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled" | "refunded" | "partially_refunded";
 
 export interface InvoiceLineItem {
   id?: string;

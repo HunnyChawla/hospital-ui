@@ -8,7 +8,8 @@ import { opdVisitKeys } from "@/hooks/queries/useOpdVisits";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
 import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play } from "lucide-react";
+import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play, FileText } from "lucide-react";
+import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -27,6 +28,8 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
+  // Appointment whose linked visit prescription is being previewed
+  const [prescriptionAppointment, setPrescriptionAppointment] = useState<Appointment | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState(() => {
     if (typeof window !== "undefined") {
       return doctorId || localStorage.getItem("last_selected_doctor_id") || "";
@@ -633,27 +636,50 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                     {getStatusIcon(appointment.status)}
                     <span className="capitalize">{appointment.status.replace("_", " ")}</span>
                   </span>
-                  {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
-                    <button
-                      onClick={() => openCreateModal(appointment)}
-                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                      style={{ width: "2rem" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.width = "auto";
-                        e.currentTarget.style.paddingLeft = "0.75rem";
-                        e.currentTarget.style.paddingRight = "0.75rem";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.width = "2rem";
-                        e.currentTarget.style.paddingLeft = "0.5rem";
-                        e.currentTarget.style.paddingRight = "0.5rem";
-                      }}
-                      title="Create OPD"
-                    >
-                      <Plus className="h-4 w-4 shrink-0" />
-                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
+                      <button
+                        onClick={() => openCreateModal(appointment)}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="Create OPD"
+                      >
+                        <Plus className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
+                      </button>
+                    )}
+                    {appointment.visit_id && (
+                      <button
+                        onClick={() => setPrescriptionAppointment(appointment)}
+                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-violet-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-violet-600"
+                        style={{ width: "2rem" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.width = "auto";
+                          e.currentTarget.style.paddingLeft = "0.75rem";
+                          e.currentTarget.style.paddingRight = "0.75rem";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.width = "2rem";
+                          e.currentTarget.style.paddingLeft = "0.5rem";
+                          e.currentTarget.style.paddingRight = "0.5rem";
+                        }}
+                        title="View Prescription"
+                      >
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Prescription</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -694,6 +720,16 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
         doctor={appointmentForModal ? doctors.find((d) => d.id === appointmentForModal.doctor_id) : null}
         onCreated={handleAfterCreated}
       />
+
+      {/* Read-only prescription preview for the visit created from this appointment */}
+      {prescriptionAppointment?.visit_id && (
+        <HistoryPrescriptionModal
+          isOpen={!!prescriptionAppointment}
+          onClose={() => setPrescriptionAppointment(null)}
+          visitId={prescriptionAppointment.visit_id}
+          patientId={prescriptionAppointment.patient_id}
+        />
+      )}
     </div>
   );
 }

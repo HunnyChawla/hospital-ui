@@ -20,7 +20,7 @@ import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
 import { LabTechnicianPanel } from "@/components/lab-technician/LabTechnicianPanel";
 import { ManageIPD } from "@/components/ipd/ManageIPD";
 import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
-import { BillingManagement } from "@/components/billing/BillingManagement";
+import { BillingManagement, type BillingStatusFilter } from "@/components/billing/BillingManagement";
 import { LabTestsPanel } from "@/components/lab-tests/LabTestsPanel";
 import { ServicesPanel } from "@/components/services/ServicesPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
@@ -67,7 +67,7 @@ import {
 function BillingSection() {
   const [searchBox, setSearchBox] = useState<React.ReactNode>(null);
   const [filterBox, setFilterBox] = useState<React.ReactNode>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "partial" | "refunded">("all");
+  const [statusFilter, setStatusFilter] = useState<BillingStatusFilter>("all");
 
   return (
     <div className="grid gap-3">

@@ -15,7 +15,7 @@ import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { usePatient } from "@/hooks/queries/usePatients";
 
-import { opdVisitsApi, Visit, CreateVisitRequest } from "@/services/opdVisitsApi";
+import { opdVisitsApi, Visit, CreateVisitRequest, VisitStatus } from "@/services/opdVisitsApi";
 import { labBookingsApi, LabBooking, LabBookingTest } from "@/services/labBookingsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { appointmentsApi, Appointment } from "@/services/appointmentsApi";
@@ -23,7 +23,9 @@ import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
-import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { CancellationRefundAcknowledgmentModal, type CancellationDetails } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { canCancelVisit, VISIT_CANCELLATION_REASONS } from "@/utils/visitCancellation";
+import { usePermissions } from "@/hooks/usePermissions";
 import { PreviousLabReportModal } from "@/components/optometrist/prescriptions/PreviousLabReportModal";
 import { PrescribedLabBookingModal } from "@/components/lab-bookings/PrescribedLabBookingModal";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
@@ -128,8 +130,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [shouldPrintOpd, setShouldPrintOpd] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printOpdRef = useRef<HTMLDivElement>(null);
+  const { userRole } = usePermissions();
   const [showCancellationModal, setShowCancellationModal] = useState(false);
-  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; paymentAmount?: number } | null>(null);
+  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; refundableAmount?: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
@@ -773,50 +776,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     }
   };
 
-  // Handle update OPD visit status
-  const handleUpdateOpdStatus = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed" | "cancelled") => {
-    // If cancelling, check if payment exists and show acknowledgment modal
-    if (newStatus === "cancelled") {
-      try {
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-        const apiTenantId = getTenantIdForApi(tenantId);
-
-        // Fetch visit details to check for payment
-        const visit = await opdVisitsApi.getById(visitId, apiTenantId);
-
-        if (visit.payment_id) {
-          // Fetch payment details to get amount
-          let paymentAmount: number | undefined;
-          try {
-            const payment = await paymentsApi.getById(visit.payment_id, apiTenantId);
-            paymentAmount = payment.amount;
-          } catch (error) {
-            console.error("Failed to fetch payment details:", error);
-          }
-
-          // Show acknowledgment modal
-          setPendingCancellation({
-            visitId,
-            visitNumber: visit.visit_number,
-            paymentAmount,
-          });
-          setShowCancellationModal(true);
-          return;
-        }
-      } catch (error: any) {
-        const errorMessage = getErrorMessage(error);
-        toast.error(errorMessage || "Failed to fetch visit details");
-        return;
-      }
-    }
-
-    // Proceed with status update (non-cancellation or cancellation without payment)
-    await performOpdStatusUpdate(visitId, newStatus);
-  };
-
-  const performOpdStatusUpdate = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed" | "cancelled") => {
+  // Handle update OPD visit status. Cancellation goes through handleCancelVisit
+  // instead - it needs a reason and issues a refund.
+  const handleUpdateOpdStatus = async (visitId: string, newStatus: "checked_in" | "in_consultation" | "completed") => {
     try {
-      setCancelling(newStatus === "cancelled");
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       await opdVisitsApi.updateStatus(visitId, newStatus, getTenantIdForApi(tenantId));
       toast.success(`Visit status updated to ${newStatus.replace("_", " ")}`);
@@ -828,16 +791,75 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage || "Failed to update visit status");
-    } finally {
-      setCancelling(false);
-      setShowCancellationModal(false);
-      setPendingCancellation(null);
     }
   };
 
-  const handleConfirmCancellation = async () => {
-    if (!pendingCancellation) return;
-    await performOpdStatusUpdate(pendingCancellation.visitId, "cancelled");
+  /**
+   * Open the cancellation modal, prefilled with what is still refundable on the
+   * visit's invoice. The server recomputes this authoritatively; the lookup here
+   * only seeds the input, so a failure is non-fatal.
+   */
+  const handleCancelVisit = async (visit: { id: string; visit_number?: string; invoice_id?: string | null }) => {
+    let refundableAmount: number | undefined;
+
+    if (visit.invoice_id) {
+      try {
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const payments = await paymentsApi.getByInvoiceId(visit.invoice_id, getTenantIdForApi(tenantId));
+        // Collected less anything already refunded (refunds are negative rows)
+        refundableAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+      } catch {
+        // Fall through with no prefill - the server still enforces the real cap
+      }
+    }
+
+    setPendingCancellation({
+      visitId: visit.id,
+      visitNumber: visit.visit_number,
+      refundableAmount: refundableAmount && refundableAmount > 0 ? refundableAmount : undefined,
+    });
+    setShowCancellationModal(true);
+  };
+
+  const handleConfirmCancellation = async (details?: CancellationDetails) => {
+    if (!pendingCancellation || !details) return;
+
+    setCancelling(true);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const result = await opdVisitsApi.cancel(
+        pendingCancellation.visitId,
+        {
+          reason: details.reason,
+          notes: details.notes,
+          refund_amount: details.refundAmount,
+        },
+        getTenantIdForApi(tenantId)
+      );
+
+      if (result.refunded_amount > 0) {
+        const fee = result.cancellation_fee > 0
+          ? `, ₹${result.cancellation_fee.toLocaleString("en-IN")} retained as cancellation fee`
+          : "";
+        toast.success(
+          `Visit ${result.visit.visit_number} cancelled — ₹${result.refunded_amount.toLocaleString("en-IN")} refunded${fee}`
+        );
+      } else {
+        toast.success(`Visit ${result.visit.visit_number} cancelled`);
+      }
+
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
+
+      if (activeTab === "opd") {
+        fetchOpdTabVisits();
+      }
+    } catch (error: any) {
+      // Keep the modal open so the user can adjust the amount or reason
+      toast.error(getErrorMessage(error) || "Failed to cancel visit");
+    } finally {
+      setCancelling(false);
+    }
   };
 
   // Handle create OPD from appointment
@@ -1301,27 +1323,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                     >
                                       <CheckCircle className="h-4 w-4 shrink-0" />
                                       <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateOpdStatus(visit.id, "cancelled")}
-                                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                                      style={{ width: "2rem" }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.width = "auto";
-                                        e.currentTarget.style.paddingLeft = "0.75rem";
-                                        e.currentTarget.style.paddingRight = "0.75rem";
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.width = "2rem";
-                                        e.currentTarget.style.paddingLeft = "0.5rem";
-                                        e.currentTarget.style.paddingRight = "0.5rem";
-                                      }}
-                                      title="Cancel"
-                                    >
-                                      <X className="h-4 w-4 shrink-0" />
-                                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                                    </button>
-                                    <button
+                                    </button>                                    <button
                                       onClick={() => handlePrintOpdSlip(visit.id)}
                                       className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
                                       style={{ width: "2rem" }}
@@ -1362,27 +1364,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                     >
                                       <CheckCircle className="h-4 w-4 shrink-0" />
                                       <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateOpdStatus(visit.id, "cancelled")}
-                                      className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
-                                      style={{ width: "2rem" }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.width = "auto";
-                                        e.currentTarget.style.paddingLeft = "0.75rem";
-                                        e.currentTarget.style.paddingRight = "0.75rem";
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.width = "2rem";
-                                        e.currentTarget.style.paddingLeft = "0.5rem";
-                                        e.currentTarget.style.paddingRight = "0.5rem";
-                                      }}
-                                      title="Cancel"
-                                    >
-                                      <X className="h-4 w-4 shrink-0" />
-                                      <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
-                                    </button>
-                                    <button
+                                    </button>                                    <button
                                       onClick={() => handlePrintOpdSlip(visit.id)}
                                       className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
                                       style={{ width: "2rem" }}
@@ -1422,6 +1404,30 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                   >
                                     <Printer className="h-4 w-4 shrink-0" />
                                     <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print Invoice</span>
+                                  </button>
+                                )}
+                                {/* Cancel - offered by policy rather than per-status,
+                                    so every stage up to the end of the consultation
+                                    can be cancelled (see utils/visitCancellation) */}
+                                {canCancelVisit(visit.status as VisitStatus, userRole) && (
+                                  <button
+                                    onClick={() => handleCancelVisit(visit)}
+                                    className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
+                                    style={{ width: "2rem" }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.width = "auto";
+                                      e.currentTarget.style.paddingLeft = "0.75rem";
+                                      e.currentTarget.style.paddingRight = "0.75rem";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.width = "2rem";
+                                      e.currentTarget.style.paddingLeft = "0.5rem";
+                                      e.currentTarget.style.paddingRight = "0.5rem";
+                                    }}
+                                    title="Cancel"
+                                  >
+                                    <X className="h-4 w-4 shrink-0" />
+                                    <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Cancel</span>
                                   </button>
                                 )}
                                 {/* View Prescription button - always visible for any visit */}
@@ -2032,8 +2038,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         onConfirm={handleConfirmCancellation}
         type="opd"
         itemNumber={pendingCancellation?.visitNumber}
-        amount={pendingCancellation?.paymentAmount}
+        amount={pendingCancellation?.refundableAmount}
         loading={cancelling}
+        collectCancellationDetails
+        reasonOptions={VISIT_CANCELLATION_REASONS}
       />
 
       {/* Lab Report Viewer Modal */}

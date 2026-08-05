@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAppSelector } from "@/redux/hooks";
-import { useOpdVisits, useUpdateOpdVisitStatus, useCompleteDilation } from "@/hooks/queries/useOpdVisits";
+import { useOpdVisits, useUpdateOpdVisitStatus, useCompleteDilation, useCancelOpdVisit } from "@/hooks/queries/useOpdVisits";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
@@ -18,12 +18,14 @@ import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePayment
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi } from "@/services/paymentsApi";
 import { getTenantIdForApi } from "@/utils/auth";
-import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { CancellationRefundAcknowledgmentModal, type CancellationDetails } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { canCancelVisit, VISIT_CANCELLATION_REASONS } from "@/utils/visitCancellation";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PrescribedLabBookingModal } from "../lab-bookings/PrescribedLabBookingModal";
+import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { Beaker } from "lucide-react";
 
 interface OpdListProps {
@@ -509,6 +511,8 @@ export function OpdList({ doctorId }: OpdListProps) {
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { userRole } = usePermissions();
   const [bookingVisit, setBookingVisit] = useState<Visit | null>(null);
+  // Visit whose read-only prescription is being previewed (same modal the patient detail view uses)
+  const [prescriptionVisit, setPrescriptionVisit] = useState<Visit | null>(null);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(() => {
@@ -549,6 +553,7 @@ export function OpdList({ doctorId }: OpdListProps) {
   // React Query mutation for updating visit status
   const updateStatusMutation = useUpdateOpdVisitStatus();
   const completeDilationMutation = useCompleteDilation();
+  const cancelVisitMutation = useCancelOpdVisit();
 
   const [printVisitData, setPrintVisitData] = useState<{
     visit: Visit;
@@ -573,7 +578,7 @@ export function OpdList({ doctorId }: OpdListProps) {
   const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
-  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; paymentAmount?: number } | null>(null);
+  const [pendingCancellation, setPendingCancellation] = useState<{ visitId: string; visitNumber?: string; refundableAmount?: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const printInvoiceRef = useRef<HTMLDivElement>(null);
   const printPaymentRef = useRef<HTMLDivElement>(null);
@@ -777,15 +782,13 @@ export function OpdList({ doctorId }: OpdListProps) {
         actions.push(
           { icon: Play, title: "Start Consultation", color: "amber", onClick: () => handleUpdateStatus(visit.id, "in_consultation") },
           { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") },
-          { icon: X, title: "Cancel", color: "rose", onClick: () => handleUpdateStatus(visit.id, "cancelled", visit) },
           { icon: User, title: "No Show", color: "slate", onClick: () => handleUpdateStatus(visit.id, "no_show") }
         );
         break;
       case "in_consultation":
       case "consultation_in_progress":
         actions.push(
-          { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") },
-          { icon: X, title: "Cancel", color: "rose", onClick: () => handleUpdateStatus(visit.id, "cancelled", visit) }
+          { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") }
         );
         break;
       case "dilation_in_progress":
@@ -809,6 +812,28 @@ export function OpdList({ doctorId }: OpdListProps) {
       // completed, cancelled, and other statuses: no action buttons (print only)
     }
 
+    // Cancellation is offered by policy rather than per-status, so every stage
+    // up to the end of the consultation can be cancelled (see utils/visitCancellation).
+    if (canCancelVisit(visit.status, userRole)) {
+      actions.push({
+        icon: X,
+        title: "Cancel",
+        color: "rose",
+        onClick: () => handleCancelVisit(visit),
+      });
+    }
+
+    // Append "View Prescription" action for every visit that is still meaningful.
+    // Mirrors the patient detail view, where the button is shown for any visit.
+    if (visit.status !== "cancelled") {
+      actions.push({
+        icon: FileText,
+        title: "View Prescription",
+        color: "violet",
+        onClick: () => setPrescriptionVisit(visit),
+      });
+    }
+
     // Append "Prescribed Lab Tests" action for receptionists/admin/owners
     const isReceptionistOrAdmin = userRole === "receptionist" || userRole === "admin" || userRole === "platform_owner";
     if (isReceptionistOrAdmin && visit.status !== "cancelled" && visit.status !== "no_show") {
@@ -823,94 +848,40 @@ export function OpdList({ doctorId }: OpdListProps) {
     return actions;
   };
 
-  const handleUpdateStatus = async (visitId: string, newStatus: VisitStatus, visit?: Visit) => {
-    // If cancelling, check if payment exists and show acknowledgment modal
-    if (newStatus === "cancelled") {
+  const handleUpdateStatus = async (visitId: string, newStatus: VisitStatus) => {
+    try {
+      await updateStatusMutation.mutateAsync({ visitId, newStatus });
+      // React Query mutation already shows toast and invalidates cache!
+    } catch {
+      // Error handling is done in the mutation onError callback
+    }
+  };
+
+  /**
+   * Open the cancellation modal, prefilled with what is still refundable on the
+   * visit's invoice. The server recomputes this authoritatively; the lookup here
+   * only seeds the input, so a failure is non-fatal.
+   */
+  const handleCancelVisit = async (visit: Visit) => {
+    let refundableAmount: number | undefined;
+
+    if (visit.invoice_id) {
       try {
-        // Use visit from list if provided, otherwise fetch it
-        let visitData = visit;
-        if (!visitData) {
-          visitData = await opdVisitsApi.getById(visitId);
-        }
-
-        console.log("Checking cancellation for visit:", visitData.id, "payment_id:", visitData.payment_id, "invoice_id:", visitData.invoice_id);
-
-        // Check if visit has payment_id or invoice_id (payment might be linked via invoice)
-        const hasPayment = visitData.payment_id || visitData.invoice_id;
-
-        if (hasPayment) {
-          // Fetch payment details to get amount
-          let paymentAmount: number | undefined;
-
-          // Try to get payment via payment_id first
-          if (visitData.payment_id) {
-            try {
-              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-              const apiTenantId = getTenantIdForApi(tenantId || undefined);
-              const payment = await paymentsApi.getById(visitData.payment_id, apiTenantId);
-              paymentAmount = Math.abs(payment.amount);
-              console.log("Found payment via payment_id:", paymentAmount);
-            } catch (error) {
-              console.error("Failed to fetch payment details:", error);
-            }
-          }
-          // If no payment_id but has invoice_id, try to get payment from invoice
-          if (!paymentAmount && visitData.invoice_id) {
-            try {
-              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-              const apiTenantId = getTenantIdForApi(tenantId || undefined);
-              const payments = await paymentsApi.getByInvoiceId(visitData.invoice_id, apiTenantId);
-              // Sum all positive payments (excluding refunds)
-              if (payments.length > 0) {
-                paymentAmount = payments
-                  .filter(p => p.amount > 0)
-                  .reduce((sum, p) => sum + p.amount, 0);
-                console.log("Found payments via invoice_id:", paymentAmount, "from", payments.length, "payments");
-              }
-            } catch (error) {
-              console.error("Failed to fetch payments from invoice:", error);
-            }
-          }
-
-          // Show acknowledgment modal even if we couldn't fetch amount
-          console.log("Showing cancellation modal for visit:", visitData.visit_number, "with payment amount:", paymentAmount);
-          setPendingCancellation({
-            visitId,
-            visitNumber: visitData.visit_number,
-            paymentAmount,
-          });
-          setShowCancellationModal(true);
-          return;
-        } else {
-          console.log("No payment found for visit:", visitData.id, "- proceeding with cancellation");
-        }
-      } catch (error: any) {
-        console.error("Error checking payment for cancellation:", error);
-        const errorMessage = getErrorMessage(error);
-        toast.error(errorMessage || "Failed to fetch visit details");
-        return;
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const payments = await paymentsApi.getByInvoiceId(visit.invoice_id, getTenantIdForApi(tenantId || undefined));
+        // Collected less anything already refunded (refunds are negative rows)
+        refundableAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+      } catch {
+        // Fall through with no prefill - the server still enforces the real cap
       }
     }
 
-    // Proceed with status update (non-cancellation or cancellation without payment)
-    await performStatusUpdate(visitId, newStatus);
-  };
-
-  const performStatusUpdate = async (visitId: string, newStatus: VisitStatus) => {
-    setCancelling(newStatus === "cancelled");
-    try {
-      await updateStatusMutation.mutateAsync({
-        visitId,
-        newStatus,
-      });
-      // React Query mutation already shows toast and invalidates cache!
-    } catch (error: any) {
-      // Error handling is done in the mutation onError callback
-    } finally {
-      setCancelling(false);
-      setShowCancellationModal(false);
-      setPendingCancellation(null);
-    }
+    setPendingCancellation({
+      visitId: visit.id,
+      visitNumber: visit.visit_number,
+      refundableAmount: refundableAmount && refundableAmount > 0 ? refundableAmount : undefined,
+    });
+    setShowCancellationModal(true);
   };
 
   const handleCompleteDilation = async (visitId: string) => {
@@ -921,9 +892,27 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
   };
 
-  const handleConfirmCancellation = async () => {
-    if (!pendingCancellation) return;
-    await performStatusUpdate(pendingCancellation.visitId, "cancelled");
+  const handleConfirmCancellation = async (details?: CancellationDetails) => {
+    if (!pendingCancellation || !details) return;
+
+    setCancelling(true);
+    try {
+      await cancelVisitMutation.mutateAsync({
+        visitId: pendingCancellation.visitId,
+        request: {
+          reason: details.reason,
+          notes: details.notes,
+          refund_amount: details.refundAmount,
+        },
+      });
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
+    } catch {
+      // Mutation's onError surfaces the message; keep the modal open so the
+      // user can adjust the amount or pick a different reason.
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const handlePrintOpd = async (visitId: string) => {
@@ -1602,8 +1591,10 @@ export function OpdList({ doctorId }: OpdListProps) {
         onConfirm={handleConfirmCancellation}
         type="opd"
         itemNumber={pendingCancellation?.visitNumber}
-        amount={pendingCancellation?.paymentAmount}
+        amount={pendingCancellation?.refundableAmount}
         loading={cancelling}
+        collectCancellationDetails
+        reasonOptions={VISIT_CANCELLATION_REASONS}
       />
 
       {bookingVisit && (
@@ -1613,6 +1604,16 @@ export function OpdList({ doctorId }: OpdListProps) {
           visitId={bookingVisit.id}
           patientId={bookingVisit.patient_id}
           patientName={bookingVisit.patient_name || undefined}
+        />
+      )}
+
+      {/* Read-only prescription preview */}
+      {prescriptionVisit && (
+        <HistoryPrescriptionModal
+          isOpen={!!prescriptionVisit}
+          onClose={() => setPrescriptionVisit(null)}
+          visitId={prescriptionVisit.id}
+          patientId={prescriptionVisit.patient_id}
         />
       )}
     </div >

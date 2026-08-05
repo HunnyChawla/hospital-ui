@@ -42,11 +42,19 @@ import {
 } from "lucide-react";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
 
+export type BillingStatusFilter =
+  | "all"
+  | "pending"
+  | "paid"
+  | "partial"
+  | "refunded"
+  | "partially_refunded";
+
 interface BillingManagementProps {
   renderSearchInHeader?: (searchBox: React.ReactNode) => void;
   renderFilterInHeader?: (filterToggle: React.ReactNode) => void;
-  statusFilter: "all" | "pending" | "paid" | "partial" | "refunded";
-  onStatusFilterChange: (filter: "all" | "pending" | "paid" | "partial" | "refunded") => void;
+  statusFilter: BillingStatusFilter;
+  onStatusFilterChange: (filter: BillingStatusFilter) => void;
 }
 
 // Values match the backend's TRANSACTION_SORT_FIELDS (hms/payments/api/payments.py)
@@ -557,6 +565,10 @@ export function BillingManagement({
     }
   };
 
+  // Statuses are snake_case on the wire (e.g. "partially_refunded"); render them
+  // as words so `capitalize` produces "Partially refunded" and not "Partially_refunded".
+  const formatStatusLabel = (status: string) => status.replace(/_/g, " ");
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "paid":
@@ -566,6 +578,8 @@ export function BillingManagement({
         return "bg-amber-50 text-amber-700 border-amber-200";
       case "refunded":
         return "bg-purple-50 text-purple-700 border-purple-200";
+      case "partially_refunded":
+        return "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200";
       case "cancelled":
       case "failed":
         return "bg-rose-50 text-rose-700 border-rose-200";
@@ -659,6 +673,7 @@ export function BillingManagement({
         { value: "partial", label: "Partial" },
         { value: "paid", label: "Paid" },
         { value: "refunded", label: "Refunded" },
+        { value: "partially_refunded", label: "Part. Refunded" },
       ].map((filter) => (
         <button
           key={filter.value}
@@ -746,7 +761,7 @@ export function BillingManagement({
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${getStatusColor(txn.invoice_status || "")}`}>
                   {getStatusIcon(txn.invoice_status || "")}
-                  <span className="capitalize">{txn.invoice_status}</span>
+                  <span className="capitalize">{formatStatusLabel(txn.invoice_status || "")}</span>
                 </span>
                 <span className="text-sm font-bold text-slate-900">#{txn.invoice_number}</span>
               </div>
@@ -1534,7 +1549,7 @@ export function BillingManagement({
                   <p className="text-xs font-medium text-slate-500 mb-1">Status</p>
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(selectedInvoice.status)}`}>
                     {getStatusIcon(selectedInvoice.status)}
-                    <span className="capitalize">{selectedInvoice.status}</span>
+                    <span className="capitalize">{formatStatusLabel(selectedInvoice.status)}</span>
                   </span>
                 </div>
                 <div>

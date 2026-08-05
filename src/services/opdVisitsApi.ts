@@ -50,6 +50,36 @@ export interface Visit {
   dilation_started_at?: string | null;
   dilation_duration_minutes?: number | null;
   dilation_completed_at?: string | null;
+  // Cancellation audit - null unless the visit was cancelled through the
+  // cancel endpoint (visits cancelled before that existed carry nulls too)
+  cancellation_reason?: string | null;
+  cancellation_notes?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancellation_fee?: number | null;
+}
+
+export interface CancelVisitRequest {
+  reason: string;
+  notes?: string | null;
+  /** Omit for a full refund of everything still refundable. */
+  refund_amount?: number | null;
+}
+
+export interface VisitRefundSummary {
+  refund_id: string;
+  original_payment_id: string;
+  amount: number;
+}
+
+export interface CancelVisitResponse {
+  visit: Visit;
+  /** Collected payments that had not already been refunded, at cancel time. */
+  refundable_amount: number;
+  refunded_amount: number;
+  /** refundable_amount - refunded_amount, retained by the hospital. */
+  cancellation_fee: number;
+  refunds: VisitRefundSummary[];
 }
 
 export interface CreateVisitRequest {
@@ -123,6 +153,27 @@ export const opdVisitsApi = {
     const response = await apiClient.patch<Visit>(
       `/opd/visits/${visitId}/status`,
       {},
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Cancel a visit with a mandatory reason. Omitting `refund_amount` refunds
+   * everything still refundable; a smaller value retains the difference as a
+   * cancellation fee. Each payment can only be refunded once, so a partial
+   * refund cannot be topped up later.
+   */
+  async cancel(
+    visitId: string,
+    request: CancelVisitRequest,
+    tenantId?: string
+  ): Promise<CancelVisitResponse> {
+    const effectiveTenantId = getTenantIdForApi(tenantId);
+    const params = effectiveTenantId ? { tenant_id: effectiveTenantId } : {};
+    const response = await apiClient.post<CancelVisitResponse>(
+      `/opd/visits/${visitId}/cancel`,
+      request,
       { params }
     );
     return response.data;

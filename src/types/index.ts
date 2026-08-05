@@ -991,7 +991,7 @@ export type SurgeryPaymentEntry = {
 export type SurgeryPaymentSummary = {
   surgery_invoice_id: string | null;
   invoice_number: string | null;
-  invoice_status: "pending" | "partial" | "paid" | "cancelled" | "refunded" | null;
+  invoice_status: "pending" | "partial" | "paid" | "cancelled" | "refunded" | "partially_refunded" | null;
   invoice_total: number | null;
   total_advance_collected: number;
   total_paid_on_invoice: number;
