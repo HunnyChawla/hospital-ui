@@ -792,16 +792,11 @@ export function OpdList({ doctorId }: OpdListProps) {
       case "checked_in":
         actions.push(
           { icon: Play, title: "Start Consultation", color: "amber", onClick: () => handleUpdateStatus(visit.id, "in_consultation") },
-          { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") },
           { icon: User, title: "No Show", color: "slate", onClick: () => handleUpdateStatus(visit.id, "no_show") }
         );
         break;
-      case "in_consultation":
-      case "consultation_in_progress":
-        actions.push(
-          { icon: CheckCircle, title: "Complete", color: "emerald", onClick: () => handleUpdateStatus(visit.id, "completed") }
-        );
-        break;
+      // in_consultation / consultation_in_progress: no actions here - completing a
+      // visit is the doctor's call from the doctor panel, not a front-desk action.
       case "dilation_in_progress":
         actions.push(
           { icon: CheckCircle, title: "Complete Dilation", color: "emerald", onClick: () => handleCompleteDilation(visit.id) }
