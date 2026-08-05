@@ -132,6 +132,7 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
               <th className="py-1.5 px-2">Date</th>
               <th className="py-1.5 px-2">ID</th>
               <th className="py-1.5 px-2">Patient</th>
+              <th className="py-1.5 px-2 text-right">Actual Price (₹)</th>
               <th className="py-1.5 px-2 text-right">Total (₹)</th>
               <th className="py-1.5 px-2 text-right">Received (₹)</th>
               <th className="py-1.5 px-2 text-right">Pending (₹)</th>
@@ -167,6 +168,9 @@ export function BillingTransactionsPrint({ items, total, startDate, endDate, sta
                       {[row.patientUhid, row.patientMobile].filter(Boolean).join(" • ")}
                     </p>
                   )}
+                </td>
+                <td className="py-1.5 px-2 text-right text-slate-400">
+                  {row.originalAmount != null ? <span className="line-through">{currency(row.originalAmount)}</span> : "-"}
                 </td>
                 <td className="py-1.5 px-2 text-right text-slate-700">{row.total != null ? currency(row.total) : "-"}</td>
                 <td className="py-1.5 px-2 text-right font-semibold text-slate-900">{row.received != null ? currency(row.received) : "-"}</td>

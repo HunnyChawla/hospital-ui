@@ -47,6 +47,10 @@ export interface BillingTableRow {
   // pending below, which are the invoice's aggregate state and repeat
   // identically across every payment row belonging to the same invoice.
   transactionAmount: number | null;
+  // The system-calculated "Actual Price" before any discount/override -
+  // null when it doesn't differ from `total` (nothing to show), matching
+  // the same original-vs-agreed logic already used in the card view.
+  originalAmount: number | null;
   total: number | null;
   received: number | null;
   pending: number | null;
@@ -55,6 +59,18 @@ export interface BillingTableRow {
   hasPayment: boolean;
   isStandalone: boolean;
   txn: BillingTransactionRow;
+}
+
+// Original ("Actual") price before any discount/override, or null when it
+// doesn't differ from the agreed total - i.e. nothing to show. Mirrors the
+// exact formula BillingManagement's card view uses (renderInvoiceRow): a
+// generic invoice discount shows via `discount`; an OPD fee override or lab
+// test price override shows via `original_amount` (the override was baked
+// into the line-item price, so `discount` stays 0 in that case).
+function computeOriginalAmount(txn: BillingTransactionRow): number | null {
+  const hasDiscount = (txn.discount || 0) > 0;
+  const originalAmount = hasDiscount ? txn.subtotal : txn.original_amount;
+  return originalAmount != null && originalAmount !== (txn.total_amount || 0) ? originalAmount : null;
 }
 
 export function buildTableRows(
@@ -76,6 +92,7 @@ export function buildTableRows(
         patientName: txn.patient_name,
         patientUhid: txn.patient_uhid,
         patientMobile: txn.patient_mobile,
+        originalAmount: computeOriginalAmount(txn),
         total: txn.total_amount,
         received: txn.paid_amount,
         pending: balance > 0 ? balance : null,
@@ -126,6 +143,7 @@ export function buildTableRows(
         patientUhid: txn.patient_uhid,
         patientMobile: txn.patient_mobile,
         transactionAmount: payment?.amount ?? null,
+        originalAmount: hasInvoice ? computeOriginalAmount(txn) : null,
         total: hasInvoice ? txn.total_amount : null,
         received: hasInvoice ? txn.paid_amount : (payment?.amount ?? null),
         pending: hasInvoice && balance > 0 ? balance : null,
