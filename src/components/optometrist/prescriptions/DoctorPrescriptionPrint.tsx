@@ -1,9 +1,15 @@
 "use client";
 
-import React, { forwardRef } from "react";
+import React, { forwardRef, useMemo } from "react";
 import type { OptometryPrescription } from "@/types";
 import { PrintHeader } from "@/components/common/PrintHeader";
 import { useTenant } from "@/hooks/useTenant";
+import {
+    DEFAULT_PRINT_LAYOUT,
+    normalizePrintLayout,
+    type PrintLayoutConfig,
+} from "@/types/printLayout";
+import { buildPrintGeometry, PRINT_CONTAINER_CLASS } from "@/utils/printLayout";
 
 import {
     MessageSquare,
@@ -29,7 +35,13 @@ import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 interface DoctorPrescriptionPrintProps {
     prescription: OptometryPrescription;
-    showHeader?: boolean; // When false, shows blank space for pre-printed letterhead
+    /**
+     * Letterhead + page geometry. Defaults to the built-in layout (centered
+     * horizontal header at the top), which is what this component rendered
+     * before the layout feature existed.
+     */
+    layout?: PrintLayoutConfig;
+    showHeader?: boolean; // Legacy override: when false, reserves blank space for pre-printed letterhead
     doctorSignature?: string | null;
     visitData?: PrescriptionDataResponse | null;
     plannedSurgeries?: any[]; // Using any[] to avoid circular dependency issues if strict types are hard, but preferably PlannedSurgery[]
@@ -38,8 +50,27 @@ interface DoctorPrescriptionPrintProps {
 }
 
 export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescriptionPrintProps>(
-    ({ prescription, showHeader = true, doctorSignature, visitData, plannedSurgeries, visibleSections, sectionOrder }, ref) => {
+    ({ prescription, layout, showHeader, doctorSignature, visitData, plannedSurgeries, visibleSections, sectionOrder }, ref) => {
         const { tenant } = useTenant();
+
+        // `layout` is the modern input; the individual props remain supported so
+        // existing call sites keep working, and win when explicitly provided.
+        const effectiveLayout = useMemo<PrintLayoutConfig>(() => {
+            const base = layout ? normalizePrintLayout(layout) : { ...DEFAULT_PRINT_LAYOUT };
+            return {
+                ...base,
+                header_enabled: showHeader !== undefined ? showHeader : base.header_enabled,
+                visible_sections:
+                    visibleSections !== undefined ? visibleSections : base.visible_sections,
+                section_order: sectionOrder !== undefined ? sectionOrder : base.section_order,
+            };
+        }, [layout, showHeader, visibleSections, sectionOrder]);
+
+        const geometry = useMemo(() => buildPrintGeometry(effectiveLayout), [effectiveLayout]);
+
+        // Downstream code reads these two shapes; keep them derived in one place.
+        const activeSections = effectiveLayout.visible_sections ?? undefined;
+        const activeOrder = effectiveLayout.section_order ?? undefined;
 
         // Helper to format date
         const formatDate = (dateStr?: string | null) => {
@@ -73,7 +104,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
         const adviceCount = (prescription.advice_items?.length || 0) + (prescription.plan_of_action ? 1 : 0);
         const complaintsCount = visitData?.complaints?.length || 0;
         const surgeriesCount = plannedSurgeries?.length || 0;
-        const visionTableVisible = !!(visitData?.vision || visitData?.iop) && (!visibleSections || visibleSections.includes("Vision"));
+        const visionTableVisible = !!(visitData?.vision || visitData?.iop) && (!activeSections || activeSections.includes("Vision"));
         const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
         const hasDryRefractionData = visitData?.refraction ? [
             visitData.refraction.od_sphere, visitData.refraction.os_sphere,
@@ -95,17 +126,20 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
             visitData.refraction.od_dilated_pinhole, visitData.refraction.os_dilated_pinhole
         ].some(hasValue) : false;
 
-        const refractionDryVisible = hasDryRefractionData && (!visibleSections || visibleSections.includes("Refraction (Dry)"));
-        const refractionDilatedVisible = hasDilatedRefractionData && (!visibleSections || visibleSections.includes("Refraction (Dilated)"));
-        const glassesRxVisible = (prescription.items?.length || 0) > 0 && (!visibleSections || visibleSections.includes("Glasses Rx"));
-        const opticalSpecsVisible = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (!visibleSections || visibleSections.includes("Optical Specs"));
+        const refractionDryVisible = hasDryRefractionData && (!activeSections || activeSections.includes("Refraction (Dry)"));
+        const refractionDilatedVisible = hasDilatedRefractionData && (!activeSections || activeSections.includes("Refraction (Dilated)"));
+        const glassesRxVisible = (prescription.items?.length || 0) > 0 && (!activeSections || activeSections.includes("Glasses Rx"));
+        const opticalSpecsVisible = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (!activeSections || activeSections.includes("Optical Specs"));
 
         const totalItemsScore = medicineCount + adviceCount + complaintsCount + (surgeriesCount * 1.5) +
             (visionTableVisible ? 3 : 0) + (refractionDryVisible ? 3 : 0) + (refractionDilatedVisible ? 3 : 0) + (glassesRxVisible ? 3 : 0) + (opticalSpecsVisible ? 2 : 0);
 
-        // Threshold for applying compact layout
-        const isCompact = totalItemsScore > 15; // Lowered threshold for compact
-        const isExtremelyCompact = totalItemsScore > 25; // Lowered threshold for extreme
+        // Threshold for applying compact layout. A side letterhead removes ~25%
+        // of the content width, so the same content needs to compact sooner.
+        const compactThreshold = geometry.isSideBand ? 11 : 15;
+        const extremeThreshold = geometry.isSideBand ? 19 : 25;
+        const isCompact = totalItemsScore > compactThreshold;
+        const isExtremelyCompact = totalItemsScore > extremeThreshold;
 
         const spacingClass = isExtremelyCompact ? "mb-0.5" : isCompact ? "mb-1" : "mb-4";
         const sectionFontClass = isExtremelyCompact ? "text-[10px]" : isCompact ? "text-xs" : "text-sm";
@@ -116,7 +150,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
             switch (sectionName) {
                 case "Presenting Complaint":
                     return (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <MessageSquare className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -142,7 +176,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     );
                 case "Symptoms":
                     return prescription.symptoms && prescription.symptoms.length > 0 ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Activity className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -160,7 +194,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "Diagnosis":
                     return (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <ClipboardCheck className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -180,7 +214,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     );
                 case "Vision":
                     return visionTableVisible ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2 pt-1">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Eye className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -251,7 +285,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                 case "Refraction (Dry)":
                     return refractionDryVisible ? (
                         <>
-                            <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                                 <div className="flex items-center gap-1.5 pr-2">
                                     <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                         <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -301,7 +335,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 </div>
                             </div>
                             {visitData?.refraction?.notes && !refractionDilatedVisible && (
-                                <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
+                                <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start mt-1">
                                     <div className="w-full"></div>
                                     <p className="text-[10px] text-slate-500 italic text-left">
                                         Refraction Notes: {visitData.refraction.notes}
@@ -313,7 +347,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                 case "Refraction (Dilated)":
                     return refractionDilatedVisible ? (
                         <>
-                            <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                            <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                                 <div className="flex items-center gap-1.5 pr-2">
                                     <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                         <Compass className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -360,7 +394,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 </div>
                             </div>
                             {visitData?.refraction?.notes && (
-                                <div className="grid grid-cols-[120px_1fr] gap-2 items-start mt-1">
+                                <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start mt-1">
                                     <div className="w-full"></div>
                                     <p className="text-[10px] text-slate-500 italic text-left">
                                         Refraction Notes: {visitData.refraction.notes}
@@ -371,7 +405,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "Glasses Rx":
                     return glassesRxVisible ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Glasses className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -426,7 +460,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "Optical Specs":
                     return opticalSpecsVisible ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Layers className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -467,7 +501,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "Meds":
                     return (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2 pt-1">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Pill className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -527,7 +561,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     );
                 case "Lab Investigations":
                     return prescription.advice_items?.some(a => a.advice_type === "Lab Test" || a.advice_type === "lab-test") ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <FlaskConical className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -552,7 +586,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "Advice":
                     return (prescription.advice_items?.some(a => a.advice_type !== "Lab Test" && a.advice_type !== "lab-test") || prescription.plan_of_action) ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Info className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -573,7 +607,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "Planned Surgery":
                     return (plannedSurgeries && plannedSurgeries.length > 0) ? (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Stethoscope className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -603,7 +637,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ) : null;
                 case "FollowUp":
                     return (
-                        <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                        <div className="grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start">
                             <div className="flex items-center gap-1.5 pr-2">
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Calendar className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
@@ -626,48 +660,132 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
             }
         };
 
+        const headerPosition = effectiveLayout.header_position;
+        const rendersTopHeader = geometry.rendersBand && headerPosition === "top";
+        const rendersSideBand = geometry.rendersBand && headerPosition !== "top";
+
+        // Patient header fields, in the order they appear on paper. Kept as data
+        // so the same source renders two-per-row at full width and one-per-row
+        // when a side letterhead narrows the page.
+        const iconClass = "h-2.5 w-2.5 text-slate-500";
+        const patientFields: ({
+            icon: React.ReactNode;
+            label: string;
+            value: React.ReactNode;
+            valueClass?: string;
+        } | null)[] = [
+            {
+                icon: <Hash className={iconClass} />,
+                label: "UHID No",
+                value: visitData?.uhid || prescription.patient_id?.slice(0, 8) || "-",
+                valueClass: "font-bold",
+            },
+            {
+                icon: <UserRound className={iconClass} />,
+                label: "Consultant",
+                value: prescription.doctor_name,
+                valueClass: "font-bold",
+            },
+            {
+                icon: <User className={iconClass} />,
+                label: "Patient Name",
+                value: prescription.patient_name,
+                valueClass: "font-bold text-sky-900",
+            },
+            {
+                icon: <Stethoscope className={iconClass} />,
+                label: "Optometrist",
+                value: prescription.optometrist_name || "-",
+                valueClass: "font-bold",
+            },
+            {
+                icon: <Hash className={iconClass} />,
+                label: "OPD No.",
+                value: visitData?.visit_number || prescription.visit_id?.slice(0, 8) || "-",
+            },
+            {
+                icon: <Calendar className={iconClass} />,
+                label: "Date",
+                value: `${formatDate(visitData?.checked_in_at || prescription.created_at)} ${formatTime(visitData?.checked_in_at || prescription.created_at)}`,
+            },
+            {
+                icon: <MapPin className={iconClass} />,
+                label: "Address",
+                value: visitData?.address || "-",
+            },
+            {
+                icon: <User className={iconClass} />,
+                label: "Category",
+                value: (visitData as any)?.category || (visitData as any)?.patient_category || "-",
+                valueClass: "font-bold",
+            },
+            {
+                icon: <Phone className={iconClass} />,
+                label: "Mobile No.",
+                value: visitData?.mobile || "-",
+                valueClass: "font-bold",
+            },
+        ];
+
+        const patientFieldsPerRow = geometry.isSideBand ? 1 : 2;
+        const patientFieldRows: (typeof patientFields)[] = [];
+        for (let i = 0; i < patientFields.length; i += patientFieldsPerRow) {
+            const row = patientFields.slice(i, i + patientFieldsPerRow);
+            // Pad the final row so the grid columns stay aligned.
+            while (row.length < patientFieldsPerRow) row.push(null);
+            patientFieldRows.push(row);
+        }
+
         return (
             <div
                 ref={ref}
-                className="prescription-print-container bg-white text-black font-sans mx-auto text-sm print:m-0 print:p-0"
+                className={`${PRINT_CONTAINER_CLASS} relative bg-white text-black font-sans mx-auto text-sm print:m-0`}
                 style={{
                     width: '100%',
+                    // On screen the page mirrors the print geometry so a side band
+                    // looks the same in the preview as it does on paper.
                     maxWidth: '850px',
-                    padding: '1.5rem',
+                    ...geometry.containerStyle,
                 }}
             >
 
                 {/* Print-specific style block injected directly to ensure priority */}
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                    @media print {
-                        @page {
-                            size: A4;
-                            margin: 0; /* Control via padding */
-                        }
-                        .prescription-print-container {
-                            width: 210mm !important;
-                            min-height: 297mm !important;
-                            padding: 10mm 15mm 25mm 15mm !important;
-                            margin: 0 !important;
-                            max-width: none !important;
-                            height: auto !important;
-                            overflow: hidden !important;
-                            display: block !important;
-                            position: relative !important;
-                        }
-                        .break-inside-avoid {
-                            break-inside: avoid !important;
-                            page-break-inside: avoid !important;
-                        }
-                    }
-                `}} />
+                <style dangerouslySetInnerHTML={{ __html: geometry.pageStyle }} />
+
+                {/* Letterhead band for left/right layouts. Sits in the reserved
+                    gutter; repeats on every page when configured to. */}
+                {rendersSideBand && geometry.bandStyle && (
+                    <div className={geometry.bandClassName} style={geometry.bandStyle}>
+                        <PrintHeader
+                            tenant={tenant}
+                            documentType=""
+                            variant="vertical"
+                            align={effectiveLayout.header_align}
+                            side={headerPosition === "right" ? "right" : "left"}
+                            showLogo={effectiveLayout.show_logo}
+                            showAddress={effectiveLayout.show_address}
+                            showContact={effectiveLayout.show_contact}
+                            showDivider={effectiveLayout.show_divider}
+                        />
+                    </div>
+                )}
+
                 {/* Header Section - Configurable */}
-                {showHeader ? (
-                    <PrintHeader tenant={tenant} documentType="" />
-                ) : (
-                    /* Blank space for pre-printed letterhead - approximately same height as header */
-                    <div className={`${isExtremelyCompact ? "h-16" : isCompact ? "h-20" : "h-32"} mb-2`} />
+                {rendersTopHeader && (
+                    <PrintHeader
+                        tenant={tenant}
+                        documentType=""
+                        align={effectiveLayout.header_align}
+                        showLogo={effectiveLayout.show_logo}
+                        showAddress={effectiveLayout.show_address}
+                        showContact={effectiveLayout.show_contact}
+                        showDivider={effectiveLayout.show_divider}
+                    />
+                )}
+                {/* A reserved top band is blank space for pre-printed letterhead.
+                    Left/right bands are already reserved via container padding. */}
+                {geometry.topSpacerMm > 0 && (
+                    <div style={{ height: `${geometry.topSpacerMm}mm` }} className="mb-2" />
                 )}
 
                 {/* Document Status Badge (Right aligned, if Draft) */}
@@ -681,73 +799,41 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     </div>
                 )}
 
-                {/* Patient Details Section - Matches the Box style in image */}
+                {/* Patient Details Section - Matches the Box style in image.
+                    Rendered from a single field list so the narrow (side-band)
+                    layout can stack one field per row instead of two. */}
                 <div className={`${isCompact ? "mb-1" : "mb-4"} border border-slate-400 text-[10px] font-medium`}>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <Hash className="h-2.5 w-2.5 text-slate-500" />
-                            <span>UHID No</span>
+                    {patientFieldRows.map((row, rowIdx) => (
+                        <div
+                            key={rowIdx}
+                            className={`grid ${geometry.isSideBand ? "grid-cols-[80px_1fr]" : "grid-cols-[100px_1fr_100px_1fr]"} ${rowIdx < patientFieldRows.length - 1 ? "border-b border-slate-300" : ""}`}
+                        >
+                            {row.map((field, colIdx) => (
+                                <React.Fragment key={colIdx}>
+                                    <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                                        {field ? (
+                                            <>
+                                                {field.icon}
+                                                <span>{field.label}</span>
+                                            </>
+                                        ) : (
+                                            <span />
+                                        )}
+                                    </div>
+                                    <div
+                                        className={`${cellPadding} ${field?.valueClass || ""} ${colIdx === 0 && row.length > 1 ? "border-r border-slate-300" : ""}`}
+                                    >
+                                        {field?.value}
+                                    </div>
+                                </React.Fragment>
+                            ))}
                         </div>
-                        <div className={`${cellPadding} font-bold border-r border-slate-300`}>{visitData?.uhid || prescription.patient_id?.slice(0, 8) || "-"}</div>
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <UserRound className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Consultant</span>
-                        </div>
-                        <div className={`${cellPadding} font-bold`}>{prescription.doctor_name}</div>
-                    </div>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <User className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Patient Name</span>
-                        </div>
-                        <div className={`${cellPadding} font-bold border-r border-slate-300 text-sky-900`}>{prescription.patient_name}</div>
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <Stethoscope className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Optometrist</span>
-                        </div>
-                        <div className={`${cellPadding} font-bold`}>{prescription.optometrist_name || "-"}</div>
-                    </div>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <Hash className="h-2.5 w-2.5 text-slate-500" />
-                            <span>OPD No.</span>
-                        </div>
-                        <div className={`${cellPadding} border-r border-slate-300`}>{visitData?.visit_number || prescription.visit_id?.slice(0, 8) || "-"}</div>
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <Calendar className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Date</span>
-                        </div>
-                        <div className={cellPadding}>{formatDate(visitData?.checked_in_at || prescription.created_at)} {formatTime(visitData?.checked_in_at || prescription.created_at)}</div>
-                    </div>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr] border-b border-slate-300">
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <MapPin className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Address</span>
-                        </div>
-                        <div className={`${cellPadding} border-r border-slate-300`}>{visitData?.address || "-"}</div>
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <User className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Category</span>
-                        </div>
-                        <div className={`${cellPadding} font-bold`}>{(visitData as any)?.category || (visitData as any)?.patient_category || "-"}</div>
-                    </div>
-                    <div className="grid grid-cols-[100px_1fr_100px_1fr]">
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <Phone className="h-2.5 w-2.5 text-slate-500" />
-                            <span>Mobile No.</span>
-                        </div>
-                        <div className={`${cellPadding} font-bold border-r border-slate-300`}>{visitData?.mobile || "-"}</div>
-                        <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
-                            <span></span>
-                        </div>
-                        <div className={`${cellPadding}`}></div>
-                    </div>
-
+                    ))}
                 </div>
 
                 {/* Dynamic Content Sections */}
                 {(() => {
-                    const order = sectionOrder || [
+                    const order = activeOrder || [
                         "Presenting Complaint",
                         "Symptoms",
                         "Vision",
@@ -764,7 +850,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                     ];
 
                     const visibleOrderedSections = order.filter(sectionName => {
-                        if (visibleSections && !visibleSections.includes(sectionName)) return false;
+                        if (activeSections && !activeSections.includes(sectionName)) return false;
                         
                         // Check if section actually has data to render
                         if (sectionName === "Presenting Complaint") return !!(visitData?.complaints?.length);
@@ -810,10 +896,10 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                             Powered by <span className="text-slate-500 font-bold not-italic">Technesian Cura</span> &bull; <span className="text-slate-400">Revolutionizing Hospital Management</span> &bull; <span className="text-sky-700/70 not-italic">www.technesian.com</span>
                         </div>
                     </div>
-                    {(!visibleSections || visibleSections.includes("Digital Signature") || visibleSections.includes("Signature Placeholder")) && (
-                        <div className="text-center w-48 shrink-0">
+                    {(!activeSections || activeSections.includes("Digital Signature") || activeSections.includes("Signature Placeholder")) && (
+                        <div className={`text-center ${geometry.isSideBand ? "w-40" : "w-48"} shrink-0`}>
                             <div className={`${isCompact ? "h-12" : "h-16"} flex items-end justify-center mb-1`}>
-                                {doctorSignature && (!visibleSections || visibleSections.includes("Digital Signature")) ? (
+                                {doctorSignature && (!activeSections || activeSections.includes("Digital Signature")) ? (
                                     /* eslint-disable-next-line @next/next/no-img-element */
                                     <img
                                         key={doctorSignature}
@@ -825,7 +911,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             console.error("Signature image failed to load");
                                             e.currentTarget.style.display = 'none';
                                             // Fallback if image fails - only show if placeholder is allowed
-                                            if (!visibleSections || visibleSections.includes("Signature Placeholder")) {
+                                            if (!activeSections || activeSections.includes("Signature Placeholder")) {
                                                 const parent = e.currentTarget.parentElement;
                                                 if (parent && !parent.querySelector('.signature-fallback')) {
                                                     const fallback = document.createElement('div');
@@ -835,7 +921,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                             }
                                         }}
                                     />
-                                ) : (!visibleSections || visibleSections.includes("Signature Placeholder")) ? (
+                                ) : (!activeSections || activeSections.includes("Signature Placeholder")) ? (
                                     <div className="border-b border-dashed border-slate-300 w-full h-8" />
                                 ) : (
                                     <div className="h-8" /> /* Empty space to maintain layout if neither is selected but section is */

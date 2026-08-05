@@ -226,7 +226,6 @@ export function HistoryPrescriptionModal({
             visitData={visitData}
             doctorSignature={doctorSignature}
             plannedSurgeries={plannedSurgeries}
-            showHeader={true}
         />
     );
 }

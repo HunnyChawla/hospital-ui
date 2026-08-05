@@ -44,6 +44,7 @@ import { formatDate } from "@/utils/format";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import { PrintPreviewModal } from "./PrintPreviewModal";
+import { usePrescriptionPrintLayout } from "@/hooks/queries/usePrintLayout";
 import {
     DiagnosisChips,
     MedicineQuickChips,
@@ -218,13 +219,9 @@ export function PrescriptionFormSection({
     const [searchingTests, setSearchingTests] = useState(false);
     const [testSearchResults, setTestSearchResults] = useState<any[]>([]);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
-    const [printWithHeader, setPrintWithHeader] = useState(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("prescription_print_with_header");
-            return saved !== null ? JSON.parse(saved) : true;
-        }
-        return true;
-    });
+    // Letterhead/page geometry is a hospital-level setting resolved once here and
+    // shared by the read-only view and the print preview.
+    const { layout: printLayout } = usePrescriptionPrintLayout();
     const [showOpticalDetails, setShowOpticalDetails] = useState(false);
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
@@ -1539,7 +1536,7 @@ export function PrescriptionFormSection({
                                         ? savedPrescription.items
                                         : getRefractionItems()
                                 }}
-                                showHeader={true}
+                                layout={printLayout}
                                 doctorSignature={doctorSignature}
                                 visitData={fullPrescriptionData || examinationData} // Use fullData if available, else fallback to exam data
                                 plannedSurgeries={plannedSurgeries}
@@ -3130,7 +3127,6 @@ export function PrescriptionFormSection({
                     visitData={fullPrescriptionData || examinationData}
                     doctorSignature={doctorSignature}
                     plannedSurgeries={plannedSurgeries}
-                    showHeader={printWithHeader}
                     onFinalize={handlePreviewFinalize}
                 />
             )}
