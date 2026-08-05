@@ -47,8 +47,9 @@ export interface BillingTableRow {
   // pending below, which are the invoice's aggregate state and repeat
   // identically across every payment row belonging to the same invoice.
   transactionAmount: number | null;
-  // The system-calculated "Actual Price" before any discount/override -
-  // null when it doesn't differ from `total` (nothing to show), matching
+  // System-calculated "Original Price" before any discount/override - falls
+  // back to `total` when nothing was overridden (always has a value; compare
+  // against `total` to decide whether to show it struck-through), matching
   // the same original-vs-agreed logic already used in the card view.
   originalAmount: number | null;
   total: number | null;
@@ -61,16 +62,19 @@ export interface BillingTableRow {
   txn: BillingTransactionRow;
 }
 
-// Original ("Actual") price before any discount/override, or null when it
-// doesn't differ from the agreed total - i.e. nothing to show. Mirrors the
-// exact formula BillingManagement's card view uses (renderInvoiceRow): a
-// generic invoice discount shows via `discount`; an OPD fee override or lab
-// test price override shows via `original_amount` (the override was baked
-// into the line-item price, so `discount` stays 0 in that case).
+// System-calculated Original Price before any discount/override. Falls back
+// to the agreed total when nothing was overridden, so this column always has
+// a value to show instead of a blank cell - callers compare it against
+// `total` themselves to decide whether to render it struck-through (differs)
+// or plain (same, nothing overridden). Mirrors the exact formula
+// BillingManagement's card view uses (renderInvoiceRow): a generic invoice
+// discount shows via `discount`; an OPD fee override or lab test price
+// override shows via `original_amount` (the override was baked into the
+// line-item price, so `discount` stays 0 in that case).
 function computeOriginalAmount(txn: BillingTransactionRow): number | null {
   const hasDiscount = (txn.discount || 0) > 0;
   const originalAmount = hasDiscount ? txn.subtotal : txn.original_amount;
-  return originalAmount != null && originalAmount !== (txn.total_amount || 0) ? originalAmount : null;
+  return originalAmount ?? txn.total_amount ?? null;
 }
 
 export function buildTableRows(

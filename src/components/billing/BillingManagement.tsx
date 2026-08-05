@@ -1074,11 +1074,17 @@ export function BillingManagement({
             </p>
           )}
         </td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-400">
-          {row.originalAmount != null ? <span className="line-through">{currency(row.originalAmount)}</span> : "-"}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-slate-900">
-          {row.total != null ? currency(row.total) : "-"}
+        <td className="whitespace-nowrap px-3 py-2.5 text-right">
+          {row.total != null ? (
+            <div className="flex items-baseline justify-end gap-1.5">
+              {row.originalAmount != null && row.originalAmount !== row.total && (
+                <span className="text-[11px] text-slate-400 line-through">{currency(row.originalAmount)}</span>
+              )}
+              <span className="font-semibold text-slate-900">{currency(row.total)}</span>
+            </div>
+          ) : (
+            "-"
+          )}
         </td>
         <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-emerald-700">
           {row.received != null ? currency(row.received) : "-"}
@@ -1496,7 +1502,6 @@ export function BillingManagement({
                       {sortHeader("Date", "payment_date")}
                       <th className="px-3 py-2 text-left font-semibold uppercase text-slate-500">ID</th>
                       {sortHeader("Patient", "patient_name")}
-                      <th className="px-3 py-2 text-right font-semibold uppercase text-slate-500">Actual Price</th>
                       {sortHeader("Total", "total", "right")}
                       {sortHeader("Received", "received", "right")}
                       {sortHeader("Pending", "pending", "right")}
