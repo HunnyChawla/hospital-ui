@@ -29,7 +29,7 @@ export function ResendableOtpField({
   length = 6,
   label = "Enter OTP",
   resendLabel = "Resend OTP",
-  cooldownSeconds = 30,
+  cooldownSeconds = 60,
   disabled = false,
   autoFocus = false,
   startCooldownOnMount = false,

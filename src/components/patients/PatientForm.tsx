@@ -10,6 +10,7 @@ import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "
 import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
+import { getAbhaError } from "@/utils/abhaErrors";
 import { toast } from "sonner";
 
 
@@ -56,11 +57,15 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   const [abhaProfile, setAbhaProfile] = useState<any>(null);
   const [abhaSessionKey, setAbhaSessionKey] = useState<string | null>(null);
   const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
+  // Set when the attached ABHA turns out to belong to another patient, so the reason stays on
+  // screen next to the ABHA field instead of vanishing with the toast.
+  const [abhaLinkError, setAbhaLinkError] = useState<string | null>(null);
   const isAbhaVerified = abhaProfile ? true : (defaultValues?.abhaVerified || false);
 
   const handleAbhaSuccess = (profile: any, sessionKey: string, aadhaar?: string) => {
     setAbhaProfile(profile);
     setAbhaSessionKey(sessionKey);
+    setAbhaLinkError(null);
     if (aadhaar) setAadhaarNum(aadhaar);
 
     // Auto-populate form fields from ABHA profile
@@ -410,6 +415,28 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     }
 
 
+    // Re-check the ABHA right before saving. The modal already checked at attach time, but
+    // minutes may have passed and a colleague could have linked this ABHA in between. Bailing
+    // out here is what keeps a duplicate from producing a patient record with no ABHA on it.
+    if (abhaProfile && abhaSessionKey) {
+      try {
+        const check = await abhaApi.checkLinkConflict({
+          session_key: abhaSessionKey,
+          patient_id: defaultValues?.id ?? null,
+        });
+        if (!check.can_link) {
+          const message = check.message || "This ABHA is already linked to another patient.";
+          setAbhaLinkError(message);
+          toast.error(message, { duration: 10000 });
+          return;
+        }
+        setAbhaLinkError(null);
+      } catch (e) {
+        // Fail open - the sync call below is the real authority.
+        console.warn("ABHA link pre-check failed; deferring to the sync call", e);
+      }
+    }
+
     if (defaultValues) {
       // Update existing patient
       await updatePatient.mutateAsync({
@@ -423,7 +450,13 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             aadhaar_number: aadhaarNum || null,
           });
         } catch (e) {
-          console.error("Failed to sync ABHA to patient:", e);
+          // Never swallow this: the patient save already toasted success, so a silent failure
+          // reads as "the ABHA was linked" when it wasn't.
+          const { message } = getAbhaError(e, "Failed to attach ABHA profile to patient");
+          setAbhaLinkError(message);
+          toast.error(`Patient saved, but the ABHA could not be linked: ${message}`, {
+            duration: 10000,
+          });
         }
       }
       // React Query mutation already shows toast and invalidates cache!
@@ -450,7 +483,16 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             aadhaar_number: aadhaarNum || null,
           });
         } catch (e) {
-          console.error("Failed to sync ABHA to new patient:", e);
+          // The patient genuinely exists (ABHA is optional and the "patient:created" event has
+          // already fired), so don't roll it back - say plainly what didn't happen instead.
+          const { message } = getAbhaError(e, "Failed to attach ABHA profile to patient");
+          toast.error(
+            `Patient saved, but the ABHA could not be linked: ${message} You can retry from the patient's profile.`,
+            { duration: 10000 }
+          );
+          // Drop the stale ABHA so the reset form doesn't show a badge for an unlinked ABHA.
+          setAbhaProfile(null);
+          setAbhaSessionKey(null);
         }
       }
 
@@ -458,6 +500,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       reset();
       setIsNewborn(false);
       setParentName("");
+      setAbhaLinkError(null);
       onSuccess?.(newPatient);
     }
   };
@@ -772,7 +815,9 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               {abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number || "Not linked"}
             </div>
-            {isAbhaVerified ? (
+            {abhaLinkError ? (
+              <span className="block text-xs text-rose-600">{abhaLinkError}</span>
+            ) : isAbhaVerified ? (
               <span className="text-xs text-emerald-600">Verified via ABDM</span>
             ) : (
               <span className="text-xs text-slate-400">

@@ -24,9 +24,11 @@ import { AbhaCardPreviewModal } from "@/components/abha/AbhaCardPreviewModal";
 import {
   abhaApi,
   type AbhaEnrollmentResult,
+  type AbhaLinkCheckResponseDto,
   type AbhaProfileDto,
 } from "@/services/abhaApi";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getAbhaError } from "@/utils/abhaErrors";
 import { formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
 
 
@@ -93,6 +95,15 @@ export function AbhaEnrollmentModal({
   const [otpSent, setOtpSent] = useState(false);
   const [aadhaarConsentAccepted, setAadhaarConsentAccepted] = useState(false);
 
+  // Aadhaar mobile-verification sub-step: entered when enrol/byAadhaar returns a profile with no
+  // mobile, meaning the mobile the operator entered isn't the one linked to the Aadhaar record and
+  // has to be OTP-verified on its own before enrollment can continue to address selection.
+  const [needsMobileVerification, setNeedsMobileVerification] = useState(false);
+  const [mobileOtp, setMobileOtp] = useState("");
+  const [mobileOtpSent, setMobileOtpSent] = useState(false);
+  const [pendingEnrollmentResult, setPendingEnrollmentResult] =
+    useState<AbhaEnrollmentResult | null>(null);
+
   // Document State
   const [docType, setDocType] = useState("DRIVING_LICENCE");
   const [docId, setDocId] = useState("");
@@ -134,6 +145,11 @@ export function AbhaEnrollmentModal({
   const [cardSessionKey, setCardSessionKey] = useState<string | null>(null);
   const [cardPreviewUrl, setCardPreviewUrl] = useState<string | null>(null);
   const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
+  // Result of the server-side "can this ABHA be linked?" pre-check. Runs as soon as a final
+  // verified profile exists so a duplicate is caught here - before the parent form creates a
+  // patient record - rather than after the patient already exists.
+  const [linkConflict, setLinkConflict] = useState<AbhaLinkCheckResponseDto | null>(null);
+  const [checkingLink, setCheckingLink] = useState(false);
 
   // Tenant HIP configuration - warn instead of letting enrollment silently fail
   const { data: abdmConfig } = useQuery({
@@ -143,12 +159,20 @@ export function AbhaEnrollmentModal({
     staleTime: 5 * 60 * 1000,
   });
   const hipNotConfigured = isOpen && abdmConfig !== undefined && !abdmConfig.hip_id;
+  // Only ever populated when a patientId was supplied - there's nothing to compare against
+  // while adding a brand-new patient.
+  const identityMismatches = linkConflict?.identity_mismatches ?? [];
 
   const resetState = () => {
     setSessionKey(null);
     setOtp("");
     setOtpSent(false);
     setAadhaarConsentAccepted(false);
+    setAadhaarMobile(initialMobile);
+    setNeedsMobileVerification(false);
+    setMobileOtp("");
+    setMobileOtpSent(false);
+    setPendingEnrollmentResult(null);
     setLinkSessionKey(null);
     setLinkOtp("");
     setLinkOtpSent(false);
@@ -158,6 +182,8 @@ export function AbhaEnrollmentModal({
     setShowAddressSelection(false);
     setResultProfile(null);
     setResultSessionKey(null);
+    setLinkConflict(null);
+    setCheckingLink(false);
     setCardSessionKey(null);
     setDocMobile(initialMobile);
     setDocSessionKey(null);
@@ -177,9 +203,27 @@ export function AbhaEnrollmentModal({
     setDocBackPhoto(null);
   };
 
-  const isSessionExpiredError = (error: any) => {
-    const msg = getErrorMessage(error);
-    return typeof msg === "string" && msg.toLowerCase().includes("session expired");
+  const isSessionExpiredError = (error: any) => getAbhaError(error).code === "SESSION_EXPIRED";
+
+  /**
+   * Ask the server whether this ABHA is already linked to someone else. Fails open: a
+   * pre-check outage must never block a legitimate enrollment, and the sync endpoint plus the
+   * DB unique index remain the real authority.
+   */
+  const runLinkPrecheck = async (sessionKey: string) => {
+    setCheckingLink(true);
+    try {
+      const result = await abhaApi.checkLinkConflict({
+        session_key: sessionKey,
+        patient_id: patientId ?? null,
+      });
+      setLinkConflict(result);
+    } catch (error) {
+      console.warn("ABHA link pre-check failed; deferring to the sync call", error);
+      setLinkConflict(null);
+    } finally {
+      setCheckingLink(false);
+    }
   };
 
   // --------------------------------------------------------------------------
@@ -215,6 +259,10 @@ export function AbhaEnrollmentModal({
       toast.error("Please enter OTP");
       return;
     }
+    if (aadhaarMobile.length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
     setLoading(true);
     try {
       const res = await abhaApi.verifyAadhaarOtp({
@@ -222,6 +270,15 @@ export function AbhaEnrollmentModal({
         otp,
         mobile: aadhaarMobile,
       });
+      // A null mobile on the response means ABDM couldn't bind the entered number (it isn't the
+      // Aadhaar-linked one) - verify it separately before moving on to address selection.
+      if (!res.profile?.mobile) {
+        setPendingEnrollmentResult(res);
+        if (res.session_key) setSessionKey(res.session_key);
+        setNeedsMobileVerification(true);
+        toast.info("Please verify the mobile number to continue enrollment");
+        return;
+      }
       handleEnrollmentSuccess(res);
     } catch (error: any) {
       if (isSessionExpiredError(error)) {
@@ -231,6 +288,71 @@ export function AbhaEnrollmentModal({
         toast.error("Your OTP session has expired. Please request a new OTP.");
       } else {
         toast.error(getErrorMessage(error) || "OTP verification failed");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // Handlers: Aadhaar Mobile Verification (when ABDM returns no mobile on the profile)
+  // --------------------------------------------------------------------------
+  const handleRequestMobileVerifyOtp = async () => {
+    if (!sessionKey) {
+      toast.error("Your session has expired. Please start enrollment again.");
+      return;
+    }
+    if (aadhaarMobile.length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await abhaApi.requestAadhaarMobileOtp({
+        session_key: sessionKey,
+        mobile: aadhaarMobile,
+      });
+      setMobileOtpSent(true);
+      toast.success(res.message || "OTP sent to the provided mobile number");
+    } catch (error: any) {
+      toast.error(getErrorMessage(error) || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyMobileVerifyOtp = async () => {
+    if (!sessionKey || !mobileOtp) {
+      toast.error("Please enter OTP");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await abhaApi.verifyAadhaarMobileOtp({
+        session_key: sessionKey,
+        otp: mobileOtp,
+      });
+      // Carry the verified mobile back onto the stashed enrollment result so the address
+      // suggestions from the Aadhaar step aren't lost.
+      const merged: AbhaEnrollmentResult = pendingEnrollmentResult
+        ? {
+            ...pendingEnrollmentResult,
+            profile: { ...pendingEnrollmentResult.profile, ...res.profile },
+          }
+        : res;
+      setNeedsMobileVerification(false);
+      setMobileOtp("");
+      setMobileOtpSent(false);
+      setPendingEnrollmentResult(null);
+      toast.success(res.message || "Mobile number verified successfully");
+      handleEnrollmentSuccess(merged);
+    } catch (error: any) {
+      if (isSessionExpiredError(error)) {
+        setMobileOtp("");
+        setMobileOtpSent(false);
+        toast.error("Your OTP session has expired. Please request a new OTP.");
+      } else {
+        toast.error(getErrorMessage(error) || "Mobile verification failed");
       }
     } finally {
       setLoading(false);
@@ -451,6 +573,9 @@ export function AbhaEnrollmentModal({
       setResultProfile(res.profile);
       setResultSessionKey(effectiveSessionKey);
       toast.success(res.message || "ABHA profile retrieved successfully");
+      // Deliberately not run in the address-selection branch above: abha_address isn't final
+      // there yet, so the check would be answering about the wrong identity.
+      if (effectiveSessionKey) void runLinkPrecheck(effectiveSessionKey);
     }
   };
 
@@ -469,6 +594,7 @@ export function AbhaEnrollmentModal({
       setResultSessionKey(res.session_key || sessionKey);
       setShowAddressSelection(false);
       toast.success("ABHA address confirmed successfully");
+      void runLinkPrecheck(res.session_key || sessionKey);
     } catch (error: any) {
       if (isSessionExpiredError(error)) {
         resetState();
@@ -483,6 +609,9 @@ export function AbhaEnrollmentModal({
 
   const handleCompleteAndSync = () => {
     if (!resultProfile || !resultSessionKey) return;
+    // Hard guard behind the disabled button: attaching a duplicate would create a patient the
+    // ABHA can never be linked to.
+    if (checkingLink || linkConflict?.can_link === false) return;
     onSuccess(resultProfile, resultSessionKey, aadhaarNumber || undefined);
     onClose();
   };
@@ -537,8 +666,76 @@ export function AbhaEnrollmentModal({
           </div>
         )}
 
-        {/* STEP: Address Selection if Suggested */}
-        {showAddressSelection && resultProfile ? (
+        {/* STEP: Verify Mobile - ABDM returned no mobile on the enrolled profile */}
+        {needsMobileVerification ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <p className="text-xs">
+                This mobile number isn&apos;t the one registered with the Aadhaar record, so it
+                couldn&apos;t be linked automatically. Verify it with an OTP to finish enrollment.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Mobile Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                maxLength={10}
+                value={aadhaarMobile}
+                onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ""))}
+                disabled={mobileOtpSent}
+                placeholder="10-digit mobile number"
+                className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
+              />
+            </div>
+
+            {!mobileOtpSent ? (
+              <button
+                type="button"
+                onClick={handleRequestMobileVerifyOtp}
+                disabled={loading || aadhaarMobile.length !== 10}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>Send OTP</span>
+              </button>
+            ) : (
+              <div className="space-y-4 pt-2 border-t border-slate-100">
+                <ResendableOtpField
+                  value={mobileOtp}
+                  onChange={setMobileOtp}
+                  onResend={handleRequestMobileVerifyOtp}
+                  disabled={loading}
+                  autoFocus
+                  startCooldownOnMount
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMobileOtpSent(false)}
+                    className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Change Mobile Number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleVerifyMobileVerifyOtp}
+                    disabled={loading || !mobileOtp}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <span>Verify &amp; Continue</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : /* STEP: Address Selection if Suggested */
+        showAddressSelection && resultProfile ? (
           <div className="space-y-6">
             <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-800">
               <div className="flex items-center gap-2 font-semibold">
@@ -681,6 +878,54 @@ export function AbhaEnrollmentModal({
               </div>
             </div>
 
+            {/* Blocking: this ABHA already belongs to another patient in this hospital. Shown
+                as a persistent banner rather than a toast - it's a decision the operator has to
+                act on, sitting next to the button it disables. */}
+            {linkConflict?.can_link === false && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">This ABHA cannot be attached</p>
+                  <p className="text-xs">{linkConflict.message}</p>
+                  {linkConflict.conflict_patient_uhid && (
+                    <p className="text-xs">
+                      Open patient{" "}
+                      <span className="font-semibold">{linkConflict.conflict_patient_uhid}</span> to
+                      review the existing record, or use &ldquo;Start Over&rdquo; to attach a
+                      different ABHA.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Non-blocking advisories: an unverified legacy record carries the same ABHA, or
+                the profile's DOB/gender differ from the patient this is being attached to. */}
+            {linkConflict?.can_link !== false && linkConflict?.warning && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <p className="text-xs">{linkConflict.warning}</p>
+              </div>
+            )}
+            {linkConflict?.can_link !== false && identityMismatches.length > 0 && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold">
+                    This ABHA profile doesn&apos;t match the patient&apos;s record:
+                  </p>
+                  <ul className="list-disc pl-4 text-xs">
+                    {identityMismatches.map((mismatch) => (
+                      <li key={mismatch}>{mismatch}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs">
+                    Confirm this is the correct patient &mdash; an admin may need to override.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
@@ -703,10 +948,12 @@ export function AbhaEnrollmentModal({
               <button
                 type="button"
                 onClick={handleCompleteAndSync}
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 transition-colors"
+                disabled={checkingLink || linkConflict?.can_link === false}
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span>Attach ABHA to Patient</span>
-                <ArrowRight className="h-4 w-4" />
+                {checkingLink && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>{checkingLink ? "Checking…" : "Attach ABHA to Patient"}</span>
+                {!checkingLink && <ArrowRight className="h-4 w-4" />}
               </button>
             </div>
           </div>
@@ -730,20 +977,6 @@ export function AbhaEnrollmentModal({
                     disabled={otpSent}
                     placeholder="e.g. 1234 5678 9012"
                     className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Mobile Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={10}
-                    value={aadhaarMobile}
-                    onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ""))}
-                    placeholder="10-digit mobile number"
-                    className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   />
                 </div>
 
@@ -775,6 +1008,24 @@ export function AbhaEnrollmentModal({
                       startCooldownOnMount
                     />
 
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        value={aadhaarMobile}
+                        onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ""))}
+                        placeholder="10-digit mobile number"
+                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                      />
+                      <p className="mt-1 text-xs text-slate-400">
+                        This number will be linked to the new ABHA. If it isn&apos;t the one registered
+                        with Aadhaar, we&apos;ll ask you to verify it with a separate OTP.
+                      </p>
+                    </div>
+
                     <div className="flex gap-3">
                       <button
                         type="button"
@@ -786,7 +1037,7 @@ export function AbhaEnrollmentModal({
                       <button
                         type="button"
                         onClick={handleVerifyAadhaarOtp}
-                        disabled={loading || !otp}
+                        disabled={loading || !otp || aadhaarMobile.length !== 10}
                         className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                       >
                         {loading && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -50,6 +50,18 @@ export interface AbhaVerifyOtpDto {
   mobile: string;
 }
 
+/** Mobile verification for an Aadhaar enrollment that came back without a mobile number.
+ * Reuses the Aadhaar enrollment session key so the verified mobile binds to that profile. */
+export interface AbhaAadhaarMobileOtpRequestDto {
+  session_key: string;
+  mobile: string;
+}
+
+export interface AbhaAadhaarMobileVerifyOtpDto {
+  session_key: string;
+  otp: string;
+}
+
 export interface AbhaDocumentOtpRequestDto {
   mobile: string;
 }
@@ -97,6 +109,28 @@ export interface AbhaPatientSyncRequestDto {
   override_mismatch?: boolean;
 }
 
+/**
+ * Ask whether a verified ABHA profile can be linked, before actually linking it.
+ * Keyed on the session_key rather than the ABHA number for the same reason as the sync
+ * request: the profile is read server-side from the completed ABDM verification.
+ */
+export interface AbhaLinkCheckRequestDto {
+  session_key: string;
+  /** Omit when checking before the patient record exists (the add-patient flow). */
+  patient_id?: string | null;
+}
+
+export interface AbhaLinkCheckResponseDto {
+  can_link: boolean;
+  conflict_field?: string | null;
+  conflict_patient_id?: string | null;
+  conflict_patient_uhid?: string | null;
+  message?: string | null;
+  /** Non-blocking: an unverified/legacy record already carries this ABHA. */
+  warning?: string | null;
+  identity_mismatches?: string[];
+}
+
 export const abhaApi = {
   // Tenant Config
   async getConfig(tenantId?: string): Promise<TenantAbdmConfigDto> {
@@ -125,6 +159,20 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<AbhaEnrollmentResult>("/abha/enroll/aadhaar/verify-otp", req, { params });
+    return response.data;
+  },
+
+  async requestAadhaarMobileOtp(req: AbhaAadhaarMobileOtpRequestDto, tenantId?: string): Promise<{ session_key: string; message: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post("/abha/enroll/aadhaar/mobile/request-otp", req, { params });
+    return response.data;
+  },
+
+  async verifyAadhaarMobileOtp(req: AbhaAadhaarMobileVerifyOtpDto, tenantId?: string): Promise<AbhaEnrollmentResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<AbhaEnrollmentResult>("/abha/enroll/aadhaar/mobile/verify-otp", req, { params });
     return response.data;
   },
 
@@ -172,6 +220,24 @@ export const abhaApi = {
   },
 
   // Patient Sync
+  /**
+   * Pre-flight check for syncToPatient. Does NOT consume the session, so the caller can go on
+   * to complete the real sync with the same session_key.
+   */
+  async checkLinkConflict(
+    req: AbhaLinkCheckRequestDto,
+    tenantId?: string
+  ): Promise<AbhaLinkCheckResponseDto> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<AbhaLinkCheckResponseDto>(
+      "/abha/patients/link-check",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
   async syncToPatient(
     patientId: string,
     req: AbhaPatientSyncRequestDto,
