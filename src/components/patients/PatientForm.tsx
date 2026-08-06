@@ -895,28 +895,30 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       </div>
 
       {/* Optional ABHA Enrollment Modal */}
-      <AbhaEnrollmentModal
-        isOpen={isAbhaModalOpen}
-        onClose={() => setIsAbhaModalOpen(false)}
-        onSuccess={handleAbhaSuccess}
-        patientId={defaultValues?.id}
-        initialMobile={watch("mobile") || defaultValues?.mobile || ""}
-        initialName={`${watch("first_name") || ""} ${watch("last_name") || ""}`.trim() || defaultValues?.name || ""}
-        existingPatientDetails={
-          apiData
-            ? {
-                firstName: apiData.first_name,
-                lastName: apiData.last_name,
-                gender: apiData.gender,
-                dateOfBirth: apiData.date_of_birth,
-                address: apiData.address,
-                city: apiData.city,
-                state: apiData.state,
-                pincode: apiData.pincode,
-              }
-            : undefined
-        }
-      />
+      {abhaEnabled && (
+        <AbhaEnrollmentModal
+          isOpen={isAbhaModalOpen}
+          onClose={() => setIsAbhaModalOpen(false)}
+          onSuccess={handleAbhaSuccess}
+          patientId={defaultValues?.id}
+          initialMobile={watch("mobile") || defaultValues?.mobile || ""}
+          initialName={`${watch("first_name") || ""} ${watch("last_name") || ""}`.trim() || defaultValues?.name || ""}
+          existingPatientDetails={
+            apiData
+              ? {
+                  firstName: apiData.first_name,
+                  lastName: apiData.last_name,
+                  gender: apiData.gender,
+                  dateOfBirth: apiData.date_of_birth,
+                  address: apiData.address,
+                  city: apiData.city,
+                  state: apiData.state,
+                  pincode: apiData.pincode,
+                }
+              : undefined
+          }
+        />
+      )}
     </form>
   );
 }

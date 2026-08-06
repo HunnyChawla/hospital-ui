@@ -970,7 +970,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     onEnrollClick={() => setIsAbhaModalOpen(true)}
                     size="sm"
                   />
-                  {(patient.abhaNumber || patient.abhaId) && (
+                  {abhaEnabled && (patient.abhaNumber || patient.abhaId) && (
                     <button
                       type="button"
                       onClick={() => setIsCardDownloadModalOpen(true)}
@@ -2082,7 +2082,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Enrollment Modal */}
-      {patient && (
+      {abhaEnabled && patient && (
         <AbhaEnrollmentModal
           isOpen={isAbhaModalOpen}
           onClose={() => setIsAbhaModalOpen(false)}
@@ -2108,7 +2108,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Card Download Modal (already-linked patients) */}
-      {patient && (patient.abhaNumber || patient.abhaId) && (
+      {abhaEnabled && patient && (patient.abhaNumber || patient.abhaId) && (
         <AbhaCardDownloadModal
           isOpen={isCardDownloadModalOpen}
           onClose={() => setIsCardDownloadModalOpen(false)}
