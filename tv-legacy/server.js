@@ -94,29 +94,37 @@ var DEFAULT_COLUMNS = [
     {
         key: 'optometrist',
         title: 'Optometrist Queue',
-        endpoint: '/opd/eye-hospital/optometrist-queue/{doctorId}'
-            + '?status=awaiting_optometrist,optometrist_assigned',
+        endpoint: '/pathways/queue'
+            + '?doctor_id={doctorId}'
+            + '&stage_codes=awaiting_optometrist,optometrist_assigned',
         waiting: ['awaiting_optometrist'],
         active: ['optometrist_assigned'],
         inProgress: [],
         announce: ['optometrist_assigned'],
-        labels: { optometrist_assigned: 'Called' },
+        labels: {
+            awaiting_optometrist: 'Waiting',
+            optometrist_assigned: 'Called'
+        },
+        cabinRole: 'optometrist',
         cabinField: 'optometrist_cabin',
         announcement: 'please proceed for eye examination.'
     },
     {
         key: 'doctor',
         title: 'Doctor Queue',
-        endpoint: '/opd/eye-hospital/group-queue/{doctorId}'
-            + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
+        endpoint: '/pathways/queue'
+            + '?doctor_id={doctorId}&include_covering_doctors=true'
+            + '&stage_codes=awaiting_doctor,doctor_assigned,consultation_in_progress',
         waiting: ['awaiting_doctor'],
         active: ['doctor_assigned', 'consultation_in_progress'],
         inProgress: ['consultation_in_progress'],
         announce: ['doctor_assigned'],
         labels: {
+            awaiting_doctor: 'Waiting',
             doctor_assigned: 'Called',
             consultation_in_progress: 'In Consultation'
         },
+        cabinRole: 'doctor',
         cabinField: 'doctor_cabin',
         announcement: 'your consultation is ready.'
     }

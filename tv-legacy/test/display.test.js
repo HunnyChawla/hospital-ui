@@ -144,14 +144,50 @@ function run(opts) {
 // ================================================
 
 // What the eye endpoints return today: a flat `status` string.
-var EYE_OPT_QUEUE = [
+// The default columns now read /pathways/queue, so these are in the generic
+// shape: a `stage` object, `visit_id`, and the cabin on the assignment rather
+// than as a flat `optometrist_cabin`.
+var EYE_OPT_QUEUE = {
+    items: [
+        {
+            visit_id: 'v1', patient_name: 'Asha Rao', token_number: 4,
+            stage: { code: 'awaiting_optometrist', label: 'Waiting for optometrist' },
+            assignments: []
+        },
+        {
+            visit_id: 'v2', patient_name: 'Bimal Sen', token_number: 5,
+            stage: { code: 'optometrist_assigned', label: 'Optometrist assigned' },
+            assignments: [{ role: 'optometrist', user_name: 'Opt A', user_cabin: 'Room 2' }]
+        }
+    ],
+    total: 2, page: 1, page_size: 100, total_pages: 1
+};
+var EYE_DOC_QUEUE = {
+    items: [
+        {
+            visit_id: 'v3', patient_name: 'Chetan Iyer', token_number: 6,
+            stage: { code: 'awaiting_doctor', label: 'Waiting for doctor' },
+            assignments: []
+        },
+        {
+            visit_id: 'v4', patient_name: 'Divya Nair', token_number: 7,
+            stage: { code: 'doctor_assigned', label: 'Doctor assigned' },
+            assignments: [{ role: 'doctor', user_name: 'Dr. Mehta', user_cabin: 'Cabin 1' }]
+        },
+        {
+            visit_id: 'v5', patient_name: 'Esha Roy', token_number: 8,
+            stage: { code: 'consultation_in_progress', label: 'In consultation' },
+            assignments: []
+        }
+    ],
+    total: 3, page: 1, page_size: 100, total_pages: 1
+};
+
+// The old eye-endpoint shape, still handled: a flat status and a flat cabin
+// field. A column pointed at one of those endpoints must keep working.
+var FLAT_OPT_QUEUE = [
     { id: 'v1', patient_name: 'Asha Rao', token_number: 4, status: 'awaiting_optometrist' },
-    { id: 'v2', patient_name: 'Bimal Sen', token_number: 5, status: 'optometrist_assigned', optometrist_cabin: 'Room 2' }
-];
-var EYE_DOC_QUEUE = [
-    { id: 'v3', patient_name: 'Chetan Iyer', token_number: 6, status: 'awaiting_doctor' },
-    { id: 'v4', patient_name: 'Divya Nair', token_number: 7, status: 'doctor_assigned', doctor_cabin: 'Cabin 1' },
-    { id: 'v5', patient_name: 'Esha Roy', token_number: 8, status: 'consultation_in_progress' }
+    { id: 'v2', patient_name: 'Bimal Sen', token_number: 5, status: 'optometrist_assigned', optometrist_cabin: 'Room 9' }
 ];
 
 // What /pathways/queue returns: a `stage` object and no flat status.
@@ -209,17 +245,23 @@ function anyUrlContains(urls, needle) {
         config: { apiBaseUrl: 'http://api.test' },
         responses: {
             '/doctors': DOCTORS,
-            'optometrist-queue': EYE_OPT_QUEUE,
-            'group-queue': EYE_DOC_QUEUE
+            'stage_codes=awaiting_optometrist': EYE_OPT_QUEUE,
+            'stage_codes=awaiting_doctor': EYE_DOC_QUEUE
         }
     });
 
-    check('legacy: hits the eye optometrist URL unchanged',
-        anyUrlContains(r.urls, 'http://api.test/opd/eye-hospital/optometrist-queue/doc-1'
-            + '?status=awaiting_optometrist,optometrist_assigned'), true);
-    check('legacy: hits the eye group URL unchanged',
-        anyUrlContains(r.urls, 'http://api.test/opd/eye-hospital/group-queue/doc-1'
-            + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress'), true);
+    // The eye endpoints these used to call are gone. What a screen with no
+    // TV_COLUMNS sees must be unchanged regardless — same counts, same
+    // wording, same announcements — which is what the rest of this test checks.
+    check('default: reads the generic queue for the optometrist column',
+        anyUrlContains(r.urls, 'http://api.test/pathways/queue?doctor_id=doc-1'
+            + '&stage_codes=awaiting_optometrist,optometrist_assigned'), true);
+    check('default: reads the generic queue for the doctor column',
+        anyUrlContains(r.urls, 'http://api.test/pathways/queue?doctor_id=doc-1'
+            + '&include_covering_doctors=true'
+            + '&stage_codes=awaiting_doctor,doctor_assigned,consultation_in_progress'), true);
+    check('default: no eye-hospital endpoint is called any more',
+        anyUrlContains(r.urls, '/opd/eye-hospital/'), false);
 
     check('legacy: optometrist waiting count', r.el('optometrist-waiting').innerHTML, 1);
     check('legacy: optometrist in-progress count', r.el('optometrist-progress').innerHTML, 1);
@@ -254,10 +296,10 @@ function anyUrlContains(urls, needle) {
         config: { apiBaseUrl: 'http://api.test' },
         responses: {
             '/doctors': DOCTORS,
-            'optometrist-queue': [
+            'stage_codes=awaiting_optometrist': [
                 { id: 'v9', patient_name: 'Hari Das', token_number: 3, status: 'optometrist_assigned' }
             ],
-            'group-queue': [
+            'stage_codes=awaiting_doctor': [
                 { id: 'v10', patient_name: 'Ila Sharma', token_number: 4, status: 'doctor_assigned' }
             ]
         }
@@ -270,45 +312,68 @@ function anyUrlContains(urls, needle) {
 })();
 
 // ================================================
-// TEST 2 — eye defaults served explicitly by /config
+// TEST 2 — a column pointed at an endpoint that returns the FLAT shape
+//
+// The generic queue nests the cabin under `assignments`. Anything else — a
+// bare array with a flat `status` and a flat `*_cabin` — must still render and
+// still speak the room, or a site with a custom TV_COLUMNS endpoint goes
+// silent on the one detail patients need.
 // ================================================
-(function testExplicitEyeConfig() {
-    var eyeColumns = [
+(function testFlatShapeStillWorks() {
+    var flatColumns = [
         {
             key: 'optometrist', title: 'Optometrist Queue',
-            endpoint: '/opd/eye-hospital/optometrist-queue/{doctorId}'
-                + '?status=awaiting_optometrist,optometrist_assigned',
+            endpoint: '/custom/opt-queue/{doctorId}',
             waiting: ['awaiting_optometrist'], active: ['optometrist_assigned'],
             inProgress: [], announce: ['optometrist_assigned'],
             labels: { optometrist_assigned: 'Called' }, cabinField: 'optometrist_cabin'
-        },
-        {
-            key: 'doctor', title: 'Doctor Queue',
-            endpoint: '/opd/eye-hospital/group-queue/{doctorId}'
-                + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
-            waiting: ['awaiting_doctor'],
-            active: ['doctor_assigned', 'consultation_in_progress'],
-            inProgress: ['consultation_in_progress'], announce: ['doctor_assigned'],
-            labels: { doctor_assigned: 'Called', consultation_in_progress: 'In Consultation' },
-            cabinField: 'doctor_cabin'
         }
     ];
 
     var r = run({
-        config: { apiBaseUrl: 'http://api.test', display: { refreshSeconds: 5, columns: eyeColumns } },
+        config: { apiBaseUrl: 'http://api.test', display: { refreshSeconds: 5, columns: flatColumns } },
+        responses: { '/doctors': DOCTORS, '/custom/opt-queue': FLAT_OPT_QUEUE }
+    });
+
+    check('flat: counts read off the flat status',
+        [r.el('optometrist-waiting').innerHTML, r.el('optometrist-progress').innerHTML], [1, 1]);
+    check('flat: heading applied', r.el('optometrist-title').innerHTML, 'Optometrist Queue');
+    contains('flat: cabin still shown', r.el('optometrist-queue').innerHTML, 'Room 9');
+    check('flat: cabin still spoken', r.announced, [
+        'Patient Bimal Sen, token number 5, please proceed to Room 9.'
+    ]);
+})();
+
+
+// ================================================
+// TEST 2b — the cabin comes from whoever holds the patient
+// ================================================
+(function testCabinComesFromTheHolder() {
+    var r = run({
+        config: { apiBaseUrl: 'http://api.test' },
         responses: {
             '/doctors': DOCTORS,
-            'optometrist-queue': EYE_OPT_QUEUE,
-            'group-queue': EYE_DOC_QUEUE
+            'stage_codes=awaiting_optometrist': {
+                items: [{
+                    visit_id: 'x1', patient_name: 'Jaya Menon', token_number: 2,
+                    stage: { code: 'optometrist_assigned', label: 'Optometrist assigned' },
+                    // Two holders. The optometrist column must read the
+                    // optometrist's room, not whichever came back first.
+                    assignments: [
+                        { role: 'doctor', user_name: 'Dr. Mehta', user_cabin: 'Cabin 1' },
+                        { role: 'optometrist', user_name: 'Opt A', user_cabin: 'Room 7' }
+                    ]
+                }],
+                total: 1, page: 1, page_size: 100, total_pages: 1
+            },
+            'stage_codes=awaiting_doctor': { items: [], total: 0, page: 1, page_size: 100, total_pages: 1 }
         }
     });
 
-    check('explicit eye: counts match the legacy path',
-        [r.el('optometrist-waiting').innerHTML, r.el('optometrist-progress').innerHTML,
-         r.el('doctor-waiting').innerHTML, r.el('doctor-progress').innerHTML],
-        [1, 1, 1, 2]);
-    check('explicit eye: heading applied', r.el('optometrist-title').innerHTML, 'Optometrist Queue');
-    contains('explicit eye: cabin still shown', r.el('optometrist-queue').innerHTML, 'Room 2');
+    contains('holder cabin: rendered', r.el('optometrist-queue').innerHTML, 'Room 7');
+    check('holder cabin: spoken', r.announced, [
+        'Patient Jaya Menon, token number 2, please proceed to Room 7.'
+    ]);
 })();
 
 // ================================================

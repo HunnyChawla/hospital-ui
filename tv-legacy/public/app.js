@@ -22,10 +22,14 @@
 
         // Queue columns, overridden from /config -> display.columns.
         //
-        // These defaults are the exact URLs and status vocabulary this display
-        // used before any of it became configurable, so a screen whose server
-        // has no TV_COLUMNS set (or whose /config is an older build) keeps
-        // behaving as it always did.
+        // These defaults read the GENERIC pathway queue, not the eye-hospital
+        // endpoints they used to. Two reasons: those endpoints are being
+        // retired, and a general hospital could never use this display at all
+        // while the defaults asked for optometrist stages it has no patients in.
+        //
+        // The status vocabulary below is still the eye one, because a screen
+        // with no TV_COLUMNS set is by definition an existing eye customer.
+        // A general hospital sets TV_COLUMNS with its own stage codes.
         //
         //   key         which panel renders it: 'optometrist' or 'doctor'.
         //               Also derives the element ids (<key>-queue, <key>-title,
@@ -38,36 +42,53 @@
         //   announce    statuses that trigger the chime and the TTS call-out.
         //   labels      status -> card text. Anything unlisted falls back to the
         //               stage label from the API, then to 'Waiting'.
-        //   cabinField  field on the queue item holding the room/cabin name.
+        //   cabinRole   role whose cabin the patient is sent to. Read from the
+        //               item's `assignments`, i.e. the room of whoever actually
+        //               called them.
+        //   cabinField  legacy flat field holding the cabin, used when the
+        //               response has no assignments. Kept so a column pointed
+        //               at an older endpoint still speaks the room number.
         //   announcement  spoken sentence ending, used only when the patient
         //               has no cabin to be sent to.
         COLUMNS: [
             {
                 key: 'optometrist',
                 title: null,
-                endpoint: '/opd/eye-hospital/optometrist-queue/{doctorId}'
-                    + '?status=awaiting_optometrist,optometrist_assigned',
+                endpoint: '/pathways/queue'
+                    + '?doctor_id={doctorId}'
+                    + '&stage_codes=awaiting_optometrist,optometrist_assigned',
                 waiting: ['awaiting_optometrist'],
                 active: ['optometrist_assigned'],
                 inProgress: [],
                 announce: ['optometrist_assigned'],
-                labels: { optometrist_assigned: 'Called' },
+                // `awaiting_optometrist` is spelled out because the generic
+                // queue returns a stage label ("Waiting for optometrist") and
+                // an unlisted status falls back to it. That would silently
+                // relabel every waiting card on a live TV, in a 120px column.
+                labels: {
+                    awaiting_optometrist: 'Waiting',
+                    optometrist_assigned: 'Called'
+                },
+                cabinRole: 'optometrist',
                 cabinField: 'optometrist_cabin',
                 announcement: 'please proceed for eye examination.'
             },
             {
                 key: 'doctor',
                 title: null,
-                endpoint: '/opd/eye-hospital/group-queue/{doctorId}'
-                    + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
+                endpoint: '/pathways/queue'
+                    + '?doctor_id={doctorId}&include_covering_doctors=true'
+                    + '&stage_codes=awaiting_doctor,doctor_assigned,consultation_in_progress',
                 waiting: ['awaiting_doctor'],
                 active: ['doctor_assigned', 'consultation_in_progress'],
                 inProgress: ['consultation_in_progress'],
                 announce: ['doctor_assigned'],
                 labels: {
+                    awaiting_doctor: 'Waiting',
                     doctor_assigned: 'Called',
                     consultation_in_progress: 'In Consultation'
                 },
+                cabinRole: 'doctor',
                 cabinField: 'doctor_cabin',
                 announcement: 'your consultation is ready.'
             }
@@ -829,6 +850,30 @@
      * string in every speciality. Everything downstream of here reads
      * `status` / `status_label`, so the difference stops at this function.
      */
+    /**
+     * Which room to send this patient to.
+     *
+     * The generic queue reports the cabin of whoever actually holds the
+     * patient, under `assignments`. The eye endpoints reported it as a flat
+     * `optometrist_cabin`/`doctor_cabin` field instead. Both are read here so
+     * a column pointed at either one still speaks a room number — losing it
+     * would leave the TV announcing a name with nowhere to go.
+     */
+    function resolveCabin(item, column) {
+        if (!item || !column) return null;
+
+        var assignments = item.assignments;
+        if (column.cabinRole && assignments && assignments.length) {
+            for (var i = 0; i < assignments.length; i++) {
+                if (assignments[i] && assignments[i].role === column.cabinRole) {
+                    if (assignments[i].user_cabin) return assignments[i].user_cabin;
+                }
+            }
+        }
+
+        return item[column.cabinField || ''] || null;
+    }
+
     function normaliseQueueItem(item) {
         if (item && !item.status && item.stage && item.stage.code) {
             item.status = item.stage.code;
@@ -921,7 +966,7 @@
                 playNotificationSound();
 
                 // Build announcement text
-                var cabin = curr[column.cabinField || ''] || null;
+                var cabin = resolveCabin(curr, column);
 
                 var announcementText = generateAnnouncementText(
                     curr.patient_name,
@@ -977,7 +1022,7 @@
                 ? ' status-in-progress'
                 : ' status-assigned';
             statusClass = 'status-active';
-            cabin = patient[column.cabinField || ''] || '';
+            cabin = resolveCabin(patient, column) || '';
         }
 
         // Configured wording wins; otherwise use whatever the API called this

@@ -185,6 +185,14 @@ export interface QueueAssignment {
     role: string;
     user_id: string;
     user_name: string | null;
+    /**
+     * Which room to send the patient to — the cabin of whoever holds them.
+     *
+     * Read by the waiting-room TV for its spoken call-out. It lives here rather
+     * than as a flat `doctor_cabin` on the item because the room belongs to the
+     * person who called the patient, not to the speciality.
+     */
+    user_cabin: string | null;
     assigned_at: string;
 }
 
