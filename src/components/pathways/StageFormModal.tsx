@@ -19,8 +19,10 @@ interface FormValues {
     label: string;
     stage_type: StageType;
     assigned_role: string;
+    waiting_for_role: string;
     is_initial: boolean;
     is_terminal: boolean;
+    is_abandonment: boolean;
     entry_from_codes: string[];
     entry_blocked_from_codes: string[];
     stamps_consultation_started: boolean;
@@ -49,8 +51,10 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
             label: stage?.label ?? "",
             stage_type: stage?.stage_type ?? "waiting",
             assigned_role: stage?.assigned_role ?? "",
+            waiting_for_role: stage?.waiting_for_role ?? "",
             is_initial: stage?.is_initial ?? false,
             is_terminal: stage?.is_terminal ?? false,
+            is_abandonment: stage?.is_abandonment ?? false,
             entry_from_codes: stage?.entry_from_codes ?? [],
             entry_blocked_from_codes: stage?.entry_blocked_from_codes ?? [],
             stamps_consultation_started: stage?.stamps_consultation_started ?? false,
@@ -63,6 +67,7 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
 
     const onSubmit = async (values: FormValues) => {
         const assignedRole = values.assigned_role.trim() || null;
+        const waitingForRole = values.waiting_for_role.trim();
         const entryFrom = values.entry_from_codes ?? [];
         const entryBlocked = values.entry_blocked_from_codes ?? [];
 
@@ -76,8 +81,12 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                     assigned_role: assignedRole,
                     is_initial: values.is_initial,
                     is_terminal: values.is_terminal,
+                    is_abandonment: values.is_abandonment,
                     stamps_consultation_started: values.stamps_consultation_started,
                     stamps_consultation_ended: values.stamps_consultation_ended,
+                    ...(waitingForRole
+                        ? { waiting_for_role: waitingForRole }
+                        : { clear_waiting_for_role: true }),
                     // An empty selection means "from anywhere", which is a clear
                     // rather than an empty list — the API distinguishes them.
                     ...(entryFrom.length
@@ -96,8 +105,12 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                     label: values.label.trim(),
                     stage_type: values.stage_type,
                     assigned_role: assignedRole,
+                    // Omitted means "same as who performs it", which the server
+                    // fills in — the handoff stages are the exception.
+                    waiting_for_role: waitingForRole || null,
                     is_initial: values.is_initial,
                     is_terminal: values.is_terminal,
+                    is_abandonment: values.is_abandonment,
                     entry_from_codes: entryFrom.length ? entryFrom : null,
                     entry_blocked_from_codes: entryBlocked.length ? entryBlocked : null,
                     stamps_consultation_started: values.stamps_consultation_started,
@@ -181,7 +194,7 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
 
                     <div>
                         <label className="mb-1 block text-sm font-medium text-slate-700">
-                            Who handles it
+                            Who does the work
                         </label>
                         <input
                             {...register("assigned_role")}
@@ -189,9 +202,27 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                             placeholder="nurse, optometrist, doctor…"
                         />
                         <p className="mt-1 text-xs text-slate-500">
-                            Decides whose panel this stage appears on. Leave blank for none.
+                            Leave blank if nobody in particular does.
                         </p>
                     </div>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Whose queue the patient is in
+                    </label>
+                    <input
+                        {...register("waiting_for_role")}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+                        placeholder="Same as above unless this is a handover"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                        Usually the same as who does the work — leave it blank and it will be.
+                        Set it when the two differ: a stage the optometrist finishes, where the
+                        patient is now waiting for the doctor, is the doctor&apos;s queue. This
+                        decides whose panel the patient appears on and how the dashboards count
+                        them.
+                    </p>
                 </div>
 
                 <fieldset className="rounded-xl border border-slate-200 p-3">
@@ -214,6 +245,20 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                                 The visit is finished here
                                 <span className="block text-xs text-slate-500">
                                     Without one, a patient could enter and never leave
+                                </span>
+                            </span>
+                        </label>
+                        <label className="flex items-start gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                {...register("is_abandonment")}
+                                className="mt-1 rounded"
+                            />
+                            <span>
+                                The patient did not attend
+                                <span className="block text-xs text-slate-500">
+                                    Counted separately from completed visits. Independent of the
+                                    box above — a no-show may still come back and be seen
                                 </span>
                             </span>
                         </label>

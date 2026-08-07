@@ -20,15 +20,44 @@ export type StageType =
     | "procedure"     // a timed step that interrupts the flow, e.g. dilation
     | "terminal";     // the visit is over
 
+/**
+ * Where a stage's patients are counted on a dashboard.
+ *
+ * Computed server-side from the stage, never inferred from the status string
+ * here. The doctor panel used to hold a switch over eye statuses whose
+ * `default:` swept everything unknown into "pending optometrist" — which is
+ * what a general hospital's nurse stage landed in.
+ */
+export type StageBucket =
+    | "pending_assistant"
+    | "with_assistant"
+    | "pending_doctor"
+    | "with_doctor"
+    | "completed"
+    | "not_attended";
+
 export interface PathwayStage {
     id: string;
     code: string;
     label: string;
     display_order: number;
     stage_type: StageType;
+    /** Who performs this stage. */
     assigned_role: string | null;
+    /**
+     * Whose queue the patient is in right now — not always `assigned_role`.
+     * A stage the optometrist performs can leave the patient waiting for the
+     * doctor; the two differ at every handoff, and this is the one panels and
+     * dashboards should filter on.
+     */
+    waiting_for_role: string | null;
     is_initial: boolean;
     is_terminal: boolean;
+    /**
+     * The visit ended without being completed. Independent of `is_terminal`:
+     * a no-show may still come back and be seen.
+     */
+    is_abandonment: boolean;
     /** Allow-list of stage codes a visit may arrive from. Null means anywhere. */
     entry_from_codes: string[] | null;
     /** Deny-list, checked before the allow-list. */
@@ -80,8 +109,11 @@ export interface CreateStageRequest {
     stage_type: StageType;
     display_order?: number;
     assigned_role?: string | null;
+    /** Defaults to assigned_role server-side when omitted. */
+    waiting_for_role?: string | null;
     is_initial?: boolean;
     is_terminal?: boolean;
+    is_abandonment?: boolean;
     entry_from_codes?: string[] | null;
     entry_blocked_from_codes?: string[] | null;
     stamps_consultation_started?: boolean;
@@ -93,8 +125,12 @@ export interface UpdateStageRequest {
     label?: string;
     stage_type?: StageType;
     assigned_role?: string | null;
+    waiting_for_role?: string;
+    /** Set waiting_for_role to null — nobody in particular is waiting. */
+    clear_waiting_for_role?: boolean;
     is_initial?: boolean;
     is_terminal?: boolean;
+    is_abandonment?: boolean;
     entry_from_codes?: string[];
     entry_blocked_from_codes?: string[];
     stamps_consultation_started?: boolean;
@@ -118,8 +154,12 @@ export interface QueueStageInfo {
     stage_type: StageType;
     display_order: number;
     assigned_role: string | null;
+    waiting_for_role: string | null;
     colour: string | null;
     is_terminal: boolean;
+    is_abandonment: boolean;
+    /** Which dashboard bucket this patient counts towards. */
+    bucket: StageBucket;
 }
 
 export interface QueueItem {

@@ -14,6 +14,8 @@ interface DoctorPanelVerticalLayoutProps {
   // Stats
   stats: DoctorStats | null;
   statsLoading?: boolean;
+  /** What this hospital calls the step before the doctor. See DoctorStatsCards. */
+  assistantLabel?: string;
   statsVisible: boolean;
   onToggleStats: () => void;
 
@@ -53,6 +55,7 @@ interface DoctorPanelVerticalLayoutProps {
 const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProps> = ({
   stats,
   statsLoading,
+  assistantLabel,
   statsVisible,
   onToggleStats,
   queuePatients,
@@ -82,6 +85,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
       <CollapsibleStatsSection
         stats={stats}
         loading={statsLoading}
+        assistantLabel={assistantLabel}
         isVisible={statsVisible}
         onToggle={onToggleStats}
         compact={false}

@@ -8,12 +8,19 @@ interface DoctorStatsCardsProps {
   stats: DoctorStats | null;
   loading?: boolean;
   compact?: boolean;
+  /**
+   * What this hospital calls the step before the doctor, read from its pathway
+   * — "Optometrist" in an eye hospital, "Nurse" elsewhere. Defaults to
+   * "Optometrist" so callers not yet passing it are unchanged.
+   */
+  assistantLabel?: string;
 }
 
 export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   stats,
   loading = false,
   compact = false,
+  assistantLabel = "Optom",
 }) => {
   const statItems = [
     {
@@ -27,7 +34,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       textColor: "text-slate-800",
     },
     {
-      label: "Pending at Optom",
+      label: `Pending at ${assistantLabel}`,
       value: stats?.pendingOptometrist || 0,
       icon: Clock,
       color: "amber",
@@ -37,7 +44,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       textColor: "text-amber-700",
     },
     {
-      label: "In-Progress at Optom",
+      label: `In-Progress at ${assistantLabel}`,
       value: stats?.inProgressOptometrist || 0,
       icon: Activity,
       color: "purple",

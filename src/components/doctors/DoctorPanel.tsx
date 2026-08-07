@@ -7,6 +7,8 @@ import { useDoctorPanel } from "@/hooks/useDoctorPanel";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
 import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
+import { usePathways } from "@/hooks/queries/usePathways";
+import { assistantRoleLabel, countByBucket, indexStages } from "@/utils/stageBuckets";
 import { DoctorStats } from "@/types";
 import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
 import { PatientHistoryTimeline } from "./patient-details/PatientHistoryTimeline";
@@ -119,73 +121,40 @@ export function DoctorPanel() {
     autoConnect: !!currentDoctor?.id,
   });
 
+  // Stage configuration, so the counts below are read off the pathway rather
+  // than off a list of eye status strings. See utils/stageBuckets.ts.
+  const { data: pathways } = usePathways();
+  const stageIndex = useMemo(() => indexStages(pathways), [pathways]);
+
+  // What this hospital calls the step before the doctor — "Optometrist" in an
+  // eye hospital, "Nurse" elsewhere. Read from the pathway, not hard-coded.
+  const assistantLabel = useMemo(() => assistantRoleLabel(stageIndex), [stageIndex]);
+
   // Calculate live stats from SSE queue with fallback to todayStats
   const liveDoctorStats: DoctorStats | null = useMemo(() => {
     if (!doctorLiveQueue || doctorLiveQueue.length === 0) {
       return todayStats;
     }
 
+    // The field names still say "Optometrist" because DoctorStats is shared
+    // with screens this change does not touch; the values now come from the
+    // pathway, and the labels shown to the user come from `assistantLabel`.
+    const counts = countByBucket(doctorLiveQueue, stageIndex);
+
     const stats: DoctorStats = {
       todayTotal: doctorLiveQueue.length,
-      pendingOptometrist: 0,
-      inProgressOptometrist: 0,
-      pendingDoctor: 0,
-      inProgressDoctor: 0,
-      todayCompleted: 0,
-      todayNoShow: 0,
-      todayPending: 0,
-      todayInProgress: 0,
+      pendingOptometrist: counts.pendingAssistant,
+      inProgressOptometrist: counts.withAssistant,
+      pendingDoctor: counts.pendingDoctor,
+      inProgressDoctor: counts.withDoctor,
+      todayCompleted: counts.completed,
+      todayNoShow: counts.notAttended,
+      todayPending: counts.pendingAssistant + counts.pendingDoctor,
+      todayInProgress: counts.withAssistant + counts.withDoctor,
     };
 
-    doctorLiveQueue.forEach((patient) => {
-      switch (patient.status) {
-        case "awaiting_optometrist":
-        case "checked_in":
-        case "checked_in_opd":
-        case "waiting":
-        case "scheduled":
-          stats.pendingOptometrist++;
-          break;
-
-        case "optometrist_assigned":
-        case "optometrist_investigation_in_progress":
-        case "dilation_in_progress":
-          stats.inProgressOptometrist++;
-          break;
-
-        case "optometrist_investigation_completed":
-        case "awaiting_doctor":
-        case "doctor_assigned":
-        case "dilation_completed":
-          stats.pendingDoctor++;
-          break;
-
-        case "in_consultation":
-        case "consultation_in_progress":
-        case "start_consultation":
-          stats.inProgressDoctor++;
-          break;
-
-        case "consultation_completed":
-        case "completed":
-          stats.todayCompleted++;
-          break;
-
-        case "no_show":
-        case "cancelled":
-          stats.todayNoShow = (stats.todayNoShow || 0) + 1;
-          break;
-
-        default:
-          stats.pendingOptometrist++;
-      }
-    });
-
-    stats.todayPending = stats.pendingDoctor + stats.pendingOptometrist;
-    stats.todayInProgress = stats.inProgressDoctor + stats.inProgressOptometrist;
-
     return stats;
-  }, [doctorLiveQueue, todayStats]);
+  }, [doctorLiveQueue, todayStats, stageIndex]);
 
   // Mock queue data (you can replace this with actual queue API)
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
@@ -549,6 +518,7 @@ export function DoctorPanel() {
       <DoctorPanelVerticalLayout
         stats={liveDoctorStats}
         statsLoading={panelLoading}
+        assistantLabel={assistantLabel}
         statsVisible={preferences.statsVisible}
         onToggleStats={toggleStats}
         queuePatients={queuePatients}

@@ -8,6 +8,8 @@ import type { DoctorStats } from "@/types";
 interface CollapsibleStatsSectionProps {
   stats: DoctorStats | null;
   loading?: boolean;
+  /** What this hospital calls the step before the doctor. See DoctorStatsCards. */
+  assistantLabel?: string;
   isVisible: boolean;
   onToggle: () => void;
   compact?: boolean;
@@ -16,6 +18,7 @@ interface CollapsibleStatsSectionProps {
 export const CollapsibleStatsSection: React.FC<CollapsibleStatsSectionProps> = ({
   stats,
   loading = false,
+  assistantLabel,
   isVisible,
   onToggle,
   compact = true,
@@ -45,7 +48,12 @@ export const CollapsibleStatsSection: React.FC<CollapsibleStatsSectionProps> = (
         }`}
       >
         <div className="border-t border-slate-200 px-4 pb-4 pt-3">
-          <DoctorStatsCards stats={stats} loading={loading} compact={compact} />
+          <DoctorStatsCards
+            stats={stats}
+            loading={loading}
+            compact={compact}
+            assistantLabel={assistantLabel}
+          />
         </div>
       </div>
     </div>

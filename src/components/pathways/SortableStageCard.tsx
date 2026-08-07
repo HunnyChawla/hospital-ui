@@ -93,6 +93,23 @@ export function SortableStageCard({
                             {stage.assigned_role}
                         </span>
                     )}
+                    {/* Only shown when it differs — on most stages the same role
+                        does the work and holds the queue, and repeating it would
+                        bury the handoffs, which are the interesting ones. */}
+                    {stage.waiting_for_role &&
+                        stage.waiting_for_role !== stage.assigned_role && (
+                            <span
+                                className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700"
+                                title="The patient is in this role's queue at this stage"
+                            >
+                                → {stage.waiting_for_role}
+                            </span>
+                        )}
+                    {stage.is_abandonment && (
+                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
+                            Did not attend
+                        </span>
+                    )}
                 </div>
 
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
