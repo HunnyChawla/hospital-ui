@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
+import { PatientEpisodeTimeline } from "@/components/health-record/PatientEpisodeTimeline";
+import { ImmunisationPanel } from "@/components/health-record/ImmunisationPanel";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectPatient, fetchPatients, getPatientById } from "@/redux/patientsSlice";
 import { PatientFormModal } from "./PatientFormModal";
@@ -41,6 +43,7 @@ import {
   BedDouble,
   Stethoscope,
   TestTube,
+  Syringe,
   Calendar,
   PlusCircle,
   Plus,
@@ -74,7 +77,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const doctors = useAppSelector((s) => s.doctors.list);
 
   const [activeTab, setActiveTab] = useState<
-    "opd" | "appointment" | "admit" | "billing" | "tests"
+    "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation"
   >("appointment");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
@@ -1024,6 +1027,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 { id: "admit", label: "Admit/Discharge", icon: BedDouble },
                 { id: "billing", label: "Billing", icon: CreditCard },
                 { id: "tests", label: "Tests", icon: TestTube },
+                { id: "record", label: "Health Record", icon: FileText },
+                { id: "immunisation", label: "Immunisation", icon: Syringe },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1650,6 +1655,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     </>
                   )}
                 </div>
+              )}
+
+              {activeTab === "record" && (
+                <PatientEpisodeTimeline patientId={patient?.id ?? null} />
+              )}
+
+              {activeTab === "immunisation" && (
+                <ImmunisationPanel patientId={patient?.id ?? null} />
               )}
 
               {activeTab === "tests" && (
