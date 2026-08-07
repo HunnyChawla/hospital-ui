@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { StagePanel } from "@/components/pathways/StagePanel";
 
@@ -12,10 +12,14 @@ import { StagePanel } from "@/components/pathways/StagePanel";
  * only create ways to record an observation under the wrong role.
  */
 export default function StagePanelPage() {
-    const role = useMemo(
-        () => (typeof window !== "undefined" ? localStorage.getItem("role") : null),
-        []
-    );
+    // After mount, not during render: localStorage does not exist on the server,
+    // so reading it while rendering breaks hydration and is an impure render.
+    const [role, setRole] = useState<string | null>(null);
+    const [resolved, setResolved] = useState(false);
+    useEffect(() => {
+        setRole(localStorage.getItem("role"));
+        setResolved(true);
+    }, []);
 
     return (
         <div className="grid gap-4">
@@ -33,7 +37,9 @@ export default function StagePanelPage() {
                 </div>
             </div>
 
-            {role ? (
+            {!resolved ? (
+                <p className="py-8 text-center text-sm text-slate-500">Loading…</p>
+            ) : role ? (
                 <StagePanel role={role} />
             ) : (
                 <p className="py-8 text-center text-sm text-slate-500">

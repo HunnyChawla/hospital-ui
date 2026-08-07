@@ -65,6 +65,19 @@ export interface PathwayStage {
     stamps_consultation_started: boolean;
     stamps_consultation_ended: boolean;
     colour: string | null;
+    /** A patient can be called into this stage. False for queues and endings. */
+    allows_assignment: boolean;
+    /**
+     * Staff may call any patient waiting HERE, not only the next in line.
+     *
+     * Read from the stage the patient is currently in, not the one they are
+     * being called into — "may I skip down this queue" is a question about the
+     * queue. Replaces the old per-tenant `allow_doctor_pick_any` /
+     * `allow_optometrist_pick_any` flags.
+     */
+    allow_call_out_of_turn: boolean;
+    /** Roughly how long this step takes, before any history has been measured. */
+    expected_duration_minutes: number | null;
     /**
      * Visits whose current status is this stage's code. Non-zero means the
      * stage cannot be deleted — show it, don't just disable the button.
@@ -114,6 +127,9 @@ export interface CreateStageRequest {
     is_initial?: boolean;
     is_terminal?: boolean;
     is_abandonment?: boolean;
+    allows_assignment?: boolean;
+    allow_call_out_of_turn?: boolean;
+    expected_duration_minutes?: number | null;
     entry_from_codes?: string[] | null;
     entry_blocked_from_codes?: string[] | null;
     stamps_consultation_started?: boolean;
@@ -131,6 +147,9 @@ export interface UpdateStageRequest {
     is_initial?: boolean;
     is_terminal?: boolean;
     is_abandonment?: boolean;
+    allows_assignment?: boolean;
+    allow_call_out_of_turn?: boolean;
+    expected_duration_minutes?: number | null;
     entry_from_codes?: string[];
     entry_blocked_from_codes?: string[];
     stamps_consultation_started?: boolean;
@@ -162,6 +181,13 @@ export interface QueueStageInfo {
     bucket: StageBucket;
 }
 
+export interface QueueAssignment {
+    role: string;
+    user_id: string;
+    user_name: string | null;
+    assigned_at: string;
+}
+
 export interface QueueItem {
     visit_id: string;
     patient_id: string;
@@ -183,6 +209,12 @@ export interface QueueItem {
     checked_in_at: string | null;
     stage_entered_at: string | null;
     waiting_minutes: number | null;
+    /**
+     * Who currently holds this patient. Usually empty or one entry, but a visit
+     * can be held by an assistant and a doctor at once — which is why it is a
+     * list rather than a single field.
+     */
+    assignments: QueueAssignment[];
     created_at: string;
     updated_at: string;
 }
@@ -331,6 +363,45 @@ export const pathwaysApi = {
             { params: tenantParams(tenantId) }
         );
         return response.data;
+    },
+
+    /**
+     * Call a patient in: take them, and move them to the stage you called them
+     * to. The TV announces it as a consequence of the stage change.
+     *
+     * No `user_id` — the caller takes the patient themselves. A 409 means
+     * someone else got there first, or the queue is strictly in order and this
+     * is not the next patient; the message says which.
+     */
+    async callPatient(
+        visitId: string,
+        role: string,
+        toStageCode: string,
+        tenantId?: string
+    ): Promise<QueueItem> {
+        const response = await apiClient.post<QueueItem>(
+            `/pathways/queue/${visitId}/call`,
+            { role, to_stage_code: toStageCode },
+            { params: tenantParams(tenantId) }
+        );
+        return response.data;
+    },
+
+    /**
+     * Let a patient go — the wrong name was called.
+     *
+     * Rare by design: a patient who does not turn up is marked as a no-show,
+     * which is an ordinary stage move.
+     */
+    async releasePatient(
+        visitId: string,
+        role: string,
+        backToStageCode?: string,
+        tenantId?: string
+    ): Promise<void> {
+        const params: Record<string, string> = { ...tenantParams(tenantId) };
+        if (backToStageCode) params.back_to_stage_code = backToStageCode;
+        await apiClient.delete(`/pathways/queue/${visitId}/call/${role}`, { params });
     },
 
     /**

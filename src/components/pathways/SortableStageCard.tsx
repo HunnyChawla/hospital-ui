@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ClipboardList, GripVertical, Lock, Pencil, Trash2 } from "lucide-react";
+import { ClipboardList, GripVertical, Lock, Megaphone, Pencil, Trash2 } from "lucide-react";
 import { PathwayStage, StageType } from "@/services/pathwaysApi";
 
 interface SortableStageCardProps {
@@ -110,6 +110,23 @@ export function SortableStageCard({
                     {stage.is_abandonment && (
                         <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
                             Did not attend
+                        </span>
+                    )}
+                    {stage.allows_assignment && (
+                        <span
+                            className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700"
+                            title="Staff call patients into this stage; the waiting room is announced"
+                        >
+                            <Megaphone className="h-3 w-3" />
+                            Called in
+                        </span>
+                    )}
+                    {stage.allow_call_out_of_turn && (
+                        <span
+                            className="rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600"
+                            title="Staff may call any patient waiting here, not only the next in line"
+                        >
+                            Any order
                         </span>
                     )}
                 </div>

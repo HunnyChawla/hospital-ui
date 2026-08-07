@@ -52,7 +52,9 @@ export function usePathwayQueueStream({
     const [items, setItems] = useState<QueueItem[] | null>(null);
     const [lastMessageAt, setLastMessageAt] = useState<Date | null>(null);
     const [isStale, setIsStale] = useState(false);
-    const lastMessageRef = useRef<number>(Date.now());
+    // Zero, not Date.now(): a ref initializer runs during render, and reading
+    // the clock there is impure. It is set for real when the stream connects.
+    const lastMessageRef = useRef<number>(0);
 
     // Join so the URL changes on content, not on every render that happens to
     // build a new array.
@@ -95,6 +97,9 @@ export function usePathwayQueueStream({
     // and looks perfectly healthy.
     useEffect(() => {
         if (!url) return;
+        // Start the clock here rather than in the ref initializer, so a stream
+        // that has never delivered is not immediately judged stale.
+        lastMessageRef.current = Date.now();
         const timer = setInterval(() => {
             if (Date.now() - lastMessageRef.current > SILENCE_LIMIT_MS) {
                 setIsStale(true);

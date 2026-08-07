@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight, ExternalLink, Undo2 } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { VitalSignsPanel } from "@/components/doctors/patient-details/VitalSignsPanel";
@@ -17,6 +17,10 @@ interface GenericStageBodyProps {
     pathway: Pathway;
     onAdvance: (toStageCode: string) => void;
     isAdvancing: boolean;
+    /** True when the viewer is the one holding this patient. */
+    heldByMe?: boolean;
+    onRelease?: () => void;
+    isReleasing?: boolean;
 }
 
 type Tab = "vitals" | "notes";
@@ -35,6 +39,9 @@ export function GenericStageBody({
     pathway,
     onAdvance,
     isAdvancing,
+    heldByMe = false,
+    onRelease,
+    isReleasing = false,
 }: GenericStageBodyProps) {
     const [tab, setTab] = useState<Tab>("vitals");
 
@@ -138,9 +145,11 @@ export function GenericStageBody({
                 />
             )}
 
-            {nextStages.length > 0 && (
+            {(nextStages.length > 0 || (heldByMe && onRelease)) && (
                 <footer className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                    <span className="text-sm text-slate-500">Move to:</span>
+                    {nextStages.length > 0 && (
+                        <span className="text-sm text-slate-500">Move to:</span>
+                    )}
                     {nextStages.map((stage) => (
                         <button
                             key={stage.code}
@@ -152,6 +161,23 @@ export function GenericStageBody({
                             {stage.label}
                         </button>
                     ))}
+
+                    {/* Only offered to the person actually holding the patient,
+                        and pushed to the right away from the ordinary moves —
+                        it undoes a call, which is the rare case. A patient who
+                        did not turn up is marked as a no-show instead, and that
+                        is one of the moves above. */}
+                    {heldByMe && onRelease && (
+                        <button
+                            onClick={onRelease}
+                            disabled={isReleasing}
+                            title="Undo the call — use this only if the wrong name was called"
+                            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            <Undo2 className="h-3.5 w-3.5" />
+                            {isReleasing ? "Releasing…" : "Called by mistake"}
+                        </button>
+                    )}
                 </footer>
             )}
         </div>

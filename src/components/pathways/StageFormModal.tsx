@@ -23,6 +23,9 @@ interface FormValues {
     is_initial: boolean;
     is_terminal: boolean;
     is_abandonment: boolean;
+    allows_assignment: boolean;
+    allow_call_out_of_turn: boolean;
+    expected_duration_minutes: string;
     entry_from_codes: string[];
     entry_blocked_from_codes: string[];
     stamps_consultation_started: boolean;
@@ -55,6 +58,9 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
             is_initial: stage?.is_initial ?? false,
             is_terminal: stage?.is_terminal ?? false,
             is_abandonment: stage?.is_abandonment ?? false,
+            allows_assignment: stage?.allows_assignment ?? false,
+            allow_call_out_of_turn: stage?.allow_call_out_of_turn ?? false,
+            expected_duration_minutes: stage?.expected_duration_minutes?.toString() ?? "",
             entry_from_codes: stage?.entry_from_codes ?? [],
             entry_blocked_from_codes: stage?.entry_blocked_from_codes ?? [],
             stamps_consultation_started: stage?.stamps_consultation_started ?? false,
@@ -70,6 +76,12 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
         const waitingForRole = values.waiting_for_role.trim();
         const entryFrom = values.entry_from_codes ?? [];
         const entryBlocked = values.entry_blocked_from_codes ?? [];
+        const duration = values.expected_duration_minutes.trim();
+        const shared = {
+            allows_assignment: values.allows_assignment,
+            allow_call_out_of_turn: values.allow_call_out_of_turn,
+            expected_duration_minutes: duration ? Number(duration) : null,
+        };
 
         if (isEdit && stage) {
             await updateStage.mutateAsync({
@@ -84,6 +96,7 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                     is_abandonment: values.is_abandonment,
                     stamps_consultation_started: values.stamps_consultation_started,
                     stamps_consultation_ended: values.stamps_consultation_ended,
+                    ...shared,
                     ...(waitingForRole
                         ? { waiting_for_role: waitingForRole }
                         : { clear_waiting_for_role: true }),
@@ -111,6 +124,7 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                     is_initial: values.is_initial,
                     is_terminal: values.is_terminal,
                     is_abandonment: values.is_abandonment,
+                    ...shared,
                     entry_from_codes: entryFrom.length ? entryFrom : null,
                     entry_blocked_from_codes: entryBlocked.length ? entryBlocked : null,
                     stamps_consultation_started: values.stamps_consultation_started,
@@ -262,6 +276,63 @@ export function StageFormModal({ isOpen, onClose, pathway, stage }: StageFormMod
                                 </span>
                             </span>
                         </label>
+                    </div>
+                </fieldset>
+
+                <fieldset className="rounded-xl border border-slate-200 p-3">
+                    <legend className="px-1 text-sm font-medium text-slate-700">
+                        Calling patients
+                    </legend>
+                    <div className="grid gap-2">
+                        <label className="flex items-start gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                {...register("allows_assignment")}
+                                className="mt-1 rounded"
+                            />
+                            <span>
+                                Patients are called into this stage
+                                <span className="block text-xs text-slate-500">
+                                    Staff press &ldquo;Call in&rdquo; to take a patient here. The
+                                    waiting-room screen announces the name, and the patient becomes
+                                    theirs. Leave off for queues and for stages that end the visit.
+                                </span>
+                            </span>
+                        </label>
+                        <label className="flex items-start gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                {...register("allow_call_out_of_turn")}
+                                className="mt-1 rounded"
+                            />
+                            <span>
+                                Staff may call anyone waiting here, not just the next in line
+                                <span className="block text-xs text-slate-500">
+                                    Set this on the <strong>queue</strong> patients wait in, not on
+                                    the room they are called into. Off means strictly in order —
+                                    emergencies still come first. This replaces the old
+                                    &ldquo;allow pick any&rdquo; settings, and your current values
+                                    have already been carried across.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div className="mt-3">
+                        <label className="mb-1 block text-sm font-medium text-slate-700">
+                            Usually takes (minutes)
+                        </label>
+                        <input
+                            type="number"
+                            min={0}
+                            {...register("expected_duration_minutes")}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 sm:w-40"
+                            placeholder="e.g. 20"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                            Gives patients a waiting estimate before the system has measured
+                            enough real visits to know. Leave blank if it varies too much to say.
+                        </p>
                     </div>
                 </fieldset>
 

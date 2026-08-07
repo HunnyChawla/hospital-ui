@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Clock, Users } from "lucide-react";
+import { ArrowRight, Clock, UserCheck, Users } from "lucide-react";
 import {
     useAdvanceVisit,
     usePathwayQueue,
     usePathways,
+    useReleasePatient,
 } from "@/hooks/queries/usePathways";
 import type { Pathway, QueueItem } from "@/services/pathwaysApi";
 import { GenericStageBody } from "./GenericStageBody";
@@ -29,10 +30,34 @@ interface StagePanelProps {
  * built in, because a refraction form and a nurse's vitals check have nothing
  * in common but their position in a queue.
  */
+/**
+ * Where to send a patient when they are released.
+ *
+ * The stage they came from, which is the waiting stage this one is reachable
+ * from. Falls back to undefined — releasing without moving — rather than
+ * guessing, because putting a patient in the wrong queue is worse than leaving
+ * them where they are for someone to move deliberately.
+ */
+function previousWaitingStage(item: QueueItem, pathway: Pathway): string | undefined {
+    const current = pathway.stages.find((s) => s.code === item.stage.code);
+    const from = current?.entry_from_codes;
+    if (!from?.length) return undefined;
+    return pathway.stages
+        .filter((s) => from.includes(s.code) && s.stage_type === "waiting")
+        .sort((a, b) => a.display_order - b.display_order)[0]?.code;
+}
+
 export function StagePanel({ role }: StagePanelProps) {
     const { data: pathways, isLoading: pathwaysLoading } = usePathways();
     const advanceVisit = useAdvanceVisit();
+    const releasePatient = useReleasePatient();
     const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
+
+    // Read after mount, not during render: localStorage is not available on the
+    // server, so reading it while rendering both breaks hydration and counts as
+    // an impure render.
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    useEffect(() => setCurrentUserId(localStorage.getItem("user_id")), []);
 
     // Every stage across every active pathway that this role is waiting on. A
     // hospital may run several pathways at once and one nurse covers all of
@@ -146,6 +171,12 @@ export function StagePanel({ role }: StagePanelProps) {
                                         </span>
                                     )}
                                 </div>
+                                {item.assignments.length > 0 && (
+                                    <span className="mt-1 inline-flex items-center gap-1 text-xs text-sky-700">
+                                        <UserCheck className="h-3 w-3" />
+                                        {item.assignments[0].user_name ?? "Taken"}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -187,6 +218,17 @@ export function StagePanel({ role }: StagePanelProps) {
                                 performerRole: role,
                             })
                         }
+                        heldByMe={selected.assignments.some(
+                            (a) => a.role === role && a.user_id === currentUserId
+                        )}
+                        onRelease={() =>
+                            releasePatient.mutate({
+                                visitId: selected.visit_id,
+                                role,
+                                backToStageCode: previousWaitingStage(selected, pathway),
+                            })
+                        }
+                        isReleasing={releasePatient.isPending}
                     />
                 )}
             </section>

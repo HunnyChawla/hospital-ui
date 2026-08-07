@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Clock } from "lucide-react";
+import { ArrowRight, Clock, Megaphone, UserCheck } from "lucide-react";
 import { Pathway, PathwayStage, QueueItem } from "@/services/pathwaysApi";
 
 interface PathwayQueueCardProps {
@@ -8,6 +8,9 @@ interface PathwayQueueCardProps {
     pathway: Pathway;
     onAdvance: (item: QueueItem, toStageCode: string) => void;
     isAdvancing: boolean;
+    /** Present when the viewer can call patients in from this queue. */
+    onCall?: (item: QueueItem, role: string, toStageCode: string) => void;
+    isCalling?: boolean;
 }
 
 /**
@@ -40,6 +43,8 @@ export function PathwayQueueCard({
     pathway,
     onAdvance,
     isAdvancing,
+    onCall,
+    isCalling = false,
 }: PathwayQueueCardProps) {
     const isEmergency = item.visit_type === "emergency";
     const waiting = waitingLabel(item.waiting_minutes);
@@ -49,7 +54,13 @@ export function PathwayQueueCard({
     const nextStages = nextStagesFor(item, pathway).sort(
         (a, b) => a.display_order - b.display_order
     );
+
+    // Calling and advancing are different acts. Calling takes the patient and
+    // announces their name outside; advancing just moves them along. So the
+    // stages a patient can be *called into* are offered separately, and first.
+    const callTargets = onCall ? nextStages.filter((s) => s.allows_assignment) : [];
     const [primary, ...others] = nextStages;
+    const holder = item.assignments[0];
 
     return (
         <div
@@ -89,11 +100,47 @@ export function PathwayQueueCard({
                             {item.chief_complaint}
                         </p>
                     )}
+                    {/* Who has this patient. Shown before the buttons because
+                        it is the thing that stops a second clinician calling
+                        someone already on their way to a room. */}
+                    {holder && (
+                        <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+                            <UserCheck className="h-3 w-3" />
+                            With {holder.user_name ?? "a colleague"}
+                        </p>
+                    )}
                 </div>
             </div>
 
-            {primary && (
+            {(primary || callTargets.length > 0) && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                    {/* Calling comes first and reads as the primary action,
+                        because it is the one that speaks the patient's name in
+                        the waiting room. */}
+                    {callTargets.map((stage) => (
+                        <button
+                            key={`call-${stage.code}`}
+                            onClick={() =>
+                                onCall?.(
+                                    item,
+                                    stage.waiting_for_role ?? stage.assigned_role ?? "staff",
+                                    stage.code
+                                )
+                            }
+                            disabled={isCalling || !!holder}
+                            title={
+                                holder
+                                    ? `${holder.user_name ?? "A colleague"} has already called this patient`
+                                    : `Call this patient and announce it outside`
+                            }
+                            className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow disabled:opacity-40 disabled:shadow-none"
+                        >
+                            <Megaphone className="h-3.5 w-3.5" />
+                            Call in
+                        </button>
+                    ))}
+
+                    {primary && (
                     <button
                         onClick={() => onAdvance(item, primary.code)}
                         disabled={isAdvancing}
@@ -102,6 +149,7 @@ export function PathwayQueueCard({
                         <ArrowRight className="h-3.5 w-3.5" />
                         {primary.label}
                     </button>
+                    )}
 
                     {others.length > 0 && (
                         // A select rather than more buttons: a pathway can have a

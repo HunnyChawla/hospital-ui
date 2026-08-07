@@ -267,6 +267,67 @@ export function useReorderStages() {
     });
 }
 
+export function useCallPatient() {
+    const queryClient = useQueryClient();
+    const { tenantId, isPlatformOwner } = useTenantContext();
+
+    return useMutation({
+        mutationFn: ({
+            visitId,
+            role,
+            toStageCode,
+        }: {
+            visitId: string;
+            role: string;
+            toStageCode: string;
+        }) =>
+            pathwaysApi.callPatient(
+                visitId,
+                role,
+                toStageCode,
+                isPlatformOwner ? tenantId ?? undefined : undefined
+            ),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: pathwayKeys.all });
+            queryClient.invalidateQueries({ queryKey: queueKeys.all });
+            queryClient.invalidateQueries({ queryKey: opdVisitKeys.all });
+        },
+        // The refusals here are the informative kind — "Dr Mehta has already
+        // called this patient", or "this queue is taken in order". Both tell
+        // the clinician what to do next, so the message is shown as-is.
+        onError: createMutationErrorHandler('Could not call this patient'),
+    });
+}
+
+export function useReleasePatient() {
+    const queryClient = useQueryClient();
+    const { tenantId, isPlatformOwner } = useTenantContext();
+
+    return useMutation({
+        mutationFn: ({
+            visitId,
+            role,
+            backToStageCode,
+        }: {
+            visitId: string;
+            role: string;
+            backToStageCode?: string;
+        }) =>
+            pathwaysApi.releasePatient(
+                visitId,
+                role,
+                backToStageCode,
+                isPlatformOwner ? tenantId ?? undefined : undefined
+            ),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: pathwayKeys.all });
+            queryClient.invalidateQueries({ queryKey: queueKeys.all });
+            queryClient.invalidateQueries({ queryKey: opdVisitKeys.all });
+        },
+        onError: createMutationErrorHandler('Could not release this patient'),
+    });
+}
+
 export function useAdvanceVisit() {
     const queryClient = useQueryClient();
     const { tenantId, isPlatformOwner } = useTenantContext();

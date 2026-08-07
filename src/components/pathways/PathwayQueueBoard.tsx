@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Pathway, QueueItem } from "@/services/pathwaysApi";
 import {
     useAdvanceVisit,
+    useCallPatient,
     usePathwayQueue,
     usePathwayQueueSummary,
     usePathways,
@@ -70,19 +71,21 @@ export function PathwayQueueBoard() {
 
     const { data: summary } = usePathwayQueueSummary(selectedCode);
     const advanceVisit = useAdvanceVisit();
-
-    // The stream wins when it has ever delivered; polling fills the gap before
-    // the first frame and after a drop.
-    const items = stream.items ?? queue?.items ?? [];
+    const callPatient = useCallPatient();
 
     const byStage = useMemo(() => {
+        // The stream wins when it has ever delivered; polling fills the gap
+        // before the first frame and after a drop. Resolved inside the memo so
+        // the `??` chain does not build a new array on every render and defeat
+        // it.
+        const items = stream.items ?? queue?.items ?? [];
         const grouped = new Map<string, QueueItem[]>();
         for (const stage of liveStages) grouped.set(stage.code, []);
         for (const item of items) {
             grouped.get(item.stage.code)?.push(item);
         }
         return grouped;
-    }, [items, liveStages]);
+    }, [stream.items, queue?.items, liveStages]);
 
     const waitEstimates = useMemo(() => {
         const map = new Map<string, number | null>();
@@ -94,6 +97,10 @@ export function PathwayQueueBoard() {
 
     const handleAdvance = (item: QueueItem, toStageCode: string) => {
         advanceVisit.mutate({ visitId: item.visit_id, toStageCode });
+    };
+
+    const handleCall = (item: QueueItem, role: string, toStageCode: string) => {
+        callPatient.mutate({ visitId: item.visit_id, role, toStageCode });
     };
 
     if (pathwaysLoading) {
@@ -224,6 +231,8 @@ export function PathwayQueueBoard() {
                                                 pathway={pathway}
                                                 onAdvance={handleAdvance}
                                                 isAdvancing={advanceVisit.isPending}
+                                                onCall={handleCall}
+                                                isCalling={callPatient.isPending}
                                             />
                                         ))
                                     )}
