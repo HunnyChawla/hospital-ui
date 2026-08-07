@@ -9,7 +9,7 @@ import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
 import type { QueuePatient } from "@/utils/queueFilters";
 import type { Pathway } from "@/services/pathwaysApi";
 
-type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
+import type { ActiveTab } from "./ActivePatientCard";
 
 interface DoctorPanelVerticalLayoutProps {
   // Stats

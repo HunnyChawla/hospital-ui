@@ -29,6 +29,11 @@ import { LabResultsPanel } from "./patient-details/LabResultsPanel";
 import { QuickNotesPanel } from "./patient-details/QuickNotesPanel";
 import { IpdInfoPanel } from "./patient-details/IpdInfoPanel";
 import { PrescriptionFormModal } from "./PrescriptionFormModal";
+import { ComplaintsTab } from "@/components/clinical/ComplaintsTab";
+import { MedicalHistoryTab } from "@/components/clinical/MedicalHistoryTab";
+import { DrugAllergyTab } from "@/components/clinical/DrugAllergyTab";
+import { GENERAL_COMPLAINTS } from "@/components/clinical/commonComplaints";
+import { useClinicalRecords } from "@/hooks/queries/useClinicalRecords";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { useAppSelector } from "@/redux/hooks";
 import { labBookingsApi } from "@/services/labBookingsApi";
@@ -265,6 +270,9 @@ export function DoctorPanel() {
     }
   }, [todaySchedule, liveByVisit]);
 
+  // Complaints, conditions and allergies for the selected patient.
+  const clinical = useClinicalRecords(selectedPatientId, currentVisitId);
+
   // Where the selected patient is, for the progress track above their record.
   const selectedPatientStatus = useMemo(
     () => queuePatients.find((p) => p.patient_id === selectedPatientId)?.status ?? null,
@@ -498,6 +506,45 @@ export function DoctorPanel() {
     }
 
     switch (activeTab) {
+      // The three below are patient-level clinical facts every speciality
+      // records. They were only ever shown on the eye panel, so a general
+      // doctor had nowhere to note that a patient is diabetic or allergic to
+      // penicillin — see hooks/queries/useClinicalRecords.
+      case "complaints":
+        return (
+          <ComplaintsTab
+            patientId={selectedPatientId}
+            visitId={currentVisitId ?? ""}
+            recordedByUserId={currentUserId ?? ""}
+            complaints={clinical.complaints}
+            loading={clinical.loading}
+            onRefresh={clinical.refresh}
+            showEyeSelector={false}
+            quickComplaints={GENERAL_COMPLAINTS}
+          />
+        );
+
+      case "conditions":
+        return (
+          <MedicalHistoryTab
+            patientId={selectedPatientId}
+            visitId={currentVisitId}
+            medicalConditions={clinical.medicalConditions}
+            loading={clinical.loading}
+            onRefresh={clinical.refresh}
+          />
+        );
+
+      case "allergies":
+        return (
+          <DrugAllergyTab
+            patientId={selectedPatientId}
+            drugAllergies={clinical.drugAllergies}
+            loading={clinical.loading}
+            onRefresh={clinical.refresh}
+          />
+        );
+
       case "history":
         return (
           <PatientHistoryTimeline

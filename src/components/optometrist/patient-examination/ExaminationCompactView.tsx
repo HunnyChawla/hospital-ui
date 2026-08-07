@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch } from "@/redux/hooks";
@@ -38,13 +38,13 @@ import { DataEditModal } from "./DataEditModal";
 import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
 
 // Import tab components
-import { ComplaintsTab } from "./ComplaintsTab";
+import { ComplaintsTab } from "@/components/clinical/ComplaintsTab";
 import { VisionTab } from "./VisionTab";
 import { MergedVisionTab } from "./MergedVisionTab";
 import { CurrentSpecsTab } from "./CurrentSpecsTab";
-import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import { MedicalHistoryTab } from "@/components/clinical/MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
-import { DrugAllergyTab } from "./DrugAllergyTab";
+import { DrugAllergyTab } from "@/components/clinical/DrugAllergyTab";
 import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
@@ -374,7 +374,7 @@ export function ExaminationCompactView({
                     <ComplaintsTab
                         patientId={patientId}
                         visitId={visitId}
-                        optometristId={optometristId}
+                        recordedByUserId={optometristId}
                         complaints={complaints}
                         loading={loading.complaints}
                         onRefresh={refreshComplaints}

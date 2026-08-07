@@ -8,6 +8,7 @@ import {
 } from "@/redux/doctorPanelSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { getTodayDateLocal } from "@/utils/format";
+import type { ActiveTab } from "@/components/doctors/dashboard/ActivePatientCard";
 
 export const useDoctorPanel = () => {
   const dispatch = useAppDispatch();
@@ -52,7 +53,7 @@ export const useDoctorPanel = () => {
     dispatch(selectPatient(patientId));
   }, [dispatch]);
 
-  const handleSetActiveTab = useCallback((tab: "history" | "vitals" | "labs" | "notes" | "ipd") => {
+  const handleSetActiveTab = useCallback((tab: ActiveTab) => {
     dispatch(setActiveTab(tab));
   }, [dispatch]);
 
