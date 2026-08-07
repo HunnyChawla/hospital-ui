@@ -56,6 +56,31 @@ export function useEpisodeForSource(episodeType: EpisodeType, sourceId: string |
     });
 }
 
+/**
+ * Whether this record's documents are frozen, and why.
+ *
+ * The server refuses these edits too — see
+ * `hms/health_record/service/edit_gate.py`. This exists so a doctor learns
+ * before typing rather than after saving, not as the enforcement: a disabled
+ * button the API would have accepted anyway is theatre.
+ *
+ * `reopened` deliberately does NOT lock. That state exists precisely so a
+ * hospital can make changes; locking it would make reopening pointless.
+ */
+export function useEpisodeLock(episodeType: EpisodeType, sourceId: string | null) {
+    const { data: episode, isLoading } = useEpisodeForSource(episodeType, sourceId);
+    const locked = episode?.status === "finalised";
+
+    return {
+        locked,
+        episode: episode ?? null,
+        isLoading,
+        reason: locked
+            ? "This visit has been finalised and its records are frozen. Reopen it to make changes."
+            : null,
+    };
+}
+
 export function useEpisodeDocuments(episodeId: string | null) {
     const tenant = useTenant();
     return useQuery({
