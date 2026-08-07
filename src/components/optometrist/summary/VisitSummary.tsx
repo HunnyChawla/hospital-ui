@@ -14,6 +14,8 @@ const formatDiopter = (val: string | number | null | undefined): string => {
   return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
 };
 
+const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+
 // Helper component to render Prescription details in a clean UI layout
 function PrescriptionSummaryView({
   prescription,
@@ -449,7 +451,7 @@ function VisitSummaryLayout({
                   </div>
                 </div>
               </div>
-              {(data.ar_data.od_wet_sphere || data.ar_data.od_wet_cylinder || data.ar_data.od_wet_axis) && (
+              {[data.ar_data.od_wet_sphere, data.ar_data.od_wet_cylinder, data.ar_data.od_wet_axis].some(hasValue) && (
                 <div>
                   <p className="text-xs font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
                   <div className="space-y-1.5 text-sm">
@@ -488,7 +490,7 @@ function VisitSummaryLayout({
                   </div>
                 </div>
               </div>
-              {(data.ar_data.os_wet_sphere || data.ar_data.os_wet_cylinder || data.ar_data.os_wet_axis) && (
+              {[data.ar_data.os_wet_sphere, data.ar_data.os_wet_cylinder, data.ar_data.os_wet_axis].some(hasValue) && (
                 <div>
                   <p className="text-xs font-semibold text-purple-700 uppercase mb-1">Wet AR (Dilated)</p>
                   <div className="space-y-1.5 text-sm">

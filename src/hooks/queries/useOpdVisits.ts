@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { opdVisitsApi, Visit, CreateVisitRequest, VisitStatus, OpdVisitsSearchParams } from '@/services/opdVisitsApi';
+import { opdVisitsApi, Visit, CreateVisitRequest, CancelVisitRequest, VisitStatus, OpdVisitsSearchParams } from '@/services/opdVisitsApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
 import { createMutationErrorHandler } from '@/utils/errorHandler';
@@ -152,6 +152,55 @@ export function useUpdateOpdVisitStatus() {
       queryClient.invalidateQueries({ queryKey: opdVisitKeys.detail(variables.visitId) });
       queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
     },
+  });
+}
+
+/**
+ * Cancel an OPD visit (with reason, and refund of what was collected).
+ *
+ * Deliberately not optimistic: the refund amount is only known once the server
+ * has allocated it across payments, and a rejected cancellation (wrong stage,
+ * finalized prescription, non-admin) must leave the row untouched.
+ */
+export function useCancelOpdVisit() {
+  const queryClient = useQueryClient();
+  const { tenantId, isPlatformOwner } = useTenantContext();
+
+  return useMutation({
+    mutationFn: async ({
+      visitId,
+      request,
+    }: {
+      visitId: string;
+      request: CancelVisitRequest;
+    }) => {
+      return await opdVisitsApi.cancel(
+        visitId,
+        request,
+        isPlatformOwner ? tenantId ?? undefined : undefined
+      );
+    },
+    onSuccess: (result) => {
+      const visitNumber = result.visit.visit_number;
+      if (result.refunded_amount > 0) {
+        const fee = result.cancellation_fee > 0
+          ? `, ₹${result.cancellation_fee.toLocaleString('en-IN')} retained as cancellation fee`
+          : '';
+        toast.success(
+          `Visit ${visitNumber} cancelled — ₹${result.refunded_amount.toLocaleString('en-IN')} refunded${fee}`
+        );
+      } else if (result.refundable_amount > 0) {
+        toast.success(
+          `Visit ${visitNumber} cancelled — no refund issued, ₹${result.refundable_amount.toLocaleString('en-IN')} retained`
+        );
+      } else {
+        toast.success(`Visit ${visitNumber} cancelled`);
+      }
+
+      queryClient.invalidateQueries({ queryKey: opdVisitKeys.detail(result.visit.id) });
+      queryClient.invalidateQueries({ queryKey: opdVisitKeys.lists() });
+    },
+    onError: createMutationErrorHandler('Failed to cancel visit'),
   });
 }
 

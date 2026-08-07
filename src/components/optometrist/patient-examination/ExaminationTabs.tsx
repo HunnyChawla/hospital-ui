@@ -78,6 +78,7 @@ interface ExaminationTabsProps {
   patientOptometryHistory: PatientOptometryTimeline | null;
   historyLoading?: boolean;
   refreshHistory?: () => void;
+  onLoadMoreHistory?: () => void;
 
   // Loading states
   loading: {
@@ -136,6 +137,7 @@ export function ExaminationTabs({
   patientOptometryHistory,
   historyLoading,
   refreshHistory,
+  onLoadMoreHistory,
   loading,
   refreshComplaints,
   refreshMedicalHistory,
@@ -237,6 +239,9 @@ export function ExaminationTabs({
             visionRecords={visionRecords}
             currentSpecsRecords={currentSpecsRecords}
             medicalConditions={medicalConditions}
+            patientOptometryHistory={patientOptometryHistory}
+            historyLoading={!!historyLoading}
+            onLoadMoreHistory={onLoadMoreHistory}
             loading={loading}
             refreshComplaints={refreshComplaints}
             refreshMedicalHistory={refreshMedicalHistory}
@@ -282,6 +287,9 @@ export function ExaminationTabs({
             visionRecords={visionRecords}
             currentSpecsRecords={currentSpecsRecords}
             medicalConditions={medicalConditions}
+            patientOptometryHistory={patientOptometryHistory}
+            historyLoading={!!historyLoading}
+            onLoadMoreHistory={onLoadMoreHistory}
             loading={loading}
             refreshComplaints={refreshComplaints}
             refreshMedicalHistory={refreshMedicalHistory}
@@ -554,6 +562,7 @@ export function ExaminationTabs({
             patientOptometryHistory={patientOptometryHistory}
             loading={!!historyLoading}
             currentVisitComplaints={complaints}
+            onLoadMore={onLoadMoreHistory}
           />
         )}
       </div>

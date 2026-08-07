@@ -44,6 +44,7 @@ import { formatDate } from "@/utils/format";
 import { useReactToPrint } from "react-to-print";
 import { DoctorPrescriptionPrint } from "./DoctorPrescriptionPrint";
 import { PrintPreviewModal } from "./PrintPreviewModal";
+import { usePrescriptionPrintLayout } from "@/hooks/queries/usePrintLayout";
 import {
     DiagnosisChips,
     MedicineQuickChips,
@@ -218,13 +219,9 @@ export function PrescriptionFormSection({
     const [searchingTests, setSearchingTests] = useState(false);
     const [testSearchResults, setTestSearchResults] = useState<any[]>([]);
     const [savedPrescription, setSavedPrescription] = useState<OptometryPrescription | null>(null);
-    const [printWithHeader, setPrintWithHeader] = useState(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("prescription_print_with_header");
-            return saved !== null ? JSON.parse(saved) : true;
-        }
-        return true;
-    });
+    // Letterhead/page geometry is a hospital-level setting resolved once here and
+    // shared by the read-only view and the print preview.
+    const { layout: printLayout } = usePrescriptionPrintLayout();
     const [showOpticalDetails, setShowOpticalDetails] = useState(false);
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
@@ -284,7 +281,7 @@ export function PrescriptionFormSection({
             if (patientId) {
                 try {
                     const [surgs, pat] = await Promise.all([
-                        plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
+                        plannedSurgeriesApi.list({ visit_id: visitId }),
                         patientsApi.getById(patientId),
                         fetchPatientLabBookings(patientId)
                     ]);
@@ -379,7 +376,7 @@ export function PrescriptionFormSection({
                     setSavedPrescription(existing);
 
                     // Parse existing diagnosis to chips and extract eye information
-                    let diagnosisNames: string[] = [];
+                    const diagnosisNames: string[] = [];
                     const eyeMap: Record<string, "OD" | "OS" | "OU" | "NA"> = {};
 
                     if (existing.diagnosis) {
@@ -1335,7 +1332,7 @@ export function PrescriptionFormSection({
 
             if (options.print) {
                 try {
-                    const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+                    const surgs = await plannedSurgeriesApi.list({ visit_id: visitId });
                     setPlannedSurgeries(surgs.items || []);
                 } catch (e) {
                     console.error("Failed to fetch planned surgeries for print", e);
@@ -1393,7 +1390,7 @@ export function PrescriptionFormSection({
         // In read-only mode, fetch fresh data and open preview
         setIsSubmitting(true);
         try {
-            const surgs = await plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" });
+            const surgs = await plannedSurgeriesApi.list({ visit_id: visitId });
             setPlannedSurgeries(surgs.items || []);
 
             const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
@@ -1539,7 +1536,7 @@ export function PrescriptionFormSection({
                                         ? savedPrescription.items
                                         : getRefractionItems()
                                 }}
-                                showHeader={true}
+                                layout={printLayout}
                                 doctorSignature={doctorSignature}
                                 visitData={fullPrescriptionData || examinationData} // Use fullData if available, else fallback to exam data
                                 plannedSurgeries={plannedSurgeries}
@@ -2239,7 +2236,7 @@ export function PrescriptionFormSection({
                                     />
                                     {testSearchQuery.length >= 2 && !searchingTests && testSearchResults.length === 0 && (
                                         <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                            <p className="text-sm text-slate-500">No lab tests found matching "{testSearchQuery}"</p>
+                                            <p className="text-sm text-slate-500">No lab tests found matching &quot;{testSearchQuery}&quot;</p>
                                         </div>
                                     )}
                                     {testSearchResults.length > 0 && (
@@ -2657,7 +2654,7 @@ export function PrescriptionFormSection({
                                     />
                                     {adviceSearchQuery.length >= 2 && !searchingAdvices && adviceSearchResults.length === 0 && (
                                         <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-xl p-3 text-center">
-                                            <p className="text-sm text-slate-500">No advice found matching "{adviceSearchQuery}"</p>
+                                            <p className="text-sm text-slate-500">No advice found matching &quot;{adviceSearchQuery}&quot;</p>
                                         </div>
                                     )}
                                     {adviceSearchResults.length > 0 && (
@@ -3130,7 +3127,6 @@ export function PrescriptionFormSection({
                     visitData={fullPrescriptionData || examinationData}
                     doctorSignature={doctorSignature}
                     plannedSurgeries={plannedSurgeries}
-                    showHeader={printWithHeader}
                     onFinalize={handlePreviewFinalize}
                 />
             )}

@@ -18,6 +18,11 @@ export type Patient = {
   state?: string;
   pincode?: string;
   category?: string;
+  abhaId?: string | null;
+  abhaNumber?: string | null;
+  abhaAddress?: string | null;
+  abhaVerified?: boolean;
+  abhaLinkedAt?: string | null;
 };
 
 
@@ -570,6 +575,26 @@ export type PatientOptometryTimeline = {
 // SURGERY TYPES
 // ============================================
 
+export type BodyPartSummary = {
+  id: string;
+  code: string;
+  name: string;
+  department: string;
+  laterality: "left" | "right" | "bilateral" | "na";
+};
+
+export type BodyPartPrice = {
+  body_part_id: string;
+  body_part_code: string;
+  body_part_name: string;
+  price: number;
+};
+
+export type BodyPartPriceInput = {
+  body_part_id: string;
+  price: number;
+};
+
 export type Surgery = {
   id: string;
   tenant_id: string;
@@ -579,6 +604,11 @@ export type Surgery = {
   price?: number;
   service_id?: string;
   is_active: boolean;
+  /** @deprecated superseded by body_parts - kept for pre-migration display */
+  is_eye_surgery?: boolean;
+  /** @deprecated superseded by body_parts/packages[].prices */
+  ou_price?: number | null;
+  body_parts: BodyPartSummary[];
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -591,6 +621,10 @@ export type CreateSurgeryRequest = {
   category?: string | null;
   price?: number;
   is_active?: boolean;
+  /** @deprecated use body_part_ids */
+  is_eye_surgery?: boolean;
+  ou_price?: number | null;
+  body_part_ids?: string[];
 };
 
 export type UpdateSurgeryRequest = {
@@ -599,13 +633,72 @@ export type UpdateSurgeryRequest = {
   category?: string | null;
   price?: number | null;
   is_active?: boolean | null;
+  /** @deprecated use body_part_ids */
+  is_eye_surgery?: boolean;
+  ou_price?: number | null;
+  body_part_ids?: string[];
+};
+
+export type SurgeryPackage = {
+  id: string;
+  tenant_id: string;
+  surgery_id: string;
+  surgery_name?: string | null;
+  name: string;
+  description: string | null;
+  price: number;
+  /** @deprecated superseded by prices (per-body-part) */
+  ou_price?: number | null;
+  prices: BodyPartPrice[];
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+};
+
+export type CreateSurgeryPackageRequest = {
+  name: string;
+  description?: string | null;
+  price: number;
+  ou_price?: number | null;
+  prices?: BodyPartPriceInput[];
+  is_active?: boolean;
+  sort_order?: number;
+};
+
+export type UpdateSurgeryPackageRequest = {
+  name?: string;
+  description?: string | null;
+  price?: number;
+  ou_price?: number | null;
+  prices?: BodyPartPriceInput[];
+  is_active?: boolean;
+  sort_order?: number;
 };
 
 // ============================================
 // PLANNED SURGERY TYPES
 // ============================================
 
-export type PlannedSurgeryStatus = "scheduled" | "completed" | "cancelled";
+export type PlannedSurgeryStatus = "advised" | "scheduled" | "postponed" | "completed" | "cancelled" | "denied";
+
+export type PlannedSurgeryStatusHistory = {
+  id: string;
+  planned_surgery_id: string;
+  from_status: string | null;
+  to_status: string;
+  event_type: string;
+  from_date: string | null;
+  from_time?: string | null;
+  to_date: string | null;
+  to_time?: string | null;
+  followup_date: string | null;
+  notes: string | null;
+  created_at: string;
+  created_by: string | null;
+};
 
 export type PlannedSurgery = {
   id: string;
@@ -613,9 +706,14 @@ export type PlannedSurgery = {
   patient_id: string;
   visit_id?: string | null;
   patient_name?: string | null;
+  patient_uhid?: string | null;
+  patient_mobile?: string | null;
   surgery_id: string;
   surgery_name: string;
-  eye: "OD" | "OS" | "OU";
+  /** @deprecated use body_part_id */
+  eye?: "OD" | "OS" | "OU" | null;
+  body_part_id?: string | null;
+  body_part_name?: string | null;
   planned_date: string | null;
   advised_date?: string | null;
   planned_time: string | null;
@@ -624,6 +722,22 @@ export type PlannedSurgery = {
   hospital_name: string | null;
   notes: string | null;
   status: PlannedSurgeryStatus;
+  package_id?: string | null;
+  package_name?: string | null;
+  package_price?: number | null;
+  /** Pre-discount catalog price, when package_price reflects a discount */
+  original_package_price?: number | null;
+  advance_payment_amount?: number | null;
+  advance_payment_method?: string | null;
+  advance_payment_reference?: string | null;
+  advance_payment_date?: string | null;
+  advance_payment_notes?: string | null;
+  advance_payment_id?: string | null;
+  surgery_invoice_id?: string | null;
+  reschedule_count: number;
+  followup_date?: string | null;
+  denial_reason?: string | null;
+  cancellation_reason?: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -634,26 +748,65 @@ export type CreatePlannedSurgeryRequest = {
   patient_id: string;
   visit_id?: string | null;
   surgery_id: string;
-  surgery_name: string;
-  eye: "OD" | "OS" | "OU";
+  surgery_name?: string;
+  /** @deprecated use body_part_id */
+  eye?: "OD" | "OS" | "OU" | null;
+  body_part_id?: string | null;
   planned_date?: string | null;
   advised_date?: string | null;
   planned_time?: string | null;
   surgeon_id: string;
   hospital_name?: string | null;
   notes?: string | null;
+  package_id?: string | null;
+  package_price?: number | null;
+  original_package_price?: number | null;
+  advance_payment_amount?: number | null;
+  advance_payment_method?: string | null;
+  advance_payment_reference?: string | null;
+  advance_payment_date?: string | null;
+  advance_payment_notes?: string | null;
 };
 
 export type UpdatePlannedSurgeryRequest = {
   surgery_id?: string;
   surgery_name?: string;
-  eye?: "OD" | "OS" | "OU";
-  planned_date?: string | null;
+  /** @deprecated use body_part_id */
+  eye?: "OD" | "OS" | "OU" | null;
+  body_part_id?: string | null;
   advised_date?: string | null;
+  planned_date?: string | null;
   planned_time?: string | null;
   hospital_name?: string | null;
   notes?: string | null;
-  status?: PlannedSurgeryStatus;
+  package_id?: string | null;
+  package_price?: number | null;
+  original_package_price?: number | null;
+  advance_payment_amount?: number | null;
+  advance_payment_method?: string | null;
+  advance_payment_reference?: string | null;
+  advance_payment_date?: string | null;
+  advance_payment_notes?: string | null;
+};
+
+export type StatusTransitionRequest = {
+  to_status: PlannedSurgeryStatus;
+  reason?: string | null;
+  followup_date?: string | null;
+  notes?: string | null;
+};
+
+export type RescheduleRequest = {
+  new_date: string;
+  new_time?: string | null;
+  reason?: string | null;
+  package_id?: string | null;
+  body_part_id?: string | null;
+  advance_payment_amount?: number | null;
+  advance_payment_method?: string | null;
+  advance_payment_reference?: string | null;
+  advance_payment_date?: string | null;
+  advance_payment_notes?: string | null;
 };
 
 // ============================================
@@ -815,4 +968,53 @@ export type AvailableScreen = {
   category: "main" | "clinical" | "admin" | "reports";
   description?: string;
 };
+
+// ============================================
+// SURGERY BILLING TYPES
+// ============================================
+
+export type SurgeryPaymentEntry = {
+  surgery_payment_id: string;
+  payment_id: string;
+  payment_type: "advance" | "final";
+  payment_number: string;
+  amount: number;
+  payment_method: string;
+  payment_reference?: string | null;
+  payment_date: string;
+  status: string;
+  notes?: string | null;
+  created_at: string;
+  created_by: string | null;
+};
+
+export type SurgeryPaymentSummary = {
+  surgery_invoice_id: string | null;
+  invoice_number: string | null;
+  invoice_status: "pending" | "partial" | "paid" | "cancelled" | "refunded" | "partially_refunded" | null;
+  invoice_total: number | null;
+  total_advance_collected: number;
+  total_paid_on_invoice: number;
+  balance_due: number;
+  package_price?: number | null;
+  original_package_price?: number | null;
+  pending_balance?: number | null;
+  payments: SurgeryPaymentEntry[];
+};
+
+export type CollectSurgeryAdvanceRequest = {
+  amount: number;
+  payment_method: "cash" | "upi" | "card" | "cheque";
+  payment_reference?: string | null;
+  payment_date?: string | null;
+  notes?: string | null;
+};
+
+export type GenerateSurgeryInvoiceRequest = {
+  line_items: { description: string; quantity: number; unit_price: number; discount?: number }[];
+  discount?: number;
+  tax_rate?: number;
+  notes?: string | null;
+};
+
 

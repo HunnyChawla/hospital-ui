@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled" | "refunded";
+export type InvoiceStatus = "pending" | "partial" | "paid" | "cancelled" | "refunded" | "partially_refunded";
 
 export interface InvoiceLineItem {
   id?: string;
@@ -37,6 +37,9 @@ export interface Invoice {
   payment_id?: string | null;
   gst_number: string | null;
   notes: string | null;
+  fee_overridden?: boolean;
+  original_consultation_fee?: number | null;
+  original_amount?: number | null;
   created_at: string;
   updated_at: string;
 }

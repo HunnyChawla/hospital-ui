@@ -36,11 +36,19 @@ export interface PatientApiResponse {
   state: string | null;
   pincode: string | null;
   category: string | null;
+  abha_number?: string | null;
+  abha_address?: string | null;
+  abha_linked_at?: string | null;
+  abha_verified?: boolean;
+  aadhaar_number?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 
+// ABHA fields (abha_id, abha_number, abha_address, abha_verified) are intentionally absent
+// here - they can only ever be set via a verified ABDM flow (see abhaApi.syncToPatient), never
+// directly through patient create/update.
 export interface CreatePatientRequest {
   title?: string | null;
   first_name: string;
@@ -49,12 +57,13 @@ export interface CreatePatientRequest {
   email?: string | null;
   date_of_birth: string; // YYYY-MM-DD
   gender: "male" | "female" | "other";
-  abha_id?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
   category?: string | null;
+  aadhaar_number?: string | null;
+  photo_base64?: string | null;
 }
 
 
@@ -66,12 +75,13 @@ export interface UpdatePatientRequest {
   email?: string | null;
   date_of_birth?: string;
   gender?: string;
-  abha_id?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
   category?: string | null;
+  aadhaar_number?: string | null;
+  photo_base64?: string | null;
 }
 
 
@@ -118,6 +128,11 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     state: apiPatient.state || undefined,
     pincode: apiPatient.pincode || undefined,
     category: apiPatient.category || undefined,
+    abhaId: apiPatient.abha_id || undefined,
+    abhaNumber: apiPatient.abha_number || undefined,
+    abhaAddress: apiPatient.abha_address || undefined,
+    abhaVerified: apiPatient.abha_verified || false,
+    abhaLinkedAt: apiPatient.abha_linked_at || undefined,
   };
 };
 

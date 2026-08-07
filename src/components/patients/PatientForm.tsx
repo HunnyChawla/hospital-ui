@@ -7,6 +7,11 @@ import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
 import { patientCategoriesApi } from "@/services/patientCategoriesApi";
 import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "lucide-react";
+import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
+import { abhaApi } from "@/services/abhaApi";
+import { getAbhaError } from "@/utils/abhaErrors";
+import { toast } from "sonner";
 
 
 interface PatientFormProps {
@@ -45,6 +50,44 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     "EX_SERVICEMAN",
     "STAFF_FAMILY",
   ]);
+
+  // ABHA Integration State (Optional feature behind feature toggle)
+  const { enabled: abhaEnabled } = useAbhaFlags();
+  const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
+  const [abhaProfile, setAbhaProfile] = useState<any>(null);
+  const [abhaSessionKey, setAbhaSessionKey] = useState<string | null>(null);
+  const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
+  // Set when the attached ABHA turns out to belong to another patient, so the reason stays on
+  // screen next to the ABHA field instead of vanishing with the toast.
+  const [abhaLinkError, setAbhaLinkError] = useState<string | null>(null);
+  const isAbhaVerified = abhaProfile ? true : (defaultValues?.abhaVerified || false);
+
+  const handleAbhaSuccess = (profile: any, sessionKey: string, aadhaar?: string) => {
+    setAbhaProfile(profile);
+    setAbhaSessionKey(sessionKey);
+    setAbhaLinkError(null);
+    if (aadhaar) setAadhaarNum(aadhaar);
+
+    // Auto-populate form fields from ABHA profile
+    if (profile.name) {
+      const parts = profile.name.trim().split(" ");
+      const first = parts[0];
+      const last = parts.slice(1).join(" ");
+      if (first) setValue("first_name", first, { shouldValidate: true });
+      if (last) setValue("last_name", last, { shouldValidate: true });
+    }
+    if (profile.mobile) {
+      setValue("mobile", profile.mobile, { shouldValidate: true });
+    }
+    if (profile.gender) {
+      const g = profile.gender.toLowerCase().startsWith("f") ? "female" : profile.gender.toLowerCase().startsWith("m") ? "male" : "other";
+      setValue("gender", g, { shouldValidate: true });
+    }
+    if (profile.dob) {
+      handleDobChange(profile.dob);
+    }
+    toast.success("Patient details auto-populated from ABHA profile!");
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -253,7 +296,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: apiData.email || "",
         date_of_birth: dob,
         gender: apiData.gender?.toLowerCase() as "male" | "female" | "other",
-        abha_id: apiData.abha_id || "",
         address: apiData.address || "",
         city: apiData.city || "",
         state: apiData.state || "",
@@ -292,7 +334,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: "",
         date_of_birth: "",
         gender: "male",
-        abha_id: "",
         address: "",
         city: "",
         state: "",
@@ -340,7 +381,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: values.email?.trim() || null,
         date_of_birth: dobValue,
         gender,
-        abha_id: values.abha_id?.trim() || null,
         address: values.address?.trim() || null,
         city: values.city?.trim() || null,
         state: values.state?.trim() || null,
@@ -356,7 +396,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         email: values.email?.trim() || null,
         date_of_birth: values.date_of_birth,
         gender,
-        abha_id: values.abha_id?.trim() || null,
         address: values.address?.trim() || null,
         city: values.city?.trim() || null,
         state: values.state?.trim() || null,
@@ -365,6 +404,38 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       };
     }
 
+    // ABHA identity fields (abha_number/abha_address/abha_verified) are never sent here -
+    // they're only ever written by the verified abhaApi.syncToPatient call below. The photo
+    // is a general patient-profile field, so it's fine to carry it through directly.
+    if (abhaProfile?.photo_base64) {
+      patientData.photo_base64 = abhaProfile.photo_base64;
+    }
+    if (aadhaarNum) {
+      patientData.aadhaar_number = aadhaarNum;
+    }
+
+
+    // Re-check the ABHA right before saving. The modal already checked at attach time, but
+    // minutes may have passed and a colleague could have linked this ABHA in between. Bailing
+    // out here is what keeps a duplicate from producing a patient record with no ABHA on it.
+    if (abhaProfile && abhaSessionKey) {
+      try {
+        const check = await abhaApi.checkLinkConflict({
+          session_key: abhaSessionKey,
+          patient_id: defaultValues?.id ?? null,
+        });
+        if (!check.can_link) {
+          const message = check.message || "This ABHA is already linked to another patient.";
+          setAbhaLinkError(message);
+          toast.error(message, { duration: 10000 });
+          return;
+        }
+        setAbhaLinkError(null);
+      } catch (e) {
+        // Fail open - the sync call below is the real authority.
+        console.warn("ABHA link pre-check failed; deferring to the sync call", e);
+      }
+    }
 
     if (defaultValues) {
       // Update existing patient
@@ -372,6 +443,22 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         patientId: defaultValues.id,
         updates: patientData,
       });
+      if (abhaProfile && abhaSessionKey) {
+        try {
+          await abhaApi.syncToPatient(defaultValues.id, {
+            session_key: abhaSessionKey,
+            aadhaar_number: aadhaarNum || null,
+          });
+        } catch (e) {
+          // Never swallow this: the patient save already toasted success, so a silent failure
+          // reads as "the ABHA was linked" when it wasn't.
+          const { message } = getAbhaError(e, "Failed to attach ABHA profile to patient");
+          setAbhaLinkError(message);
+          toast.error(`Patient saved, but the ABHA could not be linked: ${message}`, {
+            duration: 10000,
+          });
+        }
+      }
       // React Query mutation already shows toast and invalidates cache!
       onSuccess?.();
     } else {
@@ -389,10 +476,31 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         }));
       }
 
+      if (abhaProfile && abhaSessionKey) {
+        try {
+          await abhaApi.syncToPatient(newPatient.id, {
+            session_key: abhaSessionKey,
+            aadhaar_number: aadhaarNum || null,
+          });
+        } catch (e) {
+          // The patient genuinely exists (ABHA is optional and the "patient:created" event has
+          // already fired), so don't roll it back - say plainly what didn't happen instead.
+          const { message } = getAbhaError(e, "Failed to attach ABHA profile to patient");
+          toast.error(
+            `Patient saved, but the ABHA could not be linked: ${message} You can retry from the patient's profile.`,
+            { duration: 10000 }
+          );
+          // Drop the stale ABHA so the reset form doesn't show a badge for an unlinked ABHA.
+          setAbhaProfile(null);
+          setAbhaSessionKey(null);
+        }
+      }
+
       // React Query mutation already shows toast and invalidates cache!
       reset();
       setIsNewborn(false);
       setParentName("");
+      setAbhaLinkError(null);
       onSuccess?.(newPatient);
     }
   };
@@ -413,6 +521,23 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
               className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-sky-900 opacity-75"
             />
           </label>
+        </div>
+      )}
+
+      {/* ABHA Profile Photo Banner */}
+      {(abhaProfile?.photo_base64 || apiData?.photo_base64) && (
+        <div className="flex items-center gap-3 rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50 to-indigo-50/40 p-3">
+          <img
+            src={(abhaProfile?.photo_base64 || apiData?.photo_base64).startsWith("data:")
+              ? (abhaProfile?.photo_base64 || apiData?.photo_base64)
+              : `data:image/jpeg;base64,${abhaProfile?.photo_base64 || apiData?.photo_base64}`}
+            alt="ABHA Patient Profile"
+            className="h-12 w-12 rounded-full border-2 border-white shadow-sm object-cover"
+          />
+          <div>
+            <div className="text-sm font-semibold text-sky-900">ABHA Verified Profile Photo</div>
+            <div className="text-xs text-sky-700">Photo received from ABDM / Aadhaar KYC</div>
+          </div>
         </div>
       )}
 
@@ -473,7 +598,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           </div>
         ) : (
           <label className="col-span-1 md:col-span-2 space-y-1">
-            <span className="text-slate-600 text-sm">Mother's/Parent's Name <span className="text-rose-500">*</span></span>
+            <span className="text-slate-600 text-sm">Mother&apos;s/Parent&apos;s Name <span className="text-rose-500">*</span></span>
             <input
               value={parentName}
               onChange={(e) => setParentName(e.target.value)}
@@ -674,12 +799,31 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600">ABHA/Health ID</span>
-            <input
-              {...register("abha_id")}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
-              placeholder="Enter ABHA ID"
-            />
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">ABHA/Health ID</span>
+              <AbhaStatusBadge
+                abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number}
+                abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress}
+                abhaVerified={isAbhaVerified}
+                showEnrollButton={abhaEnabled}
+                onEnrollClick={() => setIsAbhaModalOpen(true)}
+                size="sm"
+              />
+            </div>
+            {/* ABHA can only be linked through ABDM verification (see "Link ABHA" above) -
+                it is never a free-text field the user can type into directly. */}
+            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              {abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number || "Not linked"}
+            </div>
+            {abhaLinkError ? (
+              <span className="block text-xs text-rose-600">{abhaLinkError}</span>
+            ) : isAbhaVerified ? (
+              <span className="text-xs text-emerald-600">Verified via ABDM</span>
+            ) : (
+              <span className="text-xs text-slate-400">
+                Use &quot;Link ABHA&quot; above to verify and attach an ABHA ID.
+              </span>
+            )}
           </label>
 
           <label className="space-y-1">
@@ -749,6 +893,32 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           )}
         </button>
       </div>
+
+      {/* Optional ABHA Enrollment Modal */}
+      {abhaEnabled && (
+        <AbhaEnrollmentModal
+          isOpen={isAbhaModalOpen}
+          onClose={() => setIsAbhaModalOpen(false)}
+          onSuccess={handleAbhaSuccess}
+          patientId={defaultValues?.id}
+          initialMobile={watch("mobile") || defaultValues?.mobile || ""}
+          initialName={`${watch("first_name") || ""} ${watch("last_name") || ""}`.trim() || defaultValues?.name || ""}
+          existingPatientDetails={
+            apiData
+              ? {
+                  firstName: apiData.first_name,
+                  lastName: apiData.last_name,
+                  gender: apiData.gender,
+                  dateOfBirth: apiData.date_of_birth,
+                  address: apiData.address,
+                  city: apiData.city,
+                  state: apiData.state,
+                  pincode: apiData.pincode,
+                }
+              : undefined
+          }
+        />
+      )}
     </form>
   );
 }

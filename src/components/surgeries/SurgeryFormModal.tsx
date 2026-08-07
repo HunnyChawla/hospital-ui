@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from "react";
 import { Dialog, Transition, Switch } from "@headlessui/react";
 import { X } from "lucide-react";
 import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
+import { BodyPart, bodyPartsApi } from "@/services/bodyPartsApi";
+import { BodyPartMultiSelect } from "./BodyPartMultiSelect";
 
 interface SurgeryFormModalProps {
     isOpen: boolean;
@@ -20,7 +22,17 @@ export function SurgeryFormModal({
     const [category, setCategory] = useState("");
     const [description, setDescription] = useState("");
     const [isActive, setIsActive] = useState(true);
+    const [selectedBodyPartIds, setSelectedBodyPartIds] = useState<string[]>([]);
+    const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        bodyPartsApi
+            .list({ is_active: true, page_size: 200 })
+            .then((res) => setBodyParts(res.items))
+            .catch((err) => console.error("Failed to load body parts:", err));
+    }, [isOpen]);
 
     useEffect(() => {
         if (initialData) {
@@ -28,13 +40,25 @@ export function SurgeryFormModal({
             setCategory(initialData.category || "");
             setDescription(initialData.description || "");
             setIsActive(initialData.is_active);
+            setSelectedBodyPartIds(initialData.body_parts?.map((bp) => bp.id) || []);
         } else {
             setName("");
             setCategory("");
             setDescription("");
             setIsActive(true);
+            setSelectedBodyPartIds([]);
         }
     }, [initialData, isOpen]);
+
+    const handleBodyPartsChange = (ids: string[]) => {
+        setSelectedBodyPartIds(ids);
+        // Soft auto-fill category from the first selection's department, only
+        // when category is still empty - never overwrites a value the admin typed.
+        if (!category.trim() && ids.length > 0) {
+            const first = bodyParts.find((bp) => bp.id === ids[0]);
+            if (first) setCategory(first.department);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,6 +69,7 @@ export function SurgeryFormModal({
                 category: category || null,
                 description: description || null,
                 is_active: isActive,
+                body_part_ids: selectedBodyPartIds,
             });
             onClose();
         } catch (error) {
@@ -156,6 +181,20 @@ export function SurgeryFormModal({
                                                     placeholder="Brief description of the surgery..."
                                                     value={description}
                                                     onChange={(e) => setDescription(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Applicable Body Parts */}
+                                        <div>
+                                            <label className="block text-sm font-medium leading-6 text-slate-900">
+                                                Applicable Body Parts
+                                            </label>
+                                            <div className="mt-2">
+                                                <BodyPartMultiSelect
+                                                    bodyParts={bodyParts}
+                                                    selectedIds={selectedBodyPartIds}
+                                                    onChange={handleBodyPartsChange}
                                                 />
                                             </div>
                                         </div>

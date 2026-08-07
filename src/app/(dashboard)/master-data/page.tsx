@@ -5,11 +5,12 @@ import { DiagnosesPanel } from "@/components/master-data/DiagnosesPanel";
 import { SymptomsPanel } from "@/components/master-data/SymptomsPanel";
 import { AdvicesPanel } from "@/components/master-data/AdvicesPanel";
 import { MedicinesPanel } from "@/components/master-data/MedicinesPanel";
+import { BodyPartsPanel } from "@/components/master-data/BodyPartsPanel";
 import { SeedDataPanel } from "@/components/master-data/SeedDataPanel";
 import { isPlatformOwner } from "@/utils/auth";
 import { Database } from "lucide-react";
 
-type Tab = "diagnoses" | "symptoms" | "advices" | "medicines" | "seed-data";
+type Tab = "diagnoses" | "symptoms" | "advices" | "medicines" | "body-parts" | "seed-data";
 
 
 export default function MasterDataPage() {
@@ -85,6 +86,19 @@ export default function MasterDataPage() {
                         )}
                     </button>
 
+                    <button
+                        onClick={() => setActiveTab("body-parts")}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors relative whitespace-nowrap ${activeTab === "body-parts"
+                            ? "text-sky-600"
+                            : "text-slate-600 hover:text-slate-900"
+                            }`}
+                    >
+                        Body Parts
+                        {activeTab === "body-parts" && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
+                        )}
+                    </button>
+
                     {canSeed && (
                         <button
                             onClick={() => setActiveTab("seed-data")}
@@ -109,6 +123,7 @@ export default function MasterDataPage() {
                 {activeTab === "symptoms" && <SymptomsPanel />}
                 {activeTab === "advices" && <AdvicesPanel />}
                 {activeTab === "medicines" && <MedicinesPanel />}
+                {activeTab === "body-parts" && <BodyPartsPanel />}
                 {activeTab === "seed-data" && canSeed && <SeedDataPanel />}
             </div>
         </div>

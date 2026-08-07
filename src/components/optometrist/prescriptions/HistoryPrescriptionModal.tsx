@@ -55,7 +55,7 @@ export function HistoryPrescriptionModal({
             const [prescriptionRes, visitDataRes, surgeriesRes] = await Promise.all([
                 optometryPrescriptionApi.list({ visit_id: visitId }),
                 prescriptionDataApi.getPrescriptionData(patientId, visitId),
-                plannedSurgeriesApi.list({ patient_id: patientId, status: "scheduled" }),
+                plannedSurgeriesApi.list({ visit_id: visitId }),
             ]);
 
             let prescription: OptometryPrescription | null = null;
@@ -67,7 +67,7 @@ export function HistoryPrescriptionModal({
 
             // Resolve target doctor ID from prescription or OPD visit details
             let targetDoctorId = prescription?.doctor_id;
-            let targetDoctorName = prescription?.doctor_name;
+            const targetDoctorName = prescription?.doctor_name;
 
             if (!targetDoctorId) {
                 try {
@@ -226,7 +226,6 @@ export function HistoryPrescriptionModal({
             visitData={visitData}
             doctorSignature={doctorSignature}
             plannedSurgeries={plannedSurgeries}
-            showHeader={true}
         />
     );
 }

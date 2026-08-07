@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { BillingManagement } from "@/components/billing/BillingManagement";
+import { BillingManagement, type BillingStatusFilter } from "@/components/billing/BillingManagement";
 import { invoiceKeys } from "@/hooks/queries/useInvoices";
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "partial" | "refunded">("all");
+  const [statusFilter, setStatusFilter] = useState<BillingStatusFilter>("all");
 
-  const handleStatusFilterChange = (filter: "all" | "pending" | "paid" | "partial" | "refunded") => {
+  const handleStatusFilterChange = (filter: BillingStatusFilter) => {
     setStatusFilter(filter);
 
     // Invalidate invoices queries to refetch with new filter

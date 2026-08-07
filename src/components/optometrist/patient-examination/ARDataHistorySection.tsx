@@ -19,6 +19,16 @@ interface ARDataHistoryItem {
         cylinder: number | null;
         axis: number | null;
     };
+    od_wet?: {
+        sphere: number | null;
+        cylinder: number | null;
+        axis: number | null;
+    };
+    os_wet?: {
+        sphere: number | null;
+        cylinder: number | null;
+        axis: number | null;
+    };
     pupillary_distance: number | null;
     notes?: string | null;
 }
@@ -26,15 +36,17 @@ interface ARDataHistoryItem {
 interface ARDataHistorySectionProps {
     patientId: string;
     currentVisitId?: string;
+    initialExpanded?: boolean;
 }
 
 export function ARDataHistorySection({
     patientId,
     currentVisitId,
+    initialExpanded = true,
 }: ARDataHistorySectionProps) {
     const [loading, setLoading] = useState(true);
     const [historyRecords, setHistoryRecords] = useState<ARDataHistoryItem[]>([]);
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(initialExpanded);
     const [error, setError] = useState<string | null>(null);
 
     const formatValue = (
@@ -70,6 +82,16 @@ export function ARDataHistorySection({
                 sphere: toNumberOrNull(record.os_sphere),
                 cylinder: toNumberOrNull(record.os_cylinder),
                 axis: toNumberOrNull(record.os_axis),
+            },
+            od_wet: {
+                sphere: toNumberOrNull(record.od_wet_sphere),
+                cylinder: toNumberOrNull(record.od_wet_cylinder),
+                axis: toNumberOrNull(record.od_wet_axis),
+            },
+            os_wet: {
+                sphere: toNumberOrNull(record.os_wet_sphere),
+                cylinder: toNumberOrNull(record.os_wet_cylinder),
+                axis: toNumberOrNull(record.os_wet_axis),
             },
             pupillary_distance: toNumberOrNull(record.pupillary_distance),
             notes: record.notes,
@@ -225,57 +247,117 @@ export function ARDataHistorySection({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* OD */}
-                                        <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3">
-                                            <div className="flex items-center gap-1.5 mb-2">
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 flex flex-col gap-3">
+                                            <div className="flex items-center gap-1.5 pb-1 border-b border-blue-100/50">
                                                 <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                                <span className="text-xs font-semibold text-blue-900">OD (Right)</span>
+                                                <span className="text-xs font-bold text-blue-900">OD (Right Eye)</span>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-1 text-center">
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">SPH</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.sphere, "sphere")}
-                                                    </p>
+                                            
+                                            {/* Dry AR */}
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase text-blue-800/80 tracking-wider mb-1">Dry AR</p>
+                                                <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-blue-100/30">
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.od.sphere, "sphere")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.od.cylinder, "cylinder")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.od.axis, "axis")}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">CYL</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.cylinder, "cylinder")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">AXIS</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.od.axis, "axis")}
-                                                    </p>
+                                            </div>
+
+                                            {/* Wet AR */}
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase text-blue-800/80 tracking-wider mb-1">Wet AR</p>
+                                                <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-blue-100/30">
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.od_wet?.sphere, "sphere")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.od_wet?.cylinder, "cylinder")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.od_wet?.axis, "axis")}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* OS */}
-                                        <div className="rounded-lg border border-green-200 bg-green-50/70 p-3">
-                                            <div className="flex items-center gap-1.5 mb-2">
+                                        <div className="rounded-lg border border-green-200 bg-green-50/70 p-3 flex flex-col gap-3">
+                                            <div className="flex items-center gap-1.5 pb-1 border-b border-green-100/50">
                                                 <div className="h-2 w-2 rounded-full bg-green-500" />
-                                                <span className="text-xs font-semibold text-green-900">OS (Left)</span>
+                                                <span className="text-xs font-bold text-green-900">OS (Left Eye)</span>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-1 text-center">
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">SPH</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.sphere, "sphere")}
-                                                    </p>
+                                            
+                                            {/* Dry AR */}
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase text-green-800/80 tracking-wider mb-1">Dry AR</p>
+                                                <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-green-100/30">
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.os.sphere, "sphere")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.os.cylinder, "cylinder")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.os.axis, "axis")}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">CYL</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.cylinder, "cylinder")}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase text-slate-500">AXIS</p>
-                                                    <p className="text-sm font-bold text-slate-800">
-                                                        {formatValue(record.os.axis, "axis")}
-                                                    </p>
+                                            </div>
+
+                                            {/* Wet AR */}
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase text-green-800/80 tracking-wider mb-1">Wet AR</p>
+                                                <div className="grid grid-cols-3 gap-1 text-center bg-white/50 rounded p-1 border border-green-100/30">
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">SPH</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.os_wet?.sphere, "sphere")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">CYL</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.os_wet?.cylinder, "cylinder")}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-slate-400 font-medium">AXIS</p>
+                                                        <p className="text-xs font-bold text-slate-800">
+                                                            {formatValue(record.os_wet?.axis, "axis")}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

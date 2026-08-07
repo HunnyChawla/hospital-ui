@@ -170,6 +170,7 @@ export function OptometristPanel() {
     patientOptometryHistory,
     loading: dataLoading,
     refreshHistory,
+    loadMoreHistory,
     refreshRefraction,
     refreshIOP,
     refreshARData,
@@ -695,6 +696,7 @@ export function OptometristPanel() {
                     patientOptometryHistory={patientOptometryHistory}
                     historyLoading={historyLoading}
                     refreshHistory={refreshHistory}
+                    onLoadMoreHistory={loadMoreHistory}
                     loading={dataLoading}
                     refreshComplaints={refreshComplaints}
                     refreshMedicalHistory={refreshMedicalHistory}

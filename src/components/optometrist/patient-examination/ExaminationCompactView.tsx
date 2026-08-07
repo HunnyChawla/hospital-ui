@@ -16,6 +16,7 @@ import {
     EyeOff,
     CheckCircle2,
     Circle,
+    History,
 } from "lucide-react";
 
 import {
@@ -30,9 +31,11 @@ import {
     MedicalHistorySummary,
     CurrentSpecsSummary,
     MergedVisionSummary,
+    HistorySummary,
     type SummaryStatus,
 } from "./CompactDataSummary";
 import { DataEditModal } from "./DataEditModal";
+import { PreviousHistoryTimeline } from "./PreviousHistoryTimeline";
 
 // Import tab components
 import { ComplaintsTab } from "./ComplaintsTab";
@@ -79,7 +82,8 @@ type SectionId =
     | "ar_data"
     | "refraction"
     | "iop"
-    | "current_specs";
+    | "current_specs"
+    | "previous_history";
 
 interface ExaminationCompactViewProps {
     patientId: string;
@@ -97,6 +101,9 @@ interface ExaminationCompactViewProps {
     visionRecords: VisionRecord[];
     currentSpecsRecords?: CurrentSpecsRecord[]; // Added
     medicalConditions: MedicalConditionRecord[];
+    patientOptometryHistory: any; // PatientOptometryTimeline | null
+    historyLoading?: boolean;
+    onLoadMoreHistory?: () => void;
 
     // Loading states
     loading: {
@@ -142,6 +149,7 @@ const sections: SectionConfig[] = [
     { id: "ar_data", title: "AR Data (Auto-Refraction)", icon: Scan, colorScheme: "amber", modalSize: "xl" },
     { id: "current_specs", title: "Current Specs", icon: Glasses, colorScheme: "violet", modalSize: "lg" },
     { id: "allergies", title: "Drug Allergies", icon: AlertTriangle, colorScheme: "rose", modalSize: "lg" },
+    { id: "previous_history", title: "Previous History", icon: History, colorScheme: "emerald", modalSize: "xl" },
 ];
 
 export function ExaminationCompactView({
@@ -158,6 +166,9 @@ export function ExaminationCompactView({
     visionRecords,
     currentSpecsRecords,
     medicalConditions,
+    patientOptometryHistory,
+    historyLoading,
+    onLoadMoreHistory,
     loading,
     refreshComplaints,
     refreshMedicalHistory,
@@ -226,6 +237,9 @@ export function ExaminationCompactView({
             refraction: getRefractionStatus(refractionRecords, visitId) as SummaryStatus,
             iop: getIOPStatus(iopRecords, visitId) as SummaryStatus,
             current_specs: getCurrentSpecsStatus(currentSpecsRecords || [], visitId) as SummaryStatus,
+            previous_history: (Array.isArray(patientOptometryHistory?.items) && patientOptometryHistory.items.length > 0
+                ? "complete"
+                : "empty") as SummaryStatus,
         }),
         [
             complaints,
@@ -237,6 +251,7 @@ export function ExaminationCompactView({
             refractionRecords,
             iopRecords,
             currentSpecsRecords,
+            patientOptometryHistory,
             visitId,
         ]
     );
@@ -303,6 +318,12 @@ export function ExaminationCompactView({
                     return filledCount > 0 ? `${filledCount} of 4 components` : undefined;
                 }
                 return undefined;
+            case "previous_history": {
+                const visitCount = Array.isArray(patientOptometryHistory?.items)
+                    ? patientOptometryHistory.items.length
+                    : 0;
+                return visitCount > 0 ? `${visitCount} past visit${visitCount > 1 ? "s" : ""}` : "No history";
+            }
             default:
                 return undefined;
         }
@@ -338,6 +359,8 @@ export function ExaminationCompactView({
                 return <IOPSummary record={currentIOPRecord} />;
             case "current_specs":
                 return <CurrentSpecsSummary record={currentSpecsRecords?.find(r => r.visit_id === visitId)} />;
+            case "previous_history":
+                return <HistorySummary history={patientOptometryHistory} />;
             default:
                 return null;
         }
@@ -456,6 +479,15 @@ export function ExaminationCompactView({
                         onRefresh={refreshCurrentSpecs || (() => {})}
                     />
                 );
+            case "previous_history":
+                return (
+                    <PreviousHistoryTimeline
+                        patientOptometryHistory={patientOptometryHistory}
+                        loading={!!historyLoading}
+                        currentVisitComplaints={complaints}
+                        onLoadMore={onLoadMoreHistory}
+                    />
+                );
             default:
                 return null;
         }
@@ -570,9 +602,10 @@ export function ExaminationCompactView({
                             icon={<SectionIcon className="h-5 w-5" />}
                             status={status}
                             statusText={getStatusText(section.id)}
-                            summary={status !== "empty" ? getSummaryContent(section.id) : undefined}
+                            summary={section.id === "previous_history" ? getSummaryContent(section.id) : (status !== "empty" ? getSummaryContent(section.id) : undefined)}
                             onEdit={() => setActiveModal(section.id)}
                             colorScheme={section.colorScheme}
+                            buttonTextOverride={section.id === "previous_history" ? "View" : undefined}
                         />
                     );
                 })}

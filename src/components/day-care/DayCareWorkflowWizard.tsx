@@ -56,6 +56,12 @@ import { mrdApi, MRDDocument, MRDDocumentCategory } from "@/services/mrdApi";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { Payment } from "@/services/paymentsApi";
+import { usePlannedSurgery } from "@/hooks/queries/usePlannedSurgeries";
+import { useSurgeryPaymentSummary } from "@/hooks/queries/useSurgeryBilling";
+import { SurgeryPaymentSummaryPanel } from "@/components/planned-surgeries/SurgeryPaymentSummaryPanel";
+import { AdvancePaymentModal } from "@/components/planned-surgeries/AdvancePaymentModal";
+import { SurgeryInvoiceModal } from "@/components/planned-surgeries/SurgeryInvoiceModal";
+import { RefundModal } from "@/components/planned-surgeries/RefundModal";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { currency } from "@/utils/format";
@@ -206,6 +212,13 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     unit_price: number;
   }[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+
+  const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+
+  const { data: surgery } = usePlannedSurgery(visit?.planned_surgery_id || null);
+  const { data: summary } = useSurgeryPaymentSummary(visit?.planned_surgery_id || null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -459,20 +472,38 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
 
   // Initialize default line items when visit is loaded
   useEffect(() => {
-    if (visit && !visit.invoice_id && invoiceLineItems.length === 0 && availableSurgeries.length > 0) {
-      const sNameLower = visit.surgery_name.toLowerCase().trim();
-      const surgery = availableSurgeries.find(s => s.name.toLowerCase().trim() === sNameLower);
-      const price = surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
-      
+    if (visit && !visit.invoice_id && invoiceLineItems.length === 0) {
+      let desc = visit.surgery_name;
+      if (visit.package_name) {
+        desc = `${visit.surgery_name} (${visit.package_name} Package)`;
+      } else {
+        desc = `${visit.surgery_name} Package Charges`;
+      }
+      if (visit.body_part_name) {
+        desc += ` - ${visit.body_part_name}`;
+      }
+
+      // The backend already snapshots package_price per-body-part at scheduling
+      // time (SurgeryPackageService.resolve_package_price) - this fallback only
+      // covers the rare case where no snapshot exists at all.
+      let price = visit.package_price ?? 0;
+      if (price <= 0 && availableSurgeries.length > 0) {
+        const sNameLower = visit.surgery_name.toLowerCase().trim();
+        const surgery = availableSurgeries.find(s => s.name.toLowerCase().trim() === sNameLower);
+        price = surgery && surgery.price !== undefined && surgery.price !== null ? surgery.price : 25000;
+      } else if (price <= 0) {
+        price = 25000;
+      }
+
       setInvoiceLineItems([
         {
-          description: `${visit.surgery_name} package charges`,
+          description: desc,
           quantity: 1,
           unit_price: price
         }
       ]);
     }
-  }, [visit?.id, visit?.invoice_id, availableSurgeries, invoiceLineItems.length]);
+  }, [visit?.id, visit?.invoice_id, visit?.package_name, visit?.package_price, visit?.body_part_name, availableSurgeries, invoiceLineItems.length]);
 
   const handleAddServiceItem = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -821,7 +852,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
           {STAGES.map((stage, idx) => {
             const isActive = activeTab === stage.id;
             const isCompleted = highestStageIndex > idx || currentStageIndex > idx || visit.status === "discharged";
-            const isPendingPaymentAction = stage.id === "billing" && !visit.payment_id;
+            const isPendingPaymentAction = stage.id === "billing" && summary && summary.balance_due > 0;
             const isActuallyCompleted = isCompleted && !isPendingPaymentAction;
             const isSelectable = true; // Always allow navigating to any step to keep the workflow flexible
 
@@ -876,205 +907,20 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
           <div className="space-y-8 max-w-3xl mx-auto">
 
 
-            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">Billing Information</h3>
-                  <p className="text-sm text-slate-500">Day care surgery package</p>
-                </div>
-                {visit?.payment_id ? (
-                  <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                    Payment Confirmed
-                  </span>
-                ) : visit?.invoice_id ? (
-                  <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-                    Pending Payment
-                  </span>
-                ) : (
-                  <span className="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
-                    Invoice Not Generated
-                  </span>
-                )}
+            {surgery ? (
+              <div className="space-y-6">
+                <SurgeryPaymentSummaryPanel
+                  surgery={surgery}
+                  onOpenAdvanceModal={() => setIsAdvanceModalOpen(true)}
+                  onOpenInvoiceModal={() => setIsInvoiceModalOpen(true)}
+                  onOpenRefundModal={() => setIsRefundModalOpen(true)}
+                />
               </div>
-
-              {!visit?.invoice_id ? (
-                <div className="space-y-6">
-                  {/* Proposed Items Table */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Service / Description</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Unit Price</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "100px" }}>Qty</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Total</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "80px" }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                          {invoiceLineItems.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="p-4 font-semibold text-slate-800">{item.description}</td>
-                              <td className="p-4 text-right text-slate-600 font-medium">{currency(item.unit_price)}</td>
-                              <td className="p-4 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => handleQuantityChange(idx, parseInt(e.target.value) || 1)}
-                                  className="w-16 px-2 py-1 text-center font-semibold rounded-lg border border-slate-200 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 bg-slate-50"
-                                />
-                              </td>
-                              <td className="p-4 text-right font-bold text-slate-900">{currency(item.unit_price * item.quantity)}</td>
-                              <td className="p-4 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveServiceItem(idx)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                  title="Remove item"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          {invoiceLineItems.length === 0 && (
-                            <tr>
-                              <td colSpan={5} className="p-8 text-center text-slate-400 font-medium">
-                                No billing items added yet. Please select a service below.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Add Service Catalog Input */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Add Service from Catalog</h4>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1">
-                        <Combobox
-                          value={selectedServiceId}
-                          onChange={(val) => {
-                            setSelectedServiceId(val);
-                            if (val) handleAddServiceItem(val);
-                          }}
-                          options={services.map(s => ({
-                            label: `${s.name} (₹${s.price})`,
-                            value: s.id
-                          }))}
-                          placeholder="Search or select service to add..."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total and Action */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-center sm:text-left">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Proposed Billing</span>
-                      <p className="text-sm text-slate-500 font-medium mt-0.5">{invoiceLineItems.length} items selected</p>
-                    </div>
-                    <div className="text-center sm:text-right mt-4 sm:mt-0">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Total</span>
-                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
-                        {currency(invoiceLineItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0))}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center pt-2">
-                    <button
-                      onClick={handleGenerateInvoice}
-                      disabled={submitting || invoiceLineItems.length === 0}
-                      className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
-                    >
-                      {submitting ? "Generating..." : "Generate Invoice Now"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Generated Items Table */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Service / Description</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Unit Price</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-center" style={{ width: "100px" }}>Qty</th>
-                            <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right" style={{ width: "140px" }}>Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                          {invoice?.line_items ? (
-                            invoice.line_items.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-4 font-semibold text-slate-800">{item.description}</td>
-                                <td className="p-4 text-right text-slate-600 font-medium">
-                                  {currency(typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : item.unit_price)}
-                                </td>
-                                <td className="p-4 text-center font-semibold text-slate-700">{item.quantity}</td>
-                                <td className="p-4 text-right font-bold text-slate-900">
-                                  {currency(
-                                    (typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : item.unit_price) * 
-                                    (typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity)
-                                  )}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="p-8 text-center text-slate-400 font-medium flex items-center justify-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                                Loading invoice line items...
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Summary Details */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-center sm:text-left">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Number</span>
-                      <p className="font-mono text-xl font-bold text-slate-800 mt-1">{visit.invoice_number || visit.invoice_id}</p>
-                    </div>
-                    <div className="text-center sm:text-right mt-4 sm:mt-0">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice Total</span>
-                      <p className="text-3xl font-extrabold text-slate-900 mt-1">
-                        {currency(invoice?.total_amount || 0)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 bg-sky-50 p-4 rounded-xl border border-sky-100 text-sky-800">
-                    <Info className="h-5 w-5 shrink-0 mt-0.5" />
-                    <p className="text-sm font-medium">
-                      Collect payments via the central billing counter. You can proceed with the clinical pre-assessment while payment is pending.
-                    </p>
-                  </div>
-
-                  {!visit.payment_id && (
-                    <div className="flex justify-center pt-2">
-                      <button
-                        onClick={handleOpenPayment}
-                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-all"
-                      >
-                        <IndianRupee className="w-5 h-5" />
-                        Collect Payment
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400">
+                Loading surgery billing details...
+              </div>
+            )}
 
             <div className="flex justify-end pt-4 border-t border-slate-100">
               <button
@@ -1470,6 +1316,8 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               ))}
             </div>
 
+            {visit?.body_part_department === "Ophthalmology" && (
+              <>
             <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pt-6 pb-3">Eye-Specific Preparation Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Right Eye */}
@@ -1514,9 +1362,13 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                 </div>
               </div>
             </div>
+              </>
+            )}
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Preparation Notes</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                {visit?.body_part_department === "Ophthalmology" ? "Preparation Notes" : `${visit?.body_part_name || "Site"} Preparation Notes`}
+              </label>
               <textarea value={checklist.checklist_notes || ""} onChange={(e) => setChecklist({ ...checklist, checklist_notes: e.target.value })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 h-24 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" placeholder="Note pre-op drops timing, patient anxiety levels, etc..." />
             </div>
 
@@ -2087,6 +1939,20 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               <ClipboardList className="w-4 h-4 text-sky-500 shrink-0" />
               <span>Procedure: <strong className="text-slate-800">{visit.surgery_name}</strong></span>
             </div>
+            {visit.package_price != null && (
+              <div className="flex items-center gap-2 bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100/80 flex-1 lg:flex-none">
+                <span className="text-[9px] font-extrabold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">₹</span>
+                <span>
+                  Package Price:{" "}
+                  {visit.original_package_price != null && visit.original_package_price !== visit.package_price && (
+                    <span className="line-through text-slate-400">
+                      ₹{Number(visit.original_package_price).toLocaleString("en-IN")}{" "}
+                    </span>
+                  )}
+                  <strong className="text-slate-800">₹{Number(visit.package_price).toLocaleString("en-IN")}</strong>
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2110,6 +1976,31 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         onClose={() => setIsPaymentModalOpen(false)}
         invoice={paymentInvoice}
         onSuccess={handlePaymentSuccess}
+      />
+
+      {/* Advance Payment Modal */}
+      <AdvancePaymentModal
+        isOpen={isAdvanceModalOpen}
+        onClose={() => setIsAdvanceModalOpen(false)}
+        surgery={surgery || null}
+      />
+
+      {/* Surgery Invoice Modal */}
+      <SurgeryInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        surgery={surgery || null}
+        onOpenAdvanceModal={() => {
+          setIsInvoiceModalOpen(false);
+          setIsAdvanceModalOpen(true);
+        }}
+      />
+
+      {/* Refund Modal */}
+      <RefundModal
+        isOpen={isRefundModalOpen}
+        onClose={() => setIsRefundModalOpen(false)}
+        surgery={surgery || null}
       />
     </div>
   );

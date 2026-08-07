@@ -104,18 +104,18 @@ export function PaymentCollectionModal({
               <span className="font-semibold text-slate-900">{invoice.invoice_number}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">Total Amount:</span>
+              <span className="text-slate-600">Total Surgery Amount:</span>
               <span className="font-semibold text-slate-900">{currency(invoice.total_amount)}</span>
             </div>
             {invoice.paid_amount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-slate-600">Paid Amount:</span>
-                <span className="font-semibold text-emerald-700">{currency(invoice.paid_amount)}</span>
+              <div className="flex justify-between text-emerald-700">
+                <span className="font-medium">✓ Advance Paid:</span>
+                <span className="font-semibold">-{currency(invoice.paid_amount)}</span>
               </div>
             )}
-            <div className="flex justify-between border-t border-slate-200 pt-2">
-              <span className="font-semibold text-slate-900">Balance Amount:</span>
-              <span className="font-bold text-amber-700">{currency(balanceAmount)}</span>
+            <div className="flex justify-between border-t border-slate-200 pt-2 bg-amber-50/60 p-2 rounded-lg">
+              <span className="font-bold text-amber-900">Final Amount to Collect:</span>
+              <span className="font-black text-amber-900 text-base">{currency(balanceAmount)}</span>
             </div>
           </div>
         </div>

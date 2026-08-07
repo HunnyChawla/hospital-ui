@@ -65,6 +65,27 @@ export const formatDateTime = (value: string | null | undefined) => {
   }
 };
 
+// Format a "Link Existing ABHA" input as the user types: a 14-digit ABHA
+// number gets grouped as XX-XXXX-XXXX-XXXX, while a 10-digit (or shorter)
+// mobile number is left as plain digits with no dashes.
+export const formatAbhaOrMobileInput = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 10) {
+    return digits;
+  }
+  return [digits.slice(0, 2), digits.slice(2, 6), digits.slice(6, 10), digits.slice(10, 14)]
+    .filter(Boolean)
+    .join("-");
+};
+
+// Display-only formatting for a 12-digit Aadhaar number, grouped as
+// "XXXX XXXX XXXX". The underlying value stays plain digits (no spaces)
+// so it can be passed straight to the backend.
+export const formatAadhaarDisplay = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 12);
+  return digits.match(/.{1,4}/g)?.join(" ") ?? digits;
+};
+
 export const timeAgo = (dateString: string): string => {
   try {
     const date = new Date(dateString);

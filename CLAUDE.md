@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js-based Hospital Management System UI that manages patients, appointments, OPD/IPD operations, billing, lab tests, and more. The application is a multi-tenant system that supports subdomain-based hospital identification and role-based access control.
+This is a Next.js-based Hospital Management System UI covering patients, appointments, OPD/IPD, billing, lab tests, optometry/ophthalmology, surgery & day-care, ABHA (Ayushman Bharat Health Account) integration, and platform/tenant administration. It is a multi-tenant system supporting subdomain-based hospital identification and permission-based access control.
 
 ## Essential Commands
 
@@ -14,7 +14,11 @@ npm run dev          # Start development server on localhost:3000
 npm run build        # Build for production (static export)
 npm start            # Start production server (after build)
 npm run lint         # Run ESLint
+npm run export       # Alias for `next build` (static export to out/)
+npm run serve        # Serve the built out/ directory locally (npx serve)
 ```
+
+There is no test suite configured (no jest/vitest/playwright/cypress).
 
 ### Environment Setup
 Copy `.env.local.example` to `.env.local` for local development:
@@ -27,12 +31,16 @@ Key environment variables:
 - `NEXT_PUBLIC_DOMAIN_URL`: Base domain for subdomain detection (optional)
 - `NEXT_PUBLIC_BASE_PATH`: Base path for GitHub Pages deployment (production only)
 
+Runtime env values are read through `src/utils/env.ts` (which also supports a `window.__ENV` override), not directly via `process.env`, in most service files — see `services/api.ts`.
+
 ## Architecture
 
 ### Tech Stack
-- **Framework**: Next.js 16 with App Router
-- **State Management**: Redux Toolkit + React Query (TanStack Query)
-- **UI**: Tailwind CSS 4, Lucide React icons
+- **Framework**: Next.js 16 (App Router)
+- **State Management**: Redux Toolkit (global state) + TanStack Query / React Query (server state), used side by side
+- **UI**: Tailwind CSS 4, Lucide React icons, Headless UI, `clsx`
+- **Drag & drop**: `@dnd-kit/core` + `@dnd-kit/sortable` (e.g. reorderable rows in `screens/`)
+- **Charts**: Recharts (analytics, vitals charts)
 - **Forms**: React Hook Form
 - **Notifications**: Sonner
 - **PDF Generation**: jsPDF + jsPDF-AutoTable
@@ -40,74 +48,18 @@ Key environment variables:
 - **TypeScript**: Strict mode enabled
 
 ### Project Structure
-```
-src/
-├── app/                    # Next.js App Router pages
-│   ├── page.tsx           # Main dashboard (all sections in one SPA)
-│   ├── login/page.tsx     # Login page
-│   └── providers.tsx      # Redux + React Query providers
-├── components/            # React components organized by domain
-│   ├── patients/         # Patient management
-│   ├── doctors/          # Doctor management + doctor panel
-│   ├── opd/              # OPD visits and appointments
-│   ├── ipd/              # IPD/admissions, wards, beds, discharge
-│   ├── lab-tests/        # Lab test catalog management
-│   ├── lab-bookings/     # Lab test bookings
-│   ├── lab-technician/   # Test results entry
-│   ├── billing/          # Invoices and payments
-│   ├── payments/         # Payment collection modals
-│   ├── analytics/        # Analytics dashboard
-│   ├── queue/            # Patient queue board
-│   ├── mrd/              # Medical Records Department
-│   ├── services/         # Service master
-│   ├── users/            # Staff/user management
-│   ├── layout/           # Sidebar, TopBar
-│   ├── common/           # Shared UI components
-│   └── shared/           # Generic reusable components
-├── redux/                # Redux slices (state management)
-│   ├── store.ts          # Redux store configuration
-│   ├── authSlice.ts      # Authentication state
-│   ├── tenantSlice.ts    # Multi-tenant state
-│   ├── patientsSlice.ts  # Patient CRUD operations
-│   ├── admissionsSlice.ts
-│   ├── billingSlice.ts
-│   ├── doctorsSlice.ts
-│   ├── labTestsSlice.ts
-│   ├── servicesSlice.ts
-│   ├── queueSlice.ts
-│   └── testsSlice.ts
-├── services/             # API service layer (axios-based)
-│   ├── api.ts            # Base axios client with auth interceptor
-│   ├── patientsApi.ts
-│   ├── doctorsApi.ts
-│   ├── opdVisitsApi.ts
-│   ├── appointmentsApi.ts
-│   ├── admissionsApi.ts
-│   ├── labTestsApi.ts
-│   ├── labBookingsApi.ts
-│   ├── invoicesApi.ts
-│   ├── paymentsApi.ts
-│   ├── prescriptionsApi.ts
-│   ├── medicinesApi.ts
-│   ├── analyticsApi.ts
-│   ├── authApi.ts
-│   ├── usersApi.ts
-│   ├── wardsApi.ts
-│   ├── bedsApi.ts
-│   ├── mrdApi.ts
-│   ├── queueApi.ts
-│   └── serviceChargesApi.ts
-├── types/                # TypeScript type definitions
-│   └── index.ts          # Central type definitions
-├── utils/                # Utility functions
-│   ├── auth.ts           # Platform owner checks, tenant ID helpers
-│   ├── subdomain.ts      # Subdomain extraction logic
-│   ├── format.ts         # Date, currency formatting
-│   └── errorHandler.ts   # Error handling utilities
-├── hooks/                # Custom React hooks
-│   └── useTenant.ts      # Tenant context hook
-└── contexts/             # React contexts (if needed)
-```
+
+The app has grown into many domains. Rather than an exhaustive tree, the important groupings under `src/` are:
+
+- `app/` — Next.js App Router pages. `(dashboard)/` is a route group holding almost every authenticated screen (patients, doctors, opd, ipd, billing, lab-*, optometrist-panel, surgeries, day-care, platform-billing, tenants, permissions, feature-flags, master-data, etc.) behind a shared `(dashboard)/layout.tsx`. Standalone top-level routes also exist: `login/`, `tv-login/`, `tv-display/` (queue TV screens with their own auth).
+- `components/` — organized by domain, one folder per feature area (patients, doctors, opd, ipd, lab-tests, lab-bookings, lab-technician, billing, payments, analytics, queue, mrd, services, users, optometrist, abha, permissions, feature-flags, platform-billing, tenants, surgeries, planned-surgeries, day-care, master-data, doctor-groups, screens, layout, common, shared, …).
+- `redux/` — one slice per domain (auth, tenant, patients, admissions, billing, doctors, labTests, services, queue, permissions, optometristPanel, optometryData, seedData, vitalSigns, clinicalNotes, diagnoses, symptoms, advices, medicines, wards, beds, doctorPanel, …), wired up in `store.ts`. `redux/hooks.ts` exports the typed `useAppDispatch`/`useAppSelector` used everywhere.
+- `services/` — axios-based API layer, one file per resource (`*Api.ts`); there are ~60+ of these across clinical, optometry, surgery, billing, and platform-admin domains.
+- `hooks/` — general hooks (`useTenant`, `useFeatureFlags`, `usePermissions`, `useSSE`, `useVoiceRecording`, `useConfirm`, `useSidebar`, …) plus a `hooks/queries/` subfolder holding the React Query hooks (`usePatients`, `useAdmissions`, `useDoctors`, `useInvoices`, `useLabBookings`, `useOpdVisits`, `useQueue`, `useSurgeryBilling`, …) that wrap the `services/*Api.ts` calls.
+- `types/` — `index.ts` plus domain-specific files (`dayCare.ts`, `platformBilling.ts`).
+- `utils/` — `auth.ts`, `subdomain.ts`, `format.ts`, `errorHandler.ts`, `env.ts` (runtime env / `window.__ENV`), `license.ts`, `sound.ts`, and per-panel queue filter helpers (`queueFilters.ts`, `doctorQueueFilters.ts`, `optometristQueueFilters.ts`).
+
+Several root-level markdown files document specific backend integrations in more detail than this file (e.g. `DOCTOR_PANEL_API.md`, `OPTOMETRY_API_CHANGES.md`, `OPTOMETRY_BACKEND_API_REQUIREMENTS.md`, `FRONTEND_INTEGRATION_GUIDE.md`, `QUICK_API_REFERENCE.md`) — check these when working on those specific modules.
 
 ### Key Architectural Patterns
 
@@ -119,8 +71,8 @@ src/
 - `getTenantIdForApi()` ensures tenant_id is only sent for platform owners
 
 #### 2. State Management Strategy
-- **Redux Toolkit**: Global state for auth, patients, admissions, billing, doctors, labs, services, queue, tenant
-- **React Query**: Server state caching, mutations, and optimistic updates (used alongside Redux)
+- **Redux Toolkit**: Global state for auth, patients, admissions, billing, doctors, labs, services, queue, tenant, permissions, optometry panel/data, and more (one slice per domain in `redux/`)
+- **React Query**: Server state caching, mutations, and optimistic updates, mostly through dedicated hooks in `hooks/queries/` that call `services/*Api.ts` — used alongside Redux, not as a replacement
 - **Local State**: Component-level UI state (modals, tabs, filters)
 
 #### 3. API Layer Pattern
@@ -140,18 +92,20 @@ Example pattern from `patientsApi.ts`:
 
 #### 4. Authentication Flow
 - Token stored in `localStorage` as `auth_token`
-- `apiClient` in `services/api.ts` has request interceptor to add `Authorization: Bearer <token>`
-- Response interceptor catches 401 errors and redirects to `/login`
+- `apiClient` in `services/api.ts` is instantiated lazily behind a `Proxy` (it waits on the runtime env value from `utils/env.ts` / `window.__ENV` before creating the real axios instance) rather than a plain module-scope `axios.create()`
+- Request interceptor adds `Authorization: Bearer <token>`
+- Response interceptor catches 401 errors, clears auth storage, and redirects to `/login` (respecting `basePath`)
 - Session restored on app mount via `restoreSession()` in `authSlice.ts`
 
-#### 5. Single-Page Application Structure
-- Main app (`src/app/page.tsx`) is a **single-page app** with hash-based routing
-- All sections (dashboard, patients, doctors, opd, billing, etc.) are rendered in one component
-- Active section determined by `window.location.hash` (e.g., `#patients`, `#billing`)
-- Navigation via Sidebar sets hash, which triggers section visibility
+#### 5. Routing & Access Control
+- Standard Next.js App Router file-based routing — each feature area is a real route under `app/(dashboard)/<feature>/page.tsx`, not a hash-routed single-page app
+- `app/(dashboard)/layout.tsx` gates every route: it calls `usePermissions()` to fetch `allowedScreens`/`default_screen`, then `hasAccess(pathname)` to decide between rendering the page or an "Access Denied" screen
+- Doctors are routed to either `doctor-panel` or `optometrist-panel` based on `specialization === "Ophthalmology"` (handled in the same layout)
+- A legacy hash-redirect shim lives in `app/(dashboard)/page.tsx` (~line 305): old bookmarked/shared links like `#patients` are caught and redirected to the corresponding real route — this is a backwards-compatibility fallback, not the primary routing mechanism
+- Feature flags (`useFeatureFlags`, `services/featureFlagsApi.ts`) layer on top of permissions to toggle newer functionality per tenant
 
 #### 6. Print/PDF Generation
-- Components with "Print" suffix (e.g., `OpdSlipPrint.tsx`, `DischargeSummaryPrint.tsx`) use `react-to-print`
+- Components with "Print" suffix (e.g. `OpdSlipPrint.tsx`, `DischargeSummaryPrint.tsx`) use `react-to-print`
 - PDF exports use `jsPDF` and `jsPDF-AutoTable`
 - Print components hidden from main UI, mounted only when printing
 - Hospital logo and tenant details fetched from `tenantSlice` via `useTenant()` hook
@@ -162,11 +116,10 @@ Example pattern from `patientsApi.ts`:
 - Forms submit via Redux async thunks or React Query mutations
 - Success notifications via `toast()` from Sonner
 
-#### 8. Role-Based Access Control
-- User role stored in `localStorage` as `role`
-- Roles: `admin`, `doctor`, `nurse`, `receptionist`, `lab_technician`, `platform_owner`
-- Some sections (e.g., lab-technician panel) check role before rendering
-- Doctor Panel (`#doctor-panel`) is role-specific for doctors
+#### 8. Role-Based Access Control & Permissions
+- User role stored in `localStorage` as `role` (`admin`, `doctor`, `nurse`, `receptionist`, `lab_technician`, `platform_owner`, …)
+- Fine-grained access is permission-based, not just role checks: `redux/permissionsSlice.ts` + `services/permissionsApi.ts` + `hooks/usePermissions.ts` drive `hasAccess(pathname)` in `app/(dashboard)/layout.tsx`
+- Some panels (doctor panel, optometrist panel, lab-technician panel) additionally check role/specialization before rendering
 
 ## Important Implementation Details
 
@@ -182,11 +135,11 @@ Subdomain extraction logic (`utils/subdomain.ts`):
 - Handles configured domain with NEXT_PUBLIC_DOMAIN_URL
 - Handles auto-detection for 3+ part hostnames
 
-### GitHub Pages Deployment
-- `output: "export"` in `next.config.ts` for static export
-- `basePath` set via `NEXT_PUBLIC_BASE_PATH` for GitHub Pages
-- Images unoptimized for static export
-- Trailing slash enabled
+### Deployment
+Three deployment paths exist in this repo — check which is relevant before changing build/deploy config:
+- **Static export / GitHub Pages**: `output: "export"` in `next.config.ts`; `basePath`/`assetPrefix` set via `NEXT_PUBLIC_BASE_PATH`; images unoptimized; trailing slash enabled
+- **Docker**: `Dockerfile`, `docker-compose.yml`, `nginx.conf`, `entrypoint.sh`, `docker-build.sh`/`.bat`, `push-to-dockerhub.sh`
+- **Netlify**: `netlify.toml`
 
 ### Service Worker (PWA)
 - Service worker defined in `public/sw.js`
@@ -218,13 +171,13 @@ Subdomain extraction logic (`utils/subdomain.ts`):
 ## Common Development Patterns
 
 ### Adding a New Feature
-1. Define TypeScript types in `src/types/index.ts`
-2. Create API service in `src/services/` (e.g., `newFeatureApi.ts`)
-3. Create Redux slice if needed in `src/redux/`
-4. Add slice to `store.ts` reducer
+1. Define TypeScript types in `src/types/index.ts` (or a domain-specific file in `src/types/`)
+2. Create API service in `src/services/` (e.g. `newFeatureApi.ts`)
+3. Create Redux slice if needed in `src/redux/`, or a React Query hook in `src/hooks/queries/`
+4. Add slice to `store.ts` reducer (if using Redux)
 5. Create components in `src/components/new-feature/`
-6. Add section to main `page.tsx` with hash routing
-7. Add sidebar menu item in `Sidebar.tsx`
+6. Add a route at `src/app/(dashboard)/new-feature/page.tsx`
+7. Add sidebar menu item in `Sidebar.tsx`, and a permission entry if the feature should be access-gated
 
 ### Working with Forms
 ```typescript
@@ -256,8 +209,8 @@ export const exampleApi = {
 
 ### Using React Query with Redux
 - Redux for global app state (patients list, auth, etc.)
-- React Query for server caching and mutations (appointments, lab bookings, invoices)
-- Both can coexist: use `useQuery` for fetching, dispatch Redux actions for state updates
+- React Query for server caching and mutations (appointments, lab bookings, invoices, admissions, surgery billing, etc. — see `hooks/queries/`)
+- Both can coexist: use `useQuery`/hooks from `hooks/queries/` for fetching, dispatch Redux actions for state updates
 
 ## Testing & Quality
 
@@ -265,15 +218,8 @@ export const exampleApi = {
 - TypeScript strict mode enabled
 - No unit tests currently configured (can be added)
 
-## Deployment Notes
-
-- Production builds use static export (`next build` generates `out/` directory)
-- GitHub Actions workflow can set environment variables via secrets
-- For subdomain-based routing in production, ensure `NEXT_PUBLIC_DOMAIN_URL` is set
-- Base path automatically set to `/hospital-ui` for GitHub Pages
-
 ## License Information
 
 - License validity tracked via tenant's `license_valid_till` field
 - License expiry alert shown on dashboard when expiring or expired
-- Helper functions for license checks inlined in `page.tsx` to avoid HMR issues
+- Helper functions for license checks live in `src/utils/license.ts`

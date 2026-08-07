@@ -237,7 +237,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <main className="min-h-screen flex flex-col px-3 py-3 lg:px-6 pb-20">
+    <main className="min-h-screen flex flex-col px-3 py-3 lg:px-6 pb-20 min-w-0 max-w-full">
       <TopBar onPatientSelect={(patientId) => {
         setSelectedPatientId(patientId);
       }} />
@@ -259,7 +259,7 @@ export default function DashboardLayout({
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Access Denied</h1>
           <p className="text-slate-600 max-w-md mb-8">
-            You do not have permission to access the <span className="font-semibold text-slate-900">"{pathname}"</span> screen.
+            You do not have permission to access the <span className="font-semibold text-slate-900">&quot;{pathname}&quot;</span> screen.
             Please contact your administrator if you believe this is an error.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">

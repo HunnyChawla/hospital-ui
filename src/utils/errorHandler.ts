@@ -49,20 +49,59 @@ export interface HandleErrorOptions {
 }
 
 /**
+ * Turns a snake_case DB table name into a human-readable label,
+ * e.g. "planned_surgeries" -> "Planned Surgeries".
+ */
+function prettifyTableName(table: string): string {
+  return table
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Detects raw Postgres foreign-key-violation error text (leaked verbatim by
+ * some backend endpoints on delete) and rewrites it into a user-facing
+ * message. Falls back to the original message when it isn't a recognized
+ * DB constraint error.
+ */
+function humanizeDbError(message: string): string {
+  if (!message) return message;
+  const lower = message.toLowerCase();
+  if (!lower.includes("foreign key constraint")) {
+    return message;
+  }
+
+  const referencingTablePatterns = [
+    /referenced from table "([a-zA-Z0-9_]+)"/i,
+    /foreign key constraint "[^"]+" on table "([a-zA-Z0-9_]+)"/i,
+  ];
+  for (const pattern of referencingTablePatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return `This item cannot be deleted because it is still used in ${prettifyTableName(
+        match[1]
+      )}. Please remove or update those references first.`;
+    }
+  }
+
+  return "This item cannot be deleted because it is still referenced elsewhere. Please remove those references first.";
+}
+
+/**
  * Helper to parse detail field from API responses or error payloads
  */
 function parseDetail(detail: any): string | null {
   if (!detail) return null;
 
   if (typeof detail === "string") {
-    return detail;
+    return humanizeDbError(detail);
   }
 
   if (Array.isArray(detail) && detail.length > 0) {
     const messages = detail.map((err: any) => {
-      if (typeof err === "string") return err;
-      if (err?.msg) return err.msg;
-      if (err?.message) return err.message;
+      if (typeof err === "string") return humanizeDbError(err);
+      if (err?.msg) return humanizeDbError(err.msg);
+      if (err?.message) return humanizeDbError(err.message);
       if (err?.ctx) {
         const { resource_type, field, value } = err.ctx;
         if (resource_type && field) {
@@ -76,10 +115,10 @@ function parseDetail(detail: any): string | null {
 
   if (typeof detail === "object" && detail !== null) {
     if ("message" in detail && typeof detail.message === "string") {
-      return detail.message;
+      return humanizeDbError(detail.message);
     }
     if ("msg" in detail && typeof detail.msg === "string") {
-      return detail.msg;
+      return humanizeDbError(detail.msg);
     }
     if ("detail" in detail) {
       return parseDetail(detail.detail);

@@ -33,6 +33,18 @@ export interface DayCareVisit {
   surgeon_id: string;
   surgeon_name?: string;
   surgery_name: string;
+  package_id?: string | null;
+  package_name?: string | null;
+  package_price?: number | null;
+  /** Pre-discount catalog price, when package_price reflects a discount */
+  original_package_price?: number | null;
+  /** @deprecated use body_part_id/body_part_name */
+  eye?: string | null;
+  /** @deprecated superseded by per-body-part package pricing */
+  ou_price?: number | null;
+  body_part_id?: string | null;
+  body_part_name?: string | null;
+  body_part_department?: string | null;
   visit_date: string;
   status: DayCareStatus;
   check_in_at: string | null;

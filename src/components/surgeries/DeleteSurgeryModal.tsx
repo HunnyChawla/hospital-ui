@@ -1,6 +1,8 @@
 import { Fragment, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { AlertTriangle, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 interface DeleteSurgeryModalProps {
     isOpen: boolean;
@@ -24,6 +26,7 @@ export function DeleteSurgeryModal({
             onClose();
         } catch (error) {
             console.error("Failed to delete surgery:", error);
+            toast.error(getErrorMessage(error));
         } finally {
             setIsDeleting(false);
         }

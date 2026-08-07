@@ -8,6 +8,7 @@ import { searchPatients } from "@/redux/patientsSlice";
 import { logout } from "@/redux/authSlice";
 import { toast } from "sonner";
 import { Patient } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { patientsApi } from "@/services/patientsApi";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { usersApi } from "@/services/usersApi";
@@ -32,6 +33,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const profileRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, userDetails } = useAppSelector((s) => s.auth);
   const { hospitalName, tenant } = useTenant();
   const { toggleMobileSidebar, isMobile } = useSidebar();
@@ -135,6 +137,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   };
 
   const handleLogout = async () => {
+    queryClient.clear();
     await dispatch(logout());
     toast.success("Logged out successfully");
     router.push("/login");
