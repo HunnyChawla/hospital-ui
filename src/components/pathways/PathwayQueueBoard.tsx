@@ -9,6 +9,7 @@ import {
     usePathwayQueueSummary,
     usePathways,
 } from "@/hooks/queries/usePathways";
+import { usePathwayQueueStream } from "@/hooks/usePathwayQueueStream";
 import { PathwayQueueCard } from "./PathwayQueueCard";
 
 /**
@@ -47,26 +48,41 @@ export function PathwayQueueBoard() {
         [pathway]
     );
 
+    const stageCodes = useMemo(() => liveStages.map((s) => s.code), [liveStages]);
+
+    const stream = usePathwayQueueStream({
+        stageCodes,
+        pathwayCode: selectedCode ?? undefined,
+        enabled: !!selectedCode && stageCodes.length > 0,
+    });
+
+    // Polling stays as the floor, not as the primary. The stream is the fast
+    // path; if it drops, a board that silently stops updating is worse than one
+    // that lags. The interval is long because the stream normally carries it.
     const { data: queue, isLoading: queueLoading } = usePathwayQueue(
         {
             pathwayCode: selectedCode ?? undefined,
-            stageCodes: liveStages.map((s) => s.code),
+            stageCodes,
             pageSize: 500,
         },
-        { enabled: !!selectedCode && liveStages.length > 0 }
+        { enabled: !!selectedCode && stageCodes.length > 0 }
     );
 
     const { data: summary } = usePathwayQueueSummary(selectedCode);
     const advanceVisit = useAdvanceVisit();
 
+    // The stream wins when it has ever delivered; polling fills the gap before
+    // the first frame and after a drop.
+    const items = stream.items ?? queue?.items ?? [];
+
     const byStage = useMemo(() => {
         const grouped = new Map<string, QueueItem[]>();
         for (const stage of liveStages) grouped.set(stage.code, []);
-        for (const item of queue?.items ?? []) {
+        for (const item of items) {
             grouped.get(item.stage.code)?.push(item);
         }
         return grouped;
-    }, [queue, liveStages]);
+    }, [items, liveStages]);
 
     const waitEstimates = useMemo(() => {
         const map = new Map<string, number | null>();
@@ -97,6 +113,43 @@ export function PathwayQueueBoard() {
 
     return (
         <div className="grid gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+                {/* Say plainly whether what is on screen is current. A board
+                    that silently goes stale is the failure mode that matters —
+                    staff trust it and call the wrong patient. */}
+                <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                        stream.status === "live"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : stream.status === "stale"
+                              ? "bg-rose-50 text-rose-700"
+                              : "bg-amber-50 text-amber-700"
+                    }`}
+                >
+                    <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                            stream.status === "live"
+                                ? "bg-emerald-500"
+                                : stream.status === "stale"
+                                  ? "bg-rose-500"
+                                  : "bg-amber-500 animate-pulse"
+                        }`}
+                    />
+                    {stream.status === "live"
+                        ? "Live"
+                        : stream.status === "stale"
+                          ? "Not updating — reconnecting"
+                          : stream.status === "connecting"
+                            ? "Connecting"
+                            : "Reconnecting"}
+                </span>
+                {stream.lastMessageAt && stream.status !== "live" && (
+                    <span className="text-xs text-slate-400">
+                        Last update {stream.lastMessageAt.toLocaleTimeString()}
+                    </span>
+                )}
+            </div>
+
             {usable.length > 1 && (
                 <div className="flex flex-wrap gap-2">
                     {usable.map((option: Pathway) => (
