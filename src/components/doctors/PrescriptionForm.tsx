@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { medicinesApi, Medicine } from "@/services/medicinesApi";
+import type { AdviceItemRequest } from "@/services/prescriptionsApi";
+import { AdviceSection } from "./AdviceSection";
 import {
   prescriptionsApi,
   PrescriptionItemRequest,
@@ -86,6 +88,11 @@ export function PrescriptionForm({
   const [loadingPrevious, setLoadingPrevious] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [historyTab, setHistoryTab] = useState<"history" | "templates">("history");
+  // Advice and follow-up. Kept outside react-hook-form because the advice list
+  // is a repeated structure the form library would only make harder to edit.
+  const [adviceItems, setAdviceItems] = useState<AdviceItemRequest[]>([]);
+  const [followupDate, setFollowupDate] = useState<string | null>(null);
+
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
@@ -155,6 +162,17 @@ export function PrescriptionForm({
 
           if (draft.diagnosis) setValue("diagnosis", draft.diagnosis);
           if (draft.notes) setValue("notes", draft.notes);
+          // Reopening a draft must bring its advice back, or saving again
+          // would send an empty list and silently delete it.
+          setAdviceItems(
+            (draft.advice_items ?? []).map((a) => ({
+              advice_type: a.advice_type,
+              description: a.description,
+              notes: a.notes,
+              lab_test_id: a.lab_test_id,
+            }))
+          );
+          setFollowupDate(draft.followup_date ?? null);
 
           if (draft.items && draft.items.length > 0) {
             const draftMedicines: MedicineFormData[] = draft.items.map((item, index) => ({
@@ -265,6 +283,15 @@ export function PrescriptionForm({
     setMedicines(newMedicines);
     if (prescription.diagnosis) setValue("diagnosis", prescription.diagnosis);
     if (prescription.notes) setValue("notes", prescription.notes);
+    setAdviceItems(
+      (prescription.advice_items ?? []).map((a) => ({
+        advice_type: a.advice_type,
+        description: a.description,
+        notes: a.notes,
+        lab_test_id: a.lab_test_id,
+      }))
+    );
+    setFollowupDate(prescription.followup_date ?? null);
     setShowHistoryPanel(false);
     toast.success("Prescription loaded");
   };
@@ -349,6 +376,8 @@ export function PrescriptionForm({
         }),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
+        advice_items: adviceItems,
+        followup_date: followupDate,
       };
 
       if (draftPrescriptionId) {
@@ -395,6 +424,8 @@ export function PrescriptionForm({
         }),
         diagnosis: data.diagnosis?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
+        advice_items: adviceItems,
+        followup_date: followupDate,
       };
 
       let prescriptionId: string;
@@ -812,6 +843,13 @@ export function PrescriptionForm({
               </div>
             </div>
           </div>
+
+          <AdviceSection
+            value={adviceItems}
+            onChange={setAdviceItems}
+            followupDate={followupDate}
+            onFollowupDateChange={setFollowupDate}
+          />
         </div>
 
         {/* Action Bar */}

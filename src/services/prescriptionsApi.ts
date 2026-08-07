@@ -13,6 +13,26 @@ export interface PrescriptionItemRequest {
   tapering_steps?: TaperingStep[];
 }
 
+/**
+ * One line of advice on a prescription.
+ *
+ * `instruction` is something the patient does ("rest for three days");
+ * `test` is something they are sent for. A test may name a catalogue entry,
+ * but need not — "X-ray, left knee" is a valid order even if nobody has added
+ * that exact test to the master.
+ */
+export interface AdviceItemRequest {
+  advice_type: "test" | "instruction";
+  description: string;
+  notes?: string | null;
+  lab_test_id?: string | null;
+}
+
+export interface AdviceItem extends AdviceItemRequest {
+  id: string;
+  created_at: string;
+}
+
 export interface CreatePrescriptionRequest {
   patient_id: string;
   doctor_id: string;
@@ -20,12 +40,17 @@ export interface CreatePrescriptionRequest {
   diagnosis?: string;
   notes?: string;
   items: PrescriptionItemRequest[];
+  advice_items?: AdviceItemRequest[];
+  followup_date?: string | null;
 }
 
 export interface UpdatePrescriptionRequest {
   items?: PrescriptionItemRequest[];
   diagnosis?: string;
   notes?: string;
+  /** Omit to leave advice alone; send [] to clear it. */
+  advice_items?: AdviceItemRequest[];
+  followup_date?: string | null;
 }
 
 // Response types - for API responses
@@ -59,6 +84,8 @@ export interface PrescriptionResponse {
   notes: string | null;
   finalized_at: string | null;
   items: PrescriptionItemResponse[];
+  advice_items: AdviceItem[];
+  followup_date: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
