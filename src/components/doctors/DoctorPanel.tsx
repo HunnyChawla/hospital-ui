@@ -654,6 +654,7 @@ export function DoctorPanel() {
         selectedPatientName={selectedPatientName}
         selectedPatientUhid={selectedPatientUhid}
         selectedPatientStatus={selectedPatientStatus}
+        currentVisitId={currentVisitId ?? null}
         activeTab={activeTab}
         onSelectPatient={selectPatient}
         onClearPatient={handleClearPatient}

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Pathway } from "@/services/pathwaysApi";
 import { StageProgress } from "./StageProgress";
+import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 
 /**
  * The tabs on a patient's record.
@@ -47,6 +48,8 @@ interface ActivePatientCardProps {
   /** The selected patient's stage, for the progress track. */
   status?: string | null;
   pathway?: Pathway | null;
+  /** The visit being worked on, so it can be finalised from here. */
+  visitId?: string | null;
   children: React.ReactNode;
 }
 
@@ -75,6 +78,7 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   showPrescriptionButton = false,
   status = null,
   pathway = null,
+  visitId = null,
   children,
 }) => {
   if (!patientId) {
@@ -141,7 +145,16 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
           </div>
         </div>
 
-        <StageProgress status={status} pathway={pathway} className="mt-3" />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <StageProgress status={status} pathway={pathway} />
+
+          {/* The doctor finishing the consultation is the person who should
+              close the record. Without this they would have to leave the panel
+              and find the patient again in the OPD list. */}
+          {visitId && (
+            <FinaliseVisitAction episodeType="opd_visit" sourceId={visitId} />
+          )}
+        </div>
       </div>
 
       {/* Tabs */}

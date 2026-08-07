@@ -4,6 +4,8 @@ import { PrescriptionResponse } from "@/services/prescriptionsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { formatDate } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
+import { usePrintLayout } from "@/hooks/queries/usePrintLayout";
+import { normalizePrintLayout } from "@/types/printLayout";
 
 interface PrescriptionPrintProps {
   prescription: PrescriptionResponse;
@@ -12,13 +14,34 @@ interface PrescriptionPrintProps {
 export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
   const { tenant } = useTenant();
 
-  // Calculate age from date of birth (if we had DOB, but API returns patient_name)
-  // For now, we'll just display patient_name from prescription
+  // The hospital's own letterhead configuration — the same row the server
+  // renderer reads, and the same one the eye prescription has always honoured.
+  //
+  // This component ignored it entirely, so an admin who set up their
+  // letterhead saw it applied to eye prints and silently not to general ones.
+  // `tenant_print_layouts` is the shared contract; a print component that does
+  // not read it is not sharing anything.
+  const { data: savedLayout } = usePrintLayout("prescription");
+  const layout = normalizePrintLayout(savedLayout?.config);
 
   return (
     <div className="mx-auto max-w-2xl bg-white p-4 print:p-2">
       {/* Header */}
-      <PrintHeader tenant={tenant} documentType="Prescription" />
+      {layout.header_enabled && (
+        <PrintHeader
+          tenant={tenant}
+          documentType="Prescription"
+          variant={layout.header_position === "top" ? "horizontal" : "vertical"}
+          side={layout.header_position === "top" ? undefined : layout.header_position}
+          align={layout.header_align}
+          // `reserved` means the hospital prints onto pre-printed stationery:
+          // leave the band, draw nothing in it.
+          showLogo={layout.header_mode === "rendered" && layout.show_logo}
+          showAddress={layout.header_mode === "rendered" && layout.show_address}
+          showContact={layout.header_mode === "rendered" && layout.show_contact}
+          showDivider={layout.show_divider}
+        />
+      )}
 
       {/* Prescription Number */}
       <div className="mb-4 flex items-center justify-between border-b border-slate-300 pb-2">
@@ -129,6 +152,36 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
         </div>
       </div>
 
+      {/* Tests advised, then advice.
+          Separate blocks, and in this order, to match the server renderer's
+          section vocabulary (`tests` then `advice`) — the two renderers print
+          the same document and must not disagree about what is on it. */}
+      {prescription.advice_items?.some((a) => a.advice_type === "test") && (
+        <div className="mb-4">
+          <h3 className="mb-1 text-sm font-bold text-slate-900">Tests Advised</h3>
+          <ul className="space-y-0.5 text-sm text-slate-700">
+            {prescription.advice_items
+              .filter((a) => a.advice_type === "test")
+              .map((a) => (
+                <li key={a.id}>• {a.description}</li>
+              ))}
+          </ul>
+        </div>
+      )}
+
+      {prescription.advice_items?.some((a) => a.advice_type !== "test") && (
+        <div className="mb-4">
+          <h3 className="mb-1 text-sm font-bold text-slate-900">Advice</h3>
+          <ul className="space-y-0.5 text-sm text-slate-700">
+            {prescription.advice_items
+              .filter((a) => a.advice_type !== "test")
+              .map((a) => (
+                <li key={a.id}>• {a.description}</li>
+              ))}
+          </ul>
+        </div>
+      )}
+
       {/* Notes */}
       {
         prescription.notes && (
@@ -138,6 +191,17 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
           </div>
         )
       }
+
+      {/* Follow-up. Printed last and prominently: it is the one instruction on
+          the slip the patient has to act on after they leave. */}
+      {prescription.followup_date && (
+        <div className="mb-4 rounded border border-slate-300 bg-slate-50 px-3 py-2">
+          <span className="text-xs text-slate-600">Review on </span>
+          <span className="text-sm font-bold text-slate-900">
+            {formatDate(prescription.followup_date)}
+          </span>
+        </div>
+      )}
 
       {/* Doctor Information */}
       <div className="mb-4 border-t border-slate-300 pt-4">

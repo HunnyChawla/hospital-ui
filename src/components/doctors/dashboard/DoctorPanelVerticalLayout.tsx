@@ -36,6 +36,8 @@ interface DoctorPanelVerticalLayoutProps {
   selectedPatientUhid?: string;
   /** The selected patient's stage code, for the progress track. */
   selectedPatientStatus?: string | null;
+  /** The visit being worked on, for the finalise control. */
+  currentVisitId?: string | null;
   activeTab: ActiveTab;
   onSelectPatient: (patientId: string) => void;
   onClearPatient: () => void;
@@ -76,6 +78,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   selectedPatientName,
   selectedPatientUhid,
   selectedPatientStatus,
+  currentVisitId,
   activeTab,
   onSelectPatient,
   onClearPatient,
@@ -119,6 +122,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
             showPrescriptionButton={!!selectedPatientId}
             status={selectedPatientStatus}
             pathway={pathway}
+            visitId={currentVisitId}
           >
             {children}
           </ActivePatientCard>
