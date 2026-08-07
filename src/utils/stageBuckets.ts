@@ -37,13 +37,18 @@ const LEGACY_STATUS_BUCKETS: Record<string, StageBucket> = {
 
 export type StageIndex = Map<string, PathwayStage>;
 
-/** Index every stage of every pathway by code, for status lookups. */
+/**
+ * Index every stage of every pathway by code, for status lookups.
+ *
+ * ⚠️ ORDER MATTERS. First writer wins, and shared codes do NOT always agree:
+ * `checked_in` waits for the doctor on the standard pathway but for nobody on
+ * the eye one, which buckets it as optometry. Pass the pathway you actually
+ * care about FIRST and let the rest only fill in codes it never defines.
+ */
 export function indexStages(pathways: { stages: PathwayStage[] }[] | undefined): StageIndex {
     const index: StageIndex = new Map();
     for (const pathway of pathways ?? []) {
         for (const stage of pathway.stages) {
-            // First writer wins: two pathways may share a code (a copy of the
-            // eye flow keeps `awaiting_doctor`) and agree on what it means.
             if (!index.has(stage.code)) index.set(stage.code, stage);
         }
     }
@@ -115,15 +120,35 @@ export function countByBucket(
 }
 
 /**
+ * Whether this pathway involves anyone before the doctor at all.
+ *
+ * A general OPD does not: patients check in and see the doctor. Its dashboard
+ * should not carry "Pending at …" and "In-progress at …" cards that can only
+ * ever read zero — which is what a hospital with no optometrist was shown.
+ */
+export function hasAssistantStage(pathway: { stages: PathwayStage[] } | null): boolean {
+    if (!pathway) return false;
+    return pathway.stages.some((stage) => {
+        const role = stage.waiting_for_role ?? stage.assigned_role;
+        return !!role && role !== "doctor";
+    });
+}
+
+/**
  * What to call the assistant phase on this hospital's dashboard.
  *
- * An eye hospital says "Optometrist"; a general one says "Nurse" or whatever
- * its pathway actually configures. Falls back to the neutral word rather than
- * to "Optometrist", so a misconfigured pathway reads as vague instead of wrong.
+ * ⚠️ Takes ONE pathway, not the whole index. Reading every pathway in the tenant
+ * was the bug behind "Pending at Optometrist" appearing in a general hospital:
+ * the tenant has the eye pathway seeded alongside the standard one, so scanning
+ * all of them always found `optometrist` regardless of which pathway the doctor
+ * on screen actually follows.
+ *
+ * Falls back to the neutral word rather than to "Optometrist", so a
+ * misconfigured pathway reads as vague instead of as wrong.
  */
-export function assistantRoleLabel(stages: StageIndex): string {
+export function assistantRoleLabel(pathway: { stages: PathwayStage[] } | null): string {
     const roles = new Set<string>();
-    for (const stage of stages.values()) {
+    for (const stage of pathway?.stages ?? []) {
         const role = stage.waiting_for_role ?? stage.assigned_role;
         if (role && role !== "doctor") roles.add(role);
     }

@@ -8,7 +8,13 @@ import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
 import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
 import { usePathways } from "@/hooks/queries/usePathways";
-import { assistantRoleLabel, countByBucket, indexStages } from "@/utils/stageBuckets";
+import { useDoctorPathway } from "@/hooks/useDoctorPathway";
+import {
+  assistantRoleLabel,
+  countByBucket,
+  hasAssistantStage,
+  indexStages,
+} from "@/utils/stageBuckets";
 import { DoctorStats } from "@/types";
 import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
 import { PatientHistoryTimeline } from "./patient-details/PatientHistoryTimeline";
@@ -124,11 +130,33 @@ export function DoctorPanel() {
   // Stage configuration, so the counts below are read off the pathway rather
   // than off a list of eye status strings. See utils/stageBuckets.ts.
   const { data: pathways } = usePathways();
-  const stageIndex = useMemo(() => indexStages(pathways), [pathways]);
 
-  // What this hospital calls the step before the doctor — "Optometrist" in an
-  // eye hospital, "Nurse" elsewhere. Read from the pathway, not hard-coded.
-  const assistantLabel = useMemo(() => assistantRoleLabel(stageIndex), [stageIndex]);
+  // THIS doctor's pathway, not every pathway in the tenant. Scanning them all
+  // was why a general hospital's dashboard read "Pending at Optometrist" — the
+  // eye pathway is seeded alongside the standard one, so the scan always found
+  // an optometrist somewhere.
+  const doctorPathway = useDoctorPathway(currentDoctor?.department_id ?? null);
+
+  // The doctor's own pathway goes first because `indexStages` is first-writer-
+  // wins and the two pathways share codes: `checked_in` waits for the doctor on
+  // the standard pathway and for the optometrist on the eye one. Ordered any
+  // other way, a general hospital's checked-in patients count as optometry
+  // again. The remaining pathways still cover statuses this one never defines.
+  const stageIndex = useMemo(
+    () => indexStages(doctorPathway ? [doctorPathway, ...(pathways ?? [])] : pathways),
+    [doctorPathway, pathways]
+  );
+  const assistantLabel = useMemo(
+    () => assistantRoleLabel(doctorPathway),
+    [doctorPathway]
+  );
+  // A general OPD has nobody before the doctor, so the two assistant cards can
+  // only ever read zero. Showing them is worse than noise — it implies a step
+  // in the flow that does not exist.
+  const showAssistantStats = useMemo(
+    () => hasAssistantStage(doctorPathway),
+    [doctorPathway]
+  );
 
   // Calculate live stats from SSE queue with fallback to todayStats
   const liveDoctorStats: DoctorStats | null = useMemo(() => {
@@ -519,6 +547,7 @@ export function DoctorPanel() {
         stats={liveDoctorStats}
         statsLoading={panelLoading}
         assistantLabel={assistantLabel}
+        showAssistantStats={showAssistantStats}
         statsVisible={preferences.statsVisible}
         onToggleStats={toggleStats}
         queuePatients={queuePatients}

@@ -10,6 +10,8 @@ interface CollapsibleStatsSectionProps {
   loading?: boolean;
   /** What this hospital calls the step before the doctor. See DoctorStatsCards. */
   assistantLabel?: string;
+  /** False when the pathway has nobody before the doctor. */
+  showAssistantStats?: boolean;
   isVisible: boolean;
   onToggle: () => void;
   compact?: boolean;
@@ -19,6 +21,7 @@ export const CollapsibleStatsSection: React.FC<CollapsibleStatsSectionProps> = (
   stats,
   loading = false,
   assistantLabel,
+  showAssistantStats,
   isVisible,
   onToggle,
   compact = true,
@@ -53,6 +56,7 @@ export const CollapsibleStatsSection: React.FC<CollapsibleStatsSectionProps> = (
             loading={loading}
             compact={compact}
             assistantLabel={assistantLabel}
+            showAssistantStats={showAssistantStats}
           />
         </div>
       </div>

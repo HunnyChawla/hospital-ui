@@ -16,6 +16,8 @@ interface DoctorPanelVerticalLayoutProps {
   statsLoading?: boolean;
   /** What this hospital calls the step before the doctor. See DoctorStatsCards. */
   assistantLabel?: string;
+  /** False when the pathway has nobody before the doctor. */
+  showAssistantStats?: boolean;
   statsVisible: boolean;
   onToggleStats: () => void;
 
@@ -56,6 +58,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   stats,
   statsLoading,
   assistantLabel,
+  showAssistantStats,
   statsVisible,
   onToggleStats,
   queuePatients,
@@ -86,6 +89,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
         stats={stats}
         loading={statsLoading}
         assistantLabel={assistantLabel}
+        showAssistantStats={showAssistantStats}
         isVisible={statsVisible}
         onToggle={onToggleStats}
         compact={false}
