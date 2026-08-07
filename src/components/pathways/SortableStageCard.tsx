@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, Pencil, Trash2 } from "lucide-react";
+import { ClipboardList, GripVertical, Lock, Pencil, Trash2 } from "lucide-react";
 import { PathwayStage, StageType } from "@/services/pathwaysApi";
 
 interface SortableStageCardProps {
@@ -11,6 +11,7 @@ interface SortableStageCardProps {
     isSystemPathway: boolean;
     onEdit: (stage: PathwayStage) => void;
     onDelete: (stage: PathwayStage) => void;
+    onEditObservations: (stage: PathwayStage) => void;
 }
 
 /**
@@ -33,6 +34,7 @@ export function SortableStageCard({
     isSystemPathway,
     onEdit,
     onDelete,
+    onEditObservations,
 }: SortableStageCardProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: stage.code,
@@ -129,6 +131,14 @@ export function SortableStageCard({
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
+                <button
+                    onClick={() => onEditObservations(stage)}
+                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    title="Choose what is recorded here, and what cannot be skipped"
+                    aria-label={`Observations recorded at ${stage.label}`}
+                >
+                    <ClipboardList className="h-4 w-4" />
+                </button>
                 <button
                     onClick={() => onEdit(stage)}
                     className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"

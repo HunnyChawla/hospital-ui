@@ -23,6 +23,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { SortableStageCard } from "./SortableStageCard";
 import { StageFormModal } from "./StageFormModal";
+import { StageObservationsModal } from "./StageObservationsModal";
 
 interface PathwayBuilderProps {
     pathway: Pathway;
@@ -36,6 +37,7 @@ export function PathwayBuilder({ pathway }: PathwayBuilderProps) {
 
     const [editingStage, setEditingStage] = useState<PathwayStage | null>(null);
     const [isStageFormOpen, setIsStageFormOpen] = useState(false);
+    const [observationsStage, setObservationsStage] = useState<PathwayStage | null>(null);
 
     // The drag has to move something immediately, so the order is held locally
     // and reconciled with the server's answer. `pathway.stages` is the source of
@@ -219,6 +221,7 @@ export function PathwayBuilder({ pathway }: PathwayBuilderProps) {
                                     isSystemPathway={pathway.is_system}
                                     onEdit={openEditStage}
                                     onDelete={handleDelete}
+                                    onEditObservations={setObservationsStage}
                                 />
                             ))}
                         </div>
@@ -232,6 +235,13 @@ export function PathwayBuilder({ pathway }: PathwayBuilderProps) {
                 pathway={pathway}
                 stage={editingStage}
             />
+            {observationsStage && (
+                <StageObservationsModal
+                    isOpen
+                    onClose={() => setObservationsStage(null)}
+                    stage={observationsStage}
+                />
+            )}
             <ConfirmationDialog {...confirmState} />
         </div>
     );

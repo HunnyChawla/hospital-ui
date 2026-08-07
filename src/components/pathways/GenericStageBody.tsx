@@ -8,6 +8,8 @@ import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { VitalSignsPanel } from "@/components/doctors/patient-details/VitalSignsPanel";
 import { QuickNotesPanel } from "@/components/doctors/patient-details/QuickNotesPanel";
 import type { Pathway, QueueItem } from "@/services/pathwaysApi";
+import { useStageObservations } from "@/hooks/queries/useObservations";
+import { ObservationForm } from "@/components/observations/ObservationForm";
 import { nextStagesFor } from "./PathwayQueueCard";
 
 interface GenericStageBodyProps {
@@ -55,6 +57,11 @@ export function GenericStageBody({
         [item, pathway]
     );
 
+    // What this stage asks to have recorded. Configuration, so a hospital that
+    // adds an observation gets a field for it without a release.
+    const stage = pathway.stages.find((s) => s.code === item.stage.code) ?? null;
+    const { data: asks } = useStageObservations(stage?.id ?? null);
+
     return (
         <div className="grid gap-4">
             <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
@@ -91,6 +98,10 @@ export function GenericStageBody({
                     Full record
                 </Link>
             </header>
+
+            {asks && asks.length > 0 && (
+                <ObservationForm visitId={item.visit_id} stageCode={item.stage.code} asks={asks} />
+            )}
 
             <div className="flex gap-2">
                 {(["vitals", "notes"] as Tab[]).map((value) => (
