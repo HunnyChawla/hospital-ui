@@ -34,6 +34,68 @@ The server will start on port 5500 by default. Access the application at:
 
 - `PORT` - Server port (default: 5500)
 - `API_BASE_URL` - Backend API URL (default: http://localhost:8080)
+- `TTS_API_URL` - Text-to-speech service URL (announcements are silent if unset)
+- `TV_REFRESH_SECONDS` - Queue poll interval (default: 5)
+- `TV_COLUMNS` - Which two queues to show, as JSON (see below)
+
+## Configuring the queues
+
+The two panels used to be hard-wired to the eye-hospital optometrist and doctor
+queues — not just their URLs, but the status strings behind every card label,
+badge count and spoken announcement. A general hospital has no optometrist
+stage, so both panels came back empty.
+
+They are now described by `TV_COLUMNS`. **The defaults reproduce the previous
+behaviour exactly**, so an eye hospital sets nothing and an already-installed
+screen keeps making byte-identical requests. That matters here: these screens
+hang on walls, often unattended, and cannot be force-refreshed on demand.
+
+Any other speciality points the columns at the pathway queue instead and names
+that pathway's own stages:
+
+```bash
+TV_COLUMNS='[
+  {"key":"optometrist","title":"Waiting for Nurse",
+   "endpoint":"/pathways/queue?stage_codes=awaiting_nurse,nurse_assigned&doctor_id={doctorId}",
+   "waiting":["awaiting_nurse"],"active":["nurse_assigned"],
+   "announce":["nurse_assigned"],
+   "announcement":"please proceed to the nurse'"'"'s room."},
+  {"key":"doctor","title":"Waiting for Doctor",
+   "endpoint":"/pathways/queue?stage_codes=awaiting_doctor,doctor_assigned,consultation_in_progress&doctor_id={doctorId}&include_covering_doctors=true",
+   "waiting":["awaiting_doctor"],
+   "active":["doctor_assigned","consultation_in_progress"],
+   "inProgress":["consultation_in_progress"],
+   "announce":["doctor_assigned"],
+   "announcement":"your consultation is ready."}
+]'
+```
+
+| Field | Meaning |
+|---|---|
+| `key` | Which panel renders it: `optometrist` (left) or `doctor` (right). These are **positions**, not specialities. |
+| `endpoint` | Path appended to `API_BASE_URL`; `{doctorId}` is substituted with the selected doctor. |
+| `title` | Heading above the panel. |
+| `waiting` | Statuses counted in the "Waiting" badge. |
+| `active` | Statuses counted in "In Progress" and drawn highlighted. |
+| `inProgress` | Subset of `active` drawn with the in-progress style. |
+| `announce` | Statuses that trigger the chime and the spoken call-out. |
+| `labels` | Status → card text. Omit it against `/pathways/queue`, which returns each stage's own label. |
+| `cabinField` | Field on the queue item holding the room/cabin name. |
+| `announcement` | How the spoken sentence ends when the patient has no cabin to be sent to. |
+
+Invalid JSON is logged and ignored rather than applied — a bad value must never
+blank a waiting-room screen.
+
+### Tests
+
+```bash
+npm test
+```
+
+`test/display.test.js` loads the real `public/app.js` under a stub DOM and
+drives it end to end. It pins the eye-hospital defaults (URLs, counts, card
+wording, announcements, poll interval) and checks a pathway-configured screen
+renders from `stage.code` / `stage.label`. No dependencies, no build step.
 
 ## Docker
 
@@ -111,12 +173,15 @@ docker-compose up -d
 
 ```
 tv-legacy/
-├── server.js           # Node.js HTTP server
-├── index.html          # Login page
-├── display.html        # Patient queue display page
-├── app.js              # Client-side JavaScript
-├── styles.css          # Application styles
-├── assets/             # Static assets (images, sounds)
+├── server.js           # Node.js HTTP server (serves /config, incl. TV_COLUMNS)
+├── api/config.js       # Same /config endpoint for Vercel deployments
+├── public/
+│   ├── index.html      # Login page
+│   ├── display.html    # Patient queue display page
+│   ├── app.js          # Client-side JavaScript
+│   ├── styles.css      # Application styles
+│   └── assets/         # Static assets (images, sounds)
+├── test/display.test.js # Queue rendering tests (`npm test`)
 ├── package.json        # Project metadata
 ├── Dockerfile          # Docker image definition
 ├── .dockerignore       # Docker build exclusions

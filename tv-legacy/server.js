@@ -41,6 +41,108 @@ var PORT = process.env.PORT || 5500;
 var API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8080';
 var TTS_API_URL = process.env.TTS_API_URL || '';
 
+/**
+ * Display configuration.
+ *
+ * The two queue columns used to be hard-coded in public/app.js, along with the
+ * statuses in their query strings and in every render/stats/announcement
+ * branch. That made this display eye-hospital-only: a general hospital has no
+ * optometrist stage, so both columns came back empty.
+ *
+ * THE DEFAULTS BELOW REPRODUCE THE PREVIOUS BEHAVIOUR EXACTLY — same URLs, same
+ * statuses, same wording, same 5-second poll. An existing screen with no
+ * TV_COLUMNS set makes byte-identical requests to the ones it made before,
+ * which is what lets these screens be updated one at a time: they hang on
+ * walls, often unattended, and cannot be force-refreshed on demand.
+ *
+ * Fields, all optional except `key` and `endpoint`:
+ *
+ *   key         which panel renders it — must be "optometrist" (left) or
+ *               "doctor" (right); these are panel positions, not specialities
+ *   endpoint    path appended to the API base; {doctorId} is substituted
+ *   title       heading text above the panel
+ *   waiting     statuses counted in the "Waiting" badge
+ *   active      statuses counted in "In Progress" and drawn highlighted
+ *   inProgress  subset of `active` drawn with the in-progress style
+ *   announce    statuses that trigger the chime and the spoken call-out
+ *   labels      status -> card text; unlisted statuses fall back to the stage
+ *               label returned by the API
+ *   cabinField  field on the queue item holding the room/cabin name
+ *   announcement  how the spoken call-out ends when the patient has no cabin
+ *               to be sent to, e.g. "please proceed to the nurse's room."
+ *
+ * A general hospital points both columns at the pathway queue instead, e.g.
+ *
+ *   TV_COLUMNS='[
+ *     {"key":"optometrist","title":"Waiting for Nurse",
+ *      "endpoint":"/pathways/queue?stage_codes=awaiting_nurse,nurse_assigned&doctor_id={doctorId}",
+ *      "waiting":["awaiting_nurse"],"active":["nurse_assigned"],
+ *      "announce":["nurse_assigned"],
+ *      "announcement":"please proceed to the nurse's room."},
+ *     {"key":"doctor","title":"Waiting for Doctor",
+ *      "endpoint":"/pathways/queue?stage_codes=awaiting_doctor,doctor_assigned,consultation_in_progress&doctor_id={doctorId}&include_covering_doctors=true",
+ *      "waiting":["awaiting_doctor"],
+ *      "active":["doctor_assigned","consultation_in_progress"],
+ *      "inProgress":["consultation_in_progress"],
+ *      "announce":["doctor_assigned"]}
+ *   ]'
+ *
+ * Omitting `labels` there is deliberate: the pathway queue returns each stage's
+ * own label, so the cards read correctly without restating it here.
+ */
+var DEFAULT_COLUMNS = [
+    {
+        key: 'optometrist',
+        title: 'Optometrist Queue',
+        endpoint: '/opd/eye-hospital/optometrist-queue/{doctorId}'
+            + '?status=awaiting_optometrist,optometrist_assigned',
+        waiting: ['awaiting_optometrist'],
+        active: ['optometrist_assigned'],
+        inProgress: [],
+        announce: ['optometrist_assigned'],
+        labels: { optometrist_assigned: 'Called' },
+        cabinField: 'optometrist_cabin',
+        announcement: 'please proceed for eye examination.'
+    },
+    {
+        key: 'doctor',
+        title: 'Doctor Queue',
+        endpoint: '/opd/eye-hospital/group-queue/{doctorId}'
+            + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
+        waiting: ['awaiting_doctor'],
+        active: ['doctor_assigned', 'consultation_in_progress'],
+        inProgress: ['consultation_in_progress'],
+        announce: ['doctor_assigned'],
+        labels: {
+            doctor_assigned: 'Called',
+            consultation_in_progress: 'In Consultation'
+        },
+        cabinField: 'doctor_cabin',
+        announcement: 'your consultation is ready.'
+    }
+];
+
+function readColumns() {
+    if (!process.env.TV_COLUMNS) return DEFAULT_COLUMNS;
+    try {
+        var parsed = JSON.parse(process.env.TV_COLUMNS);
+        if (Object.prototype.toString.call(parsed) === '[object Array]' && parsed.length) {
+            return parsed;
+        }
+        console.error('TV_COLUMNS is not a non-empty array; using defaults');
+    } catch (e) {
+        // Never let bad configuration blank a waiting-room screen.
+        console.error('TV_COLUMNS is not valid JSON; using defaults:', e.message);
+    }
+    return DEFAULT_COLUMNS;
+}
+
+// 5 seconds is what public/app.js polled at before this was configurable.
+var DISPLAY_CONFIG = {
+    refreshSeconds: parseInt(process.env.TV_REFRESH_SECONDS || '5', 10),
+    columns: readColumns()
+};
+
 // MIME types for serving files
 var mimeTypes = {
     '.html': 'text/html',
@@ -74,7 +176,8 @@ var server = http.createServer(function (req, res) {
         });
         res.end(JSON.stringify({
             apiBaseUrl: API_BASE_URL,
-            ttsApiUrl: TTS_API_URL
+            ttsApiUrl: TTS_API_URL,
+            display: DISPLAY_CONFIG
         }));
         return;
     }
