@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useSSE, SSEConnectionStatus } from "@/hooks/useSSE";
+import { useMemo } from "react";
+import type { SSEConnectionStatus } from "@/hooks/useSSE";
+import { useEyeQueueFromPathway } from "@/hooks/useEyeQueueFromPathway";
 
 export type DoctorQueuePatient = {
     patient_id: string;
@@ -26,170 +27,92 @@ export type DoctorQueuePatient = {
     is_revisit?: boolean;
 };
 
-// Returns null for heartbeat/keep-alive messages that should be ignored
-// Returns DoctorQueuePatient[] for actual queue data
-function mapSSEDataToQueuePatients(data: any): DoctorQueuePatient[] | null {
-    // Check for heartbeat/keep-alive messages first
-    // These should be ignored and not affect the current patient list
-    if (!data || data === null || data === undefined) return null;
-
-    // Check for explicit heartbeat messages
-    if (data.type === 'heartbeat' || data.type === 'ping' || data.type === 'keepalive') {
-        return null;
-    }
-
-    // Check for empty objects (common heartbeat format)
-    if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0) {
-        return null;
-    }
-
-    const mapItem = (item: any): DoctorQueuePatient => ({
-        patient_id: item.patient_id || "",
-        patient_name: item.patient_name || "Unknown",
-        patient_uhid: item.patient_uhid || item.uhid || null,
-        patient_mobile: item.patient_mobile || undefined,
-        token_number: item.token_number || item.token || 0,
-        status: item.status || "scheduled",
-        visit_type: item.visit_type as "walk_in" | "appointment" | "emergency" | undefined,
-        visit_id: item.visit_id || item.id || "",
-        item_id: item.item_id || item.id || "",
-        time: item.time || item.start_time || item.checked_in_at || "",
-        checked_in_at: item.checked_in_at,
-        optometrist_id: item.optometrist_id || null,
-        optometrist_name: item.optometrist_name || null,
-        doctor_id: item.doctor_id || null,
-        doctor_name: item.doctor_name || null,
-        optometrist_investigation_completed_at: item.optometrist_investigation_completed_at || null,
-        consultation_started_at: item.consultation_started_at || null,
-        consultation_ended_at: item.consultation_ended_at || null,
-        dilation_started_at: item.dilation_started_at || null,
-        dilation_duration_minutes: item.dilation_duration_minutes || null,
-        dilation_completed_at: item.dilation_completed_at || null,
-        is_revisit: item.is_revisit || false,
-    });
-
-    if (Array.isArray(data)) {
-        return data.map(mapItem);
-    }
-
-    if (data.queue && Array.isArray(data.queue)) {
-        return data.queue.map(mapItem);
-    }
-
-    if (data.slots && Array.isArray(data.slots)) {
-        return data.slots.map(mapItem);
-    }
-
-    if (data.entries && Array.isArray(data.entries)) {
-        return data.entries.map(mapItem);
-    }
-
-    if (data.patient_id || data.visit_id || data.id) {
-        return [mapItem(data)];
-    }
-
-    // Data exists but is unrecognized format - treat as heartbeat/ignored
-    return null;
-}
-
-function areQueuePatientsEqual(prev: DoctorQueuePatient[], next: DoctorQueuePatient[]): boolean {
-    if (prev.length !== next.length) return false;
-    return prev.every((p, i) => {
-        const n = next[i];
-        return (
-            p.patient_id === n.patient_id &&
-            p.patient_name === n.patient_name &&
-            p.token_number === n.token_number &&
-            p.status === n.status &&
-            p.visit_id === n.visit_id &&
-            p.visit_type === n.visit_type &&
-            p.checked_in_at === n.checked_in_at &&
-            p.is_revisit === n.is_revisit &&
-            p.doctor_id === n.doctor_id &&
-            p.optometrist_id === n.optometrist_id &&
-            p.dilation_started_at === n.dilation_started_at &&
-            p.dilation_duration_minutes === n.dilation_duration_minutes &&
-            p.dilation_completed_at === n.dilation_completed_at
-        );
-    });
-}
-
 interface UseDoctorLiveQueueOptions {
     doctorId: string | null;
     autoConnect?: boolean;
 }
 
+/**
+ * The stages this queue shows.
+ *
+ * Same list this hook sent to the eye endpoint, minus two that were dead:
+ * `checked_in_opd` and `scheduled` have no visits and are not stages of any
+ * pathway, so asking for them only ever returned nothing. `completed` stays —
+ * it is a stage of the standard pathway, and a hospital running both sees
+ * visits in it.
+ *
+ * Verified before changing: no visit anywhere currently holds a status that is
+ * not a stage of its own pathway, so nothing drops out of this queue.
+ */
+const DOCTOR_QUEUE_STAGES = [
+    "checked_in",
+    "awaiting_optometrist",
+    "optometrist_assigned",
+    "optometrist_investigation_in_progress",
+    "optometrist_investigation_completed",
+    "awaiting_doctor",
+    "doctor_assigned",
+    "consultation_in_progress",
+    "dilation_in_progress",
+    "dilation_completed",
+    "consultation_completed",
+    "completed",
+    "no_show",
+];
+
 export function useDoctorLiveQueue({
     doctorId,
     autoConnect = true,
 }: UseDoctorLiveQueueOptions) {
-    const [queuePatients, setQueuePatients] = useState<DoctorQueuePatient[]>([]);
-
-    // Build status query parameter for doctor queue
-    // Include: awaiting_doctor, doctor_assigned, consultation_in_progress, dilation_in_progress, 
-    // dilation_completed, consultation_completed, no_show
-    const statusQuery = useMemo(() => {
-        const statuses = [
-            "awaiting_optometrist",
-            "optometrist_assigned",
-            "optometrist_investigation_in_progress",
-            "optometrist_investigation_completed",
-            "awaiting_doctor",
-            "doctor_assigned",
-            "consultation_in_progress",
-            "dilation_in_progress",
-            "dilation_completed",
-            "consultation_completed",
-            "completed",
-            "no_show",
-            "checked_in",
-            "checked_in_opd",
-            "scheduled",
-        ];
-        return statuses.join(",");
-    }, []);
-
-    const sseUrl = useMemo(
-        () => (doctorId && autoConnect
-            ? `/opd/eye-hospital/group-queue/${doctorId}/stream?status=${statusQuery}`
-            : null),
-        [doctorId, autoConnect, statusQuery]
-    );
-
-    const handleMessage = useCallback((data: any) => {
-        const newPatients = mapSSEDataToQueuePatients(data);
-
-        // Ignore heartbeat/keep-alive messages (null return)
-        // This preserves the current patient list
-        if (newPatients === null) {
-            return;
-        }
-
-        setQueuePatients((prev) => {
-            // Treat incoming SSE data as final - replace existing queue entirely
-            // Whether it's 0, 1, or multiple records, it's the complete source of truth
-            if (areQueuePatientsEqual(prev, newPatients)) {
-                // Only skip update if the data is exactly the same to avoid unnecessary re-renders
-                return prev;
-            }
-            return newPatients;
-        });
-    }, []);
-
-    const { status, reconnect } = useSSE(sseUrl, {
-        onMessage: handleMessage,
-        autoReconnect: true,
-        reconnectInterval: 3000,
-        maxReconnectAttempts: 10,
+    // Served by the generic pathway queue with the eye fields merged back in.
+    // `queuePatients` keeps the shape its consumers already read.
+    const eyeQueue = useEyeQueueFromPathway({
+        stageCodes: DOCTOR_QUEUE_STAGES,
+        doctorId: doctorId ?? undefined,
+        // The group queue always widened to covering doctors — that is what
+        // made it a *group* queue rather than one doctor's list.
+        includeCoveringDoctors: true,
+        enabled: !!doctorId && autoConnect,
     });
 
-    useEffect(() => {
-        setQueuePatients([]);
-    }, [doctorId]);
+    const queuePatients = useMemo<DoctorQueuePatient[]>(
+        () =>
+            eyeQueue.rows.map((row) => ({
+                patient_id: row.patient_id,
+                patient_name: row.patient_name || "Unknown",
+                patient_uhid: null,
+                patient_mobile: row.patient_mobile ?? undefined,
+                token_number: row.token_number ?? 0,
+                status: row.status,
+                visit_type: row.visit_type as DoctorQueuePatient["visit_type"],
+                visit_id: row.visit_id,
+                item_id: row.id,
+                time: row.checked_in_at ?? "",
+                checked_in_at: row.checked_in_at ?? undefined,
+                optometrist_id: row.optometrist_id ?? null,
+                optometrist_name: row.optometrist_name ?? null,
+                doctor_id: row.doctor_id,
+                doctor_name: row.doctor_name,
+                optometrist_investigation_completed_at:
+                    row.optometrist_investigation_completed_at ?? null,
+                consultation_started_at: row.consultation_started_at,
+                consultation_ended_at: row.consultation_ended_at,
+                dilation_started_at: row.dilation_started_at ?? null,
+                dilation_duration_minutes: row.dilation_duration_minutes ?? null,
+                dilation_completed_at: row.dilation_completed_at ?? null,
+                is_revisit: row.is_revisit,
+            })),
+        [eyeQueue.rows]
+    );
 
     return {
         queuePatients,
-        connectionStatus: status,
-        reconnect,
+        connectionStatus: (eyeQueue.status === "live"
+            ? "connected"
+            : eyeQueue.status === "connecting"
+              ? "connecting"
+              : "reconnecting") as SSEConnectionStatus,
+        reconnect: eyeQueue.reconnect,
     };
 }
+

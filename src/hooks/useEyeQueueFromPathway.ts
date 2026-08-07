@@ -28,6 +28,9 @@ export interface EyeQueueRow extends Partial<EyeVisitDetail> {
     token_number: number | null;
     chief_complaint: string | null;
     checked_in_at: string | null;
+    /** Stamped by whichever stage carries the consultation flags. */
+    consultation_started_at: string | null;
+    consultation_ended_at: string | null;
     waiting_minutes: number | null;
     created_at: string;
     updated_at: string;
@@ -66,6 +69,8 @@ function toRow(item: QueueItem, detail: EyeVisitDetail | undefined): EyeQueueRow
         token_number: item.token_number,
         chief_complaint: item.chief_complaint,
         checked_in_at: item.checked_in_at,
+        consultation_started_at: item.consultation_started_at,
+        consultation_ended_at: item.consultation_ended_at,
         waiting_minutes: item.waiting_minutes,
         created_at: item.created_at,
         updated_at: item.updated_at,

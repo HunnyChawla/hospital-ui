@@ -207,6 +207,13 @@ export interface QueueItem {
      */
     stage: QueueStageInfo;
     checked_in_at: string | null;
+    /**
+     * Stamped by whichever stage carries `stamps_consultation_started`. Generic
+     * despite the name — every speciality has a point where the clinician
+     * starts, and the pathway decides which stage that is.
+     */
+    consultation_started_at: string | null;
+    consultation_ended_at: string | null;
     stage_entered_at: string | null;
     waiting_minutes: number | null;
     /**

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { useSSE, SSEConnectionStatus } from "@/hooks/useSSE";
+import type { SSEConnectionStatus } from "@/hooks/useSSE";
+import { useEyeQueueFromPathway, type EyeQueueRow } from "@/hooks/useEyeQueueFromPathway";
 import { playNotificationSound, announceText } from "@/utils/sound";
 
 export type TVQueuePatient = {
@@ -23,91 +24,74 @@ export type TVQueuePatient = {
     doctor_cabin?: string | null;
 };
 
-// Returns null for heartbeat/keep-alive messages that should be ignored
-// Returns TVQueuePatient[] for actual queue data
-function mapSSEDataToPatients(data: any): TVQueuePatient[] | null {
-    // Check for heartbeat/keep-alive messages first
-    // These should be ignored and not affect the current patient list
-    if (!data || data === null || data === undefined) return null;
-
-    // Check for explicit heartbeat messages
-    if (data.type === 'heartbeat' || data.type === 'ping' || data.type === 'keepalive') {
-        return null;
-    }
-
-    // Check for empty objects (common heartbeat format)
-    if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0) {
-        return null;
-    }
-
-    const mapItem = (item: any): TVQueuePatient => ({
-        patient_id: item.patient_id || "",
-        patient_name: item.patient_name || "Unknown",
-        patient_uhid: item.patient_uhid || item.uhid || null,
-        token_number: item.token_number || item.token || 0,
-        status: item.status || "scheduled",
-        visit_type: item.visit_type as "walk_in" | "appointment" | "emergency" | undefined,
-        visit_id: item.visit_id || item.id || "",
-        item_id: item.item_id || item.id || "",
-        time: item.time || item.start_time || item.checked_in_at || "",
-        checked_in_at: item.checked_in_at,
-        optometrist_id: item.optometrist_id || null,
-        optometrist_assigned_at: item.optometrist_assigned_at || null,
-        optometrist_investigation_started_at: item.optometrist_investigation_started_at || null,
-        optometrist_investigation_completed_at: item.optometrist_investigation_completed_at || null,
-        optometrist_cabin: item.optometrist_cabin || null,
-        doctor_cabin: item.doctor_cabin || null,
-    });
-
-    if (Array.isArray(data)) {
-        return data.map(mapItem);
-    }
-
-    if (data.queue && Array.isArray(data.queue)) {
-        return data.queue.map(mapItem);
-    }
-
-    if (data.slots && Array.isArray(data.slots)) {
-        return data.slots.map(mapItem);
-    }
-
-    if (data.entries && Array.isArray(data.entries)) {
-        return data.entries.map(mapItem);
-    }
-
-    if (data.patient_id || data.visit_id || data.id) {
-        return [mapItem(data)];
-    }
-
-    // Data exists but is unrecognized format - treat as heartbeat/ignored
-    return null;
-}
-
-function arePatientsEqual(prev: TVQueuePatient[], next: TVQueuePatient[]): boolean {
-    if (prev.length !== next.length) return false;
-    return prev.every((p, i) => {
-        const n = next[i];
-        return (
-            p.patient_id === n.patient_id &&
-            p.patient_name === n.patient_name &&
-            p.token_number === n.token_number &&
-            p.status === n.status &&
-            p.visit_id === n.visit_id &&
-            p.visit_type === n.visit_type &&
-            p.checked_in_at === n.checked_in_at &&
-            p.optometrist_cabin === n.optometrist_cabin &&
-            p.doctor_cabin === n.doctor_cabin &&
-            p.optometrist_id === n.optometrist_id &&
-            p.optometrist_assigned_at === n.optometrist_assigned_at
-        );
-    });
-}
-
 export interface TVDisplayQueueStats {
     total: number;
     waiting: number;
     inProgress: number;
     emergency: number;
+}
+
+/**
+ * The two columns, as stage codes.
+ *
+ * Identical to the status lists these URLs carried, minus `scheduled`, which is
+ * not a stage of any pathway and has no visits — it only ever matched nothing.
+ * The eye pathway's stage codes ARE the old status strings, so a wall display
+ * shows exactly the patients it showed before.
+ */
+const TV_OPTOMETRIST_STAGES = ["awaiting_optometrist", "optometrist_assigned"];
+
+const TV_DOCTOR_STAGES = [
+    "checked_in",
+    "awaiting_optometrist",
+    "optometrist_assigned",
+    "optometrist_investigation_in_progress",
+    "optometrist_investigation_completed",
+    "awaiting_doctor",
+    "doctor_assigned",
+    "consultation_in_progress",
+    "dilation_in_progress",
+    "dilation_completed",
+    "consultation_completed",
+    "completed",
+    "no_show",
+];
+
+/**
+ * Exactly the fields `TVQueuePatient` declares — no cast, so a field the type
+ * does not have is a compile error rather than a silent extra.
+ *
+ * The cabins matter most here: they are what the spoken announcement reads out
+ * ("please proceed to Room 2"), which is why the eye detail fetch carries them.
+ */
+function toTvPatient(row: EyeQueueRow): TVQueuePatient {
+    return {
+        patient_id: row.patient_id,
+        patient_name: row.patient_name || "Unknown",
+        patient_uhid: null,
+        token_number: row.token_number ?? 0,
+        status: row.status,
+        visit_type: row.visit_type as TVQueuePatient["visit_type"],
+        visit_id: row.visit_id,
+        item_id: row.id,
+        time: row.checked_in_at ?? "",
+        checked_in_at: row.checked_in_at ?? undefined,
+        optometrist_id: row.optometrist_id ?? null,
+        optometrist_assigned_at: row.optometrist_assigned_at ?? null,
+        optometrist_investigation_started_at: row.optometrist_investigation_started_at ?? null,
+        optometrist_investigation_completed_at:
+            row.optometrist_investigation_completed_at ?? null,
+        optometrist_cabin: row.optometrist_cabin ?? null,
+        doctor_cabin: row.doctor_cabin ?? null,
+    };
+}
+
+/** Map the stream's vocabulary onto the one this hook already reports. */
+function toSseStatus(status: string): SSEConnectionStatus {
+    if (status === "live") return "connected";
+    if (status === "connecting") return "connecting";
+    if (status === "stale") return "error";
+    return "reconnecting";
 }
 
 interface UseTVDisplayQueueOptions {
@@ -129,89 +113,37 @@ export function useTVDisplayQueue({
     englishVoiceGender = 'female',
     hindiVoiceGender = 'female',
 }: UseTVDisplayQueueOptions) {
-    const [optometristPatients, setOptometristPatients] = useState<TVQueuePatient[]>([]);
-    const [doctorPatients, setDoctorPatients] = useState<TVQueuePatient[]>([]);
-
-    // Optometrist queue SSE URL with relevant statuses
-    const optometristSseUrl = useMemo(
-        () =>
-            doctorId && autoConnect
-                ? `/opd/eye-hospital/optometrist-queue/${doctorId}/stream?status=awaiting_optometrist,optometrist_assigned`
-                : null,
-        [doctorId, autoConnect]
-    );
-
-    // Doctor queue SSE URL with relevant statuses
-    const doctorSseUrl = useMemo(
-        () =>
-            doctorId && autoConnect
-                ? `/opd/eye-hospital/group-queue/${doctorId}/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress,optometrist_investigation_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed,consultation_completed,completed,no_show,checked_in,scheduled`
-                : null,
-        [doctorId, autoConnect]
-    );
-
-    // Handle optometrist queue messages
-    const handleOptometristMessage = useCallback((data: any) => {
-        const newPatients = mapSSEDataToPatients(data);
-
-        // Ignore heartbeat/keep-alive messages (null return)
-        // This preserves the current patient list
-        if (newPatients === null) {
-            return;
-        }
-
-        setOptometristPatients((prev) => {
-            // Treat incoming SSE data as final - replace existing queue entirely
-            // Whether it's 0, 1, or multiple records, it's the complete source of truth
-            if (arePatientsEqual(prev, newPatients)) {
-                // Only skip update if the data is exactly the same to avoid unnecessary re-renders
-                return prev;
-            }
-            return newPatients;
-        });
-    }, []);
-
-    // Handle doctor queue messages
-    const handleDoctorMessage = useCallback((data: any) => {
-        const newPatients = mapSSEDataToPatients(data);
-
-        // Ignore heartbeat/keep-alive messages (null return)
-        // This preserves the current patient list
-        if (newPatients === null) {
-            return;
-        }
-
-        setDoctorPatients((prev) => {
-            // Treat incoming SSE data as final - replace existing queue entirely
-            // Whether it's 0, 1, or multiple records, it's the complete source of truth
-            if (arePatientsEqual(prev, newPatients)) {
-                // Only skip update if the data is exactly the same to avoid unnecessary re-renders
-                return prev;
-            }
-            return newPatients;
-        });
-    }, []);
-
-    // SSE connections
-    const { status: optometristStatus, reconnect: optometristReconnect } = useSSE(optometristSseUrl, {
-        onMessage: handleOptometristMessage,
-        autoReconnect: true,
-        reconnectInterval: 3000,
-        maxReconnectAttempts: 10,
+    // Both columns now come from the generic pathway queue, with the eye
+    // fields fetched alongside and merged. Everything below this point —
+    // the stats, the chime, the spoken announcements — is untouched and still
+    // reads `TVQueuePatient`.
+    const optometristQueue = useEyeQueueFromPathway({
+        stageCodes: TV_OPTOMETRIST_STAGES,
+        doctorId: doctorId ?? undefined,
+        includeCoveringDoctors: true,
+        enabled: !!doctorId && autoConnect,
     });
 
-    const { status: doctorStatus, reconnect: doctorReconnect } = useSSE(doctorSseUrl, {
-        onMessage: handleDoctorMessage,
-        autoReconnect: true,
-        reconnectInterval: 3000,
-        maxReconnectAttempts: 10,
+    const doctorQueue = useEyeQueueFromPathway({
+        stageCodes: TV_DOCTOR_STAGES,
+        doctorId: doctorId ?? undefined,
+        includeCoveringDoctors: true,
+        enabled: !!doctorId && autoConnect,
     });
 
-    // Reset patients when doctor changes
-    useEffect(() => {
-        setOptometristPatients([]);
-        setDoctorPatients([]);
-    }, [doctorId]);
+    const optometristPatients = useMemo<TVQueuePatient[]>(
+        () => optometristQueue.rows.map(toTvPatient),
+        [optometristQueue.rows]
+    );
+    const doctorPatients = useMemo<TVQueuePatient[]>(
+        () => doctorQueue.rows.map(toTvPatient),
+        [doctorQueue.rows]
+    );
+
+    const optometristStatus = toSseStatus(optometristQueue.status);
+    const doctorStatus = toSseStatus(doctorQueue.status);
+    const optometristReconnect = optometristQueue.reconnect;
+    const doctorReconnect = doctorQueue.reconnect;
 
     // Calculate optometrist queue stats
     const optometristStats: TVDisplayQueueStats = useMemo(() => {
