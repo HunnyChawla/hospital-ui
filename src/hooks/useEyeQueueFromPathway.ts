@@ -42,6 +42,20 @@ export interface EyeQueueRow extends Partial<EyeVisitDetail> {
      */
     status: string;
 
+    /**
+     * What this hospital calls the stage, from its own pathway.
+     *
+     * Screens used to derive this from the status string — `status.replace("_",
+     * " ")`, which turns `doctor_assigned` into "doctor assigned" and
+     * `optometrist_investigation_in_progress` into "optometrist
+     * investigation_in_progress", since replace() without a regex only takes
+     * the first match. The pathway already carries the wording an admin chose.
+     */
+    stage_label: string;
+
+    /** Who currently holds this patient, so a panel can offer to release. */
+    assignments: QueueItem["assignments"];
+
     /** Kept because several eye components key rows on `id` rather than visit_id. */
     id: string;
 }
@@ -75,6 +89,8 @@ function toRow(item: QueueItem, detail: EyeVisitDetail | undefined): EyeQueueRow
         created_at: item.created_at,
         updated_at: item.updated_at,
         status: item.stage.code,
+        stage_label: item.stage.label,
+        assignments: item.assignments ?? [],
         ...(detail ?? {}),
     };
 }

@@ -7,13 +7,19 @@ import { useDoctorPanel } from "@/hooks/useDoctorPanel";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
 import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
-import { usePathways } from "@/hooks/queries/usePathways";
+import {
+  usePathways,
+  useCallPatient,
+  useAdvanceVisit,
+  useReleasePatient,
+} from "@/hooks/queries/usePathways";
 import { useDoctorPathway } from "@/hooks/useDoctorPathway";
 import {
   assistantRoleLabel,
   countByBucket,
   hasAssistantStage,
   indexStages,
+  waitingStageForRole,
 } from "@/utils/stageBuckets";
 import { DoctorStats } from "@/types";
 import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
@@ -29,21 +35,15 @@ import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
-import { optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
 import { getErrorMessage } from "@/utils/errorHandler";
-
-type QueuePatient = {
-  patient_id: string;
-  patient_name: string;
-  token_number: string | number;
-  status: string;
-  visit_type?: "walk_in" | "appointment" | "emergency";
-  item_id: string;
-  time: string;
-};
+// The shared shape, not a local copy. The copy this replaces lacked
+// `stage_label` and `assignments`, so both were dropped from the type while
+// still being set at runtime — the compiler could not have caught a typo in
+// either.
+import type { QueuePatient } from "@/utils/queueFilters";
 
 export function DoctorPanel() {
   const router = useRouter();
@@ -158,6 +158,19 @@ export function DoctorPanel() {
     [doctorPathway]
   );
 
+  const callPatient = useCallPatient();
+  const advanceVisit = useAdvanceVisit();
+  const releasePatient = useReleasePatient();
+
+  // Needed to decide whether the viewer is the one holding a patient, since
+  // only they are offered "Called by mistake". Read in an effect rather than
+  // during render — localStorage is not available on the server, and reading it
+  // in the render body breaks hydration.
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  useEffect(() => {
+    setCurrentUserId(localStorage.getItem("user_id"));
+  }, []);
+
   // Calculate live stats from SSE queue with fallback to todayStats
   const liveDoctorStats: DoctorStats | null = useMemo(() => {
     if (!doctorLiveQueue || doctorLiveQueue.length === 0) {
@@ -207,6 +220,19 @@ export function DoctorPanel() {
     }
   }, [selectedPatientId, todaySchedule]);
 
+  // The live queue, keyed by visit, so a slot can be enriched with the stage
+  // information only the pathway knows.
+  //
+  // The schedule is still the source of the LIST: it includes appointments that
+  // have not been checked in yet, which have no visit and so cannot appear in a
+  // queue of visits. What the schedule cannot give is the stage's label or who
+  // is holding the patient, and the action buttons are built from those.
+  const liveByVisit = useMemo(() => {
+    const map = new Map<string, (typeof doctorLiveQueue)[number]>();
+    for (const row of doctorLiveQueue ?? []) map.set(row.item_id, row);
+    return map;
+  }, [doctorLiveQueue]);
+
   // Generate queue from schedule (include ALL patients, filtering done in EnhancedQueueBoard)
   useEffect(() => {
     if (todaySchedule && todaySchedule.slots) {
@@ -218,11 +244,17 @@ export function DoctorPanel() {
             ? "appointment"
             : "walk_in";
 
+        const live = liveByVisit.get(slot.item_id);
+
         return {
           patient_id: slot.patient_id,
           patient_name: slot.patient_name,
           token_number: slot.token_number || "",
-          status: slot.status,
+          // The live queue is the fresher of the two: it streams, while the
+          // schedule is refetched. When they disagree the stream is right.
+          status: live?.status ?? slot.status,
+          stage_label: live?.stage_label,
+          assignments: live?.assignments,
           visit_type: visitType,
           item_id: slot.item_id,
           time: slot.time,
@@ -231,7 +263,13 @@ export function DoctorPanel() {
 
       setQueuePatients(queue);
     }
-  }, [todaySchedule]);
+  }, [todaySchedule, liveByVisit]);
+
+  // Where the selected patient is, for the progress track above their record.
+  const selectedPatientStatus = useMemo(
+    () => queuePatients.find((p) => p.patient_id === selectedPatientId)?.status ?? null,
+    [queuePatients, selectedPatientId]
+  );
 
   const fetchPatientName = async (patientId: string) => {
     try {
@@ -295,52 +333,60 @@ export function DoctorPanel() {
     router.push(`/admissions?tab=admissions&admission_id=${admissionId}&action=discharge`);
   };
 
-  const handleUpdateVisitStatus = async (
-    visitId: string,
-    newStatus: "in_consultation" | "completed"
-  ) => {
+  // Stage moves go through the generic pathway endpoints. They used to go
+  // through `/opd/eye-hospital/visits/{id}/pick-doctor` and a hard-coded
+  // `updateStatus("in_consultation")` — eye stage codes, which is why calling a
+  // patient in a general hospital left them reading "checked in".
+  const stageLabel = (code: string) =>
+    doctorPathway?.stages.find((s) => s.code === code)?.label ?? code;
+
+  const handleCallPatient = async (visitId: string, toStageCode: string) => {
     setUpdatingVisitId(visitId);
     try {
-      await opdVisitsApi.updateStatus(visitId, newStatus);
-
-      // Success notification
-      const statusText = newStatus === "in_consultation" ? "Consultation started" : "Consultation completed";
-      toast.success(statusText);
-
-      // Refresh the schedule to get updated data
+      await callPatient.mutateAsync({ visitId, role: "doctor", toStageCode });
+      toast.success(`Patient called — ${stageLabel(toStageCode)}`);
       await refreshSchedule();
-    } catch (error: any) {
-      console.error("Failed to update visit status:", error);
-      toast.error(error?.response?.data?.detail || error?.response?.data?.message || "Failed to update status");
+    } catch {
+      // The mutation hook already shows the server's message, and those
+      // messages are the informative kind — "Dr Mehta has already called this
+      // patient". Re-toasting here would show it twice.
     } finally {
       setUpdatingVisitId(null);
     }
   };
 
-  const handlePickPatient = async (visitId: string) => {
-    if (!currentDoctor?.id) return;
+  const handleAdvancePatient = async (visitId: string, toStageCode: string) => {
     setUpdatingVisitId(visitId);
     try {
-      await optometristVisitsApi.pickDoctor(visitId, currentDoctor.id);
-      toast.success("Patient called successfully");
+      await advanceVisit.mutateAsync({ visitId, toStageCode, performerRole: "doctor" });
+      toast.success(`Moved to ${stageLabel(toStageCode)}`);
       await refreshSchedule();
-    } catch (error: any) {
-      console.error("Failed to pick patient:", error);
-      toast.error(error?.response?.data?.detail || "Failed to call patient");
+    } catch {
+      // The mutation hook already shows the server's message, and those
+      // messages are the informative kind — "Dr Mehta has already called this
+      // patient". Re-toasting here would show it twice.
     } finally {
       setUpdatingVisitId(null);
     }
   };
 
-  const handleUnpickPatient = async (visitId: string) => {
+  const handleReleasePatient = async (visitId: string) => {
     setUpdatingVisitId(visitId);
     try {
-      await optometristVisitsApi.unpickDoctor(visitId);
-      toast.success("Patient returned to queue");
+      // Back to whichever stage this pathway keeps the doctor's queue in —
+      // `checked_in` on the standard pathway, `awaiting_doctor` on the eye one.
+      const back = waitingStageForRole(doctorPathway, "doctor");
+      await releasePatient.mutateAsync({
+        visitId,
+        role: "doctor",
+        backToStageCode: back?.code,
+      });
+      toast.success("Patient returned to the queue");
       await refreshSchedule();
-    } catch (error: any) {
-      console.error("Failed to unpick patient:", error);
-      toast.error(error?.response?.data?.detail || "Failed to return patient");
+    } catch {
+      // The mutation hook already shows the server's message, and those
+      // messages are the informative kind — "Dr Mehta has already called this
+      // patient". Re-toasting here would show it twice.
     } finally {
       setUpdatingVisitId(null);
     }
@@ -559,13 +605,16 @@ export function DoctorPanel() {
         selectedPatientId={selectedPatientId}
         selectedPatientName={selectedPatientName}
         selectedPatientUhid={selectedPatientUhid}
+        selectedPatientStatus={selectedPatientStatus}
         activeTab={activeTab}
         onSelectPatient={selectPatient}
         onClearPatient={handleClearPatient}
         onTabChange={setActiveTab}
-        onUpdateVisitStatus={handleUpdateVisitStatus}
-        onPickPatient={handlePickPatient}
-        onUnpickPatient={handleUnpickPatient}
+        pathway={doctorPathway}
+        onCallPatient={handleCallPatient}
+        onAdvancePatient={handleAdvancePatient}
+        onReleasePatient={handleReleasePatient}
+        currentUserId={currentUserId}
         updatingVisitId={updatingVisitId}
         onCreatePrescription={() => setShowPrescriptionModal(true)}
         onPrintOpd={handlePrintOpd}

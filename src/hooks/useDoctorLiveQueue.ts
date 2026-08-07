@@ -9,6 +9,10 @@ export type DoctorQueuePatient = {
     patient_mobile?: string;
     token_number: string | number;
     status: string;
+    /** The pathway's own wording for this stage. See EyeQueueRow.stage_label. */
+    stage_label?: string;
+    /** Who holds this patient, so the panel can offer to undo a call. */
+    assignments?: { role: string; user_id: string; user_name: string | null }[];
     visit_type?: "walk_in" | "appointment" | "emergency";
     visit_id: string;
     item_id: string;
@@ -84,6 +88,8 @@ export function useDoctorLiveQueue({
                 patient_mobile: row.patient_mobile ?? undefined,
                 token_number: row.token_number ?? 0,
                 status: row.status,
+                stage_label: row.stage_label,
+                assignments: row.assignments,
                 visit_type: row.visit_type as DoctorQueuePatient["visit_type"],
                 visit_id: row.visit_id,
                 item_id: row.id,

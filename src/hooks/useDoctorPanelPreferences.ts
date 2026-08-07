@@ -2,7 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-export type QueueFilter = "all" | "pending";
+export type QueueFilter = "all" | "pending" | "in_progress" | "completed" | "no_show";
+
+/** Guards a stored preference from an older build, which only knew two values. */
+function isQueueFilter(value: unknown): value is QueueFilter {
+  return (
+    value === "all" ||
+    value === "pending" ||
+    value === "in_progress" ||
+    value === "completed" ||
+    value === "no_show"
+  );
+}
 
 export interface DoctorPanelPreferences {
   statsVisible: boolean;
@@ -27,7 +38,16 @@ export const useDoctorPanelPreferences = () => {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as DoctorPanelPreferences;
-        setPreferences(parsed);
+        setPreferences({
+          ...DEFAULT_PREFERENCES,
+          ...parsed,
+          // A filter this build does not have would render an empty queue with
+          // no tab selected, and the value is sticky, so the doctor would be
+          // stuck there until they cleared their browser storage.
+          queueFilter: isQueueFilter(parsed.queueFilter)
+            ? parsed.queueFilter
+            : DEFAULT_PREFERENCES.queueFilter,
+        });
       }
     } catch (error) {
       console.error("Failed to load doctor panel preferences:", error);

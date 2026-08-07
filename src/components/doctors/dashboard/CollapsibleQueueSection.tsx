@@ -5,6 +5,7 @@ import { ChevronRight, Users } from "lucide-react";
 import { EnhancedQueueBoard } from "./EnhancedQueueBoard";
 import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
 import type { QueuePatient } from "@/utils/queueFilters";
+import type { Pathway } from "@/services/pathwaysApi";
 
 interface CollapsibleQueueSectionProps {
   queuePatients: QueuePatient[];
@@ -12,9 +13,12 @@ interface CollapsibleQueueSectionProps {
   onFilterChange: (filter: QueueFilter) => void;
   onSelectPatient: (patientId: string) => void;
   selectedPatientId: string | null;
-  onUpdateStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
-  onPickPatient?: (visitId: string) => void;
-  onUnpickPatient?: (visitId: string) => void;
+  /** The pathway that decides which actions each patient's stage allows. */
+  pathway: Pathway | null;
+  onCallPatient?: (visitId: string, toStageCode: string) => void;
+  onAdvancePatient?: (visitId: string, toStageCode: string) => void;
+  onReleasePatient?: (visitId: string) => void;
+  currentUserId?: string | null;
   updatingVisitId?: string | null;
   loading?: boolean;
   isVisible: boolean;
@@ -27,9 +31,11 @@ export const CollapsibleQueueSection: React.FC<CollapsibleQueueSectionProps> = (
   onFilterChange,
   onSelectPatient,
   selectedPatientId,
-  onUpdateStatus,
-  onPickPatient,
-  onUnpickPatient,
+  pathway,
+  onCallPatient,
+  onAdvancePatient,
+  onReleasePatient,
+  currentUserId,
   updatingVisitId,
   loading = false,
   isVisible,
@@ -58,9 +64,11 @@ export const CollapsibleQueueSection: React.FC<CollapsibleQueueSectionProps> = (
           onFilterChange={onFilterChange}
           onSelectPatient={onSelectPatient}
           selectedPatientId={selectedPatientId}
-          onUpdateStatus={onUpdateStatus}
-          onPickPatient={onPickPatient}
-          onUnpickPatient={onUnpickPatient}
+          pathway={pathway}
+          onCallPatient={onCallPatient}
+          onAdvancePatient={onAdvancePatient}
+          onReleasePatient={onReleasePatient}
+          currentUserId={currentUserId}
           updatingVisitId={updatingVisitId}
           loading={loading}
         />

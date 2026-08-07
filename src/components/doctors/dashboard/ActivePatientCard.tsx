@@ -11,6 +11,8 @@ import {
   X,
   Printer,
 } from "lucide-react";
+import type { Pathway } from "@/services/pathwaysApi";
+import { StageProgress } from "./StageProgress";
 
 type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
@@ -24,6 +26,9 @@ interface ActivePatientCardProps {
   onCreatePrescription?: () => void;
   onPrintOpd?: () => void;
   showPrescriptionButton?: boolean;
+  /** The selected patient's stage, for the progress track. */
+  status?: string | null;
+  pathway?: Pathway | null;
   children: React.ReactNode;
 }
 
@@ -45,6 +50,8 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   onCreatePrescription,
   onPrintOpd,
   showPrescriptionButton = false,
+  status = null,
+  pathway = null,
   children,
 }) => {
   if (!patientId) {
@@ -110,6 +117,8 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
             </button>
           </div>
         </div>
+
+        <StageProgress status={status} pathway={pathway} className="mt-3" />
       </div>
 
       {/* Tabs */}

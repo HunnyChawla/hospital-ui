@@ -135,6 +135,33 @@ export function hasAssistantStage(pathway: { stages: PathwayStage[] } | null): b
 }
 
 /**
+ * The queue a patient goes back to when this role gives them up.
+ *
+ * Mirrors `PathwayService.waiting_stage_for_role` on the server. Releasing used
+ * to send the patient to a hard-coded `awaiting_doctor`, a stage the standard
+ * pathway has no equivalent of — so a general hospital's released patient
+ * landed in a status nothing recognised and dropped out of the queue.
+ *
+ * Falls back to the role-less waiting stage, where a patient who belongs to
+ * nobody in particular waits.
+ */
+export function waitingStageForRole(
+    pathway: { stages: PathwayStage[] } | null,
+    role: string
+): PathwayStage | null {
+    const waiting = (pathway?.stages ?? [])
+        .filter((s) => s.stage_type === "waiting" && !s.is_abandonment)
+        .sort((a, b) => a.display_order - b.display_order);
+
+    const queueRole = (s: PathwayStage) => s.waiting_for_role ?? s.assigned_role;
+    return (
+        waiting.find((s) => queueRole(s) === role) ??
+        waiting.find((s) => !queueRole(s)) ??
+        null
+    );
+}
+
+/**
  * What to call the assistant phase on this hospital's dashboard.
  *
  * ⚠️ Takes ONE pathway, not the whole index. Reading every pathway in the tenant

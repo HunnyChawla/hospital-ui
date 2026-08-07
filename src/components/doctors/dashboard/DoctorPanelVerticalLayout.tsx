@@ -7,6 +7,7 @@ import { ActivePatientCard } from "./ActivePatientCard";
 import type { DoctorStats } from "@/types";
 import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
 import type { QueuePatient } from "@/utils/queueFilters";
+import type { Pathway } from "@/services/pathwaysApi";
 
 type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
@@ -33,15 +34,19 @@ interface DoctorPanelVerticalLayoutProps {
   selectedPatientId: string | null;
   selectedPatientName?: string;
   selectedPatientUhid?: string;
+  /** The selected patient's stage code, for the progress track. */
+  selectedPatientStatus?: string | null;
   activeTab: ActiveTab;
   onSelectPatient: (patientId: string) => void;
   onClearPatient: () => void;
   onTabChange: (tab: ActiveTab) => void;
 
-  // Visit status
-  onUpdateVisitStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
-  onPickPatient?: (visitId: string) => void;
-  onUnpickPatient?: (visitId: string) => void;
+  // Stage actions, generated from the pathway rather than hard-coded
+  pathway: Pathway | null;
+  onCallPatient?: (visitId: string, toStageCode: string) => void;
+  onAdvancePatient?: (visitId: string, toStageCode: string) => void;
+  onReleasePatient?: (visitId: string) => void;
+  currentUserId?: string | null;
   updatingVisitId?: string | null;
 
   // Prescription
@@ -70,13 +75,16 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   selectedPatientId,
   selectedPatientName,
   selectedPatientUhid,
+  selectedPatientStatus,
   activeTab,
   onSelectPatient,
   onClearPatient,
   onTabChange,
-  onUpdateVisitStatus,
-  onPickPatient,
-  onUnpickPatient,
+  pathway,
+  onCallPatient,
+  onAdvancePatient,
+  onReleasePatient,
+  currentUserId,
   updatingVisitId,
   onCreatePrescription,
   onPrintOpd,
@@ -109,6 +117,8 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
             onCreatePrescription={onCreatePrescription}
             onPrintOpd={onPrintOpd}
             showPrescriptionButton={!!selectedPatientId}
+            status={selectedPatientStatus}
+            pathway={pathway}
           >
             {children}
           </ActivePatientCard>
@@ -152,9 +162,11 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
               onFilterChange={onQueueFilterChange}
               onSelectPatient={onSelectPatient}
               selectedPatientId={selectedPatientId}
-              onUpdateStatus={onUpdateVisitStatus}
-              onPickPatient={onPickPatient}
-              onUnpickPatient={onUnpickPatient}
+              pathway={pathway}
+              onCallPatient={onCallPatient}
+              onAdvancePatient={onAdvancePatient}
+              onReleasePatient={onReleasePatient}
+              currentUserId={currentUserId}
               updatingVisitId={updatingVisitId}
               loading={queueLoading}
               isVisible={queueVisible}
