@@ -6,6 +6,7 @@ import {
     episodesApi,
     healthDocumentsApi,
     immunisationsApi,
+    type EpisodeType,
     type HiType,
     type RecordImmunisationRequest,
 } from "@/services/healthRecordApi";
@@ -16,6 +17,8 @@ export const healthRecordKeys = {
     all: ["health-record"] as const,
     timeline: (patientId: string) => ["health-record", "timeline", patientId] as const,
     episode: (episodeId: string) => ["health-record", "episode", episodeId] as const,
+    bySource: (episodeType: string, sourceId: string) =>
+        ["health-record", "by-source", episodeType, sourceId] as const,
     documents: (episodeId: string) => ["health-record", "documents", episodeId] as const,
     history: (docType: HiType, sourceId: string) =>
         ["health-record", "history", docType, sourceId] as const,
@@ -35,6 +38,21 @@ export function usePatientTimeline(patientId: string | null) {
         queryKey: healthRecordKeys.timeline(patientId ?? ""),
         queryFn: () => episodesApi.timeline(patientId!, { page_size: 100 }, tenant),
         enabled: !!patientId,
+    });
+}
+
+/**
+ * The episode for one visit / admission / day-care visit / surgery.
+ *
+ * What the "Finalise visit" control on each of those screens asks. Those
+ * screens know their own id and nothing about episodes, which is the point.
+ */
+export function useEpisodeForSource(episodeType: EpisodeType, sourceId: string | null) {
+    const tenant = useTenant();
+    return useQuery({
+        queryKey: healthRecordKeys.bySource(episodeType, sourceId ?? ""),
+        queryFn: () => episodesApi.forSource(episodeType, sourceId!, tenant),
+        enabled: !!sourceId,
     });
 }
 

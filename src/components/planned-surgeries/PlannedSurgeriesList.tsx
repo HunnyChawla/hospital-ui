@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 import {
     usePlannedSurgeries,
     useCancelPlannedSurgery,
@@ -1131,6 +1132,15 @@ export function PlannedSurgeriesList({
                                                 <span>Follow-up: <strong className="font-medium">{formatDate(surgery.followup_date)}</strong></span>
                                             </div>
                                         )}
+
+                                        {/* Finalising is separate from completing
+                                            the surgery: one is clinical, the other
+                                            freezes the record for publication. */}
+                                        <FinaliseVisitAction
+                                            episodeType="planned_surgery"
+                                            sourceId={surgery.id}
+                                            compact
+                                        />
 
                                         {/* Reschedule count */}
                                         {surgery.reschedule_count > 0 && (

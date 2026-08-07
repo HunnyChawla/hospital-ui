@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
     Stethoscope,
     BedDouble,
@@ -17,6 +17,7 @@ import {
     useReopenEpisode,
 } from "@/hooks/queries/useHealthRecord";
 import type { Episode, EpisodeType, HiType } from "@/services/healthRecordApi";
+import { DocumentVersionHistory } from "./DocumentVersionHistory";
 
 interface PatientEpisodeTimelineProps {
     patientId: string | null;
@@ -118,6 +119,7 @@ function EpisodeRow({
     onReopen: () => void;
     isBusy: boolean;
 }) {
+    const [showDocuments, setShowDocuments] = useState(false);
     const Icon = EPISODE_ICONS[episode.episode_type] ?? Stethoscope;
     const finalised = episode.status === "finalised";
 
@@ -164,6 +166,17 @@ function EpisodeRow({
                                 Nothing recorded against this visit yet
                             </p>
                         )}
+
+                        {/* Only once something has been frozen. An expander
+                            offering an empty list on every open visit is noise. */}
+                        {episode.status !== "open" && (
+                            <button
+                                onClick={() => setShowDocuments((open) => !open)}
+                                className="mt-2 text-xs font-semibold text-sky-600 transition hover:text-sky-700"
+                            >
+                                {showDocuments ? "Hide documents" : "View documents"}
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -191,6 +204,12 @@ function EpisodeRow({
                     )}
                 </div>
             </div>
+
+            {showDocuments && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                    <DocumentVersionHistory episodeId={episode.id} />
+                </div>
+            )}
         </li>
     );
 }

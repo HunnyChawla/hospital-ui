@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { Modal } from "@/components/common/Modal";
+import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 import { admissionsApi, Admission, AmountDueResponse } from "@/services/admissionsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
@@ -490,6 +491,11 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admission #</p>
               <p className="text-xs font-bold text-slate-900 truncate">{admission.admission_number}</p>
+              {/* Separate from discharge: discharging is clinical, finalising
+                  freezes the record so it can be published. */}
+              <div className="mt-1.5">
+                <FinaliseVisitAction episodeType="ipd_admission" sourceId={admission.id} compact />
+              </div>
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admitted at</p>

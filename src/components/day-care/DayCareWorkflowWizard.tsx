@@ -66,6 +66,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { currency } from "@/utils/format";
 import clsx from "clsx";
+import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -1920,6 +1921,9 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
             )}>
               {visit.status.replace("_", " ")}
             </span>
+            {/* Finalising is a separate act from discharging: discharge is
+                clinical, finalising freezes the record for publication. */}
+            <FinaliseVisitAction episodeType="day_care_visit" sourceId={visit.id} />
           </div>
 
           <div className="flex flex-row flex-wrap lg:flex-col gap-2.5 text-sm text-slate-600 font-medium">

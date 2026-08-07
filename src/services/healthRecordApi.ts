@@ -139,6 +139,24 @@ export const episodesApi = {
         return response.data;
     },
 
+    /**
+     * The episode for a visit / admission / day-care visit / surgery.
+     *
+     * Null when there is none — a visit registered seconds ago may be ahead of
+     * the worker that opens its episode, which is ordinary rather than an error.
+     */
+    async forSource(
+        episodeType: EpisodeType,
+        sourceId: string,
+        tenantId?: string
+    ): Promise<Episode | null> {
+        const response = await apiClient.get<Episode | null>(
+            `/episodes/by-source/${episodeType}/${sourceId}`,
+            tenantParams(tenantId)
+        );
+        return response.data ?? null;
+    },
+
     async get(episodeId: string, tenantId?: string): Promise<Episode> {
         const response = await apiClient.get<Episode>(
             `/episodes/${episodeId}`,
@@ -207,6 +225,22 @@ export const healthDocumentsApi = {
             `/health-record/documents/episode/${episodeId}/finalise`,
             {},
             tenantParams(tenantId)
+        );
+        return response.data;
+    },
+
+    /**
+     * The rendered PDF for one version, as a blob.
+     *
+     * Fetched rather than pointed at with an `<iframe src>`: the endpoint needs
+     * an Authorization header, and an iframe sends none — it would render the
+     * login redirect inside the viewer, which looks like a broken PDF.
+     */
+    async pdf(versionId: string, tenantId?: string): Promise<Blob> {
+        const id = getTenantIdForApi(tenantId);
+        const response = await apiClient.get<Blob>(
+            `/health-record/documents/version/${versionId}/pdf`,
+            { responseType: "blob", params: id ? { tenant_id: id } : undefined }
         );
         return response.data;
     },
