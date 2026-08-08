@@ -133,6 +133,56 @@ export interface AbhaLinkCheckResponseDto {
   identity_mismatches?: string[];
 }
 
+
+// ---------------------------------------------------------------------------
+// Find ABHA — a patient at the desk cannot remember their ABHA number.
+//
+// Three steps, because the middle one is conditional: request an OTP, verify
+// it, and — only when one mobile turns out to cover several ABHAs — pick one.
+// ---------------------------------------------------------------------------
+
+export type FindAbhaBy = "mobile" | "aadhaar";
+
+export interface FindAbhaRequestOtpDto {
+  search_by: FindAbhaBy;
+  value: string;
+}
+
+export interface FindAbhaRequestOtpResult {
+  session_key: string;
+  message?: string | null;
+  auth_methods: string[];
+}
+
+export interface FindAbhaVerifyOtpDto {
+  session_key: string;
+  otp: string;
+}
+
+export interface FoundAbhaAccount {
+  abha_number?: string | null;
+  abha_address?: string | null;
+  name?: string | null;
+  gender?: string | null;
+  date_of_birth?: string | null;
+  mobile?: string | null;
+  profile_photo?: string | null;
+  kyc_verified?: boolean | null;
+}
+
+export interface FindAbhaResult {
+  session_key: string;
+  accounts: FoundAbhaAccount[];
+  /** More than one ABHA matched. The patient must say which is theirs. */
+  requires_selection: boolean;
+  message?: string | null;
+}
+
+export interface FindAbhaSelectDto {
+  session_key: string;
+  abha_number: string;
+}
+
 export const abhaApi = {
   // Tenant Config
   async getConfig(tenantId?: string): Promise<TenantAbdmConfigDto> {
@@ -260,6 +310,36 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get(`/abha/card/${sessionKey}`, { params, responseType: "blob" });
+    return response.data;
+  },
+  // Find ABHA -----------------------------------------------------------
+  async findRequestOtp(
+    req: FindAbhaRequestOtpDto,
+    tenantId?: string
+  ): Promise<FindAbhaRequestOtpResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<FindAbhaRequestOtpResult>(
+      "/abha/find/request-otp",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
+  async findVerifyOtp(req: FindAbhaVerifyOtpDto, tenantId?: string): Promise<FindAbhaResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<FindAbhaResult>("/abha/find/verify-otp", req, {
+      params,
+    });
+    return response.data;
+  },
+
+  async findSelectAccount(req: FindAbhaSelectDto, tenantId?: string): Promise<FindAbhaResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<FindAbhaResult>("/abha/find/select", req, { params });
     return response.data;
   },
 };
