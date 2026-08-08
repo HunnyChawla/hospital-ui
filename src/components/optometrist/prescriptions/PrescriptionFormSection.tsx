@@ -63,7 +63,7 @@ import type { PrescriptionTemplate } from "@/services/prescriptionTemplatesApi";
 import type { MedicineItem, AdviceItem, OptometryPrescription, OptometryPrescriptionItem, PrescriptionSymptom } from "@/types";
 import { QuickPresetsSettingsModal } from "./settings/QuickPresetsSettingsModal";
 import { PlannedSurgerySection } from "./PlannedSurgerySection";
-import { quickPresetsApi } from "@/services/quickPresetsApi";
+import { quickPresetsApi, type QuickMedicine } from "@/services/quickPresetsApi";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 import { patientsApi } from "@/services/patientsApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
@@ -107,6 +107,25 @@ interface FormData {
     medicine_items: MedicineItem[];
     advice_items: AdviceItem[];
 }
+
+// Map a saved quick-medicine preset into the shape the chip list / appendMedicine expect.
+// Keep every field the prescription form can hold here - notably tapering_steps, which is
+// what makes a tapering preset arrive with its schedule intact.
+const toMedicineOption = (m: QuickMedicine) => ({
+    id: m.id || Math.random().toString(),
+    label: m.label,
+    icon: m.icon,
+    color: m.color,
+    medicine: {
+        medicine_name: m.medicine_name,
+        generic_name: m.generic_name,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        duration: m.duration,
+        instructions: m.instructions,
+        tapering_steps: m.tapering_steps,
+    },
+});
 
 const LENS_TYPES = [
     "Single Vision - Distance",
@@ -666,21 +685,7 @@ export function PrescriptionFormSection({
 
                     if (meds && meds.length > 0) {
                         // Map API medicine format to UI format
-                        const mappedMeds = meds.map(m => ({
-                            id: m.id || Math.random().toString(),
-                            label: m.label,
-                            icon: m.icon,
-                            color: m.color,
-                            medicine: {
-                                medicine_name: m.medicine_name,
-                                generic_name: m.generic_name,
-                                dosage: m.dosage,
-                                frequency: m.frequency,
-                                duration: m.duration,
-                                instructions: m.instructions
-                            }
-                        }));
-                        setMedicinesOptions(mappedMeds);
+                        setMedicinesOptions(meds.map(toMedicineOption));
                     } else {
                         setMedicinesOptions([]);
                     }
@@ -1147,6 +1152,7 @@ export function PrescriptionFormSection({
                     duration: med.duration,
                     instructions: med.instructions || "",
                     applicable_eye: med.applicable_eye || "BOTH",
+                    tapering_steps: med.tapering_steps || undefined,
                 });
             });
         }
@@ -3071,21 +3077,7 @@ export function PrescriptionFormSection({
                                         setDiagnosesOptions(dx || []);
 
                                         if (meds && meds.length > 0) {
-                                            const mappedMeds = meds.map(m => ({
-                                                id: m.id || Math.random().toString(),
-                                                label: m.label,
-                                                icon: m.icon,
-                                                color: m.color,
-                                                medicine: {
-                                                    medicine_name: m.medicine_name,
-                                                    generic_name: m.generic_name,
-                                                    dosage: m.dosage,
-                                                    frequency: m.frequency,
-                                                    duration: m.duration,
-                                                    instructions: m.instructions
-                                                }
-                                            }));
-                                            setMedicinesOptions(mappedMeds);
+                                            setMedicinesOptions(meds.map(toMedicineOption));
                                         } else {
                                             setMedicinesOptions([]);
                                         }

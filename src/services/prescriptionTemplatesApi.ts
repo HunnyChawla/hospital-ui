@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
+import type { TaperingStep } from "@/types";
 
 // usage check: They are NOT used in the file.
 
@@ -15,6 +16,7 @@ export interface MedicineTemplateItem {
     duration: string;
     instructions?: string;
     applicable_eye?: "LEFT" | "RIGHT" | "BOTH" | "NA" | null;
+    tapering_steps?: TaperingStep[];
 }
 
 export interface AdviceTemplateItem {
