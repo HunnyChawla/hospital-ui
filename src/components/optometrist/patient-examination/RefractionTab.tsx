@@ -902,8 +902,8 @@ export function RefractionTab({
               onODChange={(v) => updateField("od", "cylinder", v)}
               onOSChange={(v) => updateField("os", "cylinder", v)}
               step={0.25}
-              min={-6}
-              max={6}
+              min={-30}
+              max={30}
               unit="D"
               presets={cylinderPresets}
               odError={errors.od_cylinder}
@@ -1138,8 +1138,8 @@ export function RefractionTab({
                 onODChange={(v) => updateDilatedField("od_dilated", "cylinder", v)}
                 onOSChange={(v) => updateDilatedField("os_dilated", "cylinder", v)}
                 step={0.25}
-                min={-6}
-                max={6}
+                min={-30}
+                max={30}
                 unit="D"
                 presets={cylinderPresets}
                 odError={errors.od_dilated_cylinder}

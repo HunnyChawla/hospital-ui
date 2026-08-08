@@ -556,8 +556,8 @@ export function ARDataTab({
               onODChange={(v) => updateField("od", "cylinder", v)}
               onOSChange={(v) => updateField("os", "cylinder", v)}
               step={0.25}
-              min={-6}
-              max={6}
+              min={-30}
+              max={30}
               unit="D"
               presets={cylinderPresets}
             />
@@ -603,8 +603,8 @@ export function ARDataTab({
                 onODChange={(v) => updateField("od_wet", "cylinder", v)}
                 onOSChange={(v) => updateField("os_wet", "cylinder", v)}
                 step={0.25}
-                min={-6}
-                max={6}
+                min={-30}
+                max={30}
                 unit="D"
                 presets={cylinderPresets}
               />
