@@ -494,8 +494,8 @@ export function CurrentSpecsTab({
                             onODChange={(v) => updateField("od", "cyl", v)}
                             onOSChange={(v) => updateField("os", "cyl", v)}
                             step={0.25}
-                            min={-6}
-                            max={6}
+                            min={-30}
+                            max={30}
                             unit="D"
                             presets={cylinderPresets}
                             odError={errors.od_cyl}

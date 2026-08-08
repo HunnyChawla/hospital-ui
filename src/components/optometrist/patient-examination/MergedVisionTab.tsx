@@ -201,6 +201,12 @@ const DIST_VA_OPTIONS = [
 const NEAR_VA_OPTIONS = ["N5", "N6", "N6 p", "N8", "N8 p", "N10", "N12", "N12 p", "N14", "N18", "N18 p", "N24", "N36", "N48"];
 const PRISM_OPTIONS = ["", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
 
+// Dioptre limits for sphere/cylinder. Must stay in sync with the backend DTO
+// bounds (ge=-30.00, le=30.00) in hms/optometry/dto/*.py and the
+// ck_*_sphere_range / ck_*_cylinder_range CHECK constraints.
+const POWER_MIN = -30;
+const POWER_MAX = 30;
+
 export function MergedVisionTab({
   patientId,
   visitId,
@@ -693,8 +699,45 @@ export function MergedVisionTab({
       }
     };
 
-    checkCylAxis(formState.od_sph ? formState.od_cyl : formState.od_cyl, formState.od_axis, "od_axis");
-    checkCylAxis(formState.os_sph ? formState.os_cyl : formState.os_cyl, formState.os_axis, "os_axis");
+    // Pre-validate: Sphere / Cylinder must stay within the ±30.00 D range the
+    // backend accepts, so the optometrist is told immediately instead of losing
+    // the round-trip to a 422 after filling in the whole sheet.
+    const checkPowerRange = (
+      valStr: string,
+      key: keyof CombinedFormState,
+      label: "Sphere" | "Cylinder"
+    ) => {
+      const val = parseNumVal(valStr);
+      if (val !== null && (val < POWER_MIN || val > POWER_MAX)) {
+        validationErrors[key] = `${label} must be between ${POWER_MIN.toFixed(
+          2
+        )} and +${POWER_MAX.toFixed(2)} D`;
+      }
+    };
+
+    const POWER_FIELDS: Array<[keyof CombinedFormState, "Sphere" | "Cylinder"]> = [
+      // Current spectacles (POG)
+      ["od_sph", "Sphere"], ["os_sph", "Sphere"],
+      ["od_cyl", "Cylinder"], ["os_cyl", "Cylinder"],
+      // Dry AR
+      ["od_ar_sphere", "Sphere"], ["os_ar_sphere", "Sphere"],
+      ["od_ar_cylinder", "Cylinder"], ["os_ar_cylinder", "Cylinder"],
+      // Wet AR
+      ["od_wet_sphere", "Sphere"], ["os_wet_sphere", "Sphere"],
+      ["od_wet_cylinder", "Cylinder"], ["os_wet_cylinder", "Cylinder"],
+      // Subjective refraction
+      ["od_ref_sphere", "Sphere"], ["os_ref_sphere", "Sphere"],
+      ["od_ref_cylinder", "Cylinder"], ["os_ref_cylinder", "Cylinder"],
+      // Dilated acceptance
+      ["od_dilated_sphere", "Sphere"], ["os_dilated_sphere", "Sphere"],
+      ["od_dilated_cylinder", "Cylinder"], ["os_dilated_cylinder", "Cylinder"],
+    ];
+    POWER_FIELDS.forEach(([key, label]) =>
+      checkPowerRange(formState[key] as string, key, label)
+    );
+
+    checkCylAxis(formState.od_cyl, formState.od_axis, "od_axis");
+    checkCylAxis(formState.os_cyl, formState.os_axis, "os_axis");
     checkCylAxis(formState.od_ar_cylinder, formState.od_ar_axis, "od_ar_axis");
     checkCylAxis(formState.os_ar_cylinder, formState.os_ar_axis, "os_ar_axis");
     checkCylAxis(formState.od_wet_cylinder, formState.od_wet_axis, "od_wet_axis");
@@ -706,7 +749,8 @@ export function MergedVisionTab({
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      toast.error("Axis is required when cylinder is specified. Please check highlighted fields.");
+      const firstMsg = Object.values(validationErrors)[0];
+      toast.error(`${firstMsg}. Please check highlighted fields.`);
       return;
     }
 

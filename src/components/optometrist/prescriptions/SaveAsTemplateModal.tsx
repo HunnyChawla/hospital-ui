@@ -98,6 +98,7 @@ export function SaveAsTemplateModal({
                         frequency: m.frequency,
                         duration: m.duration,
                         instructions: m.instructions || undefined,
+                        tapering_steps: m.tapering_steps || undefined,
                     }))
                     : undefined,
                 advice_items: formData.advice_items?.length
