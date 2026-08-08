@@ -18,6 +18,27 @@ export type EpisodeType =
 
 export type EpisodeStatus = "open" | "finalised" | "reopened";
 
+/**
+ * Why a finalised episode is being unlocked.
+ *
+ * Mirrors `ReopenReason` in `hms/health_record/domain/episode.py`. A closed
+ * list, because this is the field a dispute reads — "late result" across a
+ * hundred episodes is a pattern; a hundred sentences meaning the same thing
+ * is not.
+ */
+export type ReopenReason =
+    | "late_result"
+    | "correction"
+    | "omission"
+    | "administrative"
+    | "other";
+
+export interface ReopenEpisodeRequest {
+    reason: ReopenReason;
+    /** Optional detail — except for "other", where the server requires it. */
+    note?: string;
+}
+
 /** ABDM health-information types. */
 export type HiType =
     | "Prescription"
@@ -188,10 +209,14 @@ export const episodesApi = {
         return response.data;
     },
 
-    async reopen(episodeId: string, tenantId?: string): Promise<Episode> {
+    async reopen(
+        episodeId: string,
+        body: ReopenEpisodeRequest,
+        tenantId?: string
+    ): Promise<Episode> {
         const response = await apiClient.post<Episode>(
             `/episodes/${episodeId}/reopen`,
-            {},
+            body,
             tenantParams(tenantId)
         );
         return response.data;

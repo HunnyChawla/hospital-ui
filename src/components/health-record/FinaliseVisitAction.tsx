@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lock, Unlock, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Lock, Unlock, Loader2, CheckCircle2 } from "lucide-react";
 import {
     useEpisodeForSource,
     useFinaliseEpisode,
@@ -9,6 +9,7 @@ import {
 } from "@/hooks/queries/useHealthRecord";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { EpisodeType } from "@/services/healthRecordApi";
+import { FinaliseConfirmDialog, mayReopenEpisode } from "./FinaliseConfirmDialog";
 
 interface FinaliseVisitActionProps {
     /** Which kind of record this is. */
@@ -54,8 +55,13 @@ export function FinaliseVisitAction({
 
     // Reopening is deliberately narrower than finalising. Anyone completing a
     // visit may close it; undoing that is a correction to a signed record, so
-    // it is limited to the people who own the clinical content.
-    const mayReopen = isAdmin || userRole === "doctor";
+    // it is limited to the people who amend clinical content.
+    //
+    // Nurses included: late vitals and notes are theirs, and routing those
+    // through a doctor adds a queue to the routine case. Kept in step with
+    // REOPEN_ROLES in hms/health_record/api/episode_routes.py — and the server
+    // enforces it, so this only decides whether the button is worth showing.
+    const mayReopen = mayReopenEpisode(isAdmin, userRole);
 
     if (finalised && compact) {
         return <FinalisedBadge />;
@@ -91,12 +97,13 @@ export function FinaliseVisitAction({
             )}
 
             {confirming && (
-                <ConfirmDialog
+                <FinaliseConfirmDialog
                     mode={confirming}
                     onCancel={() => setConfirming(null)}
-                    onConfirm={() => {
+                    onConfirm={(reason, note) => {
                         if (confirming === "finalise") finalise.mutate(episode.id);
-                        else reopen.mutate(episode.id);
+                        else if (reason)
+                            reopen.mutate({ episodeId: episode.id, reason, note });
                         setConfirming(null);
                     }}
                 />
@@ -115,86 +122,5 @@ export function FinalisedBadge() {
             <CheckCircle2 className="h-3.5 w-3.5" />
             Finalised
         </span>
-    );
-}
-
-function ConfirmDialog({
-    mode,
-    onCancel,
-    onConfirm,
-}: {
-    mode: "finalise" | "reopen";
-    onCancel: () => void;
-    onConfirm: () => void;
-}) {
-    const finalising = mode === "finalise";
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-                <div className="flex gap-3">
-                    <div
-                        className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
-                            finalising ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
-                        }`}
-                    >
-                        {finalising ? (
-                            <Lock className="h-4 w-4" />
-                        ) : (
-                            <AlertTriangle className="h-4 w-4" />
-                        )}
-                    </div>
-
-                    <div>
-                        <h3 className="text-sm font-semibold text-slate-900">
-                            {finalising ? "Finalise this visit?" : "Reopen this visit?"}
-                        </h3>
-                        {/* Says what actually happens, in the order it happens.
-                            "Are you sure?" tells nobody anything. */}
-                        <div className="mt-2 space-y-1.5 text-xs text-slate-600">
-                            {finalising ? (
-                                <>
-                                    <p>
-                                        Its prescriptions, notes and reports will be frozen and a
-                                        version of each recorded.
-                                    </p>
-                                    <p>
-                                        You can reopen it afterwards if something arrives late —
-                                        that is recorded too.
-                                    </p>
-                                </>
-                            ) : (
-                                <>
-                                    <p>
-                                        Documents become editable again, and anything finalised
-                                        afterwards is saved as a new version.
-                                    </p>
-                                    <p>This is recorded in the audit trail.</p>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-5 flex justify-end gap-2">
-                    <button
-                        onClick={onCancel}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        className={`rounded-lg px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition ${
-                            finalising
-                                ? "bg-emerald-500 hover:bg-emerald-600"
-                                : "bg-amber-500 hover:bg-amber-600"
-                        }`}
-                    >
-                        {finalising ? "Finalise" : "Reopen"}
-                    </button>
-                </div>
-            </div>
-        </div>
     );
 }

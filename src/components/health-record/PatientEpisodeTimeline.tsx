@@ -16,8 +16,15 @@ import {
     useFinaliseEpisode,
     useReopenEpisode,
 } from "@/hooks/queries/useHealthRecord";
-import type { Episode, EpisodeType, HiType } from "@/services/healthRecordApi";
+import { usePermissions } from "@/hooks/usePermissions";
+import type {
+    Episode,
+    EpisodeType,
+    HiType,
+    ReopenReason,
+} from "@/services/healthRecordApi";
 import { DocumentVersionHistory } from "./DocumentVersionHistory";
+import { FinaliseConfirmDialog, mayReopenEpisode } from "./FinaliseConfirmDialog";
 
 interface PatientEpisodeTimelineProps {
     patientId: string | null;
@@ -65,6 +72,13 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
     const { data, isLoading } = usePatientTimeline(patientId);
     const finalise = useFinaliseEpisode();
     const reopen = useReopenEpisode();
+    const { isAdmin, userRole } = usePermissions();
+    const [confirming, setConfirming] = useState<{
+        id: string;
+        mode: "finalise" | "reopen";
+    } | null>(null);
+
+    const mayReopen = mayReopenEpisode(isAdmin, userRole);
 
     if (!patientId) return null;
 
@@ -96,25 +110,45 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
                 <EpisodeRow
                     key={episode.id}
                     episode={episode}
-                    onFinalise={() => finalise.mutate(episode.id)}
-                    onReopen={() => reopen.mutate(episode.id)}
+                    mayReopen={mayReopen}
+                    onFinalise={() => setConfirming({ id: episode.id, mode: "finalise" })}
+                    onReopen={() => setConfirming({ id: episode.id, mode: "reopen" })}
                     isBusy={
                         (finalise.isPending && finalise.variables === episode.id) ||
-                        (reopen.isPending && reopen.variables === episode.id)
+                        (reopen.isPending && reopen.variables?.episodeId === episode.id)
                     }
                 />
             ))}
+
+            {/* Same dialog as every other finalise/reopen control in the
+                product. This screen previously reopened a finalised record on
+                a single click, with no confirmation, no reason and no
+                permission check. */}
+            {confirming && (
+                <FinaliseConfirmDialog
+                    mode={confirming.mode}
+                    onCancel={() => setConfirming(null)}
+                    onConfirm={(reason?: ReopenReason, note?: string) => {
+                        if (confirming.mode === "finalise") finalise.mutate(confirming.id);
+                        else if (reason)
+                            reopen.mutate({ episodeId: confirming.id, reason, note });
+                        setConfirming(null);
+                    }}
+                />
+            )}
         </ol>
     );
 }
 
 function EpisodeRow({
     episode,
+    mayReopen,
     onFinalise,
     onReopen,
     isBusy,
 }: {
     episode: Episode;
+    mayReopen: boolean;
     onFinalise: () => void;
     onReopen: () => void;
     isBusy: boolean;
@@ -184,6 +218,7 @@ function EpisodeRow({
                     {isBusy ? (
                         <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                     ) : finalised ? (
+                        mayReopen && (
                         <button
                             onClick={onReopen}
                             title="Reopen so late documentation can be added. Recorded in the audit trail."
@@ -192,6 +227,7 @@ function EpisodeRow({
                             <Unlock className="h-3.5 w-3.5" />
                             Reopen
                         </button>
+                        )
                     ) : (
                         <button
                             onClick={onFinalise}

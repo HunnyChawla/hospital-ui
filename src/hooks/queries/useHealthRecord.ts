@@ -9,6 +9,7 @@ import {
     type EpisodeType,
     type HiType,
     type RecordImmunisationRequest,
+    type ReopenEpisodeRequest,
 } from "@/services/healthRecordApi";
 import { useTenantContext } from "@/lib/tenant-context";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -124,7 +125,8 @@ export function useReopenEpisode() {
     const tenant = useTenant();
 
     return useMutation({
-        mutationFn: (episodeId: string) => episodesApi.reopen(episodeId, tenant),
+        mutationFn: ({ episodeId, ...body }: { episodeId: string } & ReopenEpisodeRequest) =>
+            episodesApi.reopen(episodeId, body, tenant),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: healthRecordKeys.all });
             toast.success("Visit reopened — new documents will be recorded as a new version");
