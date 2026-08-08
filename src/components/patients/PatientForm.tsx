@@ -410,9 +410,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     if (abhaProfile?.photo_base64) {
       patientData.photo_base64 = abhaProfile.photo_base64;
     }
-    if (aadhaarNum) {
-      patientData.aadhaar_number = aadhaarNum;
-    }
 
 
     // Re-check the ABHA right before saving. The modal already checked at attach time, but
@@ -447,7 +444,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         try {
           await abhaApi.syncToPatient(defaultValues.id, {
             session_key: abhaSessionKey,
-            aadhaar_number: aadhaarNum || null,
           });
         } catch (e) {
           // Never swallow this: the patient save already toasted success, so a silent failure
@@ -480,7 +476,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         try {
           await abhaApi.syncToPatient(newPatient.id, {
             session_key: abhaSessionKey,
-            aadhaar_number: aadhaarNum || null,
           });
         } catch (e) {
           // The patient genuinely exists (ABHA is optional and the "patient:created" event has

@@ -169,7 +169,12 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
 
           {!otpSent ? (
             <>
-              <AbhaConsentPanel checked={consentAccepted} onChange={setConsentAccepted} disabled={loading} />
+              <AbhaConsentPanel
+                variant="aadhaar-authentication"
+                checked={consentAccepted}
+                onChange={setConsentAccepted}
+                disabled={loading}
+              />
               <button
                 type="button"
                 onClick={handleRequestOtp}

@@ -91,10 +91,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const handleAbhaSuccessInDetail = async (profile: any, sessionKey: string, aadhaar?: string) => {
     try {
-      await abhaApi.syncToPatient(patientId, {
-        session_key: sessionKey,
-        aadhaar_number: aadhaar || null,
-      });
+      // No aadhaar_number: ABDM forbids storing it, so the server no longer
+      // accepts one. The Aadhaar still authenticates the enrollment; it is
+      // simply not retained afterwards.
+      await abhaApi.syncToPatient(patientId, { session_key: sessionKey });
       toast.success("ABHA profile attached to patient successfully!");
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);

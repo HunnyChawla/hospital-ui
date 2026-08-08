@@ -105,7 +105,9 @@ export interface AbhaLinkVerifyOtpDto {
 
 export interface AbhaPatientSyncRequestDto {
   session_key: string;
-  aadhaar_number?: string | null;
+  // `aadhaar_number` removed 8 Aug 2026 — ABDM forbids storing it, and the
+  // server no longer accepts or persists it. Aadhaar is still sent for
+  // authentication in the enrollment DTOs; only retention is gone.
   override_mismatch?: boolean;
 }
 
