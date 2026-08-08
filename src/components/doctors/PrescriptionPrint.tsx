@@ -6,6 +6,10 @@ import { formatDate } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
 import { usePrintLayout } from "@/hooks/queries/usePrintLayout";
 import { normalizePrintLayout } from "@/types/printLayout";
+import {
+  PRESCRIPTION_PRINT_SECTIONS,
+  orderPrescriptionSections,
+} from "./prescriptionSections";
 
 interface PrescriptionPrintProps {
   prescription: PrescriptionResponse;
@@ -23,6 +27,13 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
   // not read it is not sharing anything.
   const { data: savedLayout } = usePrintLayout("prescription");
   const layout = normalizePrintLayout(savedLayout?.config);
+
+  // The hospital's order, applied to the same section keys the server uses.
+  const orderedSections = orderPrescriptionSections(
+    PRESCRIPTION_PRINT_SECTIONS,
+    layout.section_order,
+    layout.visible_sections
+  );
 
   return (
     <div className="mx-auto max-w-2xl bg-white p-4 print:p-2">
@@ -74,134 +85,143 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
         </div>
       </div>
 
-      {/* Diagnosis */}
-      {prescription.diagnosis && (
-        <div className="mb-4">
-          <h3 className="mb-1 text-sm font-bold text-slate-900">Diagnosis</h3>
-          <p className="text-sm text-slate-700">{prescription.diagnosis}</p>
-        </div>
-      )}
+      {/* Clinical sections, rendered in the hospital's configured order.
+          Keyed by the SAME strings the server renderer uses — see
+          prescriptionSections.ts. Structural blocks (number, patient, doctor)
+          stay fixed; only the clinical sections are orderable, which is what
+          `tenant_print_layouts.section_order` means. */}
+      {orderedSections.map((key) => {
+        switch (key) {
+          case "diagnosis":
+            return prescription.diagnosis ? (
+              <div key={key} className="mb-4">
+                <h3 className="mb-1 text-sm font-bold text-slate-900">Diagnosis</h3>
+                <p className="text-sm text-slate-700">{prescription.diagnosis}</p>
+              </div>
+            ) : null;
 
-      {/* Medicines */}
-      <div className="mb-4">
-        <h3 className="mb-2 border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-          Prescribed Medicines
-        </h3>
-        <div className="space-y-3">
-          {prescription.items.map((item, index) => (
-            <div key={item.id || index} className="rounded border border-slate-200 bg-slate-50 p-3">
-              <div className="mb-2 flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="font-semibold text-slate-900 flex flex-wrap items-baseline gap-1.5">
-                    {index + 1}. {item.medicine_name}
-                    {item.generic_name && (
-                      <span className="text-[10px] italic font-normal text-slate-500">
-                        ({item.generic_name})
-                      </span>
-                    )}
-                  </p>
+          case "medicines":
+            return (
+              <div key={key} className="mb-4">
+                <h3 className="mb-2 border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
+                  Prescribed Medicines
+                </h3>
+                <div className="space-y-3">
+                  {prescription.items.map((item, index) => (
+                    <div key={item.id || index} className="rounded border border-slate-200 bg-slate-50 p-3">
+                      <div className="mb-2 flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-semibold text-slate-900 flex flex-wrap items-baseline gap-1.5">
+                            {index + 1}. {item.medicine_name}
+                            {item.generic_name && (
+                              <span className="text-[10px] italic font-normal text-slate-500">
+                                ({item.generic_name})
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      {item.tapering_steps && item.tapering_steps.length > 0 ? (
+                        <div className="mt-2.5 border-t border-slate-200/60 pt-2">
+                          <p className="text-[10px] font-bold text-purple-800 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                            <span>📉</span> Tapering Dose Regimen Schedule:
+                          </p>
+                          <div className="space-y-1.5 pl-3 border-l-2 border-purple-200">
+                            {item.tapering_steps.map((step, stepIdx) => (
+                              <div key={stepIdx} className="text-xs text-slate-800">
+                                <span className="font-semibold text-purple-950">Step {stepIdx + 1}: </span>
+                                <span>{step.dosage || item.dosage || ""}</span>
+                                {step.frequency && <span className="mx-1">• {step.frequency}</span>}
+                                {step.duration && <span className="mx-1">• {step.duration}</span>}
+                                {step.instructions && <span className="text-slate-500 italic"> ({step.instructions})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {item.dosage && (
+                            <div>
+                              <span className="text-slate-600">Dosage: </span>
+                              <span className="font-semibold text-slate-900">{item.dosage}</span>
+                            </div>
+                          )}
+                          {item.frequency && (
+                            <div>
+                              <span className="text-slate-600">Frequency: </span>
+                              <span className="font-semibold text-slate-900">{item.frequency}</span>
+                            </div>
+                          )}
+                          {item.duration && (
+                            <div>
+                              <span className="text-slate-600">Duration: </span>
+                              <span className="font-semibold text-slate-900">{item.duration}</span>
+                            </div>
+                          )}
+                          {item.instructions && (
+                            <div className="col-span-2">
+                              <span className="text-slate-600">Instructions: </span>
+                              <span className="font-semibold text-slate-900">{item.instructions}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-              {item.tapering_steps && item.tapering_steps.length > 0 ? (
-                <div className="mt-2.5 border-t border-slate-200/60 pt-2">
-                  <p className="text-[10px] font-bold text-purple-800 uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                    <span>📉</span> Tapering Dose Regimen Schedule:
-                  </p>
-                  <div className="space-y-1.5 pl-3 border-l-2 border-purple-200">
-                    {item.tapering_steps.map((step, stepIdx) => (
-                      <div key={stepIdx} className="text-xs text-slate-800">
-                        <span className="font-semibold text-purple-950">Step {stepIdx + 1}: </span>
-                        <span>{step.dosage || item.dosage || ""}</span>
-                        {step.frequency && <span className="mx-1">• {step.frequency}</span>}
-                        {step.duration && <span className="mx-1">• {step.duration}</span>}
-                        {step.instructions && <span className="text-slate-500 italic"> ({step.instructions})</span>}
-                      </div>
+            );
+
+          case "tests":
+            return prescription.advice_items?.some((a) => a.advice_type === "test") ? (
+              <div key={key} className="mb-4">
+                <h3 className="mb-1 text-sm font-bold text-slate-900">Tests Advised</h3>
+                <ul className="space-y-0.5 text-sm text-slate-700">
+                  {prescription.advice_items
+                    .filter((a) => a.advice_type === "test")
+                    .map((a) => (
+                      <li key={a.id}>• {a.description}</li>
                     ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {item.dosage && (
-                    <div>
-                      <span className="text-slate-600">Dosage: </span>
-                      <span className="font-semibold text-slate-900">{item.dosage}</span>
-                    </div>
-                  )}
-                  {item.frequency && (
-                    <div>
-                      <span className="text-slate-600">Frequency: </span>
-                      <span className="font-semibold text-slate-900">{item.frequency}</span>
-                    </div>
-                  )}
-                  {item.duration && (
-                    <div>
-                      <span className="text-slate-600">Duration: </span>
-                      <span className="font-semibold text-slate-900">{item.duration}</span>
-                    </div>
-                  )}
-                  {item.instructions && (
-                    <div className="col-span-2">
-                      <span className="text-slate-600">Instructions: </span>
-                      <span className="font-semibold text-slate-900">{item.instructions}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+                </ul>
+              </div>
+            ) : null;
 
-      {/* Tests advised, then advice.
-          Separate blocks, and in this order, to match the server renderer's
-          section vocabulary (`tests` then `advice`) — the two renderers print
-          the same document and must not disagree about what is on it. */}
-      {prescription.advice_items?.some((a) => a.advice_type === "test") && (
-        <div className="mb-4">
-          <h3 className="mb-1 text-sm font-bold text-slate-900">Tests Advised</h3>
-          <ul className="space-y-0.5 text-sm text-slate-700">
-            {prescription.advice_items
-              .filter((a) => a.advice_type === "test")
-              .map((a) => (
-                <li key={a.id}>• {a.description}</li>
-              ))}
-          </ul>
-        </div>
-      )}
+          case "advice":
+            return prescription.advice_items?.some((a) => a.advice_type !== "test") ? (
+              <div key={key} className="mb-4">
+                <h3 className="mb-1 text-sm font-bold text-slate-900">Advice</h3>
+                <ul className="space-y-0.5 text-sm text-slate-700">
+                  {prescription.advice_items
+                    .filter((a) => a.advice_type !== "test")
+                    .map((a) => (
+                      <li key={a.id}>• {a.description}</li>
+                    ))}
+                </ul>
+              </div>
+            ) : null;
 
-      {prescription.advice_items?.some((a) => a.advice_type !== "test") && (
-        <div className="mb-4">
-          <h3 className="mb-1 text-sm font-bold text-slate-900">Advice</h3>
-          <ul className="space-y-0.5 text-sm text-slate-700">
-            {prescription.advice_items
-              .filter((a) => a.advice_type !== "test")
-              .map((a) => (
-                <li key={a.id}>• {a.description}</li>
-              ))}
-          </ul>
-        </div>
-      )}
+          case "notes":
+            return prescription.notes ? (
+              <div key={key} className="mb-4">
+                <h3 className="mb-1 text-sm font-bold text-slate-900">Notes</h3>
+                <p className="text-sm text-slate-700">{prescription.notes}</p>
+              </div>
+            ) : null;
 
-      {/* Notes */}
-      {
-        prescription.notes && (
-          <div className="mb-4">
-            <h3 className="mb-1 text-sm font-bold text-slate-900">Notes</h3>
-            <p className="text-sm text-slate-700">{prescription.notes}</p>
-          </div>
-        )
-      }
+          case "followup":
+            return prescription.followup_date ? (
+              <div key={key} className="mb-4 rounded border border-slate-300 bg-slate-50 px-3 py-2">
+                <span className="text-xs text-slate-600">Review on </span>
+                <span className="text-sm font-bold text-slate-900">
+                  {formatDate(prescription.followup_date)}
+                </span>
+              </div>
+            ) : null;
 
-      {/* Follow-up. Printed last and prominently: it is the one instruction on
-          the slip the patient has to act on after they leave. */}
-      {prescription.followup_date && (
-        <div className="mb-4 rounded border border-slate-300 bg-slate-50 px-3 py-2">
-          <span className="text-xs text-slate-600">Review on </span>
-          <span className="text-sm font-bold text-slate-900">
-            {formatDate(prescription.followup_date)}
-          </span>
-        </div>
-      )}
+          default:
+            return null;
+        }
+      })}
 
       {/* Doctor Information */}
       <div className="mb-4 border-t border-slate-300 pt-4">
