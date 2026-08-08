@@ -18,6 +18,7 @@ import {
 } from "@/services/countersApi";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { CounterQrModal } from "./CounterQrModal";
+import { doctorsApi } from "@/services/doctorsApi";
 
 /**
  * Registration counters and their Scan & Share QR codes.
@@ -142,6 +143,16 @@ export function CounterManagement() {
                   )}
                 </p>
                 <p className="mt-0.5 font-mono text-xs text-slate-500">{counter.code}</p>
+                {/* What a scan at this desk actually does. Without a doctor
+                    it issues a token and nothing else, which is easy to set up
+                    by accident and invisible until a patient scans. */}
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  {counter.doctor_name ? (
+                    <>Books for <span className="font-semibold text-slate-700">{counter.doctor_name}</span></>
+                  ) : (
+                    <span className="text-amber-700">No doctor — issues a token only</span>
+                  )}
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -209,12 +220,23 @@ function CounterForm({
 }) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [doctorId, setDoctorId] = useState("");
   const [touched, setTouched] = useState(false);
+
+  const { data: doctors } = useQuery({
+    queryKey: ["doctors"],
+    queryFn: () => doctorsApi.list(),
+  });
 
   const codeError = touched ? validateCode(code, existingCodes) : null;
 
   const create = useMutation({
-    mutationFn: () => countersApi.create({ code: code.trim(), name: name.trim() }),
+    mutationFn: () =>
+      countersApi.create({
+        code: code.trim(),
+        name: name.trim(),
+        doctor_id: doctorId || null,
+      }),
     onSuccess: (counter) => {
       toast.success(`Counter ${counter.code} created`);
       onDone();
@@ -268,6 +290,34 @@ function CounterForm({
             renamed whenever you like.
           </p>
         </div>
+      </div>
+
+
+      <div className="mt-3">
+        <label htmlFor="counter-doctor" className="block text-xs font-semibold text-slate-700">
+          Doctor for this desk <span className="font-normal text-slate-500">(optional)</span>
+        </label>
+        <select
+          id="counter-doctor"
+          value={doctorId}
+          onChange={(e) => setDoctorId(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+        >
+          <option value="">No doctor — issue a token only</option>
+          {(doctors ?? []).map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.user_name}
+              {d.specialization ? ` — ${d.specialization}` : ""}
+            </option>
+          ))}
+        </select>
+        {/* Stated here because it is the whole point of the field: the QR on
+            this desk is what tells us why the patient came. */}
+        <p className="mt-1 text-[11px] text-slate-500">
+          When a patient scans this counter&apos;s QR, they are matched or created and
+          given an appointment with this doctor for today. Leave empty and the scan
+          issues a queue token only.
+        </p>
       </div>
 
       <div className="mt-3 flex justify-end gap-2">

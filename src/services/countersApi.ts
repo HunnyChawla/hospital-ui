@@ -24,6 +24,9 @@ export interface CounterResponse {
   code: string;
   name: string;
   is_active: boolean;
+  /** The doctor this desk books for. Null means it issues a token only. */
+  doctor_id?: string | null;
+  doctor_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,11 +35,22 @@ export interface CreateCounterRequest {
   code: string;
   name: string;
   is_active?: boolean;
+  /**
+   * When set, a Scan & Share arrival at this desk also creates an
+   * appointment with this doctor for today. Leave empty for a token only.
+   */
+  doctor_id?: string | null;
 }
 
 export interface UpdateCounterRequest {
   name?: string | null;
   is_active?: boolean | null;
+  doctor_id?: string | null;
+  /**
+   * Detach the doctor. Needed because `doctor_id: null` cannot be told apart
+   * from "not supplied" in a partial update.
+   */
+  clear_doctor?: boolean;
 }
 
 /** ABDM's cap on a counter code. Mirrored here only to fail before the round trip. */

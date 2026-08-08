@@ -1,5 +1,7 @@
 "use client";
 
+
+import { resolveAbhaNumber } from "@/utils/abha";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { PatientEpisodeTimeline } from "@/components/health-record/PatientEpisodeTimeline";
@@ -752,7 +754,11 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           id: patientData.id,
           name: formatPatientName(patientData),
           mobile: patientData.mobile,
-          healthId: patientData.abha_id || "",
+          // The ABHA, not the UHID. `abha_id` is legacy and holds UHIDs for
+          // many patients — see utils/abha.ts.
+          // The patient's ABHA number, not our UHID. `abha_id` is a legacy
+          // column holding UHIDs for many patients — see utils/abha.ts.
+          healthId: resolveAbhaNumber(patientData.abha_number, patientData.abha_id) || "",
           age: patientData.date_of_birth
             ? Math.floor((new Date().getTime() - new Date(patientData.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
             : 0,
@@ -966,14 +972,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
                 <div className="mt-2 flex items-center gap-2">
                   <AbhaStatusBadge
-                    abhaNumber={patient.abhaNumber || patient.abhaId || null}
+                    abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId)}
                     abhaAddress={patient.abhaAddress}
                     abhaVerified={patient.abhaVerified}
                     showEnrollButton={abhaEnabled}
                     onEnrollClick={() => setIsAbhaModalOpen(true)}
                     size="sm"
                   />
-                  {(patient.abhaNumber || patient.abhaId) && (
+                  {resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
                     <button
                       type="button"
                       onClick={() => setIsCardDownloadModalOpen(true)}
@@ -2121,11 +2127,11 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Card Download Modal (already-linked patients) */}
-      {patient && (patient.abhaNumber || patient.abhaId) && (
+      {patient && resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
         <AbhaCardDownloadModal
           isOpen={isCardDownloadModalOpen}
           onClose={() => setIsCardDownloadModalOpen(false)}
-          abhaNumber={(patient.abhaNumber || patient.abhaId) as string}
+          abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId) as string}
         />
       )}
     </div>

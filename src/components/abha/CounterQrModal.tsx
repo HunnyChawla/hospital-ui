@@ -133,6 +133,15 @@ export function CounterQrModal({ counter, onClose }: CounterQrModalProps) {
                 <p className="mt-1 text-xs text-slate-500">
                   Counter code: <span className="font-mono">{counter.code}</span>
                 </p>
+                {/* Printed on the sheet: whoever sticks this to a desk needs
+                    to know which doctor a scan here books. A QR on the wrong
+                    desk sends patients to the wrong clinic, and the code alone
+                    does not say. */}
+                {counter.doctor_name && (
+                  <p className="mt-1 text-xs font-semibold text-slate-700">
+                    Books appointments for {counter.doctor_name}
+                  </p>
+                )}
               </div>
             </div>
 
