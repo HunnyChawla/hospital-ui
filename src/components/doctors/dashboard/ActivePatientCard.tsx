@@ -8,32 +8,12 @@ import {
   FlaskConical,
   FileText,
   BedDouble,
-  MessageSquare,
-  FileHeart,
-  AlertTriangle,
   X,
   Printer,
 } from "lucide-react";
-import type { Pathway } from "@/services/pathwaysApi";
-import { StageProgress } from "./StageProgress";
 import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 
-/**
- * The tabs on a patient's record.
- *
- * Exported and imported by everything that needs it. There used to be three
- * identical copies of this union — here, in the layout, and in the redux slice
- * — so adding a tab compiled in one file and failed in the other two.
- */
-export type ActiveTab =
-  | "complaints"
-  | "conditions"
-  | "allergies"
-  | "history"
-  | "vitals"
-  | "labs"
-  | "notes"
-  | "ipd";
+type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
 interface ActivePatientCardProps {
   patientId: string | null;
@@ -45,21 +25,13 @@ interface ActivePatientCardProps {
   onCreatePrescription?: () => void;
   onPrintOpd?: () => void;
   showPrescriptionButton?: boolean;
-  /** The selected patient's stage, for the progress track. */
-  status?: string | null;
-  pathway?: Pathway | null;
   /** The visit being worked on, so it can be finalised from here. */
   visitId?: string | null;
   children: React.ReactNode;
 }
 
-// Ordered the way a consultation runs: what brought the patient in, what is
-// already true of them, then the readings, then what you write down.
 const tabs = [
-  { id: "complaints" as ActiveTab, label: "Complaints", icon: MessageSquare },
-  { id: "conditions" as ActiveTab, label: "Medical History", icon: FileHeart },
-  { id: "allergies" as ActiveTab, label: "Allergies", icon: AlertTriangle },
-  { id: "history" as ActiveTab, label: "Visits", icon: History },
+  { id: "history" as ActiveTab, label: "History", icon: History },
   { id: "vitals" as ActiveTab, label: "Vitals", icon: Activity },
   { id: "labs" as ActiveTab, label: "Labs", icon: FlaskConical },
   { id: "notes" as ActiveTab, label: "Notes", icon: FileText },
@@ -76,8 +48,6 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   onCreatePrescription,
   onPrintOpd,
   showPrescriptionButton = false,
-  status = null,
-  pathway = null,
   visitId = null,
   children,
 }) => {
@@ -145,24 +115,19 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <StageProgress status={status} pathway={pathway} />
-
-          {/* The doctor finishing the consultation is the person who should
-              close the record. Without this they would have to leave the panel
-              and find the patient again in the OPD list. */}
-          {visitId && (
+        {/* The doctor finishing the consultation is the person who should
+            close the record. Without this they would have to leave the panel
+            and find the patient again in the OPD list. */}
+        {visitId && (
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
             <FinaliseVisitAction episodeType="opd_visit" sourceId={visitId} />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="border-b border-slate-200 bg-slate-50">
-        {/* Scrolls rather than wraps: eight tabs do not fit a narrow screen,
-            and a wrapped second row pushes the patient's record down the page
-            every time the window is small. */}
-        <div className="flex gap-1 overflow-x-auto px-4">
+        <div className="flex gap-1 px-4">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -171,7 +136,7 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition ${
+                className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
                   isActive
                     ? "border-sky-500 bg-white text-sky-700"
                     : "border-transparent text-slate-600 hover:bg-white/50 hover:text-slate-900"

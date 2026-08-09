@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
@@ -7,40 +7,20 @@ import { Plus, FileText, Check } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { ComplaintRecord } from "@/types";
-import { ConfirmedComplaintsSummary } from "@/components/optometrist/patient-examination/ConfirmedComplaintsSummary";
-import { ResizablePanel } from "@/components/optometrist/shared";
-import { InlineComplaintForm } from "@/components/optometrist/patient-examination/InlineComplaintForm";
-import { commonComplaints } from "@/components/optometrist/mock/mockTemplates";
+import { ConfirmedComplaintsSummary } from "./ConfirmedComplaintsSummary";
+import { ResizablePanel } from "../shared";
+import { InlineComplaintForm } from "./InlineComplaintForm";
+import { commonComplaints } from "../mock/mockTemplates";
 import { handleError } from "@/utils/errorHandler";
-import { ComplaintsHistorySection } from "@/components/optometrist/patient-examination/ComplaintsHistorySection";
+import { ComplaintsHistorySection } from "./ComplaintsHistorySection";
 
 interface ComplaintsTabProps {
   patientId: string;
   visitId: string;
-  /**
-   * The user recording the complaint — a doctor in a general hospital, an
-   * optometrist in an eye one. The API field is still `optometrist_id` and is
-   * nullable; it only ever meant "who wrote this down".
-   */
-  recordedByUserId: string;
+  optometristId: string;
   complaints: ComplaintRecord[];
   loading: boolean;
   onRefresh: () => void;
-  /**
-   * Whether complaints are recorded against an eye.
-   *
-   * True on the optometrist panel, where the eye is appended to the complaint
-   * text as "(RE)"/"(LE)"/"(BE)". False everywhere else — a general hospital
-   * recording "headache (BE)" would be recording something untrue.
-   */
-  showEyeSelector?: boolean;
-  /**
-   * The quick-select buttons. Defaults to the eye list, because that is what
-   * every existing caller shows. A general hospital passes GENERAL_COMPLAINTS —
-   * offering "floaters" and "foreign body sensation" to a physician would push
-   * every real complaint into the free-text box.
-   */
-  quickComplaints?: string[];
 }
 
 type Severity = "mild" | "moderate" | "severe";
@@ -57,12 +37,10 @@ interface FormData {
 export function ComplaintsTab({
   patientId,
   visitId,
-  recordedByUserId,
+  optometristId,
   complaints,
   loading,
   onRefresh,
-  showEyeSelector = true,
-  quickComplaints = commonComplaints,
 }: ComplaintsTabProps) {
   const dispatch = useAppDispatch();
   const [activeComplaint, setActiveComplaint] = useState<string | null>(null);
@@ -96,8 +74,8 @@ export function ComplaintsTab({
           data: {
             patient_id: patientId,
             visit_id: visitId,
-            optometrist_id: recordedByUserId,
-            complaint: showEyeSelector ? `${data.text} (${data.eye})` : data.text,
+            optometrist_id: optometristId,
+            complaint: `${data.text} (${data.eye})`,
             severity: data.severity || null,
             duration: data.duration || null,
             notes: data.notes || null,
@@ -202,7 +180,7 @@ export function ComplaintsTab({
         {/* Quick Select Complaints */}
         <div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-            {quickComplaints.map((complaint) => {
+            {commonComplaints.map((complaint) => {
               const isActive = activeComplaint === complaint;
               const isOtherActive = activeComplaint && activeComplaint !== complaint;
               // Check if this complaint is already confirmed (in the complaints list)
@@ -240,7 +218,7 @@ export function ComplaintsTab({
           </div>
 
           {/* Inline Form - appears below the grid */}
-          {activeComplaint && quickComplaints.includes(activeComplaint) && (
+          {activeComplaint && commonComplaints.includes(activeComplaint) && (
             <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
               <InlineComplaintForm
                 complaintText={activeComplaint}
@@ -248,7 +226,6 @@ export function ComplaintsTab({
                 onCancel={handleCancelForm}
                 isSubmitting={isSubmitting}
                 defaultValues={getDefaultFormValues()}
-                showEyeSelector={showEyeSelector}
               />
             </div>
           )}
@@ -285,7 +262,7 @@ export function ComplaintsTab({
           </div>
 
           {/* Custom Complaint Inline Form */}
-          {activeComplaint && !quickComplaints.includes(activeComplaint) && (
+          {activeComplaint && !commonComplaints.includes(activeComplaint) && (
             <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
               <InlineComplaintForm
                 complaintText={activeComplaint}
@@ -293,7 +270,6 @@ export function ComplaintsTab({
                 onCancel={handleCancelForm}
                 isSubmitting={isSubmitting}
                 defaultValues={getDefaultFormValues()}
-                showEyeSelector={showEyeSelector}
               />
             </div>
           )}

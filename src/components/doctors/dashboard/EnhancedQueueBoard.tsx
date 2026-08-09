@@ -3,8 +3,6 @@
 import React, { useMemo, memo } from "react";
 import { User, AlertCircle, Loader2 } from "lucide-react";
 import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
-import type { Pathway } from "@/services/pathwaysApi";
-import { indexStages } from "@/utils/stageBuckets";
 import {
   QUEUE_FILTERS,
   filterQueuePatients,
@@ -12,7 +10,6 @@ import {
   getStatusColor,
   type QueuePatient,
 } from "@/utils/queueFilters";
-import { StageActions } from "./StageActions";
 
 interface EnhancedQueueBoardProps {
   queuePatients: QueuePatient[];
@@ -20,21 +17,9 @@ interface EnhancedQueueBoardProps {
   onFilterChange: (filter: QueueFilter) => void;
   onSelectPatient: (patientId: string) => void;
   selectedPatientId: string | null;
-  /**
-   * The pathway these patients are on. Null while it loads, which hides the
-   * action buttons rather than guessing at them — offering "Start consultation"
-   * against a pathway that might not have that stage is how the panel came to
-   * write statuses no stage defined.
-   */
-  pathway: Pathway | null;
-  /** Take the patient and move them to `toStageCode`. */
-  onCallPatient?: (visitId: string, toStageCode: string) => void;
-  /** Move the patient on without claiming them. */
-  onAdvancePatient?: (visitId: string, toStageCode: string) => void;
-  /** Undo a call. */
-  onReleasePatient?: (visitId: string) => void;
-  /** The current user, to decide whether they are the one holding a patient. */
-  currentUserId?: string | null;
+  onUpdateStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
+  onPickPatient?: (visitId: string) => void;
+  onUnpickPatient?: (visitId: string) => void;
   updatingVisitId?: string | null;
   loading?: boolean;
 }
@@ -45,27 +30,20 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
   onFilterChange,
   onSelectPatient,
   selectedPatientId,
-  pathway,
-  onCallPatient,
-  onAdvancePatient,
-  onReleasePatient,
-  currentUserId,
+  onUpdateStatus,
+  onPickPatient,
+  onUnpickPatient,
   updatingVisitId,
   loading = false,
 }) => {
-  // Bucketing needs the stage definitions. Built from this doctor's own
-  // pathway, so a tenant running several does not bucket by another one's rules.
-  const stageIndex = useMemo(() => indexStages(pathway ? [pathway] : undefined), [pathway]);
-
+  // Filter patients based on active filter
   const filteredPatients = useMemo(
-    () => filterQueuePatients(queuePatients, activeFilter, stageIndex),
-    [queuePatients, activeFilter, stageIndex]
+    () => filterQueuePatients(queuePatients, activeFilter),
+    [queuePatients, activeFilter]
   );
 
-  const counts = useMemo(
-    () => getQueueCounts(queuePatients, stageIndex),
-    [queuePatients, stageIndex]
-  );
+  // Get counts for each filter
+  const counts = useMemo(() => getQueueCounts(queuePatients), [queuePatients]);
 
   // Empty state messages
   const getEmptyMessage = (filter: QueueFilter): string => {
@@ -74,12 +52,6 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
         return "No patients scheduled for today";
       case "pending":
         return "No patients waiting";
-      case "in_progress":
-        return "Nobody with you right now";
-      case "completed":
-        return "Nobody finished yet";
-      case "no_show":
-        return "Nobody marked as a no-show";
       default:
         return "No patients found";
     }
@@ -89,8 +61,6 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
     switch (filter) {
       case "pending":
         return "Patients who check in will appear here";
-      case "in_progress":
-        return "Call a waiting patient to start";
       default:
         return "";
     }
@@ -158,6 +128,9 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
               const isSelected = patient.patient_id === selectedPatientId;
               const isUpdating = patient.item_id === updatingVisitId;
               const isEmergency = patient.visit_type === "emergency";
+              const canStart = patient.status === "doctor_assigned";
+              const canCall = patient.status === "awaiting_doctor";
+              const canComplete = patient.status === "in_consultation" || patient.status === "consultation_in_progress";
 
               return (
                 <div
@@ -192,19 +165,12 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
                           </p>
                         </div>
                         <div className="mt-1 flex items-center gap-2">
-                          {/* The pathway's own wording. This used to be
-                              `status.replace("_", " ")`, which only replaces
-                              the FIRST underscore — so a doctor saw "doctor
-                              assigned" where their admin had written "Called
-                              in", and eye stages read "optometrist
-                              investigation_in_progress". */}
                           <span
                             className={`inline-block rounded border px-2 py-0.5 text-xs font-medium ${getStatusColor(
-                              patient.status,
-                              stageIndex
+                              patient.status
                             )}`}
                           >
-                            {patient.stage_label ?? patient.status.replace(/_/g, " ")}
+                            {patient.status.replace("_", " ")}
                           </span>
                           {patient.visit_type === "emergency" && (
                             <span className="inline-block rounded border-2 border-red-500 bg-red-600 px-2 py-0.5 text-xs font-bold text-white shadow-md">
@@ -221,17 +187,88 @@ const EnhancedQueueBoardComponent: React.FC<EnhancedQueueBoardProps> = ({
                     </div>
                   </div>
 
-                  <StageActions
-                    status={patient.status}
-                    assignments={patient.assignments}
-                    pathway={pathway}
-                    visitId={patient.item_id}
-                    currentUserId={currentUserId}
-                    isUpdating={isUpdating}
-                    onCall={onCallPatient}
-                    onAdvance={onAdvancePatient}
-                    onRelease={onReleasePatient}
-                  />
+                  {/* Action Buttons */}
+                  <div className="mt-2 flex flex-col gap-2">
+                    {/* Status Update Buttons */}
+                    {onUpdateStatus && (canStart || canComplete) && (
+                      <div className="flex gap-2">
+                        {canStart && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateStatus(patient.item_id, "in_consultation");
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Start Consultation"
+                            )}
+                          </button>
+                        )}
+                        {canComplete && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateStatus(patient.item_id, "completed");
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Mark Complete"
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pick/Unpick Buttons */}
+                    {(onPickPatient || onUnpickPatient) && (
+                      <div className="flex gap-2">
+                        {onPickPatient && canCall && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPickPatient(patient.item_id); // item_id is visit_id
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                {/* Optional Icon if needed */}
+                                <span>Call Patient</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {onUnpickPatient && canStart && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUnpickPatient(patient.item_id);
+                            }}
+                            disabled={isUpdating}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Return to Queue"
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

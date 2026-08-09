@@ -9,7 +9,7 @@ import {
 } from "@/services/patientHistoryApi";
 import { DoctorSchedule, PatientHistoryTimeline, DoctorStats } from "@/types";
 
-import type { ActiveTab } from "@/components/doctors/dashboard/ActivePatientCard";
+type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
 type DoctorPanelState = {
   selectedPatientId: string | null;

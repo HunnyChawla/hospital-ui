@@ -18,81 +18,7 @@
         DEFAULT_API_URL: 'http://localhost:8080',  // Will be updated from /config endpoint
         API_URL: null,        // Will be set after loading config
         TTS_API_URL: null,    // Will be set after loading config (from TTS_API_URL env)
-        ANNOUNCEMENT_DEBUG: true, // Set to false to silence announcement debug logs
-
-        // Queue columns, overridden from /config -> display.columns.
-        //
-        // These defaults read the GENERIC pathway queue, not the eye-hospital
-        // endpoints they used to. Two reasons: those endpoints are being
-        // retired, and a general hospital could never use this display at all
-        // while the defaults asked for optometrist stages it has no patients in.
-        //
-        // The status vocabulary below is still the eye one, because a screen
-        // with no TV_COLUMNS set is by definition an existing eye customer.
-        // A general hospital sets TV_COLUMNS with its own stage codes.
-        //
-        //   key         which panel renders it: 'optometrist' or 'doctor'.
-        //               Also derives the element ids (<key>-queue, <key>-title,
-        //               <key>-waiting, <key>-progress).
-        //   endpoint    path appended to the API base; {doctorId} is substituted.
-        //   title       heading text; null keeps whatever display.html ships.
-        //   waiting     statuses counted in the "Waiting" badge.
-        //   active      statuses counted in "In Progress" and drawn highlighted.
-        //   inProgress  subset of `active` drawn with the in-progress style.
-        //   announce    statuses that trigger the chime and the TTS call-out.
-        //   labels      status -> card text. Anything unlisted falls back to the
-        //               stage label from the API, then to 'Waiting'.
-        //   cabinRole   role whose cabin the patient is sent to. Read from the
-        //               item's `assignments`, i.e. the room of whoever actually
-        //               called them.
-        //   cabinField  legacy flat field holding the cabin, used when the
-        //               response has no assignments. Kept so a column pointed
-        //               at an older endpoint still speaks the room number.
-        //   announcement  spoken sentence ending, used only when the patient
-        //               has no cabin to be sent to.
-        COLUMNS: [
-            {
-                key: 'optometrist',
-                title: null,
-                endpoint: '/pathways/queue'
-                    + '?doctor_id={doctorId}'
-                    + '&stage_codes=awaiting_optometrist,optometrist_assigned',
-                waiting: ['awaiting_optometrist'],
-                active: ['optometrist_assigned'],
-                inProgress: [],
-                announce: ['optometrist_assigned'],
-                // `awaiting_optometrist` is spelled out because the generic
-                // queue returns a stage label ("Waiting for optometrist") and
-                // an unlisted status falls back to it. That would silently
-                // relabel every waiting card on a live TV, in a 120px column.
-                labels: {
-                    awaiting_optometrist: 'Waiting',
-                    optometrist_assigned: 'Called'
-                },
-                cabinRole: 'optometrist',
-                cabinField: 'optometrist_cabin',
-                announcement: 'please proceed for eye examination.'
-            },
-            {
-                key: 'doctor',
-                title: null,
-                endpoint: '/pathways/queue'
-                    + '?doctor_id={doctorId}&include_covering_doctors=true'
-                    + '&stage_codes=awaiting_doctor,doctor_assigned,consultation_in_progress',
-                waiting: ['awaiting_doctor'],
-                active: ['doctor_assigned', 'consultation_in_progress'],
-                inProgress: ['consultation_in_progress'],
-                announce: ['doctor_assigned'],
-                labels: {
-                    awaiting_doctor: 'Waiting',
-                    doctor_assigned: 'Called',
-                    consultation_in_progress: 'In Consultation'
-                },
-                cabinRole: 'doctor',
-                cabinField: 'doctor_cabin',
-                announcement: 'your consultation is ready.'
-            }
-        ]
+        ANNOUNCEMENT_DEBUG: true  // Set to false to silence announcement debug logs
     };
 
     // ================================================
@@ -307,17 +233,6 @@
                     announcementDebug('CONFIG', 'TTS API URL loaded: ' + response.ttsApiUrl);
                 } else {
                     announcementDebug('CONFIG', 'TTS API URL not set — announcement audio disabled');
-                }
-                if (response && response.display) {
-                    if (response.display.columns && response.display.columns.length) {
-                        CONFIG.COLUMNS = response.display.columns;
-                    }
-                    if (response.display.refreshSeconds > 0) {
-                        CONFIG.POLL_INTERVAL = response.display.refreshSeconds * 1000;
-                    }
-                    // Safe here: startPolling() is only reached later, via
-                    // loadDoctors() in this same callback.
-                    applyColumnTitles();
                 }
                 callback && callback();
             },
@@ -738,63 +653,27 @@
         pollInterval = setInterval(fetchQueues, CONFIG.POLL_INTERVAL);
     }
 
-    /** Find a configured column by key, or null if the display omits it. */
-    function getColumn(key) {
-        for (var i = 0; i < CONFIG.COLUMNS.length; i++) {
-            if (CONFIG.COLUMNS[i].key === key) {
-                return CONFIG.COLUMNS[i];
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Set the two column headings from configuration.
-     *
-     * A heading is only replaced when the column carries a title, so an
-     * eye hospital keeps its existing wording (and its emoji) untouched.
-     */
-    function applyColumnTitles() {
-        for (var i = 0; i < CONFIG.COLUMNS.length; i++) {
-            var column = CONFIG.COLUMNS[i];
-            if (!column.title) continue;
-            var el = document.getElementById(column.key + '-title');
-            if (el) {
-                el.innerHTML = column.title;
-            }
-        }
-    }
-
-    /** Build a column's request URL, or null when the column is unconfigured. */
-    function buildColumnUrl(column, doctorId) {
-        if (!column || !column.endpoint) return null;
-        return getApiUrl() + column.endpoint.replace('{doctorId}', doctorId);
-    }
-
     function fetchQueues() {
         var doctorId = getSelectedDoctorId();
         if (!doctorId) return;
 
+        var apiUrl = getApiUrl();
         var token = getAuthToken();
-        var optColumn = getColumn('optometrist');
-        var docColumn = getColumn('doctor');
-        var optUrl = buildColumnUrl(optColumn, doctorId);
-        var docUrl = buildColumnUrl(docColumn, doctorId);
 
         setConnectionStatus('connecting');
 
-        // Fetch left-hand queue
-        if (optUrl) ajax({
+        // Fetch optometrist queue
+        ajax({
             method: 'GET',
-            url: optUrl,
+            url: apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '?status=awaiting_optometrist,optometrist_assigned',
             headers: {
                 'Authorization': 'Bearer ' + token
             },
             success: function (response) {
                 var patients = parseQueueResponse(response);
-                renderQueue(patients, optColumn);
-                updateQueueStats(patients, optColumn);
-                checkForNewAssignments(patients, previousOptQueue, optColumn);
+                renderOptometristQueue(patients);
+                updateOptometristStats(patients);
+                checkForNewAssignments(patients, previousOptQueue, 'optometrist');
                 previousOptQueue = patients;
                 setConnectionStatus('connected');
                 updateLastUpdateTime();
@@ -807,18 +686,18 @@
             }
         });
 
-        // Fetch right-hand queue
-        if (docUrl) ajax({
+        // Fetch doctor queue
+        ajax({
             method: 'GET',
-            url: docUrl,
+            url: apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '?status=awaiting_doctor,doctor_assigned,consultation_in_progress',
             headers: {
                 'Authorization': 'Bearer ' + token
             },
             success: function (response) {
                 var patients = parseQueueResponse(response);
-                renderQueue(patients, docColumn);
-                updateQueueStats(patients, docColumn);
-                checkForNewAssignments(patients, previousDocQueue, docColumn);
+                renderDoctorQueue(patients);
+                updateDoctorStats(patients);
+                checkForNewAssignments(patients, previousDocQueue, 'doctor');
                 previousDocQueue = patients;
                 setConnectionStatus('connected');
                 updateLastUpdateTime();
@@ -832,65 +711,7 @@
         });
     }
 
-    /** ES5 replacement for Array.prototype.indexOf on a possibly-missing list. */
-    function inList(value, list) {
-        if (!value || !list) return false;
-        for (var i = 0; i < list.length; i++) {
-            if (list[i] === value) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Give every queue item a flat `status`, whichever endpoint produced it.
-     *
-     * The eye endpoints return `status: "awaiting_doctor"`. The pathway queue
-     * returns `stage: {code, label, ...}` instead, because a stage carries its
-     * own display text rather than the display holding a map of every status
-     * string in every speciality. Everything downstream of here reads
-     * `status` / `status_label`, so the difference stops at this function.
-     */
-    /**
-     * Which room to send this patient to.
-     *
-     * The generic queue reports the cabin of whoever actually holds the
-     * patient, under `assignments`. The eye endpoints reported it as a flat
-     * `optometrist_cabin`/`doctor_cabin` field instead. Both are read here so
-     * a column pointed at either one still speaks a room number — losing it
-     * would leave the TV announcing a name with nowhere to go.
-     */
-    function resolveCabin(item, column) {
-        if (!item || !column) return null;
-
-        var assignments = item.assignments;
-        if (column.cabinRole && assignments && assignments.length) {
-            for (var i = 0; i < assignments.length; i++) {
-                if (assignments[i] && assignments[i].role === column.cabinRole) {
-                    if (assignments[i].user_cabin) return assignments[i].user_cabin;
-                }
-            }
-        }
-
-        return item[column.cabinField || ''] || null;
-    }
-
-    function normaliseQueueItem(item) {
-        if (item && !item.status && item.stage && item.stage.code) {
-            item.status = item.stage.code;
-            item.status_label = item.stage.label || null;
-        }
-        return item;
-    }
-
     function parseQueueResponse(response) {
-        var items = extractQueueItems(response);
-        for (var i = 0; i < items.length; i++) {
-            normaliseQueueItem(items[i]);
-        }
-        return items;
-    }
-
-    function extractQueueItems(response) {
         if (!response) return [];
         if (Array.isArray(response)) return response;
         if (response.items && Array.isArray(response.items)) return response.items;
@@ -926,15 +747,16 @@
         return null;
     }
 
-    function checkForNewAssignments(current, previous, column) {
-        var queueType = column.key;
+    function checkForNewAssignments(current, previous, queueType) {
         announcementDebug('POLL', 'Checking ' + queueType + ' queue — ' + current.length + ' patient(s)');
 
         // Check for newly assigned patients
         for (var i = 0; i < current.length; i++) {
             var curr = current[i];
+            var isAssigned = (queueType === 'optometrist' && curr.status === 'optometrist_assigned') ||
+                (queueType === 'doctor' && curr.status === 'doctor_assigned');
 
-            if (!inList(curr.status, column.announce)) continue;
+            if (!isAssigned) continue;
 
             // Resolve a reliable identifier for this patient
             var currId = getPatientId(curr);
@@ -966,13 +788,15 @@
                 playNotificationSound();
 
                 // Build announcement text
-                var cabin = resolveCabin(curr, column);
+                var cabin = queueType === 'optometrist'
+                    ? (curr.optometrist_cabin || null)
+                    : (curr.doctor_cabin || null);
 
                 var announcementText = generateAnnouncementText(
                     curr.patient_name,
                     curr.token_number || curr.token,
                     cabin,
-                    column
+                    queueType
                 );
 
                 // Enqueue with the resolved, non-undefined ID
@@ -994,8 +818,8 @@
         }
     }
 
-    function renderQueue(patients, column) {
-        var container = document.getElementById(column.key + '-queue');
+    function renderOptometristQueue(patients) {
+        var container = document.getElementById('optometrist-queue');
         if (!container) return;
 
         if (patients.length === 0) {
@@ -1005,32 +829,52 @@
 
         var html = '';
         for (var i = 0; i < patients.length; i++) {
-            html += renderPatientCard(patients[i], column);
+            html += renderPatientCard(patients[i], 'optometrist');
         }
         container.innerHTML = html;
     }
 
-    function renderPatientCard(patient, column) {
+    function renderDoctorQueue(patients) {
+        var container = document.getElementById('doctor-queue');
+        if (!container) return;
+
+        if (patients.length === 0) {
+            container.innerHTML = '<p class="empty-message">No patients in queue</p>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < patients.length; i++) {
+            html += renderPatientCard(patients[i], 'doctor');
+        }
+        container.innerHTML = html;
+    }
+
+    function renderPatientCard(patient, queueType) {
         var cardClass = 'patient-card';
         var statusClass = 'status-waiting';
         var statusText = 'Waiting';
         var cabin = '';
-        var status = patient.status;
 
-        if (inList(status, column.active)) {
-            cardClass += inList(status, column.inProgress)
-                ? ' status-in-progress'
-                : ' status-assigned';
-            statusClass = 'status-active';
-            cabin = resolveCabin(patient, column) || '';
-        }
-
-        // Configured wording wins; otherwise use whatever the API called this
-        // stage, so a pathway the display has never heard of still reads right.
-        if (column.labels && column.labels[status]) {
-            statusText = column.labels[status];
-        } else if (patient.status_label) {
-            statusText = patient.status_label;
+        if (queueType === 'optometrist') {
+            if (patient.status === 'optometrist_assigned') {
+                cardClass += ' status-assigned';
+                statusClass = 'status-active';
+                statusText = 'Called';
+                cabin = patient.optometrist_cabin || '';
+            }
+        } else {
+            if (patient.status === 'doctor_assigned') {
+                cardClass += ' status-assigned';
+                statusClass = 'status-active';
+                statusText = 'Called';
+                cabin = patient.doctor_cabin || '';
+            } else if (patient.status === 'consultation_in_progress') {
+                cardClass += ' status-in-progress';
+                statusClass = 'status-active';
+                statusText = 'In Consultation';
+                cabin = patient.doctor_cabin || '';
+            }
         }
 
         if (patient.visit_type === 'emergency') {
@@ -1063,21 +907,40 @@
         return html;
     }
 
-    function updateQueueStats(patients, column) {
+    function updateOptometristStats(patients) {
+        var waiting = 0;
+        var inProgress = 0;
+
+        for (var i = 0; i < patients.length; i++) {
+            if (patients[i].status === 'awaiting_optometrist') {
+                waiting++;
+            } else if (patients[i].status === 'optometrist_assigned') {
+                inProgress++;
+            }
+        }
+
+        var waitingEl = document.getElementById('opt-waiting');
+        var progressEl = document.getElementById('opt-progress');
+
+        if (waitingEl) waitingEl.innerHTML = waiting;
+        if (progressEl) progressEl.innerHTML = inProgress;
+    }
+
+    function updateDoctorStats(patients) {
         var waiting = 0;
         var inProgress = 0;
 
         for (var i = 0; i < patients.length; i++) {
             var status = patients[i].status;
-            if (inList(status, column.waiting)) {
+            if (status === 'awaiting_doctor') {
                 waiting++;
-            } else if (inList(status, column.active)) {
+            } else if (status === 'doctor_assigned' || status === 'consultation_in_progress') {
                 inProgress++;
             }
         }
 
-        var waitingEl = document.getElementById(column.key + '-waiting');
-        var progressEl = document.getElementById(column.key + '-progress');
+        var waitingEl = document.getElementById('doc-waiting');
+        var progressEl = document.getElementById('doc-progress');
 
         if (waitingEl) waitingEl.innerHTML = waiting;
         if (progressEl) progressEl.innerHTML = inProgress;
@@ -1104,30 +967,24 @@
      *   "Patient John Doe, token number 25, please proceed to Room 3."
      *   "Patient John Doe, token number 25, please proceed for eye examination."
      *   "Patient John Doe, token number 25, your consultation is ready."
-     *
-     * When no cabin is known the sentence has to say where to go, and only the
-     * column knows: "please proceed for eye examination" is right for an eye
-     * hospital and wrong for the nurse stage of a general one. Columns carry
-     * `announcement` for that; the defaults below are the previous wording.
      */
-    function generateAnnouncementText(patientName, tokenNumber, cabin, column) {
+    function generateAnnouncementText(patientName, tokenNumber, cabin, queueType) {
         var name = patientName || 'Unknown';
         var token = tokenNumber || '--';
-        var prefix = 'Patient ' + name + ', token number ' + token + ', ';
 
         if (cabin) {
-            return prefix + 'please proceed to ' + cabin + '.';
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed to ' + cabin + '.';
         }
 
-        if (column && column.announcement) {
-            return prefix + column.announcement;
+        if (queueType === 'optometrist') {
+            return 'Patient ' + name + ', token number ' + token +
+                ', please proceed for eye examination.';
         }
 
-        if (column && column.key === 'optometrist') {
-            return prefix + 'please proceed for eye examination.';
-        }
-
-        return prefix + 'your consultation is ready.';
+        // Doctor queue without cabin
+        return 'Patient ' + name + ', token number ' + token +
+            ', your consultation is ready.';
     }
 
     // ---- AnnouncementService ----

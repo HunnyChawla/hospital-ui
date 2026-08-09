@@ -7,18 +7,13 @@ import { ActivePatientCard } from "./ActivePatientCard";
 import type { DoctorStats } from "@/types";
 import type { QueueFilter } from "@/hooks/useDoctorPanelPreferences";
 import type { QueuePatient } from "@/utils/queueFilters";
-import type { Pathway } from "@/services/pathwaysApi";
 
-import type { ActiveTab } from "./ActivePatientCard";
+type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
 interface DoctorPanelVerticalLayoutProps {
   // Stats
   stats: DoctorStats | null;
   statsLoading?: boolean;
-  /** What this hospital calls the step before the doctor. See DoctorStatsCards. */
-  assistantLabel?: string;
-  /** False when the pathway has nobody before the doctor. */
-  showAssistantStats?: boolean;
   statsVisible: boolean;
   onToggleStats: () => void;
 
@@ -34,8 +29,6 @@ interface DoctorPanelVerticalLayoutProps {
   selectedPatientId: string | null;
   selectedPatientName?: string;
   selectedPatientUhid?: string;
-  /** The selected patient's stage code, for the progress track. */
-  selectedPatientStatus?: string | null;
   /** The visit being worked on, for the finalise control. */
   currentVisitId?: string | null;
   activeTab: ActiveTab;
@@ -43,12 +36,10 @@ interface DoctorPanelVerticalLayoutProps {
   onClearPatient: () => void;
   onTabChange: (tab: ActiveTab) => void;
 
-  // Stage actions, generated from the pathway rather than hard-coded
-  pathway: Pathway | null;
-  onCallPatient?: (visitId: string, toStageCode: string) => void;
-  onAdvancePatient?: (visitId: string, toStageCode: string) => void;
-  onReleasePatient?: (visitId: string) => void;
-  currentUserId?: string | null;
+  // Visit status
+  onUpdateVisitStatus?: (visitId: string, newStatus: "in_consultation" | "completed") => void;
+  onPickPatient?: (visitId: string) => void;
+  onUnpickPatient?: (visitId: string) => void;
   updatingVisitId?: string | null;
 
   // Prescription
@@ -64,8 +55,6 @@ interface DoctorPanelVerticalLayoutProps {
 const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProps> = ({
   stats,
   statsLoading,
-  assistantLabel,
-  showAssistantStats,
   statsVisible,
   onToggleStats,
   queuePatients,
@@ -77,17 +66,14 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   selectedPatientId,
   selectedPatientName,
   selectedPatientUhid,
-  selectedPatientStatus,
   currentVisitId,
   activeTab,
   onSelectPatient,
   onClearPatient,
   onTabChange,
-  pathway,
-  onCallPatient,
-  onAdvancePatient,
-  onReleasePatient,
-  currentUserId,
+  onUpdateVisitStatus,
+  onPickPatient,
+  onUnpickPatient,
   updatingVisitId,
   onCreatePrescription,
   onPrintOpd,
@@ -99,8 +85,6 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
       <CollapsibleStatsSection
         stats={stats}
         loading={statsLoading}
-        assistantLabel={assistantLabel}
-        showAssistantStats={showAssistantStats}
         isVisible={statsVisible}
         onToggle={onToggleStats}
         compact={false}
@@ -120,8 +104,6 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
             onCreatePrescription={onCreatePrescription}
             onPrintOpd={onPrintOpd}
             showPrescriptionButton={!!selectedPatientId}
-            status={selectedPatientStatus}
-            pathway={pathway}
             visitId={currentVisitId}
           >
             {children}
@@ -166,11 +148,9 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
               onFilterChange={onQueueFilterChange}
               onSelectPatient={onSelectPatient}
               selectedPatientId={selectedPatientId}
-              pathway={pathway}
-              onCallPatient={onCallPatient}
-              onAdvancePatient={onAdvancePatient}
-              onReleasePatient={onReleasePatient}
-              currentUserId={currentUserId}
+              onUpdateStatus={onUpdateVisitStatus}
+              onPickPatient={onPickPatient}
+              onUnpickPatient={onUnpickPatient}
               updatingVisitId={updatingVisitId}
               loading={queueLoading}
               isVisible={queueVisible}

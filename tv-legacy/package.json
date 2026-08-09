@@ -5,8 +5,7 @@
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
-        "serve": "node server.js",
-        "test": "node test/display.test.js"
+        "serve": "node server.js"
     },
     "keywords": [
         "hospital",

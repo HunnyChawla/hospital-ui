@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo } from "react";
 import { useAppDispatch } from "@/redux/hooks";
@@ -7,10 +7,10 @@ import { AlertTriangle, Search, X, Check, Pill } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { DrugAllergyRecord } from "@/types";
-import { SeveritySelector } from "@/components/optometrist/shared";
-import { commonDrugs, commonReactions } from "@/components/optometrist/mock/mockTemplates";
-import { ConfirmedDrugAllergiesSummary } from "@/components/optometrist/patient-examination/ConfirmedDrugAllergiesSummary";
-import { ResizablePanel } from "@/components/optometrist/shared";
+import { SeveritySelector } from "../shared";
+import { commonDrugs, commonReactions } from "../mock/mockTemplates";
+import { ConfirmedDrugAllergiesSummary } from "./ConfirmedDrugAllergiesSummary";
+import { ResizablePanel } from "../shared";
 import { handleError } from "@/utils/errorHandler";
 
 interface DrugAllergyTabProps {

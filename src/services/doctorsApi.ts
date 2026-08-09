@@ -7,13 +7,6 @@ export interface Doctor {
   user_id: string;
   user_name: string; // User's full name from API
   user_mobile?: string | null;
-  /**
-   * Department the doctor belongs to, or null for the tenant default.
-   *
-   * This is what decides the clinical pathway their patients follow — see
-   * `useDoctorPathway`. Optional because older builds of the API omit it.
-   */
-  department_id?: string | null;
   specialization: string | null;
   qualification: string | null;
   registration_number: string | null;

@@ -7,20 +7,6 @@ import { useDoctorPanel } from "@/hooks/useDoctorPanel";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
 import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
-import {
-  usePathways,
-  useCallPatient,
-  useAdvanceVisit,
-  useReleasePatient,
-} from "@/hooks/queries/usePathways";
-import { useDoctorPathway } from "@/hooks/useDoctorPathway";
-import {
-  assistantRoleLabel,
-  countByBucket,
-  hasAssistantStage,
-  indexStages,
-  waitingStageForRole,
-} from "@/utils/stageBuckets";
 import { DoctorStats } from "@/types";
 import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
 import { PatientHistoryTimeline } from "./patient-details/PatientHistoryTimeline";
@@ -29,11 +15,6 @@ import { LabResultsPanel } from "./patient-details/LabResultsPanel";
 import { QuickNotesPanel } from "./patient-details/QuickNotesPanel";
 import { IpdInfoPanel } from "./patient-details/IpdInfoPanel";
 import { PrescriptionFormModal } from "./PrescriptionFormModal";
-import { ComplaintsTab } from "@/components/clinical/ComplaintsTab";
-import { MedicalHistoryTab } from "@/components/clinical/MedicalHistoryTab";
-import { DrugAllergyTab } from "@/components/clinical/DrugAllergyTab";
-import { GENERAL_COMPLAINTS } from "@/components/clinical/commonComplaints";
-import { useClinicalRecords } from "@/hooks/queries/useClinicalRecords";
 import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { useAppSelector } from "@/redux/hooks";
@@ -41,15 +22,21 @@ import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
+import { optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
 import { getErrorMessage } from "@/utils/errorHandler";
-// The shared shape, not a local copy. The copy this replaces lacked
-// `stage_label` and `assignments`, so both were dropped from the type while
-// still being set at runtime — the compiler could not have caught a typo in
-// either.
-import type { QueuePatient } from "@/utils/queueFilters";
+
+type QueuePatient = {
+  patient_id: string;
+  patient_name: string;
+  token_number: string | number;
+  status: string;
+  visit_type?: "walk_in" | "appointment" | "emergency";
+  item_id: string;
+  time: string;
+};
 
 export function DoctorPanel() {
   const router = useRouter();
@@ -133,75 +120,73 @@ export function DoctorPanel() {
     autoConnect: !!currentDoctor?.id,
   });
 
-  // Stage configuration, so the counts below are read off the pathway rather
-  // than off a list of eye status strings. See utils/stageBuckets.ts.
-  const { data: pathways } = usePathways();
-
-  // THIS doctor's pathway, not every pathway in the tenant. Scanning them all
-  // was why a general hospital's dashboard read "Pending at Optometrist" — the
-  // eye pathway is seeded alongside the standard one, so the scan always found
-  // an optometrist somewhere.
-  const doctorPathway = useDoctorPathway(currentDoctor?.department_id ?? null);
-
-  // The doctor's own pathway goes first because `indexStages` is first-writer-
-  // wins and the two pathways share codes: `checked_in` waits for the doctor on
-  // the standard pathway and for the optometrist on the eye one. Ordered any
-  // other way, a general hospital's checked-in patients count as optometry
-  // again. The remaining pathways still cover statuses this one never defines.
-  const stageIndex = useMemo(
-    () => indexStages(doctorPathway ? [doctorPathway, ...(pathways ?? [])] : pathways),
-    [doctorPathway, pathways]
-  );
-  const assistantLabel = useMemo(
-    () => assistantRoleLabel(doctorPathway),
-    [doctorPathway]
-  );
-  // A general OPD has nobody before the doctor, so the two assistant cards can
-  // only ever read zero. Showing them is worse than noise — it implies a step
-  // in the flow that does not exist.
-  const showAssistantStats = useMemo(
-    () => hasAssistantStage(doctorPathway),
-    [doctorPathway]
-  );
-
-  const callPatient = useCallPatient();
-  const advanceVisit = useAdvanceVisit();
-  const releasePatient = useReleasePatient();
-
-  // Needed to decide whether the viewer is the one holding a patient, since
-  // only they are offered "Called by mistake". Read in an effect rather than
-  // during render — localStorage is not available on the server, and reading it
-  // in the render body breaks hydration.
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  useEffect(() => {
-    setCurrentUserId(localStorage.getItem("user_id"));
-  }, []);
-
   // Calculate live stats from SSE queue with fallback to todayStats
   const liveDoctorStats: DoctorStats | null = useMemo(() => {
     if (!doctorLiveQueue || doctorLiveQueue.length === 0) {
       return todayStats;
     }
 
-    // The field names still say "Optometrist" because DoctorStats is shared
-    // with screens this change does not touch; the values now come from the
-    // pathway, and the labels shown to the user come from `assistantLabel`.
-    const counts = countByBucket(doctorLiveQueue, stageIndex);
-
     const stats: DoctorStats = {
       todayTotal: doctorLiveQueue.length,
-      pendingOptometrist: counts.pendingAssistant,
-      inProgressOptometrist: counts.withAssistant,
-      pendingDoctor: counts.pendingDoctor,
-      inProgressDoctor: counts.withDoctor,
-      todayCompleted: counts.completed,
-      todayNoShow: counts.notAttended,
-      todayPending: counts.pendingAssistant + counts.pendingDoctor,
-      todayInProgress: counts.withAssistant + counts.withDoctor,
+      pendingOptometrist: 0,
+      inProgressOptometrist: 0,
+      pendingDoctor: 0,
+      inProgressDoctor: 0,
+      todayCompleted: 0,
+      todayNoShow: 0,
+      todayPending: 0,
+      todayInProgress: 0,
     };
 
+    doctorLiveQueue.forEach((patient) => {
+      switch (patient.status) {
+        case "awaiting_optometrist":
+        case "checked_in":
+        case "checked_in_opd":
+        case "waiting":
+        case "scheduled":
+          stats.pendingOptometrist++;
+          break;
+
+        case "optometrist_assigned":
+        case "optometrist_investigation_in_progress":
+        case "dilation_in_progress":
+          stats.inProgressOptometrist++;
+          break;
+
+        case "optometrist_investigation_completed":
+        case "awaiting_doctor":
+        case "doctor_assigned":
+        case "dilation_completed":
+          stats.pendingDoctor++;
+          break;
+
+        case "in_consultation":
+        case "consultation_in_progress":
+        case "start_consultation":
+          stats.inProgressDoctor++;
+          break;
+
+        case "consultation_completed":
+        case "completed":
+          stats.todayCompleted++;
+          break;
+
+        case "no_show":
+        case "cancelled":
+          stats.todayNoShow = (stats.todayNoShow || 0) + 1;
+          break;
+
+        default:
+          stats.pendingOptometrist++;
+      }
+    });
+
+    stats.todayPending = stats.pendingDoctor + stats.pendingOptometrist;
+    stats.todayInProgress = stats.inProgressDoctor + stats.inProgressOptometrist;
+
     return stats;
-  }, [doctorLiveQueue, todayStats, stageIndex]);
+  }, [doctorLiveQueue, todayStats]);
 
   // Mock queue data (you can replace this with actual queue API)
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
@@ -226,19 +211,6 @@ export function DoctorPanel() {
     }
   }, [selectedPatientId, todaySchedule]);
 
-  // The live queue, keyed by visit, so a slot can be enriched with the stage
-  // information only the pathway knows.
-  //
-  // The schedule is still the source of the LIST: it includes appointments that
-  // have not been checked in yet, which have no visit and so cannot appear in a
-  // queue of visits. What the schedule cannot give is the stage's label or who
-  // is holding the patient, and the action buttons are built from those.
-  const liveByVisit = useMemo(() => {
-    const map = new Map<string, (typeof doctorLiveQueue)[number]>();
-    for (const row of doctorLiveQueue ?? []) map.set(row.item_id, row);
-    return map;
-  }, [doctorLiveQueue]);
-
   // Generate queue from schedule (include ALL patients, filtering done in EnhancedQueueBoard)
   useEffect(() => {
     if (todaySchedule && todaySchedule.slots) {
@@ -250,17 +222,11 @@ export function DoctorPanel() {
             ? "appointment"
             : "walk_in";
 
-        const live = liveByVisit.get(slot.item_id);
-
         return {
           patient_id: slot.patient_id,
           patient_name: slot.patient_name,
           token_number: slot.token_number || "",
-          // The live queue is the fresher of the two: it streams, while the
-          // schedule is refetched. When they disagree the stream is right.
-          status: live?.status ?? slot.status,
-          stage_label: live?.stage_label,
-          assignments: live?.assignments,
+          status: slot.status,
           visit_type: visitType,
           item_id: slot.item_id,
           time: slot.time,
@@ -269,16 +235,7 @@ export function DoctorPanel() {
 
       setQueuePatients(queue);
     }
-  }, [todaySchedule, liveByVisit]);
-
-  // Complaints, conditions and allergies for the selected patient.
-  const clinical = useClinicalRecords(selectedPatientId, currentVisitId);
-
-  // Where the selected patient is, for the progress track above their record.
-  const selectedPatientStatus = useMemo(
-    () => queuePatients.find((p) => p.patient_id === selectedPatientId)?.status ?? null,
-    [queuePatients, selectedPatientId]
-  );
+  }, [todaySchedule]);
 
   const fetchPatientName = async (patientId: string) => {
     try {
@@ -342,60 +299,52 @@ export function DoctorPanel() {
     router.push(`/admissions?tab=admissions&admission_id=${admissionId}&action=discharge`);
   };
 
-  // Stage moves go through the generic pathway endpoints. They used to go
-  // through `/opd/eye-hospital/visits/{id}/pick-doctor` and a hard-coded
-  // `updateStatus("in_consultation")` — eye stage codes, which is why calling a
-  // patient in a general hospital left them reading "checked in".
-  const stageLabel = (code: string) =>
-    doctorPathway?.stages.find((s) => s.code === code)?.label ?? code;
-
-  const handleCallPatient = async (visitId: string, toStageCode: string) => {
+  const handleUpdateVisitStatus = async (
+    visitId: string,
+    newStatus: "in_consultation" | "completed"
+  ) => {
     setUpdatingVisitId(visitId);
     try {
-      await callPatient.mutateAsync({ visitId, role: "doctor", toStageCode });
-      toast.success(`Patient called — ${stageLabel(toStageCode)}`);
+      await opdVisitsApi.updateStatus(visitId, newStatus);
+
+      // Success notification
+      const statusText = newStatus === "in_consultation" ? "Consultation started" : "Consultation completed";
+      toast.success(statusText);
+
+      // Refresh the schedule to get updated data
       await refreshSchedule();
-    } catch {
-      // The mutation hook already shows the server's message, and those
-      // messages are the informative kind — "Dr Mehta has already called this
-      // patient". Re-toasting here would show it twice.
+    } catch (error: any) {
+      console.error("Failed to update visit status:", error);
+      toast.error(error?.response?.data?.detail || error?.response?.data?.message || "Failed to update status");
     } finally {
       setUpdatingVisitId(null);
     }
   };
 
-  const handleAdvancePatient = async (visitId: string, toStageCode: string) => {
+  const handlePickPatient = async (visitId: string) => {
+    if (!currentDoctor?.id) return;
     setUpdatingVisitId(visitId);
     try {
-      await advanceVisit.mutateAsync({ visitId, toStageCode, performerRole: "doctor" });
-      toast.success(`Moved to ${stageLabel(toStageCode)}`);
+      await optometristVisitsApi.pickDoctor(visitId, currentDoctor.id);
+      toast.success("Patient called successfully");
       await refreshSchedule();
-    } catch {
-      // The mutation hook already shows the server's message, and those
-      // messages are the informative kind — "Dr Mehta has already called this
-      // patient". Re-toasting here would show it twice.
+    } catch (error: any) {
+      console.error("Failed to pick patient:", error);
+      toast.error(error?.response?.data?.detail || "Failed to call patient");
     } finally {
       setUpdatingVisitId(null);
     }
   };
 
-  const handleReleasePatient = async (visitId: string) => {
+  const handleUnpickPatient = async (visitId: string) => {
     setUpdatingVisitId(visitId);
     try {
-      // Back to whichever stage this pathway keeps the doctor's queue in —
-      // `checked_in` on the standard pathway, `awaiting_doctor` on the eye one.
-      const back = waitingStageForRole(doctorPathway, "doctor");
-      await releasePatient.mutateAsync({
-        visitId,
-        role: "doctor",
-        backToStageCode: back?.code,
-      });
-      toast.success("Patient returned to the queue");
+      await optometristVisitsApi.unpickDoctor(visitId);
+      toast.success("Patient returned to queue");
       await refreshSchedule();
-    } catch {
-      // The mutation hook already shows the server's message, and those
-      // messages are the informative kind — "Dr Mehta has already called this
-      // patient". Re-toasting here would show it twice.
+    } catch (error: any) {
+      console.error("Failed to unpick patient:", error);
+      toast.error(error?.response?.data?.detail || "Failed to return patient");
     } finally {
       setUpdatingVisitId(null);
     }
@@ -507,45 +456,6 @@ export function DoctorPanel() {
     }
 
     switch (activeTab) {
-      // The three below are patient-level clinical facts every speciality
-      // records. They were only ever shown on the eye panel, so a general
-      // doctor had nowhere to note that a patient is diabetic or allergic to
-      // penicillin — see hooks/queries/useClinicalRecords.
-      case "complaints":
-        return (
-          <ComplaintsTab
-            patientId={selectedPatientId}
-            visitId={currentVisitId ?? ""}
-            recordedByUserId={currentUserId ?? ""}
-            complaints={clinical.complaints}
-            loading={clinical.loading}
-            onRefresh={clinical.refresh}
-            showEyeSelector={false}
-            quickComplaints={GENERAL_COMPLAINTS}
-          />
-        );
-
-      case "conditions":
-        return (
-          <MedicalHistoryTab
-            patientId={selectedPatientId}
-            visitId={currentVisitId}
-            medicalConditions={clinical.medicalConditions}
-            loading={clinical.loading}
-            onRefresh={clinical.refresh}
-          />
-        );
-
-      case "allergies":
-        return (
-          <DrugAllergyTab
-            patientId={selectedPatientId}
-            drugAllergies={clinical.drugAllergies}
-            loading={clinical.loading}
-            onRefresh={clinical.refresh}
-          />
-        );
-
       case "history":
         return (
           <PatientHistoryTimeline
@@ -640,8 +550,6 @@ export function DoctorPanel() {
       <DoctorPanelVerticalLayout
         stats={liveDoctorStats}
         statsLoading={panelLoading}
-        assistantLabel={assistantLabel}
-        showAssistantStats={showAssistantStats}
         statsVisible={preferences.statsVisible}
         onToggleStats={toggleStats}
         queuePatients={queuePatients}
@@ -653,17 +561,14 @@ export function DoctorPanel() {
         selectedPatientId={selectedPatientId}
         selectedPatientName={selectedPatientName}
         selectedPatientUhid={selectedPatientUhid}
-        selectedPatientStatus={selectedPatientStatus}
         currentVisitId={currentVisitId ?? null}
         activeTab={activeTab}
         onSelectPatient={selectPatient}
         onClearPatient={handleClearPatient}
         onTabChange={setActiveTab}
-        pathway={doctorPathway}
-        onCallPatient={handleCallPatient}
-        onAdvancePatient={handleAdvancePatient}
-        onReleasePatient={handleReleasePatient}
-        currentUserId={currentUserId}
+        onUpdateVisitStatus={handleUpdateVisitStatus}
+        onPickPatient={handlePickPatient}
+        onUnpickPatient={handleUnpickPatient}
         updatingVisitId={updatingVisitId}
         onCreatePrescription={() => setShowPrescriptionModal(true)}
         onPrintOpd={handlePrintOpd}

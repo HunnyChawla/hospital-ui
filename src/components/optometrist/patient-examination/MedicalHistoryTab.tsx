@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useAppDispatch } from "@/redux/hooks";
@@ -23,13 +23,13 @@ import {
 import { toast } from "sonner";
 import clsx from "clsx";
 import type { MedicalConditionRecord } from "@/types";
-import { ToggleSwitch } from "@/components/optometrist/shared";
+import { ToggleSwitch } from "../shared";
 import {
   medicalHistoryPatterns,
   type MedicalHistoryPattern,
-} from "@/components/optometrist/mock/mockTemplates";
-import { ConfirmedMedicalHistorySummary } from "@/components/optometrist/patient-examination/ConfirmedMedicalHistorySummary";
-import { ResizablePanel } from "@/components/optometrist/shared";
+} from "../mock/mockTemplates";
+import { ConfirmedMedicalHistorySummary } from "./ConfirmedMedicalHistorySummary";
+import { ResizablePanel } from "../shared";
 import { handleError } from "@/utils/errorHandler";
 
 interface MedicalHistoryTabProps {

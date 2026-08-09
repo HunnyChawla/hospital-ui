@@ -8,26 +8,12 @@ interface DoctorStatsCardsProps {
   stats: DoctorStats | null;
   loading?: boolean;
   compact?: boolean;
-  /**
-   * What this hospital calls the step before the doctor, read from its pathway
-   * — "Optometrist" in an eye hospital, "Nurse" elsewhere. Defaults to
-   * "Optometrist" so callers not yet passing it are unchanged.
-   */
-  assistantLabel?: string;
-  /**
-   * False for a pathway with nobody before the doctor. A general OPD's
-   * assistant cards can only ever read zero, and showing them implies a step in
-   * the flow that does not exist.
-   */
-  showAssistantStats?: boolean;
 }
 
 export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   stats,
   loading = false,
   compact = false,
-  assistantLabel = "Optom",
-  showAssistantStats = true,
 }) => {
   const statItems = [
     {
@@ -41,8 +27,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       textColor: "text-slate-800",
     },
     {
-      label: `Pending at ${assistantLabel}`,
-      assistantOnly: true,
+      label: "Pending at Optom",
       value: stats?.pendingOptometrist || 0,
       icon: Clock,
       color: "amber",
@@ -52,8 +37,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       textColor: "text-amber-700",
     },
     {
-      label: `In-Progress at ${assistantLabel}`,
-      assistantOnly: true,
+      label: "In-Progress at Optom",
       value: stats?.inProgressOptometrist || 0,
       icon: Activity,
       color: "purple",
@@ -102,19 +86,12 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
       iconColor: "text-rose-600",
       textColor: "text-rose-700",
     },
-  ].filter((item) => showAssistantStats || !("assistantOnly" in item));
-
-  // Written out rather than interpolated: Tailwind scans source text, so a
-  // `lg:grid-cols-${n}` template would produce a class that is never generated.
-  const columns = showAssistantStats ? "lg:grid-cols-7" : "lg:grid-cols-5";
-  const gridClass = compact
-    ? `grid grid-cols-2 gap-2 sm:grid-cols-4 ${columns}`
-    : `grid grid-cols-2 gap-3 sm:grid-cols-4 ${columns}`;
+  ];
 
   if (loading) {
     return (
-      <div className={gridClass}>
-        {statItems.map((_, i) => (
+      <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"}>
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
           <div
             key={i}
             className={compact ? "h-20 animate-pulse rounded-lg bg-slate-100" : "h-24 animate-pulse rounded-xl bg-slate-100"}
@@ -125,7 +102,7 @@ export const DoctorStatsCards: React.FC<DoctorStatsCardsProps> = ({
   }
 
   return (
-    <div className={gridClass}>
+    <div className={compact ? "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"}>
       {statItems.map((item) => {
         const Icon = item.icon;
         return (

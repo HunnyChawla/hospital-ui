@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import clsx from "clsx";
@@ -20,10 +20,10 @@ import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreferen
 import { useExaminationViewContext } from "@/context/ExaminationViewContext";
 import { VisionTab } from "./VisionTab";
 import { MergedVisionTab } from "./MergedVisionTab";
-import { ComplaintsTab } from "@/components/clinical/ComplaintsTab";
-import { MedicalHistoryTab } from "@/components/clinical/MedicalHistoryTab";
+import { ComplaintsTab } from "./ComplaintsTab";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
-import { DrugAllergyTab } from "@/components/clinical/DrugAllergyTab";
+import { DrugAllergyTab } from "./DrugAllergyTab";
 import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
@@ -454,7 +454,7 @@ export function ExaminationTabs({
           <ComplaintsTab
             patientId={patientId}
             visitId={visitId}
-            recordedByUserId={optometristId}
+            optometristId={optometristId}
             complaints={complaints}
             loading={loading.complaints}
             onRefresh={refreshComplaints}

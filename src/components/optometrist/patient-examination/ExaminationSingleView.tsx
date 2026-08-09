@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useEffect, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
@@ -34,13 +34,13 @@ import {
 } from "./SingleViewSection";
 
 // Import tab content components
-import { ComplaintsTab } from "@/components/clinical/ComplaintsTab";
+import { ComplaintsTab } from "./ComplaintsTab";
 import { VisionTab } from "./VisionTab";
 import { MergedVisionTab } from "./MergedVisionTab";
 import { CurrentSpecsTab } from "./CurrentSpecsTab";
-import { MedicalHistoryTab } from "@/components/clinical/MedicalHistoryTab";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { OphthalHistoryTab } from "./OphthalHistoryTab";
-import { DrugAllergyTab } from "@/components/clinical/DrugAllergyTab";
+import { DrugAllergyTab } from "./DrugAllergyTab";
 import { ARDataTab } from "./ARDataTab";
 import { RefractionTab } from "./RefractionTab";
 import { IOPTab } from "./IOPTab";
@@ -240,7 +240,7 @@ export function ExaminationSingleView({
           <ComplaintsTab
             patientId={patientId}
             visitId={visitId}
-            recordedByUserId={optometristId}
+            optometristId={optometristId}
             complaints={complaints}
             loading={loading.complaints}
             onRefresh={refreshComplaints}
