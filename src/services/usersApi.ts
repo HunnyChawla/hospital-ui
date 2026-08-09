@@ -1,7 +1,15 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type UserRole = "admin" | "doctor" | "nurse" | "receptionist" | "optometrist";
+export type UserRole =
+  | "admin"
+  | "doctor"
+  | "nurse"
+  | "receptionist"
+  | "optometrist"
+  | "examiner"
+  | "lab_technician"
+  | "platform_owner";
 export type UserStatus = "active" | "inactive";
 
 export interface User {

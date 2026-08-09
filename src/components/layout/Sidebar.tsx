@@ -41,6 +41,8 @@ import { Tooltip } from "@/components/common/Tooltip";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 
@@ -161,30 +163,39 @@ export function Sidebar() {
     }
 
     // Admin & Platform Owner screens
-    const adminScreens = ["/optometrist-mappings"];
+    const adminScreens = ["/optometrist-mappings", "/examiner-mappings", "/panel-config"];
     if (userRole === "admin" || userRole === "platform_owner") {
       if (!items.find((i) => i.href === "/optometrist-mappings")) {
         items.push({ label: "Optometrist Mappings", href: "/optometrist-mappings", icon: LinkIcon });
+      }
+      if (!items.find((i) => i.href === "/examiner-mappings")) {
+        items.push({ label: "Examiner Mappings", href: "/examiner-mappings", icon: LinkIcon });
+      }
+      if (!items.find((i) => i.href === "/panel-config")) {
+        items.push({ label: "Panel Configuration", href: "/panel-config", icon: Settings });
       }
     }
 
     return items;
   }, [screenDetails, initialized, loading, userRole]);
 
-  // Filter for ophthalmologist vs regular doctor panel
+  // Panel filter: each doctor/examiner sees exactly one panel entry
+  // (resolver shared with the layout gate so the two cannot drift)
+  const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");
+  const clinicPanelEnabled = (clinicPanelFlags?.enabled as boolean) ?? false;
+
   const filteredNavItems = useMemo(() => {
-    if (userRole !== "doctor") return navItems;
+    if (userRole !== "doctor" && userRole !== "examiner") return navItems;
 
     const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
     const currentDoctor = doctors.find((d) => d.user_id === userId);
-    const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
+    const mine = resolvePanelPathForUser(userRole, currentDoctor?.specialization, clinicPanelEnabled);
 
     return navItems.filter((item) => {
-      if (item.href === "/optometrist-panel") return isOphthalmologist;
-      if (item.href === "/doctor-panel") return !isOphthalmologist;
-      return true;
+      if (!(PANEL_PATHS as readonly string[]).includes(item.href)) return true;
+      return item.href === mine;
     });
-  }, [navItems, userRole, doctors]);
+  }, [navItems, userRole, doctors, clinicPanelEnabled]);
 
   const hasLabBookings = useMemo(() => {
     return filteredNavItems.some((item) => item.href === "/lab-bookings");

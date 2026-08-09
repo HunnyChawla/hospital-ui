@@ -33,6 +33,7 @@ export default function UsersPage() {
     { value: "nurse", label: "Nurse", icon: HeartPulse },
     { value: "receptionist", label: "Receptionist", icon: ClipboardList },
     { value: "optometrist", label: "Optometrist", icon: Eye },
+    { value: "examiner", label: "Examiner", icon: ClipboardList },
   ];
 
   return (

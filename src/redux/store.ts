@@ -23,6 +23,7 @@ import symptomsReducer from "./symptomsSlice";
 import seedDataReducer from "./seedDataSlice";
 import medicinesReducer from "./medicinesSlice";
 import bodyPartsReducer from "./bodyPartsSlice";
+import clinicPanelReducer from "./clinicPanelSlice";
 
 
 export const store = configureStore({
@@ -51,6 +52,7 @@ export const store = configureStore({
     seedData: seedDataReducer,
     medicines: medicinesReducer,
     bodyParts: bodyPartsReducer,
+    clinicPanel: clinicPanelReducer,
   },
 });
 

@@ -51,6 +51,8 @@ interface MedicineFormData extends PrescriptionItemRequest {
 interface FormData {
   diagnosis: string;
   notes: string;
+  plan_of_action: string;
+  remarks: string;
 }
 
 // Frequency options for dropdown
@@ -162,6 +164,8 @@ export function PrescriptionForm({
 
           if (draft.diagnosis) setValue("diagnosis", draft.diagnosis);
           if (draft.notes) setValue("notes", draft.notes);
+          if (draft.plan_of_action) setValue("plan_of_action", draft.plan_of_action);
+          if (draft.remarks) setValue("remarks", draft.remarks);
           // Reopening a draft must bring its advice back, or saving again
           // would send an empty list and silently delete it.
           setAdviceItems(
@@ -283,6 +287,8 @@ export function PrescriptionForm({
     setMedicines(newMedicines);
     if (prescription.diagnosis) setValue("diagnosis", prescription.diagnosis);
     if (prescription.notes) setValue("notes", prescription.notes);
+    if (prescription.plan_of_action) setValue("plan_of_action", prescription.plan_of_action);
+    if (prescription.remarks) setValue("remarks", prescription.remarks);
     setAdviceItems(
       (prescription.advice_items ?? []).map((a) => ({
         advice_type: a.advice_type,
@@ -378,6 +384,8 @@ export function PrescriptionForm({
         notes: data.notes?.trim() || undefined,
         advice_items: adviceItems,
         followup_date: followupDate,
+        plan_of_action: data.plan_of_action?.trim() || null,
+        remarks: data.remarks?.trim() || null,
       };
 
       if (draftPrescriptionId) {
@@ -426,6 +434,8 @@ export function PrescriptionForm({
         notes: data.notes?.trim() || undefined,
         advice_items: adviceItems,
         followup_date: followupDate,
+        plan_of_action: data.plan_of_action?.trim() || null,
+        remarks: data.remarks?.trim() || null,
       };
 
       let prescriptionId: string;
@@ -838,6 +848,28 @@ export function PrescriptionForm({
                     rows={3}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     placeholder="Additional notes or instructions..."
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Plan of Action <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <textarea
+                    {...register("plan_of_action")}
+                    rows={2}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    placeholder="e.g. Review after CBC report..."
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Remarks <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <textarea
+                    {...register("remarks")}
+                    rows={2}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    placeholder="Clinical remarks..."
                   />
                 </div>
               </div>

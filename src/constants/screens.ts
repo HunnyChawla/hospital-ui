@@ -9,6 +9,7 @@ export const ALL_ROLES: UserRole[] = [
   "nurse",
   "receptionist",
   "optometrist",
+  "examiner",
   "lab_technician",
   "platform_owner",
 ];
@@ -22,6 +23,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   nurse: "Nurse",
   receptionist: "Receptionist",
   optometrist: "Optometrist",
+  examiner: "Examiner",
   lab_technician: "Lab Technician",
   platform_owner: "Platform Owner",
 };

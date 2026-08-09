@@ -14,6 +14,8 @@ import { TopBar } from "@/components/layout/TopBar";
 import { Footer } from "@/components/layout/Footer";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";
 import { Shield, Home as HomeIcon } from "lucide-react";
 
 /**
@@ -152,21 +154,30 @@ export default function DashboardLayout({
     userPermissions
   } = usePermissions();
 
+  // Per-tenant opt-in for the general clinic panel; defaults off so existing
+  // tenants keep the legacy /doctor-panel untouched.
+  const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");
+  const clinicPanelEnabled = (clinicPanelFlags?.enabled as boolean) ?? false;
+
   const isAuthorized = useMemo(() => {
     if (!permissionsInitialized || permissionsLoading || !isAuthenticated) return true;
 
-    // Check doctor panel access based on specialization (logic from Sidebar.tsx)
-    if (userRole === "doctor") {
+    // Panel routing: each doctor/examiner belongs on exactly one panel
+    // (resolver shared with Sidebar so the two cannot drift)
+    if (userRole === "doctor" || userRole === "examiner") {
       const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
       const currentDoctor = doctors.list?.find((d) => d.user_id === userId);
-      const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
-
-      if (pathname.startsWith("/optometrist-panel") && !isOphthalmologist) return false;
-      if (pathname.startsWith("/doctor-panel") && isOphthalmologist) return false;
+      const mine = resolvePanelPathForUser(
+        userRole,
+        currentDoctor?.specialization,
+        clinicPanelEnabled
+      );
+      const target = PANEL_PATHS.find((p) => pathname.startsWith(p));
+      if (target && target !== mine) return false;
     }
 
     return hasAccess(pathname);
-  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors]);
+  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors, clinicPanelEnabled]);
 
   // Handle redirection to default screen if root (/) is not the intended start page
   useEffect(() => {
