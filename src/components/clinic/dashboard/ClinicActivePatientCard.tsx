@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import clsx from "clsx";
-import { Stethoscope, X, ClipboardList, FileEdit } from "lucide-react";
+import { Stethoscope, X, ClipboardList, FileEdit, LayoutGrid, LayoutList, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
 import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
@@ -13,6 +14,7 @@ interface ClinicActivePatientCardProps {
   patientId: string | null;
   patientName?: string;
   patientUhid?: string | null;
+  abhaVerified?: boolean;
   visitId: string | null;
   visitType?: string;
   visitStatus?: string;
@@ -33,6 +35,7 @@ export function ClinicActivePatientCard({
   patientId,
   patientName,
   patientUhid,
+  abhaVerified = false,
   visitId,
   visitType,
   visitStatus,
@@ -43,6 +46,7 @@ export function ClinicActivePatientCard({
   children,
 }: ClinicActivePatientCardProps) {
   const [showPatientDetail, setShowPatientDetail] = useState(false);
+  const { viewMode, setViewMode } = useExaminationViewPreference();
 
   if (!patientId) {
     return (
@@ -61,9 +65,9 @@ export function ClinicActivePatientCard({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500 scrollbar-hide">
       {/* Header */}
-      <div className="relative z-20 border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-3 py-2">
+      <div className="relative z-20 border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-3 py-2 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/30">
@@ -97,9 +101,17 @@ export function ClinicActivePatientCard({
                 )}
                 {visitStatus && <ClinicStatusBadge status={visitStatus} />}
               </div>
-              <p className="truncate text-xs font-medium text-slate-600">
-                {patientUhid || patientId}
-              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="truncate text-xs font-medium text-slate-600">
+                  {patientUhid || patientId}
+                </p>
+                {abhaVerified && (
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 shadow-sm">
+                    <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                    <span>ABHA Verified</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -134,13 +146,58 @@ export function ClinicActivePatientCard({
               </div>
             )}
 
+            {/* View Mode Toggle Buttons */}
+            {mode === "examine" && (
+              <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                <button
+                  onClick={() => setViewMode("tabs")}
+                  className={clsx(
+                    "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all",
+                    viewMode === "tabs"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  title="Tabs View"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Tabs</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("single")}
+                  className={clsx(
+                    "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all",
+                    viewMode === "single"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  title="Single View"
+                >
+                  <LayoutList className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Single</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("compact")}
+                  className={clsx(
+                    "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all",
+                    viewMode === "compact"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  title="Compact View"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Compact</span>
+                </button>
+              </div>
+            )}
+
             {isDoctor && visitId && (
               <FinaliseVisitAction episodeType="opd_visit" sourceId={visitId} compact />
             )}
 
             <button
               onClick={onClose}
-              className="group rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+              className="group rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition-all hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 hover:scale-105 active:scale-95"
               title="Clear selection"
             >
               <X className="h-4 w-4 transition-transform group-hover:rotate-90" />

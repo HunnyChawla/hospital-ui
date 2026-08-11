@@ -139,7 +139,7 @@ export function InlineComplaintForm({
       });
 
   return (
-    <div className="mt-2 rounded-lg border border-sky-200 bg-white shadow-md animate-slideDown">
+    <div className="mt-2 rounded-lg border border-sky-200 bg-white shadow-md animate-slideDown max-h-[350px] overflow-y-auto">
       <div className="p-4">
         {/* Complaint Text Header */}
         <div className="mb-4 border-b border-slate-100 pb-3">

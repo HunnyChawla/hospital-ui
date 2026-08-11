@@ -67,10 +67,10 @@ function mapItem(item: Record<string, unknown>): ClinicQueuePatient {
     examiner_assigned_at: strOrNull(item.examiner_assigned_at),
     examination_started_at: strOrNull(item.examination_started_at),
     examination_completed_at: strOrNull(item.examination_completed_at),
-    expected_next_status_time: strOrNull(item.expected_next_status_time),
     picked_by_doctor_id: strOrNull(item.picked_by_doctor_id),
     picked_by_doctor_name: strOrNull(item.picked_by_doctor_name),
     is_revisit: Boolean(item.is_revisit),
+    abha_verified: Boolean(item.abha_verified),
   };
 }
 
@@ -90,7 +90,8 @@ function areQueuePatientsEqual(prev: ClinicQueuePatient[], next: ClinicQueuePati
       p.examiner_id === n.examiner_id &&
       p.examination_started_at === n.examination_started_at &&
       p.examination_completed_at === n.examination_completed_at &&
-      p.picked_by_doctor_id === n.picked_by_doctor_id
+      p.picked_by_doctor_id === n.picked_by_doctor_id &&
+      p.abha_verified === n.abha_verified
     );
   });
 }

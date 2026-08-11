@@ -389,6 +389,63 @@ export function MedicalHistoryTab({
     }
   };
 
+  const saveTextField = async (conditionType: string, text: string) => {
+    const optometristId = localStorage.getItem("user_id");
+    if (!optometristId) {
+      toast.error("User ID not found");
+      return;
+    }
+
+    const existingRecord = conditionRecordMap.get(conditionType);
+    const trimmedText = text.trim();
+
+    try {
+      if (existingRecord) {
+        if (!trimmedText) {
+          // If text is cleared, delete the record
+          await dispatch(deleteMedicalCondition({ id: existingRecord.id })).unwrap();
+          
+          // Remove from local record map
+          const newMap = new Map(conditionRecordMap);
+          newMap.delete(conditionType);
+          setConditionRecordMap(newMap);
+        } else {
+          // Update existing record
+          await dispatch(updateMedicalCondition({
+            id: existingRecord.id,
+            data: {
+              status: true,
+              remarks: trimmedText,
+            },
+          })).unwrap();
+        }
+      } else if (trimmedText) {
+        // Create new record
+        await dispatch(addMedicalCondition({
+          data: {
+            patient_id: patientId,
+            optometrist_id: optometristId,
+            visit_id: visitId || null,
+            condition_name: conditionType,
+            status: true,
+            remarks: trimmedText,
+          },
+        })).unwrap();
+      }
+
+      toast.success("Saved successfully");
+
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error: any) {
+      handleError(error, {
+        defaultMessage: `Failed to save ${conditionType.replace('_', ' ')}`,
+        logError: true,
+      });
+    }
+  };
+
   const handleClear = async () => {
     if (!confirm("Are you sure you want to clear all medical history data?")) return;
 
@@ -700,6 +757,7 @@ export function MedicalHistoryTab({
           <textarea
             value={formData.other_conditions}
             onChange={(e) => handleTextChange("other_conditions", e.target.value)}
+            onBlur={(e) => saveTextField("other_conditions", e.target.value)}
             rows={2}
             className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
             placeholder="Enter any other medical conditions not listed above..."
@@ -718,6 +776,7 @@ export function MedicalHistoryTab({
               <textarea
                 value={formData.current_medications}
                 onChange={(e) => handleTextChange("current_medications", e.target.value)}
+                onBlur={(e) => saveTextField("current_medications", e.target.value)}
                 rows={2}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
                 placeholder="List medications with dosage..."
@@ -728,6 +787,7 @@ export function MedicalHistoryTab({
               <textarea
                 value={formData.family_history}
                 onChange={(e) => handleTextChange("family_history", e.target.value)}
+                onBlur={(e) => saveTextField("family_history", e.target.value)}
                 rows={2}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
                 placeholder="Family medical history..."

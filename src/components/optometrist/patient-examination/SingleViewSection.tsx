@@ -105,9 +105,9 @@ export function SingleViewSection({
     <div
       id={id}
       className={clsx(
-        "rounded-xl border bg-white shadow-sm overflow-hidden transition-all duration-300",
+        "rounded-xl border bg-white shadow-sm transition-all duration-300",
         colors.border,
-        isExpanded ? "shadow-md" : "hover:shadow-md"
+        isExpanded ? "shadow-md overflow-visible" : "overflow-hidden hover:shadow-md"
       )}
     >
       {/* Collapsible Header */}
@@ -165,8 +165,8 @@ export function SingleViewSection({
       {/* Content */}
       <div
         className={clsx(
-          "transition-all duration-300 ease-in-out overflow-hidden",
-          isExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
+          "transition-all duration-300 ease-in-out",
+          isExpanded ? "max-h-[5000px] opacity-100 overflow-visible" : "max-h-0 opacity-0 overflow-hidden"
         )}
       >
         <div className="p-4 sm:p-6 border-t border-slate-100">

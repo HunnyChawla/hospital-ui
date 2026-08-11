@@ -18,10 +18,10 @@ export interface ClinicQueuePatient {
   examiner_assigned_at?: string | null;
   examination_started_at?: string | null;
   examination_completed_at?: string | null;
-  expected_next_status_time?: string | null;
   picked_by_doctor_id?: string | null;
   picked_by_doctor_name?: string | null;
   is_revisit?: boolean;
+  abha_verified?: boolean;
 }
 
 export interface FilterConfig {
@@ -33,7 +33,7 @@ export interface FilterConfig {
 
 export type ClinicQueueFilter = "pending" | "completed" | "no_show";
 
-export const CLINIC_QUEUE_FILTERS: Record<ClinicQueueFilter, FilterConfig> = {
+export const CLINIC_EXAMINER_QUEUE_FILTERS: Record<ClinicQueueFilter, FilterConfig> = {
   pending: {
     label: "Pending",
     statuses: ["awaiting_examiner", "examiner_assigned", "examination_in_progress"],
@@ -50,6 +50,27 @@ export const CLINIC_QUEUE_FILTERS: Record<ClinicQueueFilter, FilterConfig> = {
       "consultation_completed",
       "completed",
     ],
+    icon: CheckCircle,
+    color: "emerald",
+  },
+  no_show: {
+    label: "No Show",
+    statuses: ["no_show"],
+    icon: AlertTriangle,
+    color: "rose",
+  },
+};
+
+export const CLINIC_DOCTOR_QUEUE_FILTERS: Record<ClinicQueueFilter, FilterConfig> = {
+  pending: {
+    label: "Pending",
+    statuses: ["awaiting_doctor", "doctor_assigned", "consultation_in_progress"],
+    icon: Clock,
+    color: "amber",
+  },
+  completed: {
+    label: "Completed",
+    statuses: ["consultation_completed", "completed"],
     icon: CheckCircle,
     color: "emerald",
   },
@@ -84,10 +105,12 @@ export const DEFAULT_STATUS_LABELS: Record<string, string> = {
 export function filterClinicQueuePatients(
   patients: ClinicQueuePatient[],
   filter: ClinicQueueFilter,
+  isDoctor: boolean = false,
   currentExaminerId?: string | null,
   allowPickAny: boolean = false // only affects awaiting_examiner pick access, NOT isolation
 ): ClinicQueuePatient[] {
-  const filterConfig = CLINIC_QUEUE_FILTERS[filter];
+  const filters = isDoctor ? CLINIC_DOCTOR_QUEUE_FILTERS : CLINIC_EXAMINER_QUEUE_FILTERS;
+  const filterConfig = filters[filter];
   if (!filterConfig) return patients;
 
   return patients.filter((patient) => {
@@ -101,6 +124,7 @@ export function filterClinicQueuePatients(
     // controls picking from the awaiting_examiner pool, not visibility of
     // already-assigned patients.
     if (
+      !isDoctor &&
       filter === "pending" &&
       (patient.status === "examiner_assigned" ||
         patient.status === "examination_in_progress") &&
@@ -116,8 +140,10 @@ export function filterClinicQueuePatients(
 }
 
 export function getClinicQueueCounts(
-  patients: ClinicQueuePatient[]
+  patients: ClinicQueuePatient[],
+  isDoctor: boolean = false
 ): Record<ClinicQueueFilter, number> {
+  const filters = isDoctor ? CLINIC_DOCTOR_QUEUE_FILTERS : CLINIC_EXAMINER_QUEUE_FILTERS;
   const counts: Record<ClinicQueueFilter, number> = {
     pending: 0,
     completed: 0,
@@ -125,11 +151,11 @@ export function getClinicQueueCounts(
   };
 
   patients.forEach((patient) => {
-    if (CLINIC_QUEUE_FILTERS.no_show.statuses.includes(patient.status)) {
+    if (filters.no_show.statuses.includes(patient.status)) {
       counts.no_show++;
-    } else if (CLINIC_QUEUE_FILTERS.completed.statuses.includes(patient.status)) {
+    } else if (filters.completed.statuses.includes(patient.status)) {
       counts.completed++;
-    } else if (CLINIC_QUEUE_FILTERS.pending.statuses.includes(patient.status)) {
+    } else if (filters.pending.statuses.includes(patient.status)) {
       counts.pending++;
     }
   });

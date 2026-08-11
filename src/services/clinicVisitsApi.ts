@@ -34,7 +34,6 @@ export interface ClinicVisitResponse {
   examiner_assigned_at: string | null;
   examination_started_at: string | null;
   examination_completed_at: string | null;
-  expected_next_status_time: string | null;
   picked_by_doctor_id?: string | null;
   picked_by_doctor_name?: string | null;
   doctor_picked_at?: string | null;

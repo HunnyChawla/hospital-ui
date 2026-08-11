@@ -30,11 +30,19 @@ export interface MedicalConditionSearchParams {
   status?: boolean;
 }
 
+export interface MedicalConditionsSearchResponse {
+  items: MedicalConditionRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export const optometryMedicalConditionsApi = {
   /**
    * List/search medical conditions
    */
-  async list(params?: MedicalConditionSearchParams, tenantId?: string): Promise<MedicalConditionRecord[]> {
+  async list(params?: MedicalConditionSearchParams, tenantId?: string): Promise<MedicalConditionsSearchResponse> {
     const queryParams = new URLSearchParams();
 
     if (params?.patient_id) queryParams.append("patient_id", params.patient_id);
@@ -48,7 +56,7 @@ export const optometryMedicalConditionsApi = {
       queryParams.append("tenant_id", apiTenantId);
     }
 
-    const response = await apiClient.get<MedicalConditionRecord[]>(
+    const response = await apiClient.get<MedicalConditionsSearchResponse>(
       `/medical-conditions?${queryParams.toString()}`
     );
     return response.data;
@@ -95,6 +103,7 @@ export const optometryMedicalConditionsApi = {
    * Get all medical conditions for a patient
    */
   async getByPatientId(patientId: string, tenantId?: string): Promise<MedicalConditionRecord[]> {
-    return this.list({ patient_id: patientId }, tenantId);
+    const response = await this.list({ patient_id: patientId }, tenantId);
+    return response.items || [];
   },
 };

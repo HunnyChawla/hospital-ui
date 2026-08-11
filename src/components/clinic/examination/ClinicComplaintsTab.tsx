@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
 import { addComplaint, deleteComplaint } from "@/redux/optometryDataSlice";
 import { Plus, FileText, Check } from "lucide-react";
@@ -197,12 +197,12 @@ export function ClinicComplaintsTab({
   };
 
   const leftContent = (
-    <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full">
+    <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-visible transition-all duration-300 hover:shadow-xl h-full">
       <div className="p-4 space-y-3">
         {/* Quick Select Complaints */}
         <div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-            {quickComplaints.map((complaint) => {
+            {quickComplaints.map((complaint, index) => {
               const isActive = activeComplaint === complaint;
               const isOtherActive = activeComplaint && activeComplaint !== complaint;
               // Check if this complaint is already confirmed (in the complaints list)
@@ -212,46 +212,51 @@ export function ClinicComplaintsTab({
               const isDisabled = Boolean(isOtherActive);
 
               return (
-                <button
-                  key={complaint}
-                  type="button"
-                  onClick={() => handleComplaintButtonClick(complaint)}
-                  disabled={isDisabled}
-                  className={clsx(
-                    "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
-                    isActive
-                      ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
-                      : isConfirmed && !isDisabled
-                        ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
-                        : isDisabled
-                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="truncate">{complaint}</span>
-                    {isConfirmed && !isActive && !isDisabled && (
-                      <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
+                <div key={complaint} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => handleComplaintButtonClick(complaint)}
+                    disabled={isDisabled}
+                    className={clsx(
+                      "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
+                      isActive
+                        ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
+                        : isConfirmed && !isDisabled
+                          ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
+                          : isDisabled
+                            ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
                     )}
-                  </div>
-                </button>
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{complaint}</span>
+                      {isConfirmed && !isActive && !isDisabled && (
+                        <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Inline Form - appears just below the active chip as a popup overlay */}
+                  {isActive && (
+                    <div className={clsx(
+                      "absolute top-full z-[100] mt-2 w-[calc(100vw-3rem)] max-w-[320px] sm:max-w-[400px] md:max-w-[450px] animate-in fade-in slide-in-from-top-2 duration-300",
+                      index % 2 === 0 ? "left-0" : "right-0",
+                      index % 3 === 0 ? "md:left-0 md:right-auto md:translate-x-0" : index % 3 === 1 ? "md:left-1/2 md:-translate-x-1/2 md:right-auto" : "md:right-0 md:left-auto md:translate-x-0"
+                    )}>
+                      <InlineComplaintForm
+                        complaintText={activeComplaint}
+                        onSave={handleSaveComplaint}
+                        onCancel={handleCancelForm}
+                        isSubmitting={isSubmitting}
+                        defaultValues={getDefaultFormValues()}
+                        showEyeSelector={showEyeSelector}
+                      />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
-
-          {/* Inline Form - appears below the grid */}
-          {activeComplaint && quickComplaints.includes(activeComplaint) && (
-            <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-              <InlineComplaintForm
-                complaintText={activeComplaint}
-                onSave={handleSaveComplaint}
-                onCancel={handleCancelForm}
-                isSubmitting={isSubmitting}
-                defaultValues={getDefaultFormValues()}
-                showEyeSelector={showEyeSelector}
-              />
-            </div>
-          )}
         </div>
 
         {/* Custom Complaint Input */}
