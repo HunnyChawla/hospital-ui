@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import {
   CLINIC_EXAMINER_QUEUE_FILTERS,
@@ -169,7 +170,7 @@ export function ClinicCollapsibleQueueSection({
 
   if (!visible) return null;
 
-  const renderActions = (patient: ClinicQueuePatient) => {
+  const renderActions = (patient: ClinicQueuePatient, index: number) => {
     const busy = actionInProgressVisitId === patient.visit_id;
     const btn = (
       label: string,
@@ -182,10 +183,13 @@ export function ClinicCollapsibleQueueSection({
         disabled={busy}
         onClick={(e) => {
           e.stopPropagation();
+          if (action === "start_consultation" || action === "start_examination") {
+            onSelectPatient(patient);
+          }
           onAction(patient.visit_id, action);
         }}
         className={clsx(
-          "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 text-white",
+          "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 text-white",
           btnClass
         )}
       >
@@ -205,16 +209,15 @@ export function ClinicCollapsibleQueueSection({
         case "awaiting_doctor":
           return (
             <div className="flex w-full gap-2">
-              {btn("Call", "start_consultation", PhoneCall, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
-              {btn("Pick", "pick_doctor", Hand, "bg-gradient-to-r from-slate-400 to-slate-500 shadow-slate-400/30 hover:from-slate-500 hover:to-slate-600")}
-              {btn("No Show", "mark_no_show", UserX, "bg-gradient-to-r from-rose-500 to-red-600 shadow-rose-500/30 hover:from-rose-600 hover:to-red-700")}
+              {(allowPickAny || index === 0) && btn("Call Patient", "pick_doctor", Users, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
+              {index === 0 && btn("No Show", "mark_no_show", UserX, "bg-gradient-to-r from-rose-500 to-red-600 shadow-rose-500/30 hover:from-rose-600 hover:to-red-700")}
             </div>
           );
         case "doctor_assigned":
           return (
             <div className="flex w-full gap-2">
               {btn("Start", "start_consultation", Play, "bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-indigo-500/30 hover:from-indigo-600 hover:to-indigo-700")}
-              {btn("Release", "unpick_doctor", RotateCcw, "bg-gradient-to-r from-slate-400 to-slate-500 shadow-slate-400/30 hover:from-slate-500 hover:to-slate-600")}
+              {btn("Return to Queue", "unpick_doctor", X, "bg-gradient-to-r from-slate-400 to-slate-500 shadow-slate-400/30 hover:from-slate-500 hover:to-slate-600")}
             </div>
           );
         case "consultation_in_progress":
@@ -226,7 +229,7 @@ export function ClinicCollapsibleQueueSection({
         case "no_show":
           return (
             <div className="flex w-full gap-2">
-              {btn("Call", "start_consultation", PhoneCall, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
+              {btn("Call Patient", "pick_doctor", Users, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
             </div>
           );
         default:
@@ -239,15 +242,15 @@ export function ClinicCollapsibleQueueSection({
       case "awaiting_examiner":
         return (
           <div className="flex w-full gap-2">
-            {btn("Pick", "pick", Hand, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
-            {btn("No Show", "mark_no_show", UserX, "bg-gradient-to-r from-rose-500 to-red-600 shadow-rose-500/30 hover:from-rose-600 hover:to-red-700")}
+            {(allowPickAny || index === 0) && btn("Call Patient", "pick", Users, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
+            {index === 0 && btn("No Show", "mark_no_show", UserX, "bg-gradient-to-r from-rose-500 to-red-600 shadow-rose-500/30 hover:from-rose-600 hover:to-red-700")}
           </div>
         );
       case "examiner_assigned":
         return (
           <div className="flex w-full gap-2">
             {btn("Start", "start_examination", Play, "bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-indigo-500/30 hover:from-indigo-600 hover:to-indigo-700")}
-            {btn("Unpick", "unpick", RotateCcw, "bg-gradient-to-r from-slate-400 to-slate-500 shadow-slate-400/30 hover:from-slate-500 hover:to-slate-600")}
+            {btn("Return to Queue", "unpick", X, "bg-gradient-to-r from-slate-400 to-slate-500 shadow-slate-400/30 hover:from-slate-500 hover:to-slate-600")}
           </div>
         );
       case "examination_in_progress":
@@ -259,7 +262,7 @@ export function ClinicCollapsibleQueueSection({
       case "no_show":
         return (
           <div className="flex w-full gap-2">
-            {btn("Pick", "pick", Hand, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
+            {btn("Call Patient", "pick", Users, "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700")}
           </div>
         );
       default:
@@ -376,115 +379,147 @@ export function ClinicCollapsibleQueueSection({
                 const isEmergency = patient.visit_type === "emergency";
                 const isSelected = selectedVisitId === patient.visit_id;
 
+                const isClickable =
+                  activeFilter !== "pending" ||
+                  (isDoctor
+                    ? patient.status === "consultation_in_progress"
+                    : patient.status === "examination_in_progress");
+
                 return (
                   <div
                     key={patient.visit_id}
-                    onClick={() => onSelectPatient(patient)}
+                    onClick={() => {
+                      if (isClickable) {
+                        onSelectPatient(patient);
+                      }
+                    }}
                     className={clsx(
-                      "p-2.5 cursor-pointer transition-all duration-200 border-b last:border-b-0 animate-in fade-in slide-in-from-right-2",
+                      "p-2 transition-all duration-200 border-b last:border-b-0 animate-in fade-in slide-in-from-right-2",
+                      isClickable ? "cursor-pointer" : "cursor-default",
                       isEmergency
                         ? isSelected
                           ? "bg-gradient-to-r from-red-50 via-rose-50 to-red-50/30 border-l-4 border-red-600 shadow-md border-b-red-200"
-                          : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"
+                          : isClickable
+                          ? "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"
+                          : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 border-b-red-100"
                         : isSelected
                         ? "bg-gradient-to-r from-sky-50 to-blue-50/30 border-l-4 border-sky-600 shadow-sm border-b-slate-100"
-                        : "hover:bg-slate-50/80 hover:shadow-sm border-b-slate-100"
+                        : isClickable
+                        ? "hover:bg-slate-50/80 hover:shadow-sm border-b-slate-100"
+                        : "border-b-slate-100"
                     )}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2.5">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div
+                        {/* Name and UHID on a single inline line */}
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span
                             className={clsx(
                               "font-semibold truncate text-sm",
                               isEmergency ? "text-red-900" : "text-slate-900"
                             )}
                           >
                             {patient.patient_name}
-                          </div>
+                          </span>
+                          {patient.patient_uhid && (
+                            <span
+                              className={clsx(
+                                "text-[10px] font-medium",
+                                isEmergency ? "text-red-700" : "text-slate-400"
+                              )}
+                            >
+                              ({patient.patient_uhid})
+                            </span>
+                          )}
                         </div>
-                        {patient.patient_uhid && (
-                          <div
-                            className={clsx(
-                              "text-xs mt-1 font-medium",
-                              isEmergency ? "text-red-700" : "text-slate-500"
-                            )}
-                          >
-                            {patient.patient_uhid}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+
+                        {/* Combined Metadata Badges / Info Line */}
+                        <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-slate-500 flex-wrap">
                           <span
                             className={clsx(
-                              "inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold whitespace-nowrap",
+                              "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap",
                               isEmergency
-                                ? "bg-red-100 text-red-800 border border-red-300"
+                                ? "bg-red-100 text-red-800 border border-red-200"
                                 : "bg-slate-100 text-slate-700"
                             )}
                           >
                             Token: {patient.token_number}
                           </span>
+
+                          <span>·</span>
+
                           {isEmergency ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-red-500 text-white shadow-sm animate-pulse whitespace-nowrap">
-                              <AlertTriangle className="h-3 w-3" />
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white shadow-sm animate-pulse whitespace-nowrap">
+                              <AlertTriangle className="h-2.5 w-2.5" />
                               Emergency
                             </span>
                           ) : patient.visit_type ? (
-                            <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
+                            <span className="font-medium text-slate-500 whitespace-nowrap">
                               {patient.visit_type
                                 .replace(/_/g, " ")
                                 .toLowerCase()
                                 .replace(/\b\w/g, (l: string) => l.toUpperCase())}
                             </span>
                           ) : null}
+
                           {patient.is_revisit && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
-                              Revisit
-                            </span>
+                            <>
+                              <span>·</span>
+                              <span className="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                Revisit
+                              </span>
+                            </>
                           )}
+
                           {patient.examiner_name && !isDoctor && (
-                            <span className="text-[10px] font-medium text-slate-500 whitespace-nowrap">
-                              Examiner: {patient.examiner_name}
-                            </span>
+                            <>
+                              <span>·</span>
+                              <span className="font-medium text-slate-500 whitespace-nowrap">
+                                Ex: {patient.examiner_name}
+                              </span>
+                            </>
                           )}
+
                           {patient.picked_by_doctor_name && isDoctor && (
-                            <span className="text-[10px] font-medium text-slate-500 whitespace-nowrap">
-                              Doctor: {patient.picked_by_doctor_name}
-                            </span>
+                            <>
+                              <span>·</span>
+                              <span className="font-medium text-slate-500 whitespace-nowrap">
+                                Dr: {patient.picked_by_doctor_name}
+                              </span>
+                            </>
                           )}
-                        </div>
-                        <div
-                          className={clsx(
-                            "text-xs mt-1.5 flex items-center gap-1 whitespace-nowrap",
-                            isEmergency ? "text-red-600" : "text-slate-500"
-                          )}
-                        >
-                          <svg
-                            className="w-3 h-3 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          {formatDateTime(patient.checked_in_at || patient.time)}
+
+                          <span>·</span>
+
+                          <span className="flex items-center gap-0.5 whitespace-nowrap">
+                            <svg
+                              className="w-3 h-3 flex-shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            {formatDateTime(patient.checked_in_at || patient.time)}
+                          </span>
                         </div>
                       </div>
-                      <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
+
+                      <div className="flex-shrink-0">
                         <ClinicStatusBadge
                           status={patient.status}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold border-slate-200 shadow-sm"
                         />
                       </div>
                     </div>
 
-                    <div className="mt-2.5 flex flex-wrap gap-2">{renderActions(patient)}</div>
+                    <div className="mt-2 flex flex-wrap gap-2">{renderActions(patient, index)}</div>
                   </div>
                 );
               })

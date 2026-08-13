@@ -88,6 +88,17 @@ function Section({
   );
 }
 
+const formatDuration = (d: string | null) => {
+  if (!d) return "—";
+  switch (d) {
+    case "less_than_1": return "< 1 Yr";
+    case "1_to_5": return "1-5 Yrs";
+    case "5_to_10": return "5-10 Yrs";
+    case "more_than_10": return "> 10 Yrs";
+    default: return d.replace(/_/g, " ");
+  }
+};
+
 /**
  * Read-only accordion of what the examiner recorded — the doctor's left pane
  * while prescribing. Allergies render with a red tone and are never collapsed
@@ -96,7 +107,6 @@ function Section({
 export function ClinicExaminationSummaryPane({
   patientId,
   visitId,
-  onEditSection,
 }: ClinicExaminationSummaryPaneProps) {
   const { complaints, medicalConditions, drugAllergies, loading } = useClinicalRecords(
     patientId,
@@ -145,73 +155,122 @@ export function ClinicExaminationSummaryPane({
         title={`Drug Allergies${drugAllergies.length ? ` (${drugAllergies.length})` : ""}`}
         icon={AlertTriangle}
         tone={drugAllergies.length > 0 ? "rose" : "slate"}
-        onEdit={onEditSection ? () => onEditSection("drug_allergies") : undefined}
       >
         {drugAllergies.length === 0 ? (
           <span className="text-slate-400">No known drug allergies recorded</span>
         ) : (
-          <ul className="space-y-1">
-            {drugAllergies.map((allergy) => (
-              <li key={allergy.id} className="flex items-baseline gap-1.5">
-                <span className="font-semibold text-rose-700">{allergy.drug_name}</span>
-                {allergy.reaction && <span className="text-rose-600">— {allergy.reaction}</span>}
-                {allergy.severity && (
-                  <span className="rounded bg-rose-100 px-1 text-[10px] uppercase text-rose-700">
-                    {allergy.severity}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-rose-200 text-[10px] font-semibold uppercase tracking-wider text-rose-800">
+                  <th className="pb-1.5 font-bold text-left">Drug Name</th>
+                  <th className="pb-1.5 font-bold text-left">Reaction</th>
+                  <th className="pb-1.5 font-bold text-right">Severity</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-rose-100">
+                {drugAllergies.map((allergy) => (
+                  <tr key={allergy.id} className="hover:bg-rose-50/30">
+                    <td className="py-1.5 font-semibold text-rose-700 text-left">{allergy.drug_name}</td>
+                    <td className="py-1.5 text-slate-600 text-left">{allergy.reaction || "—"}</td>
+                    <td className="py-1.5 text-right">
+                      {allergy.severity ? (
+                        <span className={clsx(
+                          "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                          allergy.severity.toLowerCase() === "severe" ? "bg-rose-100 text-rose-700 border border-rose-200" :
+                          allergy.severity.toLowerCase() === "moderate" ? "bg-amber-100 text-amber-700 border border-amber-200" :
+                          "bg-slate-100 text-slate-700 border border-slate-200"
+                        )}>
+                          {allergy.severity}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Section>
 
       <Section
         title="Vitals"
         icon={HeartPulse}
-        onEdit={onEditSection ? () => onEditSection("vitals") : undefined}
       >
         {vitals ? (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            {vitals.systolic_bp != null && vitals.diastolic_bp != null && (
-              <span>
-                BP:{" "}
-                <b>
-                  {vitals.systolic_bp}/{vitals.diastolic_bp}
-                </b>{" "}
-                mmHg
-              </span>
-            )}
-            {vitals.pulse_rate != null && (
-              <span>
-                Pulse: <b>{vitals.pulse_rate}</b> bpm
-              </span>
-            )}
-            {vitals.temperature != null && (
-              <span>
-                Temp: <b>{vitals.temperature}</b> °F
-              </span>
-            )}
-            {vitals.spo2 != null && (
-              <span>
-                SpO₂: <b>{vitals.spo2}</b>%
-              </span>
-            )}
-            {vitals.respiratory_rate != null && (
-              <span>
-                RR: <b>{vitals.respiratory_rate}</b>/min
-              </span>
-            )}
-            {vitals.weight != null && (
-              <span>
-                Wt: <b>{vitals.weight}</b> kg
-              </span>
-            )}
-            {vitals.bmi != null && (
-              <span>
-                BMI: <b>{vitals.bmi}</b>
-              </span>
-            )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="pb-1.5 font-bold text-left">Vital Sign</th>
+                  <th className="pb-1.5 font-bold text-right">Value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vitals.systolic_bp != null && vitals.diastolic_bp != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">Blood Pressure</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.systolic_bp}/{vitals.diastolic_bp} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.pulse_rate != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">Pulse Rate</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.pulse_rate} <span className="text-[10px] font-normal text-slate-400">bpm</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.temperature != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">Temperature</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.temperature} <span className="text-[10px] font-normal text-slate-400">°F</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.spo2 != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">SpO₂</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.spo2} <span className="text-[10px] font-normal text-slate-400">%</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.respiratory_rate != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">Respiratory Rate</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.respiratory_rate} <span className="text-[10px] font-normal text-slate-400">/min</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.weight != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">Weight</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.weight} <span className="text-[10px] font-normal text-slate-400">kg</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.height != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">Height</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">
+                      {vitals.height} <span className="text-[10px] font-normal text-slate-400">cm</span>
+                    </td>
+                  </tr>
+                )}
+                {vitals.bmi != null && (
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-slate-500 font-medium text-left">BMI</td>
+                    <td className="py-1.5 text-right font-bold text-slate-800">{vitals.bmi}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         ) : (
           <span className="text-slate-400">No vitals recorded</span>
@@ -219,49 +278,100 @@ export function ClinicExaminationSummaryPane({
       </Section>
 
       <Section
-        title={`Complaints${complaints.length ? ` (${complaints.length})` : ""}`}
+        title={`Chief Complaints${complaints.length ? ` (${complaints.length})` : ""}`}
         icon={MessageSquare}
-        onEdit={onEditSection ? () => onEditSection("chief_complaint") : undefined}
       >
         {complaints.length === 0 ? (
           <span className="text-slate-400">No complaints recorded</span>
         ) : (
-          <ul className="space-y-1">
-            {complaints.map((complaint) => (
-              <li key={complaint.id}>
-                <span className="font-medium">{complaint.complaint}</span>
-                {complaint.duration && (
-                  <span className="text-slate-500"> · {complaint.duration}</span>
-                )}
-                {complaint.severity && (
-                  <span className="ml-1 rounded bg-slate-100 px-1 text-[10px] uppercase text-slate-600">
-                    {complaint.severity}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="pb-1.5 font-bold text-left">Complaint</th>
+                  <th className="pb-1.5 font-bold text-center">Severity</th>
+                  <th className="pb-1.5 font-bold text-right">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {complaints.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50/50">
+                    <td className="py-1.5 text-left">
+                      <span className="font-semibold text-slate-800">{c.complaint}</span>
+                      {c.notes && <p className="text-[10px] text-slate-400 mt-0.5">{c.notes}</p>}
+                    </td>
+                    <td className="py-1.5 text-center">
+                      {c.severity ? (
+                        <span className={clsx(
+                          "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                          c.severity.toLowerCase() === "severe" ? "bg-rose-50 text-rose-600 border border-rose-100" :
+                          c.severity.toLowerCase() === "moderate" ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                          "bg-slate-50 text-slate-600 border border-slate-100"
+                        )}>
+                          {c.severity}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="py-1.5 text-right text-slate-500 font-medium">{c.duration || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Section>
 
       <Section
         title={`Medical History${medicalConditions.length ? ` (${medicalConditions.length})` : ""}`}
         icon={FileHeart}
-        onEdit={onEditSection ? () => onEditSection("medical_history") : undefined}
       >
         {medicalConditions.length === 0 ? (
           <span className="text-slate-400">No conditions recorded</span>
         ) : (
-          <ul className="space-y-1">
-            {medicalConditions.map((condition) => (
-              <li key={condition.id}>
-                <span className="font-medium">{condition.condition_name}</span>
-                {condition.duration && (
-                  <span className="text-slate-500"> · {condition.duration}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="pb-1.5 font-bold text-left">Condition</th>
+                  <th className="pb-1.5 font-bold text-center">Meds</th>
+                  <th className="pb-1.5 font-bold text-center">Controlled</th>
+                  <th className="pb-1.5 font-bold text-right">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {medicalConditions.map((condition) => (
+                  <tr key={condition.id} className="hover:bg-slate-50/50">
+                    <td className="py-1.5 font-semibold text-slate-800 text-left">
+                      {condition.condition_name.replace(/_/g, " ")}
+                    </td>
+                    <td className="py-1.5 text-center">
+                      {condition.on_medication !== null && condition.on_medication !== undefined ? (
+                        <span className={clsx(
+                          "rounded px-1.5 py-0.5 text-[9px] font-semibold",
+                          condition.on_medication ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-slate-50 text-slate-500"
+                        )}>
+                          {condition.on_medication ? "Yes" : "No"}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="py-1.5 text-center">
+                      {condition.is_controlled !== null && condition.is_controlled !== undefined ? (
+                        <span className={clsx(
+                          "rounded px-1.5 py-0.5 text-[9px] font-semibold",
+                          condition.is_controlled ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-amber-50 text-amber-700 border border-amber-100"
+                        )}>
+                          {condition.is_controlled ? "Yes" : "No"}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="py-1.5 text-right text-slate-500 font-medium">
+                      {formatDuration(condition.duration)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Section>
 

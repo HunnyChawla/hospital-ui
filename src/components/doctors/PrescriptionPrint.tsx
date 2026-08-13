@@ -1,220 +1,407 @@
 "use client";
 
+import React, { useMemo } from "react";
 import { PrescriptionResponse } from "@/services/prescriptionsApi";
 import { useTenant } from "@/hooks/useTenant";
-import { formatDate } from "@/utils/format";
 import { PrintHeader } from "@/components/common/PrintHeader";
 import { usePrintLayout } from "@/hooks/queries/usePrintLayout";
-import { normalizePrintLayout } from "@/types/printLayout";
+import { normalizePrintLayout, type PrintLayoutConfig } from "@/types/printLayout";
+import { buildPrintGeometry, PRINT_CONTAINER_CLASS } from "@/utils/printLayout";
 import {
   PRESCRIPTION_PRINT_SECTIONS,
   orderPrescriptionSections,
 } from "./prescriptionSections";
+import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+
+import {
+  Hash,
+  UserRound,
+  User,
+  Calendar,
+  MapPin,
+  Phone,
+  ClipboardCheck,
+  Pill,
+  FlaskConical,
+  Info,
+  FileText
+} from "lucide-react";
 
 interface PrescriptionPrintProps {
   prescription: PrescriptionResponse;
+  layout?: PrintLayoutConfig;
+  showHeader?: boolean;
+  doctorSignature?: string | null;
+  visitData?: PrescriptionDataResponse | null;
+  visibleSections?: string[];
+  sectionOrder?: string[];
 }
 
-export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
+export function PrescriptionPrint({
+  prescription,
+  layout,
+  showHeader,
+  doctorSignature,
+  visitData,
+  visibleSections,
+  sectionOrder,
+}: PrescriptionPrintProps) {
   const { tenant } = useTenant();
 
-  // The hospital's own letterhead configuration — the same row the server
-  // renderer reads, and the same one the eye prescription has always honoured.
-  //
-  // This component ignored it entirely, so an admin who set up their
-  // letterhead saw it applied to eye prints and silently not to general ones.
-  // `tenant_print_layouts` is the shared contract; a print component that does
-  // not read it is not sharing anything.
   const { data: savedLayout } = usePrintLayout("prescription");
-  const layout = normalizePrintLayout(savedLayout?.config);
 
-  // The hospital's order, applied to the same section keys the server uses.
+  const effectiveLayout = useMemo<PrintLayoutConfig>(() => {
+    const base = layout ? normalizePrintLayout(layout) : normalizePrintLayout(savedLayout?.config);
+    return {
+      ...base,
+      header_enabled: showHeader !== undefined ? showHeader : base.header_enabled,
+      visible_sections:
+        visibleSections !== undefined ? visibleSections : base.visible_sections,
+      section_order: sectionOrder !== undefined ? sectionOrder : base.section_order,
+    };
+  }, [layout, savedLayout, showHeader, visibleSections, sectionOrder]);
+
+  const geometry = useMemo(() => buildPrintGeometry(effectiveLayout), [effectiveLayout]);
+  const headerPosition = effectiveLayout.header_position;
+  const rendersTopHeader = geometry.rendersBand && headerPosition === "top";
+  const rendersSideBand = geometry.rendersBand && headerPosition !== "top";
+
   const orderedSections = orderPrescriptionSections(
     PRESCRIPTION_PRINT_SECTIONS,
-    layout.section_order,
-    layout.visible_sections
+    effectiveLayout.section_order,
+    effectiveLayout.visible_sections
   );
 
+  // Spacing and font styles based on density
+  const medicineCount = prescription.items?.length || 0;
+  const adviceCount = prescription.advice_items?.length || 0;
+  const totalItemsScore = medicineCount + adviceCount + (prescription.diagnosis ? 1 : 0) + (prescription.notes ? 1 : 0);
+
+  const compactThreshold = geometry.isSideBand ? 11 : 15;
+  const extremeThreshold = geometry.isSideBand ? 19 : 25;
+  const isCompact = totalItemsScore > compactThreshold;
+  const isExtremelyCompact = totalItemsScore > extremeThreshold;
+
+  const spacingClass = isExtremelyCompact ? "mb-0.5" : isCompact ? "mb-1" : "mb-4";
+  const sectionFontClass = isExtremelyCompact ? "text-[10px]" : isCompact ? "text-xs" : "text-sm";
+  const cellPadding = isExtremelyCompact ? "p-0.5" : "p-1";
+
+  // Helper to format date
+  const formatDateVal = (dateStr?: string | null) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatTimeVal = (dateStr?: string | null) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Build patient fields grid identically to the optometrist prescription
+  const iconClass = "h-2.5 w-2.5 text-slate-500";
+  const patientFields: ({
+    icon: React.ReactNode;
+    label: string;
+    value: React.ReactNode;
+    valueClass?: string;
+  } | null)[] = [
+    {
+      icon: <Hash className={iconClass} />,
+      label: "UHID No",
+      value: visitData?.uhid || prescription.patient_id?.slice(0, 8) || "-",
+      valueClass: "font-bold",
+    },
+    {
+      icon: <UserRound className={iconClass} />,
+      label: "Consultant",
+      value: prescription.doctor_name,
+      valueClass: "font-bold",
+    },
+    {
+      icon: <User className={iconClass} />,
+      label: "Patient Name",
+      value: prescription.patient_name,
+      valueClass: "font-bold text-sky-900",
+    },
+    {
+      icon: <Hash className={iconClass} />,
+      label: "OPD No.",
+      value: visitData?.visit_number || prescription.visit_number || prescription.visit_id?.slice(0, 8) || "-",
+    },
+    {
+      icon: <Calendar className={iconClass} />,
+      label: "Date",
+      value: `${formatDateVal(visitData?.checked_in_at || prescription.created_at)} ${formatTimeVal(visitData?.checked_in_at || prescription.created_at)}`,
+    },
+    {
+      icon: <MapPin className={iconClass} />,
+      label: "Address",
+      value: visitData?.address || "-",
+    },
+    {
+      icon: <User className={iconClass} />,
+      label: "Category",
+      value: (visitData as any)?.category || (visitData as any)?.patient_category || "-",
+      valueClass: "font-bold",
+    },
+    {
+      icon: <Phone className={iconClass} />,
+      label: "Mobile No.",
+      value: visitData?.mobile || "-",
+      valueClass: "font-bold",
+    },
+  ];
+
+  const patientFieldsPerRow = geometry.isSideBand ? 1 : 2;
+  const patientFieldRows: (typeof patientFields)[] = [];
+  for (let i = 0; i < patientFields.length; i += patientFieldsPerRow) {
+    const row = patientFields.slice(i, i + patientFieldsPerRow);
+    while (row.length < patientFieldsPerRow) row.push(null);
+    patientFieldRows.push(row);
+  }
+
   return (
-    <div className="mx-auto max-w-2xl bg-white p-4 print:p-2">
-      {/* Header */}
-      {layout.header_enabled && (
+    <div
+      className={`${PRINT_CONTAINER_CLASS} relative bg-white text-black font-sans mx-auto text-sm print:m-0`}
+      style={{
+        width: "100%",
+        maxWidth: "850px",
+        ...geometry.containerStyle,
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: geometry.pageStyle }} />
+
+      {/* Letterhead band for left/right layouts */}
+      {rendersSideBand && geometry.bandStyle && (
+        <div className={geometry.bandClassName} style={geometry.bandStyle}>
+          <PrintHeader
+            tenant={tenant}
+            documentType="Prescription"
+            variant="vertical"
+            align={effectiveLayout.header_align}
+            side={headerPosition === "right" ? "right" : "left"}
+            showLogo={effectiveLayout.header_mode === "rendered" && effectiveLayout.show_logo}
+            showAddress={effectiveLayout.header_mode === "rendered" && effectiveLayout.show_address}
+            showContact={effectiveLayout.header_mode === "rendered" && effectiveLayout.show_contact}
+            showDivider={effectiveLayout.show_divider}
+          />
+        </div>
+      )}
+
+      {/* Header Section - Configurable */}
+      {rendersTopHeader && (
         <PrintHeader
           tenant={tenant}
           documentType="Prescription"
-          variant={layout.header_position === "top" ? "horizontal" : "vertical"}
-          side={layout.header_position === "top" ? undefined : layout.header_position}
-          align={layout.header_align}
-          // `reserved` means the hospital prints onto pre-printed stationery:
-          // leave the band, draw nothing in it.
-          showLogo={layout.header_mode === "rendered" && layout.show_logo}
-          showAddress={layout.header_mode === "rendered" && layout.show_address}
-          showContact={layout.header_mode === "rendered" && layout.show_contact}
-          showDivider={layout.show_divider}
+          align={effectiveLayout.header_align}
+          showLogo={effectiveLayout.header_mode === "rendered" && effectiveLayout.show_logo}
+          showAddress={effectiveLayout.header_mode === "rendered" && effectiveLayout.show_address}
+          showContact={effectiveLayout.header_mode === "rendered" && effectiveLayout.show_contact}
+          showDivider={effectiveLayout.show_divider}
         />
       )}
 
-      {/* Prescription Number */}
-      <div className="mb-4 flex items-center justify-between border-b border-slate-300 pb-2">
-        <div>
-          <p className="text-xs text-slate-600">Prescription No.</p>
-          <p className="font-semibold text-slate-900">{prescription.prescription_number}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-600">Date</p>
-          <p className="font-semibold text-slate-900">{formatDate(prescription.created_at)}</p>
-        </div>
-      </div>
+      {/* A reserved top band spacer */}
+      {geometry.topSpacerMm > 0 && (
+        <div style={{ height: `${geometry.topSpacerMm}mm` }} className="mb-2" />
+      )}
 
-      {/* Patient Details */}
-      <div className="mb-4 space-y-1">
-        <h2 className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-          Patient Information
-        </h2>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <p className="text-[10px] text-slate-600">Patient Name</p>
-            <p className="font-semibold text-slate-900">{prescription.patient_name}</p>
+      {/* Document Status Badge (Right aligned, if Draft) */}
+      {prescription.status !== "finalized" && (
+        <div className="mb-1 flex justify-end">
+          <span className="px-2 py-0.5 bg-slate-50 text-slate-700 font-medium rounded text-[10px] border border-slate-300/80">
+            <span className="font-semibold text-slate-600">Prescription Status:</span>{" "}
+            <span className="font-bold text-slate-900">Draft</span>{" "}
+            <span className="text-[9px] text-slate-500 italic font-normal">(not finalized)</span>
+          </span>
+        </div>
+      )}
+
+      {/* Patient Details Section - Matches the Box style in Optometrist Prescription */}
+      <div className={`${isCompact ? "mb-1" : "mb-4"} border border-slate-400 text-[10px] font-medium`}>
+        {patientFieldRows.map((row, rowIdx) => (
+          <div
+            key={rowIdx}
+            className={`grid ${geometry.isSideBand ? "grid-cols-[80px_1fr]" : "grid-cols-[100px_1fr_100px_1fr]"} ${rowIdx < patientFieldRows.length - 1 ? "border-b border-slate-300" : ""}`}
+          >
+            {row.map((field, colIdx) => (
+              <React.Fragment key={colIdx}>
+                <div className={`bg-slate-50 ${cellPadding} font-semibold border-r border-slate-300 flex items-center gap-1`}>
+                  {field ? (
+                    <>
+                      {field.icon}
+                      <span>{field.label}</span>
+                    </>
+                  ) : (
+                    <span />
+                  )}
+                </div>
+                <div
+                  className={`${cellPadding} ${field?.valueClass || ""} ${colIdx === 0 && row.length > 1 ? "border-r border-slate-300" : ""}`}
+                >
+                  {field?.value}
+                </div>
+              </React.Fragment>
+            ))}
           </div>
-          {prescription.visit_number && (
-            <div>
-              <p className="text-[10px] text-slate-600">Visit No.</p>
-              <p className="font-semibold text-slate-900">{prescription.visit_number}</p>
-            </div>
-          )}
-        </div>
+        ))}
       </div>
 
-      {/* Clinical sections, rendered in the hospital's configured order.
-          Keyed by the SAME strings the server renderer uses — see
-          prescriptionSections.ts. Structural blocks (number, patient, doctor)
-          stay fixed; only the clinical sections are orderable, which is what
-          `tenant_print_layouts.section_order` means. */}
+      {/* Dynamic Content Sections */}
       {orderedSections.map((key) => {
         switch (key) {
           case "diagnosis":
             return prescription.diagnosis ? (
-              <div key={key} className="mb-4">
-                <h3 className="mb-1 text-sm font-bold text-slate-900">Diagnosis</h3>
-                <p className="text-sm text-slate-700">{prescription.diagnosis}</p>
+              <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
+                <div className="flex items-center gap-1.5 pr-2">
+                  <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                    <ClipboardCheck className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                  </div>
+                  <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                    Diagnosis
+                  </span>
+                </div>
+                <div className="text-xs text-left">
+                  <p className="uppercase font-medium">{prescription.diagnosis}</p>
+                </div>
               </div>
             ) : null;
 
           case "medicines":
-            return (
-              <div key={key} className="mb-4">
-                <h3 className="mb-2 border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">
-                  Prescribed Medicines
-                </h3>
-                <div className="space-y-3">
-                  {prescription.items.map((item, index) => (
-                    <div key={item.id || index} className="rounded border border-slate-200 bg-slate-50 p-3">
-                      <div className="mb-2 flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-semibold text-slate-900 flex flex-wrap items-baseline gap-1.5">
-                            {index + 1}. {item.medicine_name}
-                            {item.generic_name && (
-                              <span className="text-[10px] italic font-normal text-slate-500">
-                                ({item.generic_name})
+            return prescription.items && prescription.items.length > 0 ? (
+              <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
+                <div className="flex items-center gap-1.5 pr-2 pt-1">
+                  <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                    <Pill className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                  </div>
+                  <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                    Prescription
+                  </span>
+                </div>
+                <div>
+                  <div className={`${isCompact ? "space-y-1" : "space-y-2"}`}>
+                    {prescription.items.map((item, idx) => (
+                      <div key={item.id || idx} className={sectionFontClass}>
+                        <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap items-center">
+                          <span>{idx + 1}. {item.medicine_name}</span>
+                          {item.generic_name && (
+                            <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">
+                              ({item.generic_name})
+                            </span>
+                          )}
+                        </div>
+                        <div className="pl-5 text-[10px] text-slate-600">
+                          {item.tapering_steps && item.tapering_steps.length > 0 ? (
+                            <div className="mt-1 bg-purple-50/30 border border-purple-100/50 rounded-md p-2 max-w-md">
+                              <span className="text-[9px] font-bold text-purple-800 uppercase block mb-1">📉 Tapering Dose Schedule:</span>
+                              <div className="space-y-1">
+                                {item.tapering_steps.map((step, sIdx) => (
+                                  <div key={sIdx} className="text-[9px] text-slate-700">
+                                    <span className="font-bold text-purple-950">Step {sIdx + 1}: </span>
+                                    <span>{step.dosage || item.dosage || ""}</span>
+                                    {step.frequency && <span> • {step.frequency}</span>}
+                                    {step.duration && <span> • {step.duration}</span>}
+                                    {step.instructions && <span className="italic text-slate-500"> ({step.instructions})</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {item.instructions && <span className="mr-2">({item.instructions})</span>}
+                              <span className="uppercase font-medium">
+                                {item.dosage && `${item.dosage} • `}
+                                {item.frequency && `${item.frequency} • `}
+                                {item.duration && `${item.duration}`}
                               </span>
-                            )}
-                          </p>
+                            </>
+                          )}
                         </div>
                       </div>
-                      {item.tapering_steps && item.tapering_steps.length > 0 ? (
-                        <div className="mt-2.5 border-t border-slate-200/60 pt-2">
-                          <p className="text-[10px] font-bold text-purple-800 uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                            <span>📉</span> Tapering Dose Regimen Schedule:
-                          </p>
-                          <div className="space-y-1.5 pl-3 border-l-2 border-purple-200">
-                            {item.tapering_steps.map((step, stepIdx) => (
-                              <div key={stepIdx} className="text-xs text-slate-800">
-                                <span className="font-semibold text-purple-950">Step {stepIdx + 1}: </span>
-                                <span>{step.dosage || item.dosage || ""}</span>
-                                {step.frequency && <span className="mx-1">• {step.frequency}</span>}
-                                {step.duration && <span className="mx-1">• {step.duration}</span>}
-                                {step.instructions && <span className="text-slate-500 italic"> ({step.instructions})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {item.dosage && (
-                            <div>
-                              <span className="text-slate-600">Dosage: </span>
-                              <span className="font-semibold text-slate-900">{item.dosage}</span>
-                            </div>
-                          )}
-                          {item.frequency && (
-                            <div>
-                              <span className="text-slate-600">Frequency: </span>
-                              <span className="font-semibold text-slate-900">{item.frequency}</span>
-                            </div>
-                          )}
-                          {item.duration && (
-                            <div>
-                              <span className="text-slate-600">Duration: </span>
-                              <span className="font-semibold text-slate-900">{item.duration}</span>
-                            </div>
-                          )}
-                          {item.instructions && (
-                            <div className="col-span-2">
-                              <span className="text-slate-600">Instructions: </span>
-                              <span className="font-semibold text-slate-900">{item.instructions}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-            );
+            ) : null;
 
           case "tests":
             return prescription.advice_items?.some((a) => a.advice_type === "test") ? (
-              <div key={key} className="mb-4">
-                <h3 className="mb-1 text-sm font-bold text-slate-900">Tests Advised</h3>
-                <ul className="space-y-0.5 text-sm text-slate-700">
+              <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
+                <div className="flex items-center gap-1.5 pr-2">
+                  <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                    <FlaskConical className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                  </div>
+                  <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                    Lab Invest.
+                  </span>
+                </div>
+                <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
                   {prescription.advice_items
                     .filter((a) => a.advice_type === "test")
-                    .map((a) => (
-                      <li key={a.id}>• {a.description}</li>
-                    ))}
-                </ul>
+                    .map((a) => a.description)
+                    .join(", ")}
+                </div>
               </div>
             ) : null;
 
           case "advice":
             return prescription.advice_items?.some((a) => a.advice_type !== "test") ? (
-              <div key={key} className="mb-4">
-                <h3 className="mb-1 text-sm font-bold text-slate-900">Advice</h3>
-                <ul className="space-y-0.5 text-sm text-slate-700">
+              <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
+                <div className="flex items-center gap-1.5 pr-2">
+                  <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                    <Info className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                  </div>
+                  <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                    Advice
+                  </span>
+                </div>
+                <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
                   {prescription.advice_items
                     .filter((a) => a.advice_type !== "test")
-                    .map((a) => (
-                      <li key={a.id}>• {a.description}</li>
-                    ))}
-                </ul>
+                    .map((a) => a.description)
+                    .join(", ")}
+                </div>
               </div>
             ) : null;
 
           case "notes":
             return prescription.notes ? (
-              <div key={key} className="mb-4">
-                <h3 className="mb-1 text-sm font-bold text-slate-900">Notes</h3>
-                <p className="text-sm text-slate-700">{prescription.notes}</p>
+              <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
+                <div className="flex items-center gap-1.5 pr-2">
+                  <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                    <FileText className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                  </div>
+                  <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                    Notes
+                  </span>
+                </div>
+                <div className="text-xs text-left font-medium">
+                  {prescription.notes}
+                </div>
               </div>
             ) : null;
 
           case "followup":
             return prescription.followup_date ? (
-              <div key={key} className="mb-4 rounded border border-slate-300 bg-slate-50 px-3 py-2">
-                <span className="text-xs text-slate-600">Review on </span>
-                <span className="text-sm font-bold text-slate-900">
-                  {formatDate(prescription.followup_date)}
-                </span>
+              <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
+                <div className="flex items-center gap-1.5 pr-2">
+                  <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
+                    <Calendar className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
+                  </div>
+                  <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                    Follow Up
+                  </span>
+                </div>
+                <div className="text-xs text-left font-bold text-slate-900">
+                  Review on {formatDateVal(prescription.followup_date)}
+                </div>
               </div>
             ) : null;
 
@@ -223,53 +410,42 @@ export function PrescriptionPrint({ prescription }: PrescriptionPrintProps) {
         }
       })}
 
-      {/* Doctor Information */}
-      <div className="mb-4 border-t border-slate-300 pt-4">
-        <div className="flex justify-between">
-          <div>
-            <p className="text-xs text-slate-600">Prescribed by</p>
-            <p className="text-sm font-semibold text-slate-900">
-              {prescription.doctor_name}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="mt-8">
-              <div className="border-t border-slate-900 pt-1">
-                <p className="text-xs font-semibold text-slate-900">Doctor&apos;s Signature</p>
-              </div>
+      {/* Doctor Information & Signature Section */}
+      {(!effectiveLayout.visible_sections ||
+        effectiveLayout.visible_sections.includes("Digital Signature") ||
+        effectiveLayout.visible_sections.includes("Signature Placeholder")) && (
+        <div className={`flex justify-between items-end ${isExtremelyCompact ? "mt-2" : isCompact ? "mt-4" : "mt-6"} pt-2 border-t border-slate-300 break-inside-avoid gap-4`}>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500 font-medium flex-1">
+            <div className="whitespace-nowrap">
+              Issued Date & Time : {formatDateVal(prescription.created_at)} {formatTimeVal(prescription.created_at)}
+            </div>
+            <div className="text-[9px] text-slate-400 font-medium italic tracking-wider whitespace-nowrap">
+              Powered by <span className="text-slate-500 font-bold not-italic">Technesian Cura</span> &bull; <span className="text-slate-400">Revolutionizing Hospital Management</span> &bull; <span className="text-sky-700/70 not-italic">www.technesian.com</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Status Badge */}
-      {
-        prescription.status && (
-          <div className="mb-4 text-center">
-            <span
-              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${prescription.status === "finalized"
-                ? "bg-green-100 text-green-700"
-                : prescription.status === "dispensed"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-amber-100 text-amber-700"
-                }`}
-            >
-              {prescription.status.charAt(0).toUpperCase() + prescription.status.slice(1)}
-            </span>
-            {prescription.finalized_at && (
-              <p className="mt-1 text-[10px] text-slate-500">
-                Finalized on {formatDate(prescription.finalized_at)}
-              </p>
-            )}
+          <div className={`text-center ${geometry.isSideBand ? "w-40" : "w-48"} shrink-0`}>
+            <div className={`${isCompact ? "h-12" : "h-16"} flex items-end justify-center mb-1`}>
+              {doctorSignature && (!effectiveLayout.visible_sections || effectiveLayout.visible_sections.includes("Digital Signature")) ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  key={doctorSignature}
+                  src={doctorSignature}
+                  alt={`Signature of ${prescription.doctor_name || "Doctor"}`}
+                  className={`${isCompact ? "max-h-12" : "max-h-16"} w-auto object-contain`}
+                />
+              ) : (!effectiveLayout.visible_sections || effectiveLayout.visible_sections.includes("Signature Placeholder")) ? (
+                <div className="border-b border-dashed border-slate-300 w-full h-8" />
+              ) : (
+                <div className="h-8" />
+              )}
+            </div>
+            <div className="font-bold text-xs uppercase text-slate-900">{prescription.doctor_name || "Medical Officer"}</div>
+            <div className="text-[10px] text-slate-500 font-medium">Doctor&apos;s Signature</div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {/* Footer */}
-      <div className="mt-4 border-t border-slate-300 pt-2 text-center text-[10px] text-slate-600">
-        <p>This is a computer-generated prescription. Please follow the dosage instructions carefully.</p>
-        <p className="mt-1">Generated on {new Date().toLocaleString("en-IN")}</p>
-      </div>
-    </div >
+
+    </div>
   );
 }

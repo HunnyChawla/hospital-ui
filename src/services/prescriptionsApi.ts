@@ -4,7 +4,8 @@ import type { TaperingStep } from "@/types";
 
 // Request types - for creating/updating prescriptions
 export interface PrescriptionItemRequest {
-  medicine_id: string;
+  medicine_id?: string | null;
+  medicine_name?: string | null;
   generic_name?: string;
   dosage?: string;
   frequency?: string;
@@ -62,7 +63,7 @@ export interface UpdatePrescriptionRequest {
 export interface PrescriptionItemResponse {
   id: string;
   prescription_id: string;
-  medicine_id: string;
+  medicine_id: string | null;
   medicine_name: string;
   generic_name?: string | null;
   dosage: string | null;

@@ -21,6 +21,7 @@ import { useClinicPanel } from "@/hooks/useClinicPanel";
 import { useClinicLiveQueue } from "@/hooks/useClinicLiveQueue";
 import { useClinicPanelPreferences } from "@/hooks/useClinicPanelPreferences";
 import { useTenantLabels } from "@/hooks/useTenantLabels";
+import { useQueueFlags } from "@/hooks/useFeatureFlags";
 import { clinicVisitsApi } from "@/services/clinicVisitsApi";
 import { getErrorMessage } from "@/utils/errorHandler";
 import type { ClinicQueuePatient } from "@/utils/clinicQueueFilters";
@@ -67,6 +68,7 @@ function ClinicPanelInner() {
   const { preferences, toggleQueue, toggleStats, setQueueFilter } =
     useClinicPanelPreferences();
   const { roleLabel } = useTenantLabels();
+  const { allowDoctorPickAny, allowOptometristPickAny } = useQueueFlags();
 
   const { queuePatients, connectionStatus, reconnect } = useClinicLiveQueue({
     doctorId: selectedDoctor?.doctor_id || null,
@@ -496,6 +498,7 @@ function ClinicPanelInner() {
                   actionInProgressVisitId={actionInProgressVisitId}
                   isVisible={isQueueExpanded}
                   onToggle={() => setIsQueueExpanded(!isQueueExpanded)}
+                  allowPickAny={isDoctor ? allowDoctorPickAny : allowOptometristPickAny}
                 />
               }
             />

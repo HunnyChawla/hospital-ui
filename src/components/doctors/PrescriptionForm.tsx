@@ -12,6 +12,12 @@ import {
 } from "@/services/prescriptionsApi";
 import { patientsApi, PatientApiResponse, formatPatientName } from "@/services/patientsApi";
 import { doctorsApi, Doctor } from "@/services/doctorsApi";
+import { diagnosesApi } from "@/services/diagnosesApi";
+import { quickPresetsApi } from "@/services/quickPresetsApi";
+import { MedicineQuickChips, DiagnosisChips, SelectedDiagnoses } from "../optometrist/prescriptions/QuickSelectChips";
+import { QuickPresetsSettingsModal } from "../optometrist/prescriptions/settings/QuickPresetsSettingsModal";
+import { PlannedSurgerySection } from "../optometrist/prescriptions/PlannedSurgerySection";
+import { PrescriptionPrintPreviewModal } from "./PrescriptionPrintPreviewModal";
 import {
   usePrescriptionTemplates,
   PrescriptionTemplate,
@@ -30,6 +36,9 @@ import {
   Activity,
   Plus,
   TrendingDown,
+  Sparkles,
+  Settings,
+  Eye,
 } from "lucide-react";
 import { formatDate } from "@/utils/format";
 import { usePrescriptionPermissions } from "@/hooks/useFeatureFlags";
@@ -99,12 +108,43 @@ export function PrescriptionForm({
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
   const [draftPrescriptionId, setDraftPrescriptionId] = useState<string | null>(null);
+  const [prescriptionStatus, setPrescriptionStatus] = useState<string | null>(null);
 
-  const { canEdit } = usePrescriptionPermissions({
-    prescriptionStatus: draftPrescriptionId ? "draft" : null,
+  // Quick Presets and Print Preview state
+  const [medicinesOptions, setMedicinesOptions] = useState<any[]>([]);
+  const [addedMedicineIds, setAddedMedicineIds] = useState<string[]>([]);
+  const [diagnosesOptions, setDiagnosesOptions] = useState<any[]>([]);
+  const [addedDiagnosisIds, setAddedDiagnosisIds] = useState<string[]>([]);
+  const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
+  const [diagnosisSearchQuery, setDiagnosisSearchQuery] = useState("");
+  const [diagnosisSearchResults, setDiagnosisSearchResults] = useState<any[]>([]);
+  const [searchingDiagnoses, setSearchingDiagnoses] = useState(false);
+  const [showDiagnosisDropdown, setShowDiagnosisDropdown] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [savedPrescription, setSavedPrescription] = useState<PrescriptionResponse | null>(null);
+  const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (doctorId) {
+      doctorsApi.getSignature(doctorId)
+        .then((res) => {
+          if (res?.signature) {
+            setDoctorSignature(res.signature);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch doctor signature:", err);
+        });
+    }
+  }, [doctorId]);
+
+  const { canEdit, isFinalized } = usePrescriptionPermissions({
+    prescriptionStatus: prescriptionStatus || null,
   });
 
   const medicineSearchRef = useRef<HTMLDivElement>(null);
+  const diagnosisSearchRef = useRef<HTMLDivElement>(null);
   const { register, handleSubmit, setValue, watch, reset } = useForm<FormData>();
   const { templates, saveTemplate, deleteTemplate } = usePrescriptionTemplates();
 
@@ -128,6 +168,66 @@ export function PrescriptionForm({
     fetchData();
   }, [patientId, doctorId]);
 
+  // Load presets on Doctor ID change
+  useEffect(() => {
+    if (doctorId) {
+      loadPresets();
+    }
+  }, [doctorId]);
+
+  const loadPresets = async () => {
+    if (!doctorId) return;
+    try {
+      const [dx, meds] = await Promise.all([
+        quickPresetsApi.getDiagnoses(doctorId),
+        quickPresetsApi.getMedicines(doctorId)
+      ]);
+      setDiagnosesOptions(dx);
+      setMedicinesOptions(meds.map(m => ({
+        id: m.id || Math.random().toString(),
+        label: m.label,
+        icon: m.icon,
+        color: m.color,
+        medicine: {
+          medicine_name: m.medicine_name,
+          generic_name: m.generic_name,
+          dosage: m.dosage,
+          frequency: m.frequency,
+          duration: m.duration,
+          instructions: m.instructions,
+          tapering_steps: m.tapering_steps
+        }
+      })));
+    } catch (error) {
+      console.error("Failed to fetch presets:", error);
+    }
+  };
+
+  // Sync added medicine presets
+  useEffect(() => {
+    const added = medicinesOptions
+      .filter(opt => medicines.some(m => m.medicine_name.toLowerCase() === opt.medicine.medicine_name.toLowerCase()))
+      .map(opt => opt.id);
+    setAddedMedicineIds(added);
+  }, [medicines, medicinesOptions]);
+
+  // Sync diagnosis textarea with selectedDiagnoses chips
+  useEffect(() => {
+    if (selectedDiagnoses.length > 0) {
+      setValue("diagnosis", selectedDiagnoses.join(", "));
+    } else {
+      setValue("diagnosis", "");
+    }
+  }, [selectedDiagnoses, setValue]);
+
+  // Sync added diagnosis presets
+  useEffect(() => {
+    const added = diagnosesOptions
+      .filter(opt => selectedDiagnoses.some(d => d.toLowerCase() === opt.value.toLowerCase()))
+      .map(opt => opt.id || opt.value);
+    setAddedDiagnosisIds(added);
+  }, [selectedDiagnoses, diagnosesOptions]);
+
   // Load previous prescriptions
   useEffect(() => {
     const fetchPreviousPrescriptions = async () => {
@@ -146,40 +246,42 @@ export function PrescriptionForm({
     fetchPreviousPrescriptions();
   }, [patientId]);
 
-  // Load existing draft prescription
+  // Load existing prescription (draft or finalized)
   useEffect(() => {
-    const fetchDraftPrescription = async () => {
+    const fetchPrescription = async () => {
       try {
         const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
         const response = await prescriptionsApi.list({
           visit_id: visitId,
-          status: "draft",
           page_size: 1,
           tenant_id: tenantId || undefined,
         });
 
         if (response.items.length > 0) {
-          const draft = response.items[0];
-          setDraftPrescriptionId(draft.id);
+          const rx = response.items[0];
+          setDraftPrescriptionId(rx.id);
+          setPrescriptionStatus(rx.status);
+          setSavedPrescription(rx);
 
-          if (draft.diagnosis) setValue("diagnosis", draft.diagnosis);
-          if (draft.notes) setValue("notes", draft.notes);
-          if (draft.plan_of_action) setValue("plan_of_action", draft.plan_of_action);
-          if (draft.remarks) setValue("remarks", draft.remarks);
-          // Reopening a draft must bring its advice back, or saving again
-          // would send an empty list and silently delete it.
+          if (rx.diagnosis) {
+            setValue("diagnosis", rx.diagnosis);
+            setSelectedDiagnoses(rx.diagnosis.split(",").map((d: string) => d.trim()).filter(Boolean));
+          }
+          if (rx.notes) setValue("notes", rx.notes);
+          if (rx.plan_of_action) setValue("plan_of_action", rx.plan_of_action);
+          if (rx.remarks) setValue("remarks", rx.remarks);
           setAdviceItems(
-            (draft.advice_items ?? []).map((a) => ({
+            (rx.advice_items ?? []).map((a) => ({
               advice_type: a.advice_type,
               description: a.description,
               notes: a.notes,
               lab_test_id: a.lab_test_id,
             }))
           );
-          setFollowupDate(draft.followup_date ?? null);
+          setFollowupDate(rx.followup_date ?? null);
 
-          if (draft.items && draft.items.length > 0) {
-            const draftMedicines: MedicineFormData[] = draft.items.map((item, index) => ({
+          if (rx.items && rx.items.length > 0) {
+            const loadedMedicines: MedicineFormData[] = rx.items.map((item, index) => ({
               tempId: `draft-${index}-${Date.now()}`,
               medicine_id: item.medicine_id,
               medicine_name: item.medicine_name,
@@ -187,16 +289,16 @@ export function PrescriptionForm({
               frequency: item.frequency || "",
               duration: item.duration || "",
               instructions: item.instructions || "",
+              tapering_steps: item.tapering_steps || undefined,
             }));
-            setMedicines(draftMedicines);
-            toast.info("Draft prescription loaded");
+            setMedicines(loadedMedicines);
           }
         }
       } catch (error) {
-        console.error("Failed to fetch draft prescription:", error);
+        console.error("Failed to fetch prescription:", error);
       }
     };
-    fetchDraftPrescription();
+    fetchPrescription();
   }, [visitId, setValue]);
 
   // Search medicines with debounce
@@ -227,11 +329,46 @@ export function PrescriptionForm({
     }
   }, [medicineSearchTerm]);
 
-  // Close dropdown when clicking outside
+  // Search diagnoses with debounce
+  useEffect(() => {
+    if (diagnosisSearchQuery.trim().length >= 2) {
+      const timeoutId = setTimeout(async () => {
+        setSearchingDiagnoses(true);
+        try {
+          const response = await diagnosesApi.list({
+            search: diagnosisSearchQuery.trim(),
+            page_size: 10,
+          });
+          setDiagnosisSearchResults(response.items.map(d => ({
+            id: d.id,
+            label: d.diagnosis_name,
+            value: d.diagnosis_name,
+            category: d.category || 'other'
+          })));
+          setShowDiagnosisDropdown(response.items.length > 0);
+        } catch (error) {
+          console.error("Failed to search diagnoses:", error);
+          setDiagnosisSearchResults([]);
+          setShowDiagnosisDropdown(false);
+        } finally {
+          setSearchingDiagnoses(false);
+        }
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setDiagnosisSearchResults([]);
+      setShowDiagnosisDropdown(false);
+    }
+  }, [diagnosisSearchQuery]);
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (medicineSearchRef.current && !medicineSearchRef.current.contains(event.target as Node)) {
         setShowMedicineDropdown(false);
+      }
+      if (diagnosisSearchRef.current && !diagnosisSearchRef.current.contains(event.target as Node)) {
+        setShowDiagnosisDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -239,7 +376,7 @@ export function PrescriptionForm({
   }, []);
 
   const handleAddMedicine = (medicine: Medicine) => {
-    if (medicines.some((m) => m.medicine_id === medicine.id)) {
+    if (medicines.some((m) => m.medicine_id === medicine.id || m.medicine_name.toLowerCase() === medicine.name.toLowerCase())) {
       toast.error("Medicine already added");
       return;
     }
@@ -260,6 +397,48 @@ export function PrescriptionForm({
     setShowMedicineDropdown(false);
   };
 
+  const handleQuickMedicineAdd = async (id: string) => {
+    const preset = medicinesOptions.find((m) => m.id === id);
+    if (preset) {
+      if (medicines.some((m) => m.medicine_name.toLowerCase() === preset.medicine.medicine_name.toLowerCase())) {
+        toast.error("Medicine already added");
+        return;
+      }
+
+      let resolvedId = "";
+      try {
+        const res = await medicinesApi.search({ q: preset.medicine.medicine_name.trim(), page_size: 5 });
+        const match = res.items.find(m => m.name.toLowerCase() === preset.medicine.medicine_name.toLowerCase());
+        if (match) {
+          resolvedId = match.id;
+        } else if (res.items.length > 0) {
+          resolvedId = res.items[0].id;
+        }
+      } catch (error) {
+        console.error("Failed to resolve medicine ID for preset:", error);
+      }
+
+      if (!resolvedId) {
+        toast.error(`Could not find medicine "${preset.medicine.medicine_name}" in the catalog. Prescribing this requires a catalog match.`);
+        return;
+      }
+
+      const newMed: MedicineFormData = {
+        tempId: Math.random().toString(36).substring(7),
+        medicine_id: resolvedId,
+        medicine_name: preset.medicine.medicine_name,
+        generic_name: preset.medicine.generic_name || undefined,
+        dosage: preset.medicine.dosage || "",
+        frequency: preset.medicine.frequency || "",
+        duration: preset.medicine.duration || "",
+        instructions: preset.medicine.instructions || "",
+        tapering_steps: preset.medicine.tapering_steps || undefined,
+      };
+      setMedicines([...medicines, newMed]);
+      toast.success(`Added preset: ${preset.label}`);
+    }
+  };
+
   const handleRemoveMedicine = (tempId: string) => {
     setMedicines(medicines.filter((m) => m.tempId !== tempId));
   };
@@ -270,6 +449,24 @@ export function PrescriptionForm({
 
   const handleTaperingStepsChange = (tempId: string, steps: any[] | undefined) => {
     setMedicines(medicines.map((m) => (m.tempId === tempId ? { ...m, tapering_steps: steps } : m)));
+  };
+
+  const handleDiagnosisToggle = (value: string) => {
+    if (selectedDiagnoses.includes(value)) {
+      setSelectedDiagnoses(selectedDiagnoses.filter(d => d !== value));
+    } else {
+      setSelectedDiagnoses([...selectedDiagnoses, value]);
+    }
+  };
+
+  const handleSelectDiagnosisFromSearch = (item: any) => {
+    if (selectedDiagnoses.some(d => d.toLowerCase() === item.value.toLowerCase())) {
+      toast.error("Diagnosis already added");
+      return;
+    }
+    setSelectedDiagnoses([...selectedDiagnoses, item.value]);
+    setDiagnosisSearchQuery("");
+    setShowDiagnosisDropdown(false);
   };
 
   const handleLoadPreviousPrescription = (prescription: PrescriptionResponse) => {
@@ -285,7 +482,12 @@ export function PrescriptionForm({
     }));
 
     setMedicines(newMedicines);
-    if (prescription.diagnosis) setValue("diagnosis", prescription.diagnosis);
+    if (prescription.diagnosis) {
+      setValue("diagnosis", prescription.diagnosis);
+      setSelectedDiagnoses(prescription.diagnosis.split(",").map(d => d.trim()).filter(Boolean));
+    } else {
+      setSelectedDiagnoses([]);
+    }
     if (prescription.notes) setValue("notes", prescription.notes);
     if (prescription.plan_of_action) setValue("plan_of_action", prescription.plan_of_action);
     if (prescription.remarks) setValue("remarks", prescription.remarks);
@@ -316,7 +518,12 @@ export function PrescriptionForm({
     }));
 
     setMedicines(newMedicines);
-    if (template.diagnosis) setValue("diagnosis", template.diagnosis);
+    if (template.diagnosis) {
+      setValue("diagnosis", template.diagnosis);
+      setSelectedDiagnoses(template.diagnosis.split(",").map(d => d.trim()).filter(Boolean));
+    } else {
+      setSelectedDiagnoses([]);
+    }
     setShowHistoryPanel(false);
     toast.success(`Template "${template.name}" loaded`);
   };
@@ -370,10 +577,12 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => {
+        items: medicines.map(({ tempId, generic_name, ...med }) => {
           const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
           return {
             ...med,
+            medicine_id: med.medicine_id?.trim() || null,
+            medicine_name: med.medicine_name,
             dosage: hasTapering ? "Refer steps" : med.dosage,
             frequency: hasTapering ? "Refer steps" : med.frequency,
             duration: hasTapering ? "Refer steps" : med.duration,
@@ -388,18 +597,18 @@ export function PrescriptionForm({
         remarks: data.remarks?.trim() || null,
       };
 
+      let result: PrescriptionResponse;
       if (draftPrescriptionId) {
-        await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
+        result = await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
         toast.success("Draft updated");
       } else {
-        const newPrescription = await prescriptionsApi.create(prescriptionData);
-        setDraftPrescriptionId(newPrescription.id);
+        result = await prescriptionsApi.create(prescriptionData);
+        setDraftPrescriptionId(result.id);
         toast.success("Draft saved");
       }
 
-      setMedicines([]);
-      reset();
-      setDraftPrescriptionId(null);
+      setSavedPrescription(result);
+      setPrescriptionStatus(result.status);
       onSuccess?.();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error) || "Failed to save");
@@ -420,10 +629,12 @@ export function PrescriptionForm({
         visit_id: visitId,
         patient_id: patientId,
         doctor_id: doctorId,
-        items: medicines.map(({ tempId, medicine_name, generic_name, ...med }) => {
+        items: medicines.map(({ tempId, generic_name, ...med }) => {
           const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
           return {
             ...med,
+            medicine_id: med.medicine_id?.trim() || null,
+            medicine_name: med.medicine_name,
             dosage: hasTapering ? "Refer steps" : med.dosage,
             frequency: hasTapering ? "Refer steps" : med.frequency,
             duration: hasTapering ? "Refer steps" : med.duration,
@@ -447,15 +658,67 @@ export function PrescriptionForm({
         prescriptionId = prescription.id;
       }
 
-      await prescriptionsApi.finalize(prescriptionId);
+      const rx = await prescriptionsApi.finalize(prescriptionId);
+      setPrescriptionStatus("finalized");
+      setSavedPrescription(rx);
       toast.success("Prescription finalized");
-
-      setMedicines([]);
-      reset();
-      setDraftPrescriptionId(null);
       onSuccess?.();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error) || "Failed to finalize");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrintClick = async (data: FormData) => {
+    if (!canEdit && savedPrescription) {
+      setShowPrintPreview(true);
+      return;
+    }
+
+    if (medicines.length === 0) {
+      toast.error("Please add at least one medicine");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const prescriptionData = {
+        visit_id: visitId,
+        patient_id: patientId,
+        doctor_id: doctorId,
+        items: medicines.map(({ tempId, generic_name, ...med }) => {
+          const hasTapering = med.tapering_steps && med.tapering_steps.length > 0;
+          return {
+            ...med,
+            medicine_id: med.medicine_id?.trim() || null,
+            medicine_name: med.medicine_name,
+            dosage: hasTapering ? "Refer steps" : med.dosage,
+            frequency: hasTapering ? "Refer steps" : med.frequency,
+            duration: hasTapering ? "Refer steps" : med.duration,
+            instructions: hasTapering ? "Refer steps" : med.instructions || undefined,
+          };
+        }),
+        diagnosis: data.diagnosis?.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
+        advice_items: adviceItems,
+        followup_date: followupDate,
+        plan_of_action: data.plan_of_action?.trim() || null,
+        remarks: data.remarks?.trim() || null,
+      };
+
+      let result: PrescriptionResponse;
+      if (draftPrescriptionId) {
+        result = await prescriptionsApi.update(draftPrescriptionId, prescriptionData);
+      } else {
+        result = await prescriptionsApi.create(prescriptionData);
+        setDraftPrescriptionId(result.id);
+      }
+      setSavedPrescription(result);
+      setPrescriptionStatus(result.status);
+      setShowPrintPreview(true);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error) || "Failed to save draft for print");
     } finally {
       setLoading(false);
     }
@@ -510,12 +773,38 @@ export function PrescriptionForm({
 
           {/* SECTION 1: Medicines */}
           <div className="rounded-lg border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Medicines {medicines.length > 0 && <span className="ml-1 text-sky-600">({medicines.length})</span>}
               </h3>
+              {doctorId && (
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(true)}
+                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition"
+                  title="Configure Presets"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <div className="p-4">
+              {/* Medicine Quick Presets */}
+              {medicinesOptions.length > 0 && (
+                <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center gap-1.5 mb-2 text-slate-500">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Quick Presets</span>
+                  </div>
+                  <MedicineQuickChips
+                    options={medicinesOptions}
+                    addedIds={addedMedicineIds}
+                    onAdd={handleQuickMedicineAdd}
+                    className="flex flex-wrap gap-2"
+                  />
+                </div>
+              )}
+
               {/* Medicine Search */}
               <div ref={medicineSearchRef} className="relative mb-4">
                 <div className="relative">
@@ -528,8 +817,9 @@ export function PrescriptionForm({
                       setShowMedicineDropdown(true);
                     }}
                     onFocus={() => availableMedicines.length > 0 && setShowMedicineDropdown(true)}
-                    className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                    placeholder="Type to search medicines..."
+                    disabled={!canEdit}
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
+                    placeholder={canEdit ? "Type to search medicines..." : "Prescription is finalized (editing disabled)"}
                   />
                   {loadingMedicines && (
                     <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
@@ -576,13 +866,15 @@ export function PrescriptionForm({
                             <span className="ml-2 text-sm text-slate-500">({medicine.generic_name})</span>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMedicine(medicine.tempId)}
-                          className="rounded p-1 text-slate-400 hover:bg-red-100 hover:text-red-500"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMedicine(medicine.tempId)}
+                            className="rounded p-1 text-slate-400 hover:bg-red-100 hover:text-red-500"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
 
                       {(() => {
@@ -594,14 +886,16 @@ export function PrescriptionForm({
                               <span className="flex h-2 w-2 rounded-full bg-purple-500 animate-ping" />
                               Tapering Regimen Active
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleTaperingStepsChange(medicine.tempId, undefined)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
-                            >
-                              <Activity className="h-3.5 w-3.5" />
-                              Disable Tapering Regimen
-                            </button>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleTaperingStepsChange(medicine.tempId, undefined)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
+                              >
+                                <Activity className="h-3.5 w-3.5" />
+                                Disable Tapering Regimen
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -611,7 +905,8 @@ export function PrescriptionForm({
                                 type="text"
                                 value={medicine.dosage || ""}
                                 onChange={(e) => handleMedicineChange(medicine.tempId, "dosage", e.target.value)}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                disabled={!canEdit}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                                 placeholder="e.g., 500mg"
                               />
                             </div>
@@ -620,7 +915,8 @@ export function PrescriptionForm({
                               <select
                                 value={medicine.frequency || ""}
                                 onChange={(e) => handleMedicineChange(medicine.tempId, "frequency", e.target.value)}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                disabled={!canEdit}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                               >
                                 {FREQUENCY_OPTIONS.map((opt) => (
                                   <option key={opt.value} value={opt.value}>
@@ -635,7 +931,8 @@ export function PrescriptionForm({
                                 type="text"
                                 value={medicine.duration || ""}
                                 onChange={(e) => handleMedicineChange(medicine.tempId, "duration", e.target.value)}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                disabled={!canEdit}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                                 placeholder="e.g., 5 days"
                               />
                             </div>
@@ -645,7 +942,8 @@ export function PrescriptionForm({
                                 type="text"
                                 value={medicine.instructions || ""}
                                 onChange={(e) => handleMedicineChange(medicine.tempId, "instructions", e.target.value)}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                                disabled={!canEdit}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                                 placeholder="e.g., After meals"
                               />
                             </div>
@@ -659,7 +957,7 @@ export function PrescriptionForm({
                         const hasTapering = taperingSteps && taperingSteps.length > 0;
                         return (
                           <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
-                            {!hasTapering && (
+                            {!hasTapering && canEdit && (
                               <div className="flex items-center justify-between">
                                 <button
                                   type="button"
@@ -691,27 +989,29 @@ export function PrescriptionForm({
                                     <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
                                     Tapering Steps
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const currentSteps = taperingSteps || [];
-                                      const lastStep = currentSteps[currentSteps.length - 1];
-                                      handleTaperingStepsChange(medicine.tempId, [
-                                        ...currentSteps,
-                                        {
-                                          sequence: currentSteps.length + 1,
-                                          dosage: lastStep?.dosage || "",
-                                          frequency: lastStep?.frequency || "",
-                                          duration: lastStep?.duration || "",
-                                          instructions: lastStep?.instructions || ""
-                                        }
-                                      ]);
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-sm"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                    Add Step
-                                  </button>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentSteps = taperingSteps || [];
+                                        const lastStep = currentSteps[currentSteps.length - 1];
+                                        handleTaperingStepsChange(medicine.tempId, [
+                                          ...currentSteps,
+                                          {
+                                            sequence: currentSteps.length + 1,
+                                            dosage: lastStep?.dosage || "",
+                                            frequency: lastStep?.frequency || "",
+                                            duration: lastStep?.duration || "",
+                                            instructions: lastStep?.instructions || ""
+                                          }
+                                        ]);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-sm"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                      Add Step
+                                    </button>
+                                  )}
                                 </div>
 
                                 <div className="space-y-3">
@@ -730,8 +1030,9 @@ export function PrescriptionForm({
                                               newSteps[stepIndex].dosage = e.target.value;
                                               handleTaperingStepsChange(medicine.tempId, newSteps);
                                             }}
+                                            disabled={!canEdit}
                                             placeholder="e.g. 1 drop"
-                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
                                           />
                                         </div>
                                         <div>
@@ -745,7 +1046,8 @@ export function PrescriptionForm({
                                               newSteps[stepIndex].frequency = e.target.value;
                                               handleTaperingStepsChange(medicine.tempId, newSteps);
                                             }}
-                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                            disabled={!canEdit}
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
                                           >
                                             {FREQUENCY_OPTIONS.map((opt) => (
                                               <option key={opt.value} value={opt.value}>
@@ -766,8 +1068,9 @@ export function PrescriptionForm({
                                               newSteps[stepIndex].duration = e.target.value;
                                               handleTaperingStepsChange(medicine.tempId, newSteps);
                                             }}
+                                            disabled={!canEdit}
                                             placeholder="e.g. 1 week"
-                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
                                           />
                                         </div>
                                         <div>
@@ -782,13 +1085,14 @@ export function PrescriptionForm({
                                               newSteps[stepIndex].instructions = e.target.value;
                                               handleTaperingStepsChange(medicine.tempId, newSteps);
                                             }}
+                                            disabled={!canEdit}
                                             placeholder="e.g. Instill 1 drop"
-                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm"
+                                            className="w-full rounded border border-purple-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-500 focus:outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
                                           />
                                         </div>
                                       </div>
 
-                                      {taperingSteps.length > 1 && (
+                                      {taperingSteps.length > 1 && canEdit && (
                                         <button
                                           type="button"
                                           onClick={() => {
@@ -823,22 +1127,110 @@ export function PrescriptionForm({
 
           {/* SECTION 2: Diagnosis & Notes */}
           <div className="rounded-lg border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Diagnosis & Notes</h3>
+              {doctorId && (
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(true)}
+                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition"
+                  title="Configure Presets"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <div className="p-4">
+            <div className="p-4 space-y-4">
               <div className="grid gap-4 lg:grid-cols-2">
+                {/* Diagnosis Search & Presets Column */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Diagnosis Selection <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+
+                  {/* Diagnosis presets */}
+                  {doctorId && diagnosesOptions.length > 0 && (
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                      <div className="flex items-center gap-1.5 mb-2 text-slate-500">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Quick Presets</span>
+                      </div>
+                      <DiagnosisChips
+                        options={diagnosesOptions.map(d => ({ label: d.label, value: d.value, category: d.category }))}
+                        selected={selectedDiagnoses}
+                        onToggle={handleDiagnosisToggle}
+                      />
+                    </div>
+                  )}
+
+                  {/* Diagnosis Autocomplete Search */}
+                  <div ref={diagnosisSearchRef} className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={diagnosisSearchQuery}
+                        onChange={(e) => {
+                          setDiagnosisSearchQuery(e.target.value);
+                          setShowDiagnosisDropdown(true);
+                        }}
+                        onFocus={() => diagnosisSearchResults.length > 0 && setShowDiagnosisDropdown(true)}
+                        disabled={!canEdit}
+                        className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
+                        placeholder="Search diagnosis catalog..."
+                      />
+                      {searchingDiagnoses && (
+                        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                      )}
+                    </div>
+
+                    {showDiagnosisDropdown && diagnosisSearchResults.length > 0 && (
+                      <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                        {diagnosisSearchResults.map((dx) => (
+                          <div
+                            key={dx.id}
+                            onClick={() => handleSelectDiagnosisFromSearch(dx)}
+                            className="cursor-pointer border-b border-slate-100 px-4 py-2.5 text-sm hover:bg-sky-50 last:border-0"
+                          >
+                            <div className="font-semibold text-slate-900">{dx.label}</div>
+                            {dx.category && (
+                              <div className="text-xs text-slate-400 capitalize">{dx.category}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected diagnoses list chips */}
+                  {selectedDiagnoses.length > 0 && (
+                    <div className="rounded-lg border border-sky-100 bg-sky-50/20 p-3">
+                      <p className="text-[10px] font-bold text-sky-800 uppercase tracking-wider mb-2">Selected Diagnoses:</p>
+                      <SelectedDiagnoses
+                        diagnoses={selectedDiagnoses}
+                        onRemove={handleDiagnosisToggle}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Final Formatted Diagnosis textarea (readOnly) */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Diagnosis <span className="font-normal text-slate-400">(optional)</span>
+                    Formatted Diagnosis Text <span className="text-xs text-slate-400">(Auto-filled from selection above)</span>
                   </label>
                   <textarea
                     {...register("diagnosis")}
-                    rows={3}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                    placeholder="Enter diagnosis..."
+                    rows={6}
+                    readOnly
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-600 outline-none"
+                    placeholder="Diagnoses will form a comma-separated list here..."
                   />
                 </div>
+              </div>
+
+              {/* Notes, Plan of action, Remarks Row */}
+              <div className="grid gap-4 lg:grid-cols-3 border-t border-slate-100 pt-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Notes <span className="font-normal text-slate-400">(optional)</span>
@@ -846,7 +1238,8 @@ export function PrescriptionForm({
                   <textarea
                     {...register("notes")}
                     rows={3}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    disabled={!canEdit}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                     placeholder="Additional notes or instructions..."
                   />
                 </div>
@@ -856,8 +1249,9 @@ export function PrescriptionForm({
                   </label>
                   <textarea
                     {...register("plan_of_action")}
-                    rows={2}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    rows={3}
+                    disabled={!canEdit}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                     placeholder="e.g. Review after CBC report..."
                   />
                 </div>
@@ -867,8 +1261,9 @@ export function PrescriptionForm({
                   </label>
                   <textarea
                     {...register("remarks")}
-                    rows={2}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    rows={3}
+                    disabled={!canEdit}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                     placeholder="Clinical remarks..."
                   />
                 </div>
@@ -876,11 +1271,20 @@ export function PrescriptionForm({
             </div>
           </div>
 
+          {/* Planned Surgery Section */}
+          <PlannedSurgerySection
+            patientId={patientId}
+            surgeonId={doctorId}
+            visitId={visitId}
+          />
+
           <AdviceSection
             value={adviceItems}
             onChange={setAdviceItems}
             followupDate={followupDate}
             onFollowupDateChange={setFollowupDate}
+            doctorId={doctorId}
+            disabled={!canEdit}
           />
         </div>
 
@@ -896,13 +1300,23 @@ export function PrescriptionForm({
             </div>
             <div className="flex items-center gap-3">
               {!canEdit ? (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-                >
-                  Close
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmit(handlePrintClick)}
+                    className="flex items-center gap-2 rounded-lg bg-slate-800 text-white px-4 py-2 text-sm font-medium hover:bg-slate-900 transition shadow-sm"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>Preview &amp; Print</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -912,22 +1326,44 @@ export function PrescriptionForm({
                   >
                     Cancel
                   </button>
+                  {isFinalized ? (
+                    <button
+                      type="button"
+                      onClick={handleSubmit(onSubmit)}
+                      disabled={loading || medicines.length === 0}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loading ? "Saving..." : "Save Changes"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmit(onSubmit)}
+                      disabled={loading || medicines.length === 0}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loading ? "Saving..." : draftPrescriptionId ? "Update Draft" : "Save Draft"}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handleSubmit(onSubmit)}
+                    onClick={handleSubmit(handlePrintClick)}
                     disabled={loading || medicines.length === 0}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg bg-slate-800 text-white px-4 py-2 text-sm font-medium hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {loading ? "Saving..." : draftPrescriptionId ? "Update Draft" : "Save Draft"}
+                    <Eye className="h-4 w-4" />
+                    <span>Preview &amp; Print</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleSubmit(handleFinalize)}
-                    disabled={loading || medicines.length === 0}
-                    className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 font-semibold shadow-xs"
-                  >
-                    {loading ? "Finalizing..." : "Finalize Prescription"}
-                  </button>
+                  {!isFinalized && (
+                    <button
+                      type="button"
+                      onClick={handleSubmit(handleFinalize)}
+                      disabled={loading || medicines.length === 0}
+                      className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 font-semibold shadow-xs"
+                    >
+                      {loading ? "Finalizing..." : "Finalize Prescription"}
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1119,6 +1555,38 @@ export function PrescriptionForm({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Settings Modal for Presets */}
+      {showSettingsModal && doctorId && (
+        <QuickPresetsSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => {
+            setShowSettingsModal(false);
+            loadPresets();
+          }}
+          doctorId={doctorId}
+          onSaved={loadPresets}
+        />
+      )}
+
+      {/* Print Preview Modal */}
+      {showPrintPreview && savedPrescription && (
+        <PrescriptionPrintPreviewModal
+          isOpen={showPrintPreview}
+          onClose={() => setShowPrintPreview(false)}
+          prescription={savedPrescription}
+          doctorSignature={doctorSignature}
+          onFinalize={async (printAfter) => {
+            const rx = await prescriptionsApi.finalize(savedPrescription.id);
+            setPrescriptionStatus("finalized");
+            setSavedPrescription(rx);
+            if (!printAfter) {
+              setShowPrintPreview(false);
+            }
+            onSuccess?.();
+          }}
+        />
       )}
     </div>
   );
