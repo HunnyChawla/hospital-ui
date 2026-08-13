@@ -18,12 +18,12 @@ export interface PrescriptionItemRequest {
  * One line of advice on a prescription.
  *
  * `instruction` is something the patient does ("rest for three days");
- * `test` is something they are sent for. A test may name a catalogue entry,
- * but need not — "X-ray, left knee" is a valid order even if nobody has added
- * that exact test to the master.
+ * `lab-test` is something they are sent for. A lab-test may name a catalogue
+ * entry, but need not — "X-ray, left knee" is a valid order even if nobody
+ * has added that exact test to the master.
  */
 export interface AdviceItemRequest {
-  advice_type: "test" | "instruction";
+  advice_type: "lab-test" | "instruction";
   description: string;
   notes?: string | null;
   lab_test_id?: string | null;

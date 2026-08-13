@@ -28,7 +28,7 @@ export function AdviceSection({
     disabled = false,
 }: AdviceSectionProps) {
     const [draft, setDraft] = useState("");
-    const [draftType, setDraftType] = useState<"instruction" | "test">("instruction");
+    const [draftType, setDraftType] = useState<"instruction" | "lab-test">("instruction");
 
     // Presets and search state
     const [advicesOptions, setAdvicesOptions] = useState<any[]>([]);
@@ -88,7 +88,7 @@ export function AdviceSection({
 
             setSearching(true);
             try {
-                if (draftType === "test") {
+                if (draftType === "lab-test") {
                     const response = await labTestsApi.list({
                         search: draft.trim(),
                         page_size: 10,
@@ -145,7 +145,7 @@ export function AdviceSection({
             .filter(Boolean) as string[];
         
         const addedLabs = value
-            .filter(item => item.advice_type === "test")
+            .filter(item => item.advice_type === "lab-test")
             .map(item => labTestsOptions.find(opt => opt.value === item.description)?.id)
             .filter(Boolean) as string[];
 
@@ -169,15 +169,15 @@ export function AdviceSection({
     };
 
     const handleQuickSelectAdd = (id: string) => {
-        if (draftType === "test") {
+        if (draftType === "lab-test") {
             const preset = labTestsOptions.find(t => t.id === id);
             if (preset) {
-                if (value.some(item => item.advice_type === "test" && item.description === preset.value)) {
+                if (value.some(item => item.advice_type === "lab-test" && item.description === preset.value)) {
                     toast.error("Test already added");
                     return;
                 }
                 onChange([...value, {
-                    advice_type: "test",
+                    advice_type: "lab-test",
                     description: preset.value,
                     lab_test_id: preset.lab_test_id
                 }]);
@@ -208,7 +208,7 @@ export function AdviceSection({
         onChange([...value, {
             advice_type: draftType,
             description: item.value,
-            lab_test_id: draftType === "test" ? item.id : undefined
+            lab_test_id: draftType === "lab-test" ? item.id : undefined
         }]);
         setDraft("");
         setShowDropdown(false);
@@ -239,7 +239,7 @@ export function AdviceSection({
                 {/* Mode Selector & Quick presets */}
                 <div className="space-y-3">
                     <div className="flex overflow-hidden rounded-lg border border-slate-300 w-fit">
-                        {(["instruction", "test"] as const).map((type) => (
+                        {(["instruction", "lab-test"] as const).map((type) => (
                             <button
                                 key={type}
                                 type="button"
@@ -256,12 +256,12 @@ export function AdviceSection({
                                         : "bg-white text-slate-600 hover:bg-slate-50"
                                 }`}
                             >
-                                {type === "test" ? (
+                                {type === "lab-test" ? (
                                     <FlaskConical className="h-3.5 w-3.5" />
                                 ) : (
                                     <ClipboardList className="h-3.5 w-3.5" />
                                 )}
-                                {type === "test" ? "Test" : "Advice"}
+                                {type === "lab-test" ? "Test" : "Advice"}
                             </button>
                         ))}
                     </div>
@@ -273,7 +273,7 @@ export function AdviceSection({
                                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                                 <span className="text-[10px] font-bold uppercase tracking-wider">Quick Presets</span>
                             </div>
-                            {draftType === "test" ? (
+                            {draftType === "lab-test" ? (
                                 labTestsOptions.length > 0 ? (
                                     <LabTestQuickChips
                                         options={labTestsOptions}
@@ -316,7 +316,7 @@ export function AdviceSection({
                             }}
                             disabled={disabled}
                             placeholder={
-                                draftType === "test"
+                                draftType === "lab-test"
                                     ? "Search lab tests or type custom test..."
                                     : "Search advices or type custom advice..."
                             }
@@ -371,12 +371,12 @@ export function AdviceSection({
                             >
                                 <span
                                     className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${
-                                        item.advice_type === "test"
+                                        item.advice_type === "lab-test"
                                             ? "bg-purple-100 text-purple-700"
                                             : "bg-sky-100 text-sky-700"
                                     }`}
                                 >
-                                    {item.advice_type === "test" ? "Test" : "Advice"}
+                                    {item.advice_type === "lab-test" ? "Test" : "Advice"}
                                 </span>
                                 <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
                                     {item.description}

@@ -272,7 +272,7 @@ export function PrescriptionForm({
           if (rx.remarks) setValue("remarks", rx.remarks);
           setAdviceItems(
             (rx.advice_items ?? []).map((a) => ({
-              advice_type: a.advice_type,
+              advice_type: (a.advice_type === "test" ? "lab-test" : a.advice_type) as "lab-test" | "instruction",
               description: a.description,
               notes: a.notes,
               lab_test_id: a.lab_test_id,
@@ -493,7 +493,7 @@ export function PrescriptionForm({
     if (prescription.remarks) setValue("remarks", prescription.remarks);
     setAdviceItems(
       (prescription.advice_items ?? []).map((a) => ({
-        advice_type: a.advice_type,
+        advice_type: (a.advice_type === "test" ? "lab-test" : a.advice_type) as "lab-test" | "instruction",
         description: a.description,
         notes: a.notes,
         lab_test_id: a.lab_test_id,

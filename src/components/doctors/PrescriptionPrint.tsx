@@ -332,7 +332,7 @@ export function PrescriptionPrint({
             ) : null;
 
           case "tests":
-            return prescription.advice_items?.some((a) => a.advice_type === "test") ? (
+            return prescription.advice_items?.some((a) => a.advice_type === "lab-test") ? (
               <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
                 <div className="flex items-center gap-1.5 pr-2">
                   <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
@@ -344,7 +344,7 @@ export function PrescriptionPrint({
                 </div>
                 <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
                   {prescription.advice_items
-                    .filter((a) => a.advice_type === "test")
+                    .filter((a) => a.advice_type === "lab-test")
                     .map((a) => a.description)
                     .join(", ")}
                 </div>
@@ -352,7 +352,7 @@ export function PrescriptionPrint({
             ) : null;
 
           case "advice":
-            return prescription.advice_items?.some((a) => a.advice_type !== "test") ? (
+            return prescription.advice_items?.some((a) => a.advice_type !== "lab-test") ? (
               <div key={key} className={`${spacingClass} break-inside-avoid grid grid-cols-[var(--rx-label-col)_1fr] gap-2 items-start`}>
                 <div className="flex items-center gap-1.5 pr-2">
                   <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
@@ -364,7 +364,7 @@ export function PrescriptionPrint({
                 </div>
                 <div className={`${sectionFontClass} font-medium uppercase text-xs text-left`}>
                   {prescription.advice_items
-                    .filter((a) => a.advice_type !== "test")
+                    .filter((a) => a.advice_type !== "lab-test")
                     .map((a) => a.description)
                     .join(", ")}
                 </div>

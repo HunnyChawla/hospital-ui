@@ -177,8 +177,8 @@ export function PrescriptionPrintPreviewModal({
         let hasData = true;
         if (section === "diagnosis") hasData = !!(prescription.diagnosis);
         if (section === "medicines") hasData = !!(prescription.items?.length);
-        if (section === "tests") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "test"));
-        if (section === "advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "test") || prescription.plan_of_action);
+        if (section === "tests") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "lab-test"));
+        if (section === "advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "lab-test") || prescription.plan_of_action);
         if (section === "notes") hasData = !!(prescription.notes);
         if (section === "followup") hasData = !!(prescription.followup_date);
         return hasData;
