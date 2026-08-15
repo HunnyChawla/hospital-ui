@@ -1,10 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Settings, Save, Loader2, Building2 } from "lucide-react";
+import {
+    Settings,
+    Save,
+    Loader2,
+    Building2,
+    IdCard,
+    Share2,
+    FileText,
+    CheckCircle2,
+    Shield,
+    Layers,
+    ArrowRight,
+} from "lucide-react";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { tenantsApi, type Tenant } from "@/services/tenantsApi";
 import { usePermissions } from "@/hooks/usePermissions";
+
+type AbdmMilestoneLevel = "none" | "m1" | "m2" | "m3";
 
 export function FeatureFlagManagement() {
     const { userRole } = usePermissions();
@@ -32,9 +46,7 @@ export function FeatureFlagManagement() {
         allow_edit_after_visit_completed: false,
     });
 
-    const [abhaFlags, setAbhaFlags] = useState({
-        enabled: false,
-    });
+    const [abdmMilestone, setAbdmMilestone] = useState<AbdmMilestoneLevel>("none");
 
     // Fetch tenants for platform owners
     useEffect(() => {
@@ -75,10 +87,16 @@ export function FeatureFlagManagement() {
                 allow_edit_after_visit_completed: allFlags.prescription.allow_edit_after_visit_completed as boolean,
             });
         }
-        if (allFlags?.abha) {
-            setAbhaFlags({
-                enabled: allFlags.abha.enabled as boolean,
-            });
+        if (allFlags?.abdm?.milestone) {
+            const raw = String(allFlags.abdm.milestone).trim().toLowerCase();
+            if (raw === "m3") setAbdmMilestone("m3");
+            else if (raw === "m2") setAbdmMilestone("m2");
+            else if (raw === "m1") setAbdmMilestone("m1");
+            else setAbdmMilestone("none");
+        } else if (allFlags?.abha?.enabled) {
+            setAbdmMilestone("m1");
+        } else {
+            setAbdmMilestone("none");
         }
     }, [allFlags]);
 
@@ -90,8 +108,16 @@ export function FeatureFlagManagement() {
         updateFlags({ feature: 'prescription', flags: prescriptionFlags });
     };
 
-    const handleSaveAbha = () => {
-        updateFlags({ feature: 'abha', flags: abhaFlags });
+    const handleSaveAbdm = () => {
+        // Save milestone level in abdm and sync with legacy abha feature flag
+        updateFlags({
+            feature: 'abdm',
+            flags: { milestone: abdmMilestone }
+        });
+        updateFlags({
+            feature: 'abha',
+            flags: { enabled: abdmMilestone !== "none" }
+        });
     };
 
     const handleTenantChange = async (newTenantId: string) => {
@@ -100,6 +126,41 @@ export function FeatureFlagManagement() {
         localStorage.setItem('tenant_id', newTenantId);
         // Refetch flags for the new tenant
         await refetch();
+    };
+
+    // Milestone active helpers
+    const isM1Active = abdmMilestone === "m1" || abdmMilestone === "m2" || abdmMilestone === "m3";
+    const isM2Active = abdmMilestone === "m2" || abdmMilestone === "m3";
+    const isM3Active = abdmMilestone === "m3";
+
+    // Cascading milestone toggle handlers
+    const handleToggleM1 = (checked: boolean) => {
+        if (!checked) {
+            // Disabling M1 unchecks M2 and M3
+            setAbdmMilestone("none");
+        } else {
+            setAbdmMilestone("m1");
+        }
+    };
+
+    const handleToggleM2 = (checked: boolean) => {
+        if (checked) {
+            // Enabling M2 automatically enables M1
+            setAbdmMilestone("m2");
+        } else {
+            // Disabling M2 falls back to M1 (and unchecks M3)
+            setAbdmMilestone("m1");
+        }
+    };
+
+    const handleToggleM3 = (checked: boolean) => {
+        if (checked) {
+            // Enabling M3 automatically enables M2 and M1
+            setAbdmMilestone("m3");
+        } else {
+            // Disabling M3 falls back to M2
+            setAbdmMilestone("m2");
+        }
     };
 
     if (isLoading || (isPlatformOwner && loadingTenants)) {
@@ -310,38 +371,164 @@ export function FeatureFlagManagement() {
                 </div>
             </div>
 
-            {/* ABHA Integration Card */}
+            {/* ABDM Milestone Integration Card */}
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
-                    <h2 className="text-lg font-semibold text-slate-900">ABDM / ABHA Integration</h2>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Configure Ayushman Bharat Health Account (ABHA) enrollment and linking workflows
-                    </p>
-                </div>
-                <div className="p-6 space-y-6">
-                    <label className="flex items-start gap-4 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={abhaFlags.enabled}
-                            onChange={(e) => setAbhaFlags({ enabled: e.target.checked })}
-                            className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                        />
-                        <div className="flex-1">
-                            <div className="font-medium text-slate-900">
-                                Enable ABHA Enrollment & Linking
-                            </div>
-                            <div className="text-sm text-slate-500 mt-1">
-                                When enabled, hospital staff can enroll new patients in ABHA or link existing ABHA accounts during Add Patient and in Patient Details.
-                            </div>
+                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-indigo-600" />
+                            <h2 className="text-lg font-semibold text-slate-900">ABDM Integration Milestones</h2>
                         </div>
-                    </label>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Configure Ayushman Bharat Digital Mission capability tiers (M1, M2, M3) with cumulative dependencies
+                        </p>
+                    </div>
+                    <div>
+                        {abdmMilestone === "none" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                ABDM Disabled
+                            </span>
+                        )}
+                        {abdmMilestone === "m1" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                                Milestone 1: ABHA Identity
+                            </span>
+                        )}
+                        {abdmMilestone === "m2" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                                Milestone 2: HIP Data Exchange
+                            </span>
+                        )}
+                        {abdmMilestone === "m3" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Milestone 3: Full ABDM (HIP + HIU)
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    {/* Dependency Rule Banner */}
+                    <div className="rounded-lg bg-indigo-50/60 border border-indigo-100 p-3.5 text-xs text-indigo-900 flex items-start gap-3">
+                        <Layers className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                        <div>
+                            <span className="font-semibold text-indigo-950">Cumulative Tier Rule: </span>
+                            Higher milestones require and automatically activate preceding tiers (<span className="font-medium">M1 &rarr; M2 &rarr; M3</span>).
+                            Unchecking a base tier automatically cascades and turns off subsequent levels.
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* Milestone 1 (M1) */}
+                        <div className={`rounded-xl border p-4.5 transition-all ${
+                            isM1Active
+                                ? "border-sky-300 bg-sky-50/30 shadow-xs"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}>
+                            <label className="flex items-start gap-4 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isM1Active}
+                                    onChange={(e) => handleToggleM1(e.target.checked)}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-1.5 rounded-md ${isM1Active ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-500"}`}>
+                                            <IdCard className="h-4 w-4" />
+                                        </div>
+                                        <span className="font-semibold text-slate-900">
+                                            Milestone 1 (M1): ABHA Identity &amp; Patient Intake
+                                        </span>
+                                        <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium ml-auto">
+                                            Base Tier
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                                        Patient ABHA creation (Aadhaar OTP / Bio), ABHA verification, Scan &amp; Share counter QR intake, and demographic synchronization during registration and OPD visits.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Milestone 2 (M2) */}
+                        <div className={`rounded-xl border p-4.5 transition-all ${
+                            isM2Active
+                                ? "border-indigo-300 bg-indigo-50/30 shadow-xs"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}>
+                            <label className="flex items-start gap-4 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isM2Active}
+                                    onChange={(e) => handleToggleM2(e.target.checked)}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-1.5 rounded-md ${isM2Active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
+                                            <Share2 className="h-4 w-4" />
+                                        </div>
+                                        <span className="font-semibold text-slate-900">
+                                            Milestone 2 (M2): HIP Care Context Linking &amp; Health Data Sharing
+                                        </span>
+                                        <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium ml-auto border border-indigo-100">
+                                            Requires M1
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                                        Health Information Provider (HIP) capabilities: User-initiated care context discovery, OTP link confirmation, patient consent management, and encrypted FHIR diagnostic/OPD/discharge record sharing.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Milestone 3 (M3) */}
+                        <div className={`rounded-xl border p-4.5 transition-all ${
+                            isM3Active
+                                ? "border-emerald-300 bg-emerald-50/30 shadow-xs"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}>
+                            <label className="flex items-start gap-4 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isM3Active}
+                                    onChange={(e) => handleToggleM3(e.target.checked)}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-1.5 rounded-md ${isM3Active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                                            <FileText className="h-4 w-4" />
+                                        </div>
+                                        <span className="font-semibold text-slate-900">
+                                            Milestone 3 (M3): HIU Records Requester &amp; External Viewing
+                                        </span>
+                                        <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium ml-auto border border-emerald-100">
+                                            Requires M1 &amp; M2
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                                        Health Information User (HIU) capabilities: Doctors can create consent requests to fetch and review patients&#39; external longitudinal health records from hospitals across India.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
 
                     {/* Save Button */}
-                    <div className="pt-4 border-t border-slate-200">
+                    <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+                        <div className="text-xs text-slate-500">
+                            Current active setting for tenant: <strong className="text-slate-700 capitalize">{abdmMilestone === "none" ? "None (Disabled)" : abdmMilestone.toUpperCase()}</strong>
+                        </div>
                         <button
-                            onClick={handleSaveAbha}
+                            onClick={handleSaveAbdm}
                             disabled={isUpdating}
-                            className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {isUpdating ? (
                                 <>
@@ -351,7 +538,7 @@ export function FeatureFlagManagement() {
                             ) : (
                                 <>
                                     <Save className="h-4 w-4" />
-                                    Save Configuration
+                                    Save ABDM Milestone
                                 </>
                             )}
                         </button>
