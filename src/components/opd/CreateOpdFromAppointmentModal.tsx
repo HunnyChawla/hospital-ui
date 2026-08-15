@@ -97,8 +97,12 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
   const handleConfirm = async () => {
     if (!appointment) return;
 
-    const feeAmount = feeOverride && parseFloat(feeOverride) >= 0
-      ? parseFloat(feeOverride)
+    const parsedOverride = feeOverride !== "" && feeOverride !== null && !isNaN(Number(feeOverride)) && Number(feeOverride) >= 0
+      ? Number(feeOverride)
+      : null;
+
+    const feeAmount = parsedOverride !== null
+      ? parsedOverride
       : (consultationFee ? parseFloat(consultationFee) : 0);
 
     if (feeAmount > 0 && (paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
@@ -117,7 +121,7 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
         payment_method: (feeAmount === 0 && !paymentMethod) ? "cash" : (paymentMethod as any),
         payment_reference: paymentReference.trim() || null,
         consultation_fee: consultationFee ? parseFloat(consultationFee) : null,
-        consultation_fee_override: feeOverride && parseFloat(feeOverride) >= 0 ? parseFloat(feeOverride) : null,
+        consultation_fee_override: parsedOverride,
       };
 
       // Use React Query mutation - automatic cache invalidation!
@@ -212,10 +216,10 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
             </div>
           </div>
 
-          {feeOverride && parseFloat(feeOverride) > 0 && (
+          {feeOverride !== "" && !isNaN(Number(feeOverride)) && Number(feeOverride) >= 0 && (
             <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
               <span className="text-xs font-semibold text-teal-800">
-                Applied Override: {currency(parseFloat(feeOverride))}
+                Applied Override: {currency(Number(feeOverride))}
               </span>
               <button onClick={() => setFeeOverride("")} className="text-teal-600 hover:text-teal-800 text-lg leading-none">×</button>
             </div>

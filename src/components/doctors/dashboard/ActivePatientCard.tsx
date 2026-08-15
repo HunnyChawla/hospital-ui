@@ -11,7 +11,8 @@ import {
   X,
   Printer,
 } from "lucide-react";
-import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
+import { FinalisedBadge } from "@/components/health-record/FinaliseVisitAction";
+import { useEpisodeForSource } from "@/hooks/queries/useHealthRecord";
 
 type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
@@ -51,6 +52,12 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   visitId = null,
   children,
 }) => {
+  // Show a Finalised badge when the episode has been auto-closed on visit
+  // completion. The manual Finalise button was removed in Phase 5 because
+  // finalisation now happens automatically.
+  const { data: episode } = useEpisodeForSource("opd_visit", visitId ?? null);
+  const isFinalised = episode?.status === "finalised";
+
   if (!patientId) {
     return (
       <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12">
@@ -115,12 +122,11 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
           </div>
         </div>
 
-        {/* The doctor finishing the consultation is the person who should
-            close the record. Without this they would have to leave the panel
-            and find the patient again in the OPD list. */}
-        {visitId && (
+        {/* Finalisation is automatic on visit completion (Phase 5).
+            Show the badge only when the episode is confirmed finalised. */}
+        {isFinalised && visitId && (
           <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
-            <FinaliseVisitAction episodeType="opd_visit" sourceId={visitId} />
+            <FinalisedBadge />
           </div>
         )}
       </div>

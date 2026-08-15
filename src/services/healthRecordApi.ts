@@ -50,6 +50,24 @@ export type HiType =
     | "WellnessRecord"
     | "Invoice";
 
+/**
+ * The state of an episode's care context in the ABDM ecosystem.
+ *
+ * - unlinked  — default; no ABHA or linking not attempted
+ * - pending   — background job queued
+ * - linked    — confirmed in patient's ABHA app ✅
+ * - sms_sent  — mobile-only patient; ABDM sent a deep-link SMS
+ * - failed    — linking failed; show a Retry button ❌
+ * - no_abha   — patient has neither ABHA nor verified mobile
+ */
+export type AbdmLinkStatus =
+    | "unlinked"
+    | "pending"
+    | "linked"
+    | "sms_sent"
+    | "failed"
+    | "no_abha";
+
 export interface Episode {
     id: string;
     tenant_id: string;
@@ -75,6 +93,12 @@ export interface Episode {
     reopened_at: string | null;
     created_at: string | null;
     updated_at: string | null;
+    /** ABDM care-context linking state. Defaults to 'unlinked'. */
+    abdm_link_status: AbdmLinkStatus;
+    /** When the care context was successfully linked or last notified. */
+    abdm_linked_at: string | null;
+    /** Last error message when abdm_link_status is 'failed'. */
+    abdm_link_error: string | null;
 }
 
 export interface EpisodeTimeline {
@@ -221,7 +245,27 @@ export const episodesApi = {
         );
         return response.data;
     },
+
+    /**
+     * Trigger or retry ABDM care-context linking for one episode.
+     *
+     * Sets `abdm_link_status` to `pending` immediately so the UI can show
+     * progress. Phase 5 wires the actual Demographic Auth → `link/carecontext`
+     * call on the server side.
+     *
+     * Only needs to be called when status is `failed` or `unlinked` — the
+     * server is idempotent for `linked`, `sms_sent`, and `pending`.
+     */
+    async linkAbdm(episodeId: string, tenantId?: string): Promise<Episode> {
+        const response = await apiClient.post<Episode>(
+            `/episodes/${episodeId}/link-abdm`,
+            {},
+            tenantParams(tenantId)
+        );
+        return response.data;
+    },
 };
+
 
 export const healthDocumentsApi = {
     async forEpisode(episodeId: string, tenantId?: string): Promise<DocumentVersion[]> {

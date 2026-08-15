@@ -93,6 +93,12 @@ export const countersApi = {
     return response.data;
   },
 
+  async delete(counterId: string, tenantId?: string): Promise<void> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    await apiClient.delete(`/patients/intake/counters/${counterId}`, { params });
+  },
+
   /** The QR image to print, as a blob. */
   async qrPng(counterCode: string, tenantId?: string): Promise<Blob> {
     const apiTenantId = getTenantIdForApi(tenantId);

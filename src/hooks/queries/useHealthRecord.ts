@@ -6,6 +6,7 @@ import {
     episodesApi,
     healthDocumentsApi,
     immunisationsApi,
+    type Episode,
     type EpisodeType,
     type HiType,
     type RecordImmunisationRequest,
@@ -184,5 +185,28 @@ export function useDeleteImmunisation() {
             toast.success("Record removed");
         },
         onError: (error) => toast.error(getErrorMessage(error) || "Could not remove this record"),
+    });
+}
+
+/**
+ * Trigger or retry ABDM care-context linking for one episode.
+ *
+ * Visible as a "Link to ABDM" / "Retry" button on the care-context panel when
+ * `abdm_link_status` is `failed` or `unlinked`. The server marks the episode
+ * `pending` immediately so the UI reflects progress while Phase 5 runs the
+ * actual Demographic Auth in the background.
+ */
+export function useManualLinkCareContext() {
+    const queryClient = useQueryClient();
+    const tenant = useTenant();
+
+    return useMutation<Episode, Error, string>({
+        mutationFn: (episodeId: string) => episodesApi.linkAbdm(episodeId, tenant),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: healthRecordKeys.all });
+            toast.success("ABDM linking initiated — the care context will appear in the patient's ABHA app shortly");
+        },
+        onError: (error) =>
+            toast.error(getErrorMessage(error) || "Could not initiate ABDM linking for this episode"),
     });
 }

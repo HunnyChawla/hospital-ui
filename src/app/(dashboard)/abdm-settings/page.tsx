@@ -30,7 +30,7 @@ export default function AbdmSettingsPage() {
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="space-y-6 max-w-5xl pb-10">
       <AbdmConfigSettings />
       <CounterManagement />
     </div>

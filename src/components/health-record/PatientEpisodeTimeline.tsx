@@ -6,18 +6,27 @@ import {
     BedDouble,
     Syringe,
     Scissors,
-    Lock,
     Unlock,
     Loader2,
     FileText,
+    Link2,
+    CheckCircle2,
+    AlertCircle,
+    Clock,
+    MessageSquare,
+    WifiOff,
+    RefreshCw,
+    ChevronDown,
+    ChevronUp,
 } from "lucide-react";
 import {
     usePatientTimeline,
-    useFinaliseEpisode,
     useReopenEpisode,
+    useManualLinkCareContext,
 } from "@/hooks/queries/useHealthRecord";
 import { usePermissions } from "@/hooks/usePermissions";
 import type {
+    AbdmLinkStatus,
     Episode,
     EpisodeType,
     HiType,
@@ -64,18 +73,20 @@ const HI_TYPE_LABELS: Record<HiType, string> = {
 /**
  * Everything that has happened to this patient here, newest first.
  *
- * The episode is the unit ABDM links and publishes, so this screen is also
- * the answer to "what would this patient see in their health app" — which is
- * why it shows the finalised state rather than hiding it as a technicality.
+ * Episodes are automatically finalised by the backend when a visit is completed
+ * (`visit.completed` event). There is no "Finalise" button — documents are
+ * written to the health record automatically as each clinical event fires.
+ *
+ * The "Reopen" button is kept for late documentation (lab results arriving
+ * after visit completion, corrected notes, etc.).
  */
 export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProps) {
     const { data, isLoading } = usePatientTimeline(patientId);
-    const finalise = useFinaliseEpisode();
     const reopen = useReopenEpisode();
     const { isAdmin, userRole } = usePermissions();
     const [confirming, setConfirming] = useState<{
         id: string;
-        mode: "finalise" | "reopen";
+        mode: "reopen";
     } | null>(null);
 
     const mayReopen = mayReopenEpisode(isAdmin, userRole);
@@ -111,26 +122,17 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
                     key={episode.id}
                     episode={episode}
                     mayReopen={mayReopen}
-                    onFinalise={() => setConfirming({ id: episode.id, mode: "finalise" })}
                     onReopen={() => setConfirming({ id: episode.id, mode: "reopen" })}
-                    isBusy={
-                        (finalise.isPending && finalise.variables === episode.id) ||
-                        (reopen.isPending && reopen.variables?.episodeId === episode.id)
-                    }
+                    isBusy={reopen.isPending && reopen.variables?.episodeId === episode.id}
                 />
             ))}
 
-            {/* Same dialog as every other finalise/reopen control in the
-                product. This screen previously reopened a finalised record on
-                a single click, with no confirmation, no reason and no
-                permission check. */}
             {confirming && (
                 <FinaliseConfirmDialog
                     mode={confirming.mode}
                     onCancel={() => setConfirming(null)}
                     onConfirm={(reason?: ReopenReason, note?: string) => {
-                        if (confirming.mode === "finalise") finalise.mutate(confirming.id);
-                        else if (reason)
+                        if (reason)
                             reopen.mutate({ episodeId: confirming.id, reason, note });
                         setConfirming(null);
                     }}
@@ -143,19 +145,25 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
 function EpisodeRow({
     episode,
     mayReopen,
-    onFinalise,
     onReopen,
     isBusy,
 }: {
     episode: Episode;
     mayReopen: boolean;
-    onFinalise: () => void;
     onReopen: () => void;
     isBusy: boolean;
 }) {
-    const [showDocuments, setShowDocuments] = useState(false);
+    // Auto-expand for finalised and reopened episodes — those have actual health
+    // records the user needs to see without any extra click. Open episodes start
+    // collapsed since they typically have no finalised documents yet.
+    const [showDocuments, setShowDocuments] = useState(episode.status !== "open");
+    const linkCareContext = useManualLinkCareContext();
     const Icon = EPISODE_ICONS[episode.episode_type] ?? Stethoscope;
     const finalised = episode.status === "finalised";
+
+    const isLinking = linkCareContext.isPending && linkCareContext.variables === episode.id;
+    const canRetryLink =
+        episode.abdm_link_status === "failed" || episode.abdm_link_status === "unlinked";
 
     return (
         <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
@@ -178,6 +186,11 @@ function EpisodeRow({
                                 {episode.reference_number}
                             </span>
                             <StatusChip status={episode.status} />
+                            {/* ABDM status badge — always shown so staff know ABHA linking state */}
+                            <AbdmStatusChip
+                                status={episode.abdm_link_status ?? "unlinked"}
+                                linkedAt={episode.abdm_linked_at}
+                            />
                         </div>
 
                         <p className="mt-0.5 text-xs text-slate-500">
@@ -201,49 +214,81 @@ function EpisodeRow({
                             </p>
                         )}
 
-                        {/* Only once something has been frozen. An expander
-                            offering an empty list on every open visit is noise. */}
-                        {episode.status !== "open" && (
-                            <button
-                                onClick={() => setShowDocuments((open) => !open)}
-                                className="mt-2 text-xs font-semibold text-sky-600 transition hover:text-sky-700"
-                            >
-                                {showDocuments ? "Hide documents" : "View documents"}
-                            </button>
+                        {/* ABDM error detail */}
+                        {episode.abdm_link_status === "failed" && episode.abdm_link_error && (
+                            <p className="mt-1.5 text-[11px] text-red-600">
+                                Error: {episode.abdm_link_error}
+                            </p>
                         )}
+
+                        {/* Documents toggle — available for all episode statuses.
+                            Documents are written as events fire: invoice on creation,
+                            consultation + prescription on visit completion, lab
+                            reports when results arrive. */}
+                        <button
+                            onClick={() => setShowDocuments((v) => !v)}
+                            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-sky-600 transition hover:text-sky-700"
+                        >
+                            {showDocuments ? (
+                                <><ChevronUp className="h-3.5 w-3.5" /> Hide documents</>
+                            ) : (
+                                <><ChevronDown className="h-3.5 w-3.5" /> View documents</>
+                            )}
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex flex-shrink-0 items-center gap-2">
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                    {/* Manual ABDM link button — shown only when linking failed or never tried */}
+                    {canRetryLink && (
+                        <button
+                            id={`link-abdm-${episode.id}`}
+                            onClick={() => linkCareContext.mutate(episode.id)}
+                            disabled={isLinking}
+                            title={
+                                episode.abdm_link_status === "failed"
+                                    ? "Retry ABDM linking for this care context"
+                                    : "Link this care context to ABDM"
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                        >
+                            {isLinking ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : episode.abdm_link_status === "failed" ? (
+                                <RefreshCw className="h-3.5 w-3.5" />
+                            ) : (
+                                <Link2 className="h-3.5 w-3.5" />
+                            )}
+                            {episode.abdm_link_status === "failed" ? "Retry ABDM" : "Link to ABDM"}
+                        </button>
+                    )}
+
+                    {/* Reopen button — for late documentation.
+                        No Finalise button: episodes auto-finalise on visit completion. */}
                     {isBusy ? (
                         <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                    ) : finalised ? (
-                        mayReopen && (
-                        <button
-                            onClick={onReopen}
-                            title="Reopen so late documentation can be added. Recorded in the audit trail."
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                        >
-                            <Unlock className="h-3.5 w-3.5" />
-                            Reopen
-                        </button>
-                        )
                     ) : (
-                        <button
-                            onClick={onFinalise}
-                            title="Freeze this visit's documents"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-600"
-                        >
-                            <Lock className="h-3.5 w-3.5" />
-                            Finalise
-                        </button>
+                        finalised &&
+                        mayReopen && (
+                            <button
+                                onClick={onReopen}
+                                title="Reopen so late documentation can be added. Recorded in the audit trail."
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                                <Unlock className="h-3.5 w-3.5" />
+                                Reopen
+                            </button>
+                        )
                     )}
                 </div>
             </div>
 
             {showDocuments && (
                 <div className="mt-3 border-t border-slate-100 pt-3">
-                    <DocumentVersionHistory episodeId={episode.id} />
+                    <DocumentVersionHistory
+                        episodeId={episode.id}
+                        episodeStatus={episode.status}
+                    />
                 </div>
             )}
         </li>
@@ -257,14 +302,80 @@ function StatusChip({ status }: { status: Episode["status"] }) {
         // Amber rather than red: reopening is legitimate, not an error state.
         reopened: "bg-amber-100 text-amber-700",
     };
+    // User-friendly labels: staff care about clinical state, not system state.
     const labels: Record<Episode["status"], string> = {
-        open: "Open",
-        finalised: "Finalised",
+        open: "In progress",
+        finalised: "Completed",
         reopened: "Reopened",
     };
     return (
         <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${styles[status]}`}>
             {labels[status]}
+        </span>
+    );
+}
+
+/**
+ * ABDM care-context linking status badge.
+ *
+ * Shown on every episode card so staff can immediately tell whether a visit's
+ * records have reached the patient's ABHA app — the primary ABDM integration
+ * concern from the hospital's perspective.
+ */
+function AbdmStatusChip({
+    status,
+    linkedAt,
+}: {
+    status: AbdmLinkStatus;
+    linkedAt: string | null;
+}) {
+    const config: Record<
+        AbdmLinkStatus,
+        { label: string; icon: React.ElementType; className: string }
+    > = {
+        unlinked: {
+            label: "Not linked",
+            icon: WifiOff,
+            className: "bg-slate-100 text-slate-500",
+        },
+        pending: {
+            label: "Linking…",
+            icon: Clock,
+            className: "bg-amber-100 text-amber-700",
+        },
+        linked: {
+            label: linkedAt
+                ? `Linked ${new Date(linkedAt).toLocaleDateString()}`
+                : "Linked",
+            icon: CheckCircle2,
+            className: "bg-emerald-100 text-emerald-700",
+        },
+        sms_sent: {
+            label: "SMS sent",
+            icon: MessageSquare,
+            className: "bg-blue-100 text-blue-700",
+        },
+        failed: {
+            label: "Link failed",
+            icon: AlertCircle,
+            className: "bg-red-100 text-red-700",
+        },
+        no_abha: {
+            label: "No ABHA",
+            icon: WifiOff,
+            className: "bg-slate-100 text-slate-400",
+        },
+    };
+
+    const { label, icon: Icon, className } = config[status] ?? config.unlinked;
+
+    return (
+        <span
+            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${className}`}
+            title={`ABDM status: ${status}`}
+        >
+            <Icon className="h-3 w-3" />
+            {label}
         </span>
     );
 }
