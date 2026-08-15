@@ -982,10 +982,14 @@ export function AbhaEnrollmentModal({
 
                 {!otpSent ? (
                   <>
+                    {/* Creating a new ABHA via Aadhaar — the full published
+                        consent, all seven declarations. */}
                     <AbhaConsentPanel
+                      variant="abha-creation"
                       checked={aadhaarConsentAccepted}
                       onChange={setAadhaarConsentAccepted}
                       disabled={loading}
+                      beneficiaryName={initialName}
                     />
                     <button
                       type="button"
@@ -1345,10 +1349,15 @@ export function AbhaEnrollmentModal({
 
                 {!linkOtpSent ? (
                   <>
+                    {/* Linking an ABHA that already exists — nothing is
+                        being created, so the creation-specific declarations
+                        do not apply. */}
                     <AbhaConsentPanel
+                      variant="aadhaar-authentication"
                       checked={linkConsentAccepted}
                       onChange={setLinkConsentAccepted}
                       disabled={loading}
+                      beneficiaryName={initialName}
                     />
                     <button
                       type="button"

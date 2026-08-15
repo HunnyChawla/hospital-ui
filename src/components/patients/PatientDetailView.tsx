@@ -1,7 +1,11 @@
 "use client";
 
+
+import { resolveAbhaNumber } from "@/utils/abha";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
+import { PatientEpisodeTimeline } from "@/components/health-record/PatientEpisodeTimeline";
+import { ImmunisationPanel } from "@/components/health-record/ImmunisationPanel";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectPatient, fetchPatients, getPatientById } from "@/redux/patientsSlice";
 import { PatientFormModal } from "./PatientFormModal";
@@ -41,6 +45,7 @@ import {
   BedDouble,
   Stethoscope,
   TestTube,
+  Syringe,
   Calendar,
   PlusCircle,
   Plus,
@@ -74,7 +79,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const doctors = useAppSelector((s) => s.doctors.list);
 
   const [activeTab, setActiveTab] = useState<
-    "opd" | "appointment" | "admit" | "billing" | "tests"
+    "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation"
   >("appointment");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
@@ -88,10 +93,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const handleAbhaSuccessInDetail = async (profile: any, sessionKey: string, aadhaar?: string) => {
     try {
-      await abhaApi.syncToPatient(patientId, {
-        session_key: sessionKey,
-        aadhaar_number: aadhaar || null,
-      });
+      // No aadhaar_number: ABDM forbids storing it, so the server no longer
+      // accepts one. The Aadhaar still authenticates the enrollment; it is
+      // simply not retained afterwards.
+      await abhaApi.syncToPatient(patientId, { session_key: sessionKey });
       toast.success("ABHA profile attached to patient successfully!");
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);
@@ -749,7 +754,11 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           id: patientData.id,
           name: formatPatientName(patientData),
           mobile: patientData.mobile,
-          healthId: patientData.abha_id || "",
+          // The ABHA, not the UHID. `abha_id` is legacy and holds UHIDs for
+          // many patients — see utils/abha.ts.
+          // The patient's ABHA number, not our UHID. `abha_id` is a legacy
+          // column holding UHIDs for many patients — see utils/abha.ts.
+          healthId: resolveAbhaNumber(patientData.abha_number, patientData.abha_id) || "",
           age: patientData.date_of_birth
             ? Math.floor((new Date().getTime() - new Date(patientData.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
             : 0,
@@ -963,14 +972,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
                 <div className="mt-2 flex items-center gap-2">
                   <AbhaStatusBadge
-                    abhaNumber={patient.abhaNumber || patient.abhaId || null}
+                    abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId)}
                     abhaAddress={patient.abhaAddress}
                     abhaVerified={patient.abhaVerified}
                     showEnrollButton={abhaEnabled}
                     onEnrollClick={() => setIsAbhaModalOpen(true)}
                     size="sm"
                   />
-                  {(patient.abhaNumber || patient.abhaId) && (
+                  {resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
                     <button
                       type="button"
                       onClick={() => setIsCardDownloadModalOpen(true)}
@@ -1024,6 +1033,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 { id: "admit", label: "Admit/Discharge", icon: BedDouble },
                 { id: "billing", label: "Billing", icon: CreditCard },
                 { id: "tests", label: "Tests", icon: TestTube },
+                { id: "record", label: "Health Record", icon: FileText },
+                { id: "immunisation", label: "Immunisation", icon: Syringe },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1652,6 +1663,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 </div>
               )}
 
+              {activeTab === "record" && (
+                <PatientEpisodeTimeline patientId={patient?.id ?? null} />
+              )}
+
+              {activeTab === "immunisation" && (
+                <ImmunisationPanel patientId={patient?.id ?? null} />
+              )}
+
               {activeTab === "tests" && (
                 <div className="space-y-6">
                   {/* Prescribed Lab Tests Section */}
@@ -2108,11 +2127,11 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Card Download Modal (already-linked patients) */}
-      {patient && (patient.abhaNumber || patient.abhaId) && (
+      {patient && resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
         <AbhaCardDownloadModal
           isOpen={isCardDownloadModalOpen}
           onClose={() => setIsCardDownloadModalOpen(false)}
-          abhaNumber={(patient.abhaNumber || patient.abhaId) as string}
+          abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId) as string}
         />
       )}
     </div>

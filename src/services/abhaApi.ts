@@ -105,7 +105,9 @@ export interface AbhaLinkVerifyOtpDto {
 
 export interface AbhaPatientSyncRequestDto {
   session_key: string;
-  aadhaar_number?: string | null;
+  // `aadhaar_number` removed 8 Aug 2026 — ABDM forbids storing it, and the
+  // server no longer accepts or persists it. Aadhaar is still sent for
+  // authentication in the enrollment DTOs; only retention is gone.
   override_mismatch?: boolean;
 }
 
@@ -129,6 +131,56 @@ export interface AbhaLinkCheckResponseDto {
   /** Non-blocking: an unverified/legacy record already carries this ABHA. */
   warning?: string | null;
   identity_mismatches?: string[];
+}
+
+
+// ---------------------------------------------------------------------------
+// Find ABHA — a patient at the desk cannot remember their ABHA number.
+//
+// Three steps, because the middle one is conditional: request an OTP, verify
+// it, and — only when one mobile turns out to cover several ABHAs — pick one.
+// ---------------------------------------------------------------------------
+
+export type FindAbhaBy = "mobile" | "aadhaar";
+
+export interface FindAbhaRequestOtpDto {
+  search_by: FindAbhaBy;
+  value: string;
+}
+
+export interface FindAbhaRequestOtpResult {
+  session_key: string;
+  message?: string | null;
+  auth_methods: string[];
+}
+
+export interface FindAbhaVerifyOtpDto {
+  session_key: string;
+  otp: string;
+}
+
+export interface FoundAbhaAccount {
+  abha_number?: string | null;
+  abha_address?: string | null;
+  name?: string | null;
+  gender?: string | null;
+  date_of_birth?: string | null;
+  mobile?: string | null;
+  profile_photo?: string | null;
+  kyc_verified?: boolean | null;
+}
+
+export interface FindAbhaResult {
+  session_key: string;
+  accounts: FoundAbhaAccount[];
+  /** More than one ABHA matched. The patient must say which is theirs. */
+  requires_selection: boolean;
+  message?: string | null;
+}
+
+export interface FindAbhaSelectDto {
+  session_key: string;
+  abha_number: string;
 }
 
 export const abhaApi = {
@@ -258,6 +310,36 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.get(`/abha/card/${sessionKey}`, { params, responseType: "blob" });
+    return response.data;
+  },
+  // Find ABHA -----------------------------------------------------------
+  async findRequestOtp(
+    req: FindAbhaRequestOtpDto,
+    tenantId?: string
+  ): Promise<FindAbhaRequestOtpResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<FindAbhaRequestOtpResult>(
+      "/abha/find/request-otp",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
+  async findVerifyOtp(req: FindAbhaVerifyOtpDto, tenantId?: string): Promise<FindAbhaResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<FindAbhaResult>("/abha/find/verify-otp", req, {
+      params,
+    });
+    return response.data;
+  },
+
+  async findSelectAccount(req: FindAbhaSelectDto, tenantId?: string): Promise<FindAbhaResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<FindAbhaResult>("/abha/find/select", req, { params });
     return response.data;
   },
 };

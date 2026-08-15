@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/common/Modal";
 import { PrescriptionForm } from "./PrescriptionForm";
+import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
 
 interface PrescriptionFormModalProps {
   isOpen: boolean;
@@ -27,6 +28,11 @@ export function PrescriptionFormModal({
       title="Create Prescription"
       size="full"
     >
+      <LockedWhenFinalised
+        episodeType="opd_visit"
+        sourceId={visitId}
+        reason="This visit has been finalised. Its prescription is frozen and a version recorded — reopen the visit to change it."
+      >
       <PrescriptionForm
         visitId={visitId}
         patientId={patientId}
@@ -37,6 +43,7 @@ export function PrescriptionFormModal({
         }}
         onCancel={onClose}
       />
+      </LockedWhenFinalised>
     </Modal>
   );
 }

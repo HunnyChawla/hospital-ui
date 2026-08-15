@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AbdmConfigSettings } from "@/components/abha/AbdmConfigSettings";
+import { CounterManagement } from "@/components/abha/CounterManagement";
 import { usePermissions } from "@/hooks/usePermissions";
 
 export default function AbdmSettingsPage() {
@@ -29,8 +30,9 @@ export default function AbdmSettingsPage() {
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="space-y-6 max-w-5xl pb-10">
       <AbdmConfigSettings />
+      <CounterManagement />
     </div>
   );
 }

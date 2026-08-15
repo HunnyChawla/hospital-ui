@@ -15,6 +15,7 @@ import { LabResultsPanel } from "./patient-details/LabResultsPanel";
 import { QuickNotesPanel } from "./patient-details/QuickNotesPanel";
 import { IpdInfoPanel } from "./patient-details/IpdInfoPanel";
 import { PrescriptionFormModal } from "./PrescriptionFormModal";
+import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { useAppSelector } from "@/redux/hooks";
 import { labBookingsApi } from "@/services/labBookingsApi";
@@ -560,6 +561,7 @@ export function DoctorPanel() {
         selectedPatientId={selectedPatientId}
         selectedPatientName={selectedPatientName}
         selectedPatientUhid={selectedPatientUhid}
+        currentVisitId={currentVisitId ?? null}
         activeTab={activeTab}
         onSelectPatient={selectPatient}
         onClearPatient={handleClearPatient}
@@ -571,7 +573,13 @@ export function DoctorPanel() {
         onCreatePrescription={() => setShowPrescriptionModal(true)}
         onPrintOpd={handlePrintOpd}
       >
-        {renderTabContent()}
+        {/* One wrapper for every clinical tab rather than a flag threaded
+            through each panel: the tabs that write (complaints, conditions,
+            allergies, vitals, notes) all belong to the same visit, and the
+            one that got missed would be the one that let an edit through. */}
+        <LockedWhenFinalised episodeType="opd_visit" sourceId={currentVisitId ?? null}>
+          {renderTabContent()}
+        </LockedWhenFinalised>
       </DoctorPanelVerticalLayout>
 
       {/* Prescription Modal */}

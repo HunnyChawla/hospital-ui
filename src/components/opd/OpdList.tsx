@@ -27,6 +27,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PrescribedLabBookingModal } from "../lab-bookings/PrescribedLabBookingModal";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { Beaker } from "lucide-react";
+import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 
 interface OpdListProps {
   doctorId?: string;
@@ -350,6 +351,7 @@ function VisitListRow({
             onClick={action.onClick}
           />
         ))}
+        <FinaliseVisitAction episodeType="opd_visit" sourceId={visit.id} compact />
         <PrintButtonsGroup
           visit={visit}
           onPrintOpd={onPrintOpd}
@@ -504,7 +506,8 @@ function VisitCard({
                 onClick={action.onClick}
               />
             ))}
-            <PrintButtonsGroup
+            <FinaliseVisitAction episodeType="opd_visit" sourceId={visit.id} compact />
+        <PrintButtonsGroup
               visit={visit}
               onPrintOpd={onPrintOpd}
               onPrintInvoice={onPrintInvoice}

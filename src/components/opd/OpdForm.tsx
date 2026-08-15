@@ -327,8 +327,12 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
       return;
     }
 
-    const feeAmount = feeOverride && parseFloat(feeOverride) >= 0
-      ? parseFloat(feeOverride)
+    const parsedOverride = feeOverride !== "" && feeOverride !== null && !isNaN(Number(feeOverride)) && Number(feeOverride) >= 0
+      ? Number(feeOverride)
+      : null;
+
+    const feeAmount = parsedOverride !== null
+      ? parsedOverride
       : (consultationFee ? parseFloat(consultationFee) : 0);
 
     // Validate payment reference only if fee > 0 since we hide payment method when fee is 0
@@ -350,7 +354,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         payment_method: (feeAmount === 0 && !paymentMethod) ? "cash" : (paymentMethod as any),
         payment_reference: paymentReference.trim() || null,
         consultation_fee: consultationFee ? parseFloat(consultationFee) : null,
-        consultation_fee_override: feeOverride && parseFloat(feeOverride) >= 0 ? parseFloat(feeOverride) : null,
+        consultation_fee_override: parsedOverride,
       };
 
       const visit = await createOpdVisit.mutateAsync(visitRequest);
@@ -672,10 +676,10 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
               />
             )}
           </div>
-          {feeOverride && parseFloat(feeOverride) > 0 && (
+          {feeOverride !== "" && !isNaN(Number(feeOverride)) && Number(feeOverride) >= 0 && (
             <div className="mt-2 flex items-center justify-between rounded border border-teal-200 bg-teal-50 px-2.5 py-1.5">
               <span className="text-xs font-medium text-teal-800">
-                Override: {currency(parseFloat(feeOverride))}
+                Override: {currency(Number(feeOverride))}
               </span>
               <button
                 type="button"

@@ -29,6 +29,8 @@ interface DoctorPanelVerticalLayoutProps {
   selectedPatientId: string | null;
   selectedPatientName?: string;
   selectedPatientUhid?: string;
+  /** The visit being worked on, for the finalise control. */
+  currentVisitId?: string | null;
   activeTab: ActiveTab;
   onSelectPatient: (patientId: string) => void;
   onClearPatient: () => void;
@@ -64,6 +66,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
   selectedPatientId,
   selectedPatientName,
   selectedPatientUhid,
+  currentVisitId,
   activeTab,
   onSelectPatient,
   onClearPatient,
@@ -101,6 +104,7 @@ const DoctorPanelVerticalLayoutComponent: React.FC<DoctorPanelVerticalLayoutProp
             onCreatePrescription={onCreatePrescription}
             onPrintOpd={onPrintOpd}
             showPrescriptionButton={!!selectedPatientId}
+            visitId={currentVisitId}
           >
             {children}
           </ActivePatientCard>

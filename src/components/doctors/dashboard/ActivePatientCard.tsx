@@ -11,6 +11,8 @@ import {
   X,
   Printer,
 } from "lucide-react";
+import { FinalisedBadge } from "@/components/health-record/FinaliseVisitAction";
+import { useEpisodeForSource } from "@/hooks/queries/useHealthRecord";
 
 type ActiveTab = "history" | "vitals" | "labs" | "notes" | "ipd";
 
@@ -24,6 +26,8 @@ interface ActivePatientCardProps {
   onCreatePrescription?: () => void;
   onPrintOpd?: () => void;
   showPrescriptionButton?: boolean;
+  /** The visit being worked on, so it can be finalised from here. */
+  visitId?: string | null;
   children: React.ReactNode;
 }
 
@@ -45,8 +49,15 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
   onCreatePrescription,
   onPrintOpd,
   showPrescriptionButton = false,
+  visitId = null,
   children,
 }) => {
+  // Show a Finalised badge when the episode has been auto-closed on visit
+  // completion. The manual Finalise button was removed in Phase 5 because
+  // finalisation now happens automatically.
+  const { data: episode } = useEpisodeForSource("opd_visit", visitId ?? null);
+  const isFinalised = episode?.status === "finalised";
+
   if (!patientId) {
     return (
       <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12">
@@ -110,6 +121,14 @@ const ActivePatientCardComponent: React.FC<ActivePatientCardProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Finalisation is automatic on visit completion (Phase 5).
+            Show the badge only when the episode is confirmed finalised. */}
+        {isFinalised && visitId && (
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+            <FinalisedBadge />
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
