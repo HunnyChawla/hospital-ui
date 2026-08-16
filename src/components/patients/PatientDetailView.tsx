@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { PatientEpisodeTimeline } from "@/components/health-record/PatientEpisodeTimeline";
 import { ImmunisationPanel } from "@/components/health-record/ImmunisationPanel";
+import { AbdmHiuConsentPanel } from "@/components/health-record/AbdmHiuConsentPanel";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectPatient, fetchPatients, getPatientById } from "@/redux/patientsSlice";
 import { PatientFormModal } from "./PatientFormModal";
@@ -64,6 +65,7 @@ import {
   MapPin,
   FileText,
   Download,
+  ShieldCheck,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -79,7 +81,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const doctors = useAppSelector((s) => s.doctors.list);
 
   const [activeTab, setActiveTab] = useState<
-    "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation"
+    "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation" | "abdm_records"
   >("appointment");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
@@ -1035,6 +1037,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 { id: "tests", label: "Tests", icon: TestTube },
                 { id: "record", label: "Health Record", icon: FileText },
                 { id: "immunisation", label: "Immunisation", icon: Syringe },
+                { id: "abdm_records", label: "ABDM External Records", icon: ShieldCheck },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1669,6 +1672,14 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
               {activeTab === "immunisation" && (
                 <ImmunisationPanel patientId={patient?.id ?? null} />
+              )}
+
+              {activeTab === "abdm_records" && (
+                <AbdmHiuConsentPanel
+                  patientId={patient.id}
+                  patientName={patient.name}
+                  patientAbha={patient.abhaAddress}
+                />
               )}
 
               {activeTab === "tests" && (
