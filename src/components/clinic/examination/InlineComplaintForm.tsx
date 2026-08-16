@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import clsx from "clsx";
 import { X, Check, AlertCircle, ChevronsUpDown } from "lucide-react";
-import { EyeSelector, SeveritySelector } from "../shared";
+import { EyeSelector, SeveritySelector } from "@/components/optometrist/shared";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { useFullscreenContainer } from "@/context/FullscreenContainerContext";
 import {
@@ -32,6 +32,11 @@ interface InlineComplaintFormProps {
   onCancel: () => void;
   defaultValues?: Partial<FormData>;
   isSubmitting?: boolean;
+  /**
+   * Whether to ask which eye. False in a general hospital, where "headache
+   * (BE)" would be nonsense — the eye is appended to the complaint text.
+   */
+  showEyeSelector?: boolean;
 }
 
 const DURATION_OPTIONS = [
@@ -48,6 +53,7 @@ export function InlineComplaintForm({
   onCancel,
   defaultValues,
   isSubmitting = false,
+  showEyeSelector = true,
 }: InlineComplaintFormProps) {
   const { containerRef } = useFullscreenContainer();
   const [eye, setEye] = useState<EyeType | null>(defaultValues?.eye || null);
@@ -102,7 +108,7 @@ export function InlineComplaintForm({
 
   const handleSubmit = async () => {
     // Validation
-    if (!eye) {
+    if (showEyeSelector && !eye) {
       setError("Eye is required");
       return;
     }
@@ -112,7 +118,10 @@ export function InlineComplaintForm({
     try {
       await onSave({
         text: complaintText,
-        eye,
+        // Non-null whenever the selector is shown, because the guard above
+        // refuses to submit without it. With the selector hidden the value is
+        // unused — the caller does not put the eye in the complaint text.
+        eye: eye ?? "GE",
         severity,
         duration: duration.trim(),
         notes: notes.trim() || undefined,
@@ -152,20 +161,22 @@ export function InlineComplaintForm({
           {/* Row 1: Eye and Severity selectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Eye Selector */}
-            <div>
-              <EyeSelector
-                value={eye}
-                onChange={(value) => setEye(value)}
-                label="Eye"
-                size="sm"
-              />
-            </div>
+            {showEyeSelector && (
+              <div>
+                <EyeSelector
+                  value={eye}
+                  onChange={(value: "LE" | "RE" | "BE" | "GE") => setEye(value)}
+                  label="Eye"
+                  size="sm"
+                />
+              </div>
+            )}
 
             {/* Severity Selector */}
             <div>
               <SeveritySelector
                 value={severity}
-                onChange={(value) => setSeverity(value)}
+                onChange={(value: "mild" | "moderate" | "severe") => setSeverity(value)}
                 label="Severity"
                 size="sm"
               />

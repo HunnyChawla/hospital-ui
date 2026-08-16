@@ -4,7 +4,8 @@ import type { TaperingStep } from "@/types";
 
 // Request types - for creating/updating prescriptions
 export interface PrescriptionItemRequest {
-  medicine_id: string;
+  medicine_id?: string | null;
+  medicine_name?: string | null;
   generic_name?: string;
   dosage?: string;
   frequency?: string;
@@ -17,12 +18,12 @@ export interface PrescriptionItemRequest {
  * One line of advice on a prescription.
  *
  * `instruction` is something the patient does ("rest for three days");
- * `test` is something they are sent for. A test may name a catalogue entry,
- * but need not — "X-ray, left knee" is a valid order even if nobody has added
- * that exact test to the master.
+ * `lab-test` is something they are sent for. A lab-test may name a catalogue
+ * entry, but need not — "X-ray, left knee" is a valid order even if nobody
+ * has added that exact test to the master.
  */
 export interface AdviceItemRequest {
-  advice_type: "test" | "instruction";
+  advice_type: "lab-test" | "instruction";
   description: string;
   notes?: string | null;
   lab_test_id?: string | null;
@@ -42,6 +43,8 @@ export interface CreatePrescriptionRequest {
   items: PrescriptionItemRequest[];
   advice_items?: AdviceItemRequest[];
   followup_date?: string | null;
+  plan_of_action?: string | null;
+  remarks?: string | null;
 }
 
 export interface UpdatePrescriptionRequest {
@@ -50,14 +53,17 @@ export interface UpdatePrescriptionRequest {
   notes?: string;
   /** Omit to leave advice alone; send [] to clear it. */
   advice_items?: AdviceItemRequest[];
+  /** For these scalars: omit to leave alone; send null to clear. */
   followup_date?: string | null;
+  plan_of_action?: string | null;
+  remarks?: string | null;
 }
 
 // Response types - for API responses
 export interface PrescriptionItemResponse {
   id: string;
   prescription_id: string;
-  medicine_id: string;
+  medicine_id: string | null;
   medicine_name: string;
   generic_name?: string | null;
   dosage: string | null;
@@ -86,6 +92,8 @@ export interface PrescriptionResponse {
   items: PrescriptionItemResponse[];
   advice_items: AdviceItem[];
   followup_date: string | null;
+  plan_of_action: string | null;
+  remarks: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;

@@ -4,6 +4,8 @@ import { getTenantIdForApi } from "@/utils/auth";
 
 export interface CreateVitalSignsRequest {
   patient_id: string;
+  /** OPD visit this reading was taken during; ties it to the encounter. */
+  visit_id?: string | null;
   systolic_bp?: number | null;
   diastolic_bp?: number | null;
   pulse_rate?: number | null;
@@ -32,6 +34,7 @@ export interface UpdateVitalSignsRequest {
 
 export interface VitalSignsListParams {
   patient_id: string;
+  visit_id?: string;
   start_date?: string;
   end_date?: string;
   page?: number;

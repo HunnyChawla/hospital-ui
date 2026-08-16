@@ -14,6 +14,8 @@ import { TopBar } from "@/components/layout/TopBar";
 import { Footer } from "@/components/layout/Footer";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";
 import { Shield, Home as HomeIcon } from "lucide-react";
 
 /**
@@ -152,21 +154,32 @@ export default function DashboardLayout({
     userPermissions
   } = usePermissions();
 
-  const isAuthorized = useMemo(() => {
-    if (!permissionsInitialized || permissionsLoading || !isAuthenticated) return true;
+  // Per-tenant opt-in for the general clinic panel; defaults off so existing
+  // tenants keep the legacy /doctor-panel untouched.
+  const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");
+  const clinicPanelEnabled = (clinicPanelFlags?.enabled as boolean) ?? false;
 
-    // Check doctor panel access based on specialization (logic from Sidebar.tsx)
-    if (userRole === "doctor") {
+  const authState = useMemo((): { authorized: boolean; ownPanelPath: string | null } => {
+    if (!permissionsInitialized || permissionsLoading || !isAuthenticated)
+      return { authorized: true, ownPanelPath: null };
+
+    // Panel routing: each doctor/examiner belongs on exactly one panel
+    // (resolver shared with Sidebar so the two cannot drift)
+    if (userRole === "doctor" || userRole === "examiner") {
       const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
       const currentDoctor = doctors.list?.find((d) => d.user_id === userId);
-      const isOphthalmologist = currentDoctor?.specialization === "Ophthalmology";
-
-      if (pathname.startsWith("/optometrist-panel") && !isOphthalmologist) return false;
-      if (pathname.startsWith("/doctor-panel") && isOphthalmologist) return false;
+      const mine = resolvePanelPathForUser(
+        userRole,
+        currentDoctor?.specialization,
+        clinicPanelEnabled
+      );
+      const target = PANEL_PATHS.find((p) => pathname.startsWith(p));
+      if (target && target !== mine) return { authorized: false, ownPanelPath: mine };
     }
 
-    return hasAccess(pathname);
-  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors]);
+    return { authorized: hasAccess(pathname), ownPanelPath: null };
+  }, [pathname, permissionsInitialized, permissionsLoading, isAuthenticated, hasAccess, userRole, doctors, clinicPanelEnabled]);
+  const isAuthorized = authState.authorized;
 
   // Handle redirection to default screen if root (/) is not the intended start page
   useEffect(() => {
@@ -258,11 +271,29 @@ export default function DashboardLayout({
             <Shield className="h-16 w-16 text-rose-600" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Access Denied</h1>
-          <p className="text-slate-600 max-w-md mb-8">
-            You do not have permission to access the <span className="font-semibold text-slate-900">&quot;{pathname}&quot;</span> screen.
-            Please contact your administrator if you believe this is an error.
-          </p>
+          {authState.ownPanelPath ? (
+            <p className="text-slate-600 max-w-md mb-8">
+              This screen belongs to a different working panel. Your panel is{" "}
+              <span className="font-semibold text-slate-900">&quot;{authState.ownPanelPath}&quot;</span>.
+              {authState.ownPanelPath !== "/clinic-panel" && pathname.startsWith("/clinic-panel") && (
+                <> The Clinic Panel is enabled per tenant from the Feature Flags screen.</>
+              )}
+            </p>
+          ) : (
+            <p className="text-slate-600 max-w-md mb-8">
+              You do not have permission to access the <span className="font-semibold text-slate-900">&quot;{pathname}&quot;</span> screen.
+              Please contact your administrator if you believe this is an error.
+            </p>
+          )}
           <div className="flex flex-col sm:flex-row gap-3">
+            {authState.ownPanelPath && (
+              <button
+                onClick={() => router.push(authState.ownPanelPath!)}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-sky-500 text-white font-semibold rounded-xl hover:bg-sky-600 transition shadow-lg shadow-sky-100"
+              >
+                Go to My Panel
+              </button>
+            )}
             <button
               onClick={() => router.push(userPermissions?.default_screen || "/")}
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-sky-500 text-white font-semibold rounded-xl hover:bg-sky-600 transition shadow-lg shadow-sky-100"

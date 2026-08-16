@@ -92,6 +92,7 @@ export type QueueEntry = {
 export type VitalSigns = {
   id: string;
   patient_id: string;
+  visit_id?: string | null; // OPD visit the reading was taken during
   recorded_at: string; // ISO datetime
   recorded_by: string; // user_id
   systolic_bp: number | null;
@@ -917,6 +918,7 @@ export type UserRole =
   | "nurse"
   | "receptionist"
   | "optometrist"
+  | "examiner"
   | "lab_technician"
   | "platform_owner";
 

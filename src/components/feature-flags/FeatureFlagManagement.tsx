@@ -48,6 +48,10 @@ export function FeatureFlagManagement() {
 
     const [abdmMilestone, setAbdmMilestone] = useState<AbdmMilestoneLevel>("none");
 
+    const [clinicPanelFlags, setClinicPanelFlags] = useState({
+        enabled: false,
+    });
+
     // Fetch tenants for platform owners
     useEffect(() => {
         if (isPlatformOwner) {
@@ -98,6 +102,11 @@ export function FeatureFlagManagement() {
         } else {
             setAbdmMilestone("none");
         }
+        if (allFlags?.clinic_panel) {
+            setClinicPanelFlags({
+                enabled: allFlags.clinic_panel.enabled as boolean,
+            });
+        }
     }, [allFlags]);
 
     const handleSaveQueue = () => {
@@ -118,6 +127,10 @@ export function FeatureFlagManagement() {
             feature: 'abha',
             flags: { enabled: abdmMilestone !== "none" }
         });
+    };
+
+    const handleSaveClinicPanel = () => {
+        updateFlags({ feature: 'clinic_panel', flags: clinicPanelFlags });
     };
 
     const handleTenantChange = async (newTenantId: string) => {
@@ -539,6 +552,55 @@ export function FeatureFlagManagement() {
                                 <>
                                     <Save className="h-4 w-4" />
                                     Save ABDM Milestone
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Clinic Panel Card */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                    <h2 className="text-lg font-semibold text-slate-900">General Clinic Panel</h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        The examiner → doctor workflow panel for general hospitals
+                    </p>
+                </div>
+                <div className="p-6 space-y-6">
+                    <label className="flex items-start gap-4 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={clinicPanelFlags.enabled}
+                            onChange={(e) => setClinicPanelFlags({ enabled: e.target.checked })}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        />
+                        <div className="flex-1">
+                            <div className="font-medium text-slate-900">
+                                Enable Clinic Panel for general doctors
+                            </div>
+                            <div className="text-sm text-slate-500 mt-1">
+                                When enabled, non-ophthalmology doctors use the new Clinic Panel (with inline prescriptions and the examiner workflow) instead of the legacy Doctor Panel. Examiners always use the Clinic Panel.
+                            </div>
+                        </div>
+                    </label>
+
+                    {/* Save Button */}
+                    <div className="pt-4 border-t border-slate-200">
+                        <button
+                            onClick={handleSaveClinicPanel}
+                            disabled={isUpdating}
+                            className="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {isUpdating ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-4 w-4" />
+                                    Save Configuration
                                 </>
                             )}
                         </button>
