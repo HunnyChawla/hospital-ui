@@ -143,7 +143,11 @@ export function useTenantLabelsQuery() {
       if (typeof window !== "undefined") {
         localStorage.setItem(LABELS_STORAGE_KEY, JSON.stringify(updated));
       }
+      // Update this specific key for instant optimistic render on the current page,
+      // then invalidate the whole family so every other mounted component
+      // (ClinicStatusBadge, ClinicCollapsibleQueueSection, etc.) also re-fetches.
       queryClient.setQueryData(["tenant-labels", tenantId], updated);
+      queryClient.invalidateQueries({ queryKey: ["tenant-labels"] });
       toast.success("Labels updated");
     },
     onError: () => toast.error("Failed to update labels"),

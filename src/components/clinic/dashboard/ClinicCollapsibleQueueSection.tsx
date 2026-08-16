@@ -71,7 +71,7 @@ export function ClinicCollapsibleQueueSection({
   onToggle,
   loading = false,
 }: ClinicCollapsibleQueueSectionProps) {
-  const { statusLabel } = useTenantLabels();
+  const { statusLabel, roleLabel } = useTenantLabels();
   const [search, setSearch] = useState("");
 
   // Scroll functionality for tabs
@@ -400,13 +400,13 @@ export function ClinicCollapsibleQueueSection({
                         ? isSelected
                           ? "bg-gradient-to-r from-red-50 via-rose-50 to-red-50/30 border-l-4 border-red-600 shadow-md border-b-red-200"
                           : isClickable
-                          ? "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"
-                          : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 border-b-red-100"
+                            ? "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 hover:from-red-50 hover:to-rose-50 hover:shadow-md border-b-red-100"
+                            : "bg-gradient-to-r from-red-50/50 to-rose-50/30 border-l-4 border-red-500 border-b-red-100"
                         : isSelected
-                        ? "bg-gradient-to-r from-sky-50 to-blue-50/30 border-l-4 border-sky-600 shadow-sm border-b-slate-100"
-                        : isClickable
-                        ? "hover:bg-slate-50/80 hover:shadow-sm border-b-slate-100"
-                        : "border-b-slate-100"
+                          ? "bg-gradient-to-r from-sky-50 to-blue-50/30 border-l-4 border-sky-600 shadow-sm border-b-slate-100"
+                          : isClickable
+                            ? "hover:bg-slate-50/80 hover:shadow-sm border-b-slate-100"
+                            : "border-b-slate-100"
                     )}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
@@ -476,7 +476,7 @@ export function ClinicCollapsibleQueueSection({
                             <>
                               <span>·</span>
                               <span className="font-medium text-slate-500 whitespace-nowrap">
-                                Ex: {patient.examiner_name}
+                                {roleLabel("examiner").slice(0, 2)}: {patient.examiner_name}
                               </span>
                             </>
                           )}
