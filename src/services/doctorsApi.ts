@@ -19,6 +19,8 @@ export interface Doctor {
   updated_at: string;
   created_by?: string | null;
   updated_by?: string | null;
+  is_active?: boolean;
+  status?: string;
   // Legacy fields for backwards compatibility
   name?: string;
   user?: {
@@ -94,9 +96,23 @@ export const doctorsApi = {
     return response.data;
   },
 
-  async list(tenantId?: string): Promise<Doctor[]> {
-    const apiTenantId = getTenantIdForApi(tenantId);
-    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+  async list(options?: { is_active?: boolean; tenantId?: string } | string): Promise<Doctor[]> {
+    let apiTenantId: string | undefined;
+    let isActive: boolean | undefined;
+
+    if (typeof options === "string") {
+      apiTenantId = getTenantIdForApi(options);
+    } else if (options) {
+      apiTenantId = getTenantIdForApi(options.tenantId);
+      isActive = options.is_active;
+    } else {
+      apiTenantId = getTenantIdForApi();
+    }
+
+    const params: Record<string, string> = {};
+    if (apiTenantId) params.tenant_id = apiTenantId;
+    if (isActive !== undefined) params.is_active = String(isActive);
+
     const response = await apiClient.get<Doctor[]>("/doctors", { params });
     return response.data;
   },

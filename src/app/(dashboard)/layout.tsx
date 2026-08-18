@@ -226,6 +226,17 @@ export default function DashboardLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for user changes (create/update) to refresh doctors cache
+  useEffect(() => {
+    const handleUserChange = () => {
+      dispatch(fetchDoctors());
+    };
+    window.addEventListener("user:created", handleUserChange);
+    return () => {
+      window.removeEventListener("user:created", handleUserChange);
+    };
+  }, [dispatch]);
+
   useEffect(() => {
     // Only redirect to login after we've checked authentication
     // This prevents flickering and unwanted redirects during session restore

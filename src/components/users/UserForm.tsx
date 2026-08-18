@@ -2,6 +2,8 @@
 
 import { useForm } from "react-hook-form";
 import { useEffect } from "react";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchDoctors } from "@/redux/doctorsSlice";
 import { usersApi, User, CreateUserRequest, UpdateUserRequest, UserRole, UserStatus } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -12,6 +14,7 @@ interface UserFormProps {
 }
 
 export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
+  const dispatch = useAppDispatch();
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateUserRequest & UpdateUserRequest & { password?: string }>();
 
   useEffect(() => {
@@ -50,8 +53,9 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
         await usersApi.update(defaultValues.id, updateData);
         toast.success("User updated successfully");
 
-        // Dispatch custom event to refresh users list
+        // Dispatch custom event to refresh users list and doctors cache
         window.dispatchEvent(new CustomEvent("user:created"));
+        dispatch(fetchDoctors());
       } else {
         // Create new user
         if (!values.password) {
@@ -69,8 +73,9 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
         await usersApi.create(createData);
         toast.success("User created successfully");
 
-        // Dispatch custom event to refresh users list
+        // Dispatch custom event to refresh users list and doctors cache
         window.dispatchEvent(new CustomEvent("user:created"));
+        dispatch(fetchDoctors());
       }
 
       onSuccess?.();

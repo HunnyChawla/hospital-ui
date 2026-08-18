@@ -42,7 +42,7 @@ export default function ExaminerMappingsPage() {
       const examinersResponse = await usersApi.list({ role: "examiner", page_size: 100 });
       setExaminers(examinersResponse.items);
 
-      const docsResponse = await doctorsApi.list(apiTenantId || undefined);
+      const docsResponse = await doctorsApi.list({ is_active: true, tenantId: apiTenantId || undefined });
       setDoctors(docsResponse);
 
       const mappingPromises = examinersResponse.items.map((examiner) =>

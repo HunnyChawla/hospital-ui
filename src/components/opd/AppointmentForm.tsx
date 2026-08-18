@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { searchPatients } from "@/redux/patientsSlice";
 import { fetchDoctors } from "@/redux/doctorsSlice";
@@ -31,6 +31,11 @@ export function AppointmentForm({
   const patients = useAppSelector((s) => s.patients.list);
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
+
+  // Only active doctors should be selectable for appointments
+  const activeDoctors = useMemo(() => {
+    return doctors.filter((d) => d.is_active !== false && d.status !== "inactive");
+  }, [doctors]);
 
   const [patientId, setPatientId] = useState(defaultPatientId || "");
   const [doctorId, setDoctorId] = useState(() => {
@@ -63,6 +68,19 @@ export function AppointmentForm({
       localStorage.setItem("last_selected_doctor_id", doctorId);
     }
   }, [doctorId]);
+
+  // Reset selected doctor if it is inactive once doctors list is loaded
+  useEffect(() => {
+    if (!doctorsLoading && doctors.length > 0 && doctorId) {
+      const isDoctorActive = activeDoctors.some((d) => d.id === doctorId);
+      if (!isDoctorActive) {
+        setDoctorId("");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("last_selected_doctor_id");
+        }
+      }
+    }
+  }, [doctorsLoading, doctors.length, doctorId, activeDoctors]);
 
   // Do not auto-select the first doctor; require explicit user choice to avoid
   // submitting an unintended doctor. This prevents the form from silently
@@ -423,17 +441,17 @@ export function AppointmentForm({
             value={doctorId}
             onChange={(e) => setDoctorId(e.target.value)}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
-            disabled={doctorsLoading || doctors.length === 0}
+            disabled={doctorsLoading || activeDoctors.length === 0}
             required
           >
             <option value="">Select doctor</option>
             {doctorsLoading ? (
               <option>Loading doctors...</option>
-            ) : doctors.length === 0 ? (
+            ) : activeDoctors.length === 0 ? (
               <option>No doctors available</option>
             ) : (
-              doctors.map((doc) => {
-                const doctorName = doc.name || `Dr. ${doc.specialization}`;
+              activeDoctors.map((doc) => {
+                const doctorName = doc.name || doc.user_name || `Dr. ${doc.specialization}`;
                 return (
                   <option key={doc.id} value={doc.id}>
                     {doctorName} - {doc.specialization}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { admitPatient } from "@/redux/admissionsSlice";
 import { admissionsApi, CreateAdmissionRequest, AdmissionType } from "@/services/admissionsApi";
@@ -50,6 +50,12 @@ export function AdmissionForm({
   // Use Redux centralized caches (fetched once in dashboard layout)
   const doctors = useAppSelector((s) => s.doctors.list);
   const wards = useAppSelector((s) => s.wards.list);
+
+  // Only active doctors should be selectable for admission
+  const activeDoctors = useMemo(() => {
+    return doctors.filter((d) => d.is_active !== false && d.status !== "inactive");
+  }, [doctors]);
+
   const [beds, setBeds] = useState<Bed[]>([]);
   const [availableBeds, setAvailableBeds] = useState<Bed[]>([]);
   const [bedSearchTerm, setBedSearchTerm] = useState("");
@@ -73,12 +79,12 @@ export function AdmissionForm({
   const searchRef = useRef<HTMLDivElement>(null);
   const justSelectedRef = useRef(false);
 
-  // Auto-select first doctor if none selected
+  // Auto-select first active doctor if none selected or if selected doctor is inactive
   useEffect(() => {
-    if (doctors.length > 0 && !doctorId) {
-      setDoctorId(doctors[0].id);
+    if (activeDoctors.length > 0 && (!doctorId || !activeDoctors.some((d) => d.id === doctorId))) {
+      setDoctorId(activeDoctors[0].id);
     }
-  }, [doctors, doctorId]);
+  }, [activeDoctors, doctorId]);
 
   // Note: fetchWards and fetchDoctors removed - now using Redux centralized caches fetched once in dashboard layout
 
@@ -482,7 +488,7 @@ export function AdmissionForm({
           required
         >
           <option value="">Select doctor</option>
-          {doctors.map((doc) => {
+          {activeDoctors.map((doc) => {
             const doctorName = doc.user_name || doc.name || doc.user?.name || `Dr. ${doc.specialization || "Unknown"}`;
             return (
               <option key={doc.id} value={doc.id}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import { X, Loader2, Calendar, User, Stethoscope, Clock, FileText, Building2, CheckCircle2, Package, CreditCard, ChevronDown, ChevronUp, Split, Edit2, AlertCircle, Search } from "lucide-react";
@@ -81,6 +81,9 @@ export function PlannedSurgeryFormModal({
 }: PlannedSurgeryFormModalProps) {
     const queryClient = useQueryClient();
     const doctors = useAppSelector((s) => s.doctors.list);
+    const activeDoctors = useMemo(() => {
+        return doctors.filter((d) => d.is_active !== false && d.status !== "inactive");
+    }, [doctors]);
     const currentTenant = useAppSelector((s) => s.tenant.tenant);
     const isEditing = !!initialData;
     const surgeryIdForBilling = initialData?.id || null;
@@ -647,7 +650,7 @@ export function PlannedSurgeryFormModal({
                                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                         >
                                             <option value="">Select surgeon...</option>
-                                            {doctors.map((doctor) => (
+                                            {activeDoctors.map((doctor) => (
                                                 <option key={doctor.id} value={doctor.id}>
                                                     {doctor.name || doctor.user?.name || doctor.user_name || `Dr. ${doctor.id.slice(0, 8)}`}
                                                 </option>

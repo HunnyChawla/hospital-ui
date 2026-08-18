@@ -54,8 +54,9 @@ export function AddDoctorToGroupModal({
         }
     }, [isOpen]);
 
-    // Filter doctors: exclude existing members and apply search
+    // Filter doctors: exclude inactive doctors, existing members and apply search
     const availableDoctors = allDoctors.filter((doctor) => {
+        if (doctor.is_active === false || doctor.status === "inactive") return false;
         if (existingMembers.includes(doctor.id)) return false;
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();

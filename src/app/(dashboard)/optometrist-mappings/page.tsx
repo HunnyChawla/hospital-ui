@@ -34,7 +34,7 @@ export default function OptometristMappingsPage() {
             const optsResponse = await usersApi.list({ role: "optometrist", page_size: 100 });
             setOptometrists(optsResponse.items);
 
-            const docsResponse = await doctorsApi.list(apiTenantId || undefined);
+            const docsResponse = await doctorsApi.list({ is_active: true, tenantId: apiTenantId || undefined });
             setDoctors(docsResponse);
 
             // Collect all mappings in parallel

@@ -39,6 +39,8 @@ export function useDoctors() {
                 name: user.full_name,
                 email: user.email,
               },
+              is_active: doctor.is_active !== undefined ? doctor.is_active : user.status === "active",
+              status: doctor.status || user.status,
             };
           } catch (error) {
             // If user fetch fails, return doctor without user info

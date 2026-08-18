@@ -38,19 +38,21 @@ export function DoctorTable({ onDoctorClick, onEditClick, onConfigureFeesClick }
             <th className="px-4 py-3">Specialization</th>
             <th className="px-4 py-3">Qualification</th>
             <th className="px-4 py-3">Registration</th>
+            <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
           {list.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+              <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                 No doctors found
               </td>
             </tr>
           ) : (
             list.map((doctor) => {
               const doctorName = doctor.name || doctor.user?.name || `Dr. ${doctor.specialization || "Unknown"}`;
+              const isActive = doctor.is_active !== false && doctor.status !== "inactive";
               return (
                 <tr
                   key={doctor.id}
@@ -71,6 +73,17 @@ export function DoctorTable({ onDoctorClick, onEditClick, onConfigureFeesClick }
                   </td>
                   <td className="px-4 py-3 text-slate-700">
                     {doctor.registration_number || "-"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`pill px-2 py-0.5 text-xs font-normal ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      {isActive ? "active" : "inactive"}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">

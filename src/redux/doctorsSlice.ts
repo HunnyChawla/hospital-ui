@@ -35,6 +35,8 @@ export const fetchDoctors = createAsyncThunk("doctors/fetch", async () => {
             name: user.full_name,
             email: user.email,
           },
+          is_active: doctor.is_active !== undefined ? doctor.is_active : user.status === "active",
+          status: doctor.status || user.status,
         };
       } catch {
         // If user fetch fails, return doctor without name
