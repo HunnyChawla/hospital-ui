@@ -1386,7 +1386,7 @@ export function AbhaEnrollmentModal({
                         onClick={() => setLinkOtpSent(false)}
                         className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                       >
-                        Change ABHA Number
+                        Change ABHA/Mobile Number
                       </button>
                       <button
                         type="button"
