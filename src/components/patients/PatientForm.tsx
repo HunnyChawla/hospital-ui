@@ -7,8 +7,7 @@ import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
 import { patientCategoriesApi } from "@/services/patientCategoriesApi";
 import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "lucide-react";
-import { AbhaStatusBadge, AbhaEnrollmentModal, FindAbhaModal } from "@/components/abha";
-import type { FoundAbhaAccount } from "@/services/abhaApi";
+import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
@@ -55,8 +54,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   // ABHA Integration State (Optional feature behind feature toggle)
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
-  const [isFindAbhaOpen, setIsFindAbhaOpen] = useState(false);
-  const [foundAbha, setFoundAbha] = useState<FoundAbhaAccount | null>(null);
   const [abhaProfile, setAbhaProfile] = useState<any>(null);
   const [abhaSessionKey, setAbhaSessionKey] = useState<string | null>(null);
   const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
@@ -822,25 +819,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
                 Use &quot;Link ABHA&quot; above to verify and attach an ABHA ID.
               </span>
             )}
-            {/* The patient has an ABHA but cannot remember it — the common case
-                at a desk. Looks it up with their OTP rather than creating a
-                second one, which is what happens when staff have no way to
-                find the first. */}
-            {abhaEnabled && !isAbhaVerified && (
-              <button
-                type="button"
-                onClick={() => setIsFindAbhaOpen(true)}
-                className="text-xs font-semibold text-sky-600 underline-offset-2 hover:underline"
-              >
-                Patient has an ABHA but does not remember it?
-              </button>
-            )}
-            {foundAbha && (
-              <span className="block text-xs text-sky-700">
-                Found {foundAbha.name || "an ABHA"} — use &quot;Link ABHA&quot; above to
-                attach it, so the patient verifies once more before it is saved.
-              </span>
-            )}
           </label>
 
           <label className="space-y-1">
@@ -910,17 +888,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
           )}
         </button>
       </div>
-
-      {/* Look up an ABHA the patient has but cannot recall.
-          Deliberately does NOT attach it: this flow proves the ABHA exists and
-          belongs to whoever holds that phone, which is not the same as proving
-          it belongs to the person at the desk. Linking still goes through the
-          verification flow above. */}
-      <FindAbhaModal
-        isOpen={isFindAbhaOpen}
-        onClose={() => setIsFindAbhaOpen(false)}
-        onFound={setFoundAbha}
-      />
 
       {/* Optional ABHA Enrollment Modal */}
       <AbhaEnrollmentModal
