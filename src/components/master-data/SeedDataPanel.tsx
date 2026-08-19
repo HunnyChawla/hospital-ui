@@ -39,6 +39,7 @@ export function SeedDataPanel() {
     const [limit, setLimit] = useState(25);
     const [page, setPage] = useState(1);
     const [isPolling, setIsPolling] = useState(false);
+    const [pollErrorCount, setPollErrorCount] = useState(0);
 
     const isPlatformOwnerUser = isPlatformOwner();
 
@@ -51,24 +52,29 @@ export function SeedDataPanel() {
         }
     }, [isPlatformOwnerUser]);
 
-    // Initial Load
-    const loadJobs = useCallback(() => {
-        dispatch(fetchJobs({
-            limit,
-            tenant_id: isPlatformOwnerUser ? selectedTenantId || undefined : undefined
-        }));
+    // Initial Load & Polling fetcher
+    const loadJobs = useCallback(async () => {
+        try {
+            await dispatch(fetchJobs({
+                limit,
+                tenant_id: isPlatformOwnerUser ? selectedTenantId || undefined : undefined
+            })).unwrap();
+            setPollErrorCount(0);
+        } catch {
+            setPollErrorCount(prev => prev + 1);
+        }
     }, [dispatch, limit, selectedTenantId, isPlatformOwnerUser]);
 
     useEffect(() => {
         loadJobs();
     }, [loadJobs]);
 
-    // Polling Logic
+    // Polling Logic - stops after 3 consecutive errors
     useEffect(() => {
         // Check if any job is running or pending
         const hasActiveJobs = jobs.some(j => j.status === "running" || j.status === "pending");
 
-        if (hasActiveJobs) {
+        if (hasActiveJobs && pollErrorCount < 3) {
             setIsPolling(true);
             const interval = setInterval(() => {
                 loadJobs();
@@ -77,7 +83,7 @@ export function SeedDataPanel() {
         } else {
             setIsPolling(false);
         }
-    }, [jobs, loadJobs]);
+    }, [jobs, loadJobs, pollErrorCount]);
 
     const handleCreateJob = async () => {
         if (jobType === "tenant_only" && !selectedTenantId) {
@@ -93,6 +99,7 @@ export function SeedDataPanel() {
         try {
             await dispatch(createImportJob(request)).unwrap();
             toast.success("Import job started successfully");
+            setPollErrorCount(0);
             loadJobs();
         } catch (error) {
             toast.error(getErrorMessage(error));
@@ -100,6 +107,7 @@ export function SeedDataPanel() {
     };
 
     const handleRefresh = () => {
+        setPollErrorCount(0);
         loadJobs();
         toast.success("Refreshed jobs list");
     };

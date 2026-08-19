@@ -18,7 +18,7 @@ export function useSSE(
 ): {
   data: any;
   status: SSEConnectionStatus;
-  error: Event | null;
+  error: Event | Error | null;
   reconnect: () => void;
 } {
   const {
@@ -27,12 +27,20 @@ export function useSSE(
     onOpen,
     autoReconnect = true,
     reconnectInterval = 3000,
-    maxReconnectAttempts = 10,
+    maxReconnectAttempts = 5,
   } = options;
 
   const [data, setData] = useState<any>(null);
   const [status, setStatus] = useState<SSEConnectionStatus>("disconnected");
-  const [error, setError] = useState<Event | null>(null);
+  const [error, setError] = useState<Event | Error | null>(null);
+
+  // Keep latest callback references in refs to avoid reconnection churn on parent re-renders
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,7 +91,10 @@ export function useSSE(
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const httpError = new Error(`HTTP error! status: ${response.status}`);
+            (httpError as any).status = response.status;
+            (httpError as any).isClientError = response.status >= 400 && response.status < 500;
+            throw httpError;
           }
 
           if (!response.body) {
@@ -92,7 +103,7 @@ export function useSSE(
 
           setStatus("connected");
           reconnectAttemptsRef.current = 0;
-          onOpen?.();
+          onOpenRef.current?.();
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
@@ -104,14 +115,17 @@ export function useSSE(
               .read()
               .then(({ done, value }) => {
                 if (done) {
-                  // Stream ended
+                  // Stream ended normally from server side
                   if (!isManualCloseRef.current && autoReconnect) {
                     if (reconnectAttemptsRef.current < maxReconnectAttempts) {
                       reconnectAttemptsRef.current += 1;
                       setStatus("reconnecting");
 
-                      // Exponential backoff
-                      const delay = reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1);
+                      // Exponential backoff capped at 15s
+                      const delay = Math.min(
+                        reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1),
+                        15000
+                      );
                       reconnectTimeoutRef.current = setTimeout(() => {
                         connectToSSE();
                       }, delay);
@@ -143,21 +157,18 @@ export function useSSE(
                       // Collect data lines (can be multiple)
                       currentData.push(line.slice(6)); // Remove "data: " prefix
                     }
-                    // Ignore other SSE fields like "event:", "id:", etc.
                   }
 
                   // If we have data, process it
                   if (currentData.length > 0) {
-                    // Join multiple data lines (if any)
                     const dataStr = currentData.join("\n");
                     try {
                       const parsedData = JSON.parse(dataStr);
                       setData(parsedData);
-                      onMessage?.(parsedData);
-                    } catch (parseError) {
-                      // If parsing fails, use raw data
+                      onMessageRef.current?.(parsedData);
+                    } catch {
                       setData(dataStr);
-                      onMessage?.(dataStr);
+                      onMessageRef.current?.(dataStr);
                     }
                   }
                 }
@@ -167,22 +178,30 @@ export function useSSE(
               })
               .catch((err) => {
                 if (err.name === "AbortError") {
-                  // Connection was manually closed
+                  // Connection was intentionally closed
                   setStatus("disconnected");
                   return;
                 }
 
-                setError(err as Event);
-                onError?.(err as Event);
+                setError(err);
+                onErrorRef.current?.(err);
 
-                // Attempt to reconnect on error
+                // Do NOT reconnect on 4xx client errors (400, 401, 403, 404, etc.)
+                if (err?.isClientError) {
+                  setStatus("error");
+                  return;
+                }
+
+                // Attempt to reconnect on transient stream/network error
                 if (!isManualCloseRef.current && autoReconnect) {
                   if (reconnectAttemptsRef.current < maxReconnectAttempts) {
                     reconnectAttemptsRef.current += 1;
                     setStatus("reconnecting");
 
-                    // Exponential backoff
-                    const delay = reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1);
+                    const delay = Math.min(
+                      reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1),
+                      15000
+                    );
                     reconnectTimeoutRef.current = setTimeout(() => {
                       connectToSSE();
                     }, delay);
@@ -199,23 +218,29 @@ export function useSSE(
         })
         .catch((err) => {
           if (err.name === "AbortError") {
-            // Connection was manually closed
             setStatus("disconnected");
             return;
           }
 
-          setError(err as Event);
+          setError(err);
           setStatus("error");
-          onError?.(err as Event);
+          onErrorRef.current?.(err);
 
-          // Attempt to reconnect on error
+          // Do NOT reconnect on 4xx client errors (400, 401, 403, 404, etc.)
+          if (err?.isClientError) {
+            return;
+          }
+
+          // Attempt to reconnect on transient network error with backoff
           if (!isManualCloseRef.current && autoReconnect) {
             if (reconnectAttemptsRef.current < maxReconnectAttempts) {
               reconnectAttemptsRef.current += 1;
               setStatus("reconnecting");
 
-              // Exponential backoff
-              const delay = reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1);
+              const delay = Math.min(
+                reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1),
+                15000
+              );
               reconnectTimeoutRef.current = setTimeout(() => {
                 connectToSSE();
               }, delay);
@@ -225,11 +250,12 @@ export function useSSE(
           }
         });
     } catch (err) {
-      setError(err as Event);
+      const standardErr = err instanceof Error ? err : new Error(String(err));
+      setError(standardErr);
       setStatus("error");
-      onError?.(err as Event);
+      onErrorRef.current?.(standardErr as unknown as Event);
     }
-  }, [url, autoReconnect, reconnectInterval, maxReconnectAttempts, onMessage, onError, onOpen]);
+  }, [url, autoReconnect, reconnectInterval, maxReconnectAttempts]);
 
   const disconnect = useCallback(() => {
     isManualCloseRef.current = true;

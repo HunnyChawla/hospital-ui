@@ -9,6 +9,15 @@ export const queueKeys = {
     [...queueKeys.all, 'combined', doctorId, date, appointmentsOnly] as const,
 };
 
+// Calculate polling interval with exponential backoff on error (10s -> 20s -> 40s -> max 60s)
+const getQueueRefetchInterval = (query: any, baseIntervalMs = 10000, maxIntervalMs = 60000) => {
+  if (query.state.error) {
+    const failureCount = query.state.failureCount || 1;
+    return Math.min(baseIntervalMs * Math.pow(2, Math.min(failureCount, 3)), maxIntervalMs);
+  }
+  return baseIntervalMs;
+};
+
 export function useDoctorQueue(
   doctorId: string,
   options?: {
@@ -26,8 +35,8 @@ export function useDoctorQueue(
       });
     },
     enabled: !!doctorId,
-    refetchInterval: 10000, // Poll every 10s for real-time updates
-    refetchIntervalInBackground: true,
+    refetchInterval: (query) => getQueueRefetchInterval(query),
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -50,7 +59,7 @@ export function useCombinedQueue(
       });
     },
     enabled: !!doctorId,
-    refetchInterval: 10000, // Poll every 10s for real-time updates
-    refetchIntervalInBackground: true,
+    refetchInterval: (query) => getQueueRefetchInterval(query),
+    refetchIntervalInBackground: false,
   });
 }

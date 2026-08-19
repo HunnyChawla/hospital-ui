@@ -25,12 +25,14 @@ const getApiClient = () => {
       return config;
     });
 
-    // Handle 401 errors - redirect to login
+    // Handle 401 errors - redirect to login once
+    let isRedirectingToLogin = false;
     _apiClient.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          if (typeof window !== "undefined") {
+          if (typeof window !== "undefined" && !isRedirectingToLogin) {
+            isRedirectingToLogin = true;
             localStorage.removeItem("auth_token");
             localStorage.removeItem("user_id");
             localStorage.removeItem("tenant_id");

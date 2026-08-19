@@ -416,7 +416,10 @@
         qrTimerInterval = null;
     }
 
+    var qrPollErrors = 0;
+
     function startQRPolling() {
+        qrPollErrors = 0;
         if (qrPollInterval) clearInterval(qrPollInterval);
         qrPollInterval = setInterval(function () {
             checkSessionStatus();
@@ -432,6 +435,7 @@
             method: 'GET',
             url: apiUrl.replace(/\/$/, '') + '/auth/tv/session/' + qrSessionCode + '/status',
             success: function (response) {
+                qrPollErrors = 0;
                 if (response.status === 'authenticated') {
                     // Login successful
                     stopQRLogin();
@@ -450,8 +454,15 @@
                     document.getElementById('qr-timer').innerHTML = '<span style="color: red">Session expired. Please refresh.</span>';
                 }
             },
-            error: function () {
-                // Ignore network errors during polling, just retry next time
+            error: function (response, status) {
+                qrPollErrors++;
+                if (status === 404 || status === 403 || qrPollErrors >= 5) {
+                    stopQRLogin();
+                    var timerEl = document.getElementById('qr-timer');
+                    if (timerEl) {
+                        timerEl.innerHTML = '<span style="color: red">Connection failed. Please refresh the page.</span>';
+                    }
+                }
             }
         });
     }
@@ -642,15 +653,24 @@
         }
     };
 
+    var queuePollErrors = 0;
+    var queuePollTimeout = null;
+
     function startPolling() {
+        queuePollErrors = 0;
+        if (queuePollTimeout) {
+            clearTimeout(queuePollTimeout);
+            queuePollTimeout = null;
+        }
         // Initial fetch
         fetchQueues();
+    }
 
-        // Start polling interval
-        if (pollInterval) {
-            clearInterval(pollInterval);
+    function scheduleNextQueuePoll(delay) {
+        if (queuePollTimeout) {
+            clearTimeout(queuePollTimeout);
         }
-        pollInterval = setInterval(fetchQueues, CONFIG.POLL_INTERVAL);
+        queuePollTimeout = setTimeout(fetchQueues, delay);
     }
 
     function fetchQueues() {
@@ -662,6 +682,8 @@
 
         setConnectionStatus('connecting');
 
+        var baseInterval = CONFIG.POLL_INTERVAL || 5000;
+
         // Fetch optometrist queue
         ajax({
             method: 'GET',
@@ -670,6 +692,7 @@
                 'Authorization': 'Bearer ' + token
             },
             success: function (response) {
+                queuePollErrors = 0;
                 var patients = parseQueueResponse(response);
                 renderOptometristQueue(patients);
                 updateOptometristStats(patients);
@@ -677,12 +700,18 @@
                 previousOptQueue = patients;
                 setConnectionStatus('connected');
                 updateLastUpdateTime();
+                scheduleNextQueuePoll(baseInterval);
             },
             error: function (response, status) {
+                queuePollErrors++;
                 if (status === 401) {
                     handleLogout();
+                    return;
                 }
                 setConnectionStatus('error');
+                // Exponential backoff on error: 5s -> 10s -> 20s -> 40s -> max 60s
+                var backoffDelay = Math.min(baseInterval * Math.pow(2, Math.min(queuePollErrors, 4)), 60000);
+                scheduleNextQueuePoll(backoffDelay);
             }
         });
 
@@ -694,6 +723,7 @@
                 'Authorization': 'Bearer ' + token
             },
             success: function (response) {
+                queuePollErrors = 0;
                 var patients = parseQueueResponse(response);
                 renderDoctorQueue(patients);
                 updateDoctorStats(patients);
@@ -703,8 +733,10 @@
                 updateLastUpdateTime();
             },
             error: function (response, status) {
+                queuePollErrors++;
                 if (status === 401) {
                     handleLogout();
+                    return;
                 }
                 setConnectionStatus('error');
             }
