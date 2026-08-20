@@ -754,7 +754,7 @@ export function PrescriptionForm({
           <div className="text-sm">
             <span className="font-semibold text-slate-900">{patientInfo}</span>
             <span className="mx-3 text-slate-300">|</span>
-            <span className="text-slate-600">Dr. {doctorInfo}</span>
+            <span className="text-slate-600">{doctorInfo}</span>
           </div>
           <button
             type="button"

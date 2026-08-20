@@ -521,7 +521,7 @@ export function DoctorPanel() {
       <div className="flex items-center justify-between py-1">
         {currentDoctor && (
           <p className="text-sm text-slate-600">
-            <span className="font-semibold">Dr. {currentDoctor.name || "Doctor"}</span>
+            <span className="font-semibold">{currentDoctor.name || "Doctor"}</span>
             {currentDoctor.specialization && (
               <span className="text-slate-400"> • {currentDoctor.specialization}</span>
             )}

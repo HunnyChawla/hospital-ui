@@ -324,14 +324,14 @@ function ClinicPanelInner() {
                         >
                           {doctorMappings.map((mapping) => (
                             <option key={mapping.doctor_id} value={mapping.doctor_id}>
-                              Dr. {mapping.doctor_name}
+                              {mapping.doctor_name}
                             </option>
                           ))}
                         </select>
                         <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
                       </div>
                     ) : (
-                      <span className="font-medium text-slate-700">Dr. {selectedDoctor.doctor_name}</span>
+                      <span className="font-medium text-slate-700">{selectedDoctor.doctor_name}</span>
                     )}
                   </div>
                 )}
