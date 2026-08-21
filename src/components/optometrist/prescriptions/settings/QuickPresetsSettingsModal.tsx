@@ -15,6 +15,8 @@ import { MedicinePresetList } from "./MedicinePresetList";
 import { AdvicePresetList } from "./AdvicePresetList";
 import { LabTestPresetList } from "./LabTestPresetList";
 import { QUICK_DIAGNOSES, QUICK_MEDICINES, QUICK_ADVICE } from "../prescriptionQuickActions";
+import { usePrescriptionSettings } from "@/hooks/usePrescriptionSettings";
+import type { FrequencyDisplayFormat } from "@/utils/frequencyDisplay";
 
 interface QuickPresetsSettingsModalProps {
     isOpen: boolean;
@@ -29,7 +31,9 @@ export function QuickPresetsSettingsModal({
     doctorId,
     onSaved,
 }: QuickPresetsSettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<"diagnoses" | "medicines" | "advices" | "lab-tests">("diagnoses");
+    const [activeTab, setActiveTab] = useState<"diagnoses" | "medicines" | "advices" | "lab-tests" | "display">("diagnoses");
+    const { frequencyFormat, setFrequencyFormat } = usePrescriptionSettings(doctorId);
+    const [localFrequencyFormat, setLocalFrequencyFormat] = useState<FrequencyDisplayFormat>(frequencyFormat);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -103,7 +107,11 @@ export function QuickPresetsSettingsModal({
 
             await Promise.all(promises);
 
-            toast.success("Presets updated successfully");
+            if (localFrequencyFormat !== frequencyFormat) {
+                setFrequencyFormat(localFrequencyFormat);
+            }
+
+            toast.success("Presets & Preferences updated successfully");
             onSaved?.(); // Refresh parent
             onClose();
 
@@ -119,28 +127,42 @@ export function QuickPresetsSettingsModal({
         if (!confirm("This will replace your current custom list with the system defaults. Continue?")) return;
 
         if (activeTab === "diagnoses") {
-            // Map readonly default constant to mutable array
-            const defaultDx: QuickDiagnosis[] = QUICK_DIAGNOSES.map(d => ({
+            const defaultDiag: QuickDiagnosis[] = QUICK_DIAGNOSES.map((d) => ({
+                id: `new-${Math.random().toString(36).substring(7)}`,
                 label: d.label,
                 value: d.value,
-                category: d.category as any
+                category: d.category as any,
             }));
-            setDiagnoses(defaultDx);
+            setDiagnoses(defaultDiag);
         } else if (activeTab === "medicines") {
-            const defaultMeds: QuickMedicine[] = QUICK_MEDICINES.map(m => ({
+            const defaultMeds: QuickMedicine[] = QUICK_MEDICINES.map((m) => ({
+                id: `new-${Math.random().toString(36).substring(7)}`,
                 label: m.label,
-                icon: m.icon as any,
                 color: m.color as any,
+                icon: m.icon as any,
                 medicine_name: m.medicine.medicine_name,
-                generic_name: m.medicine.generic_name,
                 dosage: m.medicine.dosage,
                 frequency: m.medicine.frequency,
                 duration: m.medicine.duration,
-                instructions: m.medicine.instructions
+                instructions: m.medicine.instructions,
+                form: m.medicine.form,
+                strength: m.medicine.strength,
+                route: m.medicine.route,
+                dose: m.medicine.dose || m.medicine.dosage,
+                frequency_structure: m.medicine.frequency_structure as any,
+                timing: m.medicine.timing,
+                quantity: m.medicine.quantity,
+                is_prn: m.medicine.is_prn,
+                prn_reason: m.medicine.prn_reason,
+                generic_name: m.medicine.generic_name,
+                brand: m.medicine.brand,
+                special_instructions: m.medicine.special_instructions,
+                tapering_steps: m.medicine.tapering_steps ? JSON.parse(JSON.stringify(m.medicine.tapering_steps)) : undefined,
             }));
             setMedicines(defaultMeds);
         } else if (activeTab === "advices") {
-            const defaultAdv: QuickAdvice[] = QUICK_ADVICE.map(a => ({
+            const defaultAdv: QuickAdvice[] = QUICK_ADVICE.map((a) => ({
+                id: `new-${Math.random().toString(36).substring(7)}`,
                 label: a.label,
                 value: a.value,
                 category: a.category,
@@ -148,17 +170,17 @@ export function QuickPresetsSettingsModal({
             setAdvices(defaultAdv);
         } else if (activeTab === "lab-tests") {
             setLabTests([]); // No default lab tests for now
+        } else if (activeTab === "display") {
+            setLocalFrequencyFormat("numeric");
         }
     };
 
-
-
-    // Check if both might be dirty? Actually save button saves ALL tabs.
+    // Check if any tab or preference is dirty
     const isAnyDirty = (JSON.stringify(diagnoses) !== originalDiagnoses) ||
         (JSON.stringify(medicines) !== originalMedicines) ||
         (JSON.stringify(advices) !== originalAdvices) ||
-        (JSON.stringify(labTests) !== originalLabTests);
-
+        (JSON.stringify(labTests) !== originalLabTests) ||
+        (localFrequencyFormat !== frequencyFormat);
 
     if (!isOpen) return null;
 
@@ -172,8 +194,8 @@ export function QuickPresetsSettingsModal({
                             <Settings className="h-6 w-6" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900">Quick Presets Configuration</h2>
-                            <p className="text-sm text-slate-500">Customize your quick selection chips</p>
+                            <h2 className="text-xl font-bold text-slate-900">Prescription Presets & Preferences</h2>
+                            <p className="text-sm text-slate-500">Customize chips, templates, and frequency display formats</p>
                         </div>
                     </div>
                     <button
@@ -187,11 +209,11 @@ export function QuickPresetsSettingsModal({
                 {/* Body */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Sidebar Tabs */}
-                    <div className="w-48 flex-shrink-0 border-r border-slate-200 bg-slate-50 p-4 space-y-2">
+                    <div className="w-52 flex-shrink-0 border-r border-slate-200 bg-slate-50 p-4 space-y-1.5">
                         <button
                             onClick={() => setActiveTab("diagnoses")}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "diagnoses"
-                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm font-bold"
                                 : "text-slate-600 hover:bg-slate-200"
                                 }`}
                         >
@@ -200,7 +222,7 @@ export function QuickPresetsSettingsModal({
                         <button
                             onClick={() => setActiveTab("medicines")}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "medicines"
-                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm font-bold"
                                 : "text-slate-600 hover:bg-slate-200"
                                 }`}
                         >
@@ -209,7 +231,7 @@ export function QuickPresetsSettingsModal({
                         <button
                             onClick={() => setActiveTab("advices")}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "advices"
-                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm font-bold"
                                 : "text-slate-600 hover:bg-slate-200"
                                 }`}
                         >
@@ -218,12 +240,23 @@ export function QuickPresetsSettingsModal({
                         <button
                             onClick={() => setActiveTab("lab-tests")}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "lab-tests"
-                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                ? "bg-indigo-100 text-indigo-700 shadow-sm font-bold"
                                 : "text-slate-600 hover:bg-slate-200"
                                 }`}
                         >
                             Lab Tests
                         </button>
+                        <div className="pt-2 border-t border-slate-200">
+                            <button
+                                onClick={() => setActiveTab("display")}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activeTab === "display"
+                                    ? "bg-indigo-100 text-indigo-700 shadow-sm font-bold"
+                                    : "text-slate-600 hover:bg-slate-200"
+                                    }`}
+                            >
+                                Display & Formats
+                            </button>
+                        </div>
                     </div>
 
                     {/* Content Area */}
@@ -238,7 +271,8 @@ export function QuickPresetsSettingsModal({
                                     <h3 className="text-lg font-bold text-slate-800">
                                         {activeTab === "diagnoses" ? "Diagnosis Chips" :
                                             activeTab === "medicines" ? "Medicine Templates" :
-                                                activeTab === "lab-tests" ? "Lab Test Chips" : "Advice Chips"}
+                                                activeTab === "lab-tests" ? "Lab Test Chips" :
+                                                    activeTab === "advices" ? "Advice Chips" : "Display & Formatting Preferences"}
                                     </h3>
                                     <button
                                         onClick={handleResetDefaults}
@@ -264,11 +298,150 @@ export function QuickPresetsSettingsModal({
                                         items={advices}
                                         onChange={setAdvices}
                                     />
-                                ) : (
+                                ) : activeTab === "lab-tests" ? (
                                     <LabTestPresetList
                                         items={labTests}
                                         onChange={setLabTests}
                                     />
+                                ) : (
+                                    /* Display Preferences Tab */
+                                    <div className="space-y-6">
+                                        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-slate-900">
+                                                    Medication Frequency Display Format
+                                                </h4>
+                                                <p className="text-xs text-slate-500 mt-0.5">
+                                                    Select how you prefer medication dosing frequencies to appear on the prescription screen and printouts.
+                                                </p>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {/* Numeric Choice */}
+                                                <label
+                                                    className={`flex items-start gap-3.5 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                                                        localFrequencyFormat === "numeric"
+                                                            ? "border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-100"
+                                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="frequencyFormat"
+                                                        value="numeric"
+                                                        checked={localFrequencyFormat === "numeric"}
+                                                        onChange={() => setLocalFrequencyFormat("numeric")}
+                                                        className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-bold text-slate-900">
+                                                                Numeric Slot Codes (e.g. 1-0-1, 1-1-1, 1-0-0)
+                                                            </span>
+                                                            <span className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                                                                Standard Clinical
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 mt-1">
+                                                            Shows concise numbers for Morning-Afternoon-Evening-Night slots.
+                                                        </p>
+                                                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                                            {["1-0-1", "1-0-0", "1-1-1", "0-0-1", "1-1-1-1", "SOS"].map((pill) => (
+                                                                <span
+                                                                    key={pill}
+                                                                    className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-2xs"
+                                                                >
+                                                                    {pill}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </label>
+
+                                                {/* Descriptive Words Choice */}
+                                                <label
+                                                    className={`flex items-start gap-3.5 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                                                        localFrequencyFormat === "descriptive"
+                                                            ? "border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-100"
+                                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="frequencyFormat"
+                                                        value="descriptive"
+                                                        checked={localFrequencyFormat === "descriptive"}
+                                                        onChange={() => setLocalFrequencyFormat("descriptive")}
+                                                        className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-bold text-slate-900">
+                                                                Descriptive Words (e.g. Twice daily, Three times a day)
+                                                            </span>
+                                                            <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+                                                                Patient Friendly
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 mt-1">
+                                                            Presents clear plain English dosing instructions.
+                                                        </p>
+                                                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                                            {["Twice daily", "Morning only", "Three times a day", "Bedtime", "4x daily", "SOS"].map((pill) => (
+                                                                <span
+                                                                    key={pill}
+                                                                    className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-2xs"
+                                                                >
+                                                                    {pill}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </label>
+
+                                                {/* Both Choice */}
+                                                <label
+                                                    className={`flex items-start gap-3.5 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                                                        localFrequencyFormat === "both"
+                                                            ? "border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-100"
+                                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="frequencyFormat"
+                                                        value="both"
+                                                        checked={localFrequencyFormat === "both"}
+                                                        onChange={() => setLocalFrequencyFormat("both")}
+                                                        className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-bold text-slate-900">
+                                                                Combined Notation (e.g. 1-0-1 (Twice daily))
+                                                            </span>
+                                                            <span className="text-[10px] font-semibold bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
+                                                                Full Detail
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 mt-1">
+                                                            Shows both numeric slot codes and descriptive text side-by-side.
+                                                        </p>
+                                                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                                            {["1-0-1 (Twice daily)", "1-1-1 (Three times a day)", "0-0-1 (Bedtime)"].map((pill) => (
+                                                                <span
+                                                                    key={pill}
+                                                                    className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-2xs"
+                                                                >
+                                                                    {pill}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}

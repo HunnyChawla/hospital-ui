@@ -674,10 +674,22 @@ export function PrescriptionFormSection({
                             medicine: {
                                 medicine_name: m.medicine_name,
                                 generic_name: m.generic_name,
-                                dosage: m.dosage,
-                                frequency: m.frequency,
-                                duration: m.duration,
-                                instructions: m.instructions
+                                brand: m.brand,
+                                form: m.form,
+                                strength: m.strength,
+                                route: m.route,
+                                dose: m.dose,
+                                frequency_structure: m.frequency_structure,
+                                timing: m.timing,
+                                dosage: m.dose || m.dosage || "",
+                                frequency: m.frequency || "",
+                                duration: m.duration || "",
+                                quantity: m.quantity,
+                                is_prn: m.is_prn,
+                                prn_reason: m.prn_reason,
+                                instructions: m.instructions,
+                                special_instructions: m.special_instructions,
+                                tapering_steps: m.tapering_steps,
                             }
                         }));
                         setMedicinesOptions(mappedMeds);
@@ -964,6 +976,9 @@ export function PrescriptionFormSection({
             appendMedicine({
                 medicine_id: "",
                 ...template.medicine,
+                tapering_steps: template.medicine.tapering_steps
+                    ? JSON.parse(JSON.stringify(template.medicine.tapering_steps))
+                    : undefined,
                 applicable_eye: "BOTH",
             });
             // Track that this medicine has been added

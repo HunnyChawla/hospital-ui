@@ -471,7 +471,6 @@ export type TaperingStep = {
   instructions?: string;
 };
 
-// Medicine Item for Doctor Prescriptions
 export type MedicineItem = {
   id?: string;
   prescription_id?: string;
@@ -485,6 +484,17 @@ export type MedicineItem = {
   applicable_eye?: "LEFT" | "RIGHT" | "BOTH" | "NA" | null;
   created_at?: string;
   tapering_steps?: TaperingStep[];
+  brand?: string | null;
+  form?: string | null;
+  strength?: string | null;
+  route?: string | null;
+  dose?: string | null;
+  frequency_structure?: { morning?: number | string | null; afternoon?: number | string | null; evening?: number | string | null; night?: number | string | null } | null;
+  timing?: string | null;
+  quantity?: string | null;
+  is_prn?: boolean | null;
+  prn_reason?: string | null;
+  special_instructions?: string | null;
 };
 
 // Advice Item for Doctor Prescriptions

@@ -8,6 +8,7 @@ interface SearchableDropdownProps {
   options: string[];
   placeholder?: string;
   inputClassName?: string;
+  disabled?: boolean;
 }
 
 export function SearchableDropdown({
@@ -16,6 +17,7 @@ export function SearchableDropdown({
   options,
   placeholder = "",
   inputClassName,
+  disabled = false,
 }: SearchableDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +37,7 @@ export function SearchableDropdown({
   }, []);
 
   const handleInputFocus = () => {
+    if (disabled) return;
     setIsOpen(true);
     setSearchQuery(""); // Clear search to show all options initially
     setActiveIndex(-1);
@@ -120,14 +123,20 @@ export function SearchableDropdown({
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          disabled={disabled}
           className={clsx(
             "w-full pr-8 bg-white transition-all shadow-sm focus:outline-none",
+            disabled && "bg-slate-50 text-slate-500 cursor-not-allowed",
             inputClassName
           )}
         />
         <div
-          className="absolute right-2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+          className={clsx(
+            "absolute right-2 text-slate-400 p-1",
+            disabled ? "cursor-not-allowed opacity-50" : "hover:text-slate-600 cursor-pointer"
+          )}
           onClick={() => {
+            if (disabled) return;
             if (isOpen) {
               setIsOpen(false);
             } else {

@@ -2,6 +2,13 @@ import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 import type { TaperingStep } from "@/types";
 
+export interface StructuredFrequency {
+  morning?: number | string | null;
+  afternoon?: number | string | null;
+  evening?: number | string | null;
+  night?: number | string | null;
+}
+
 // Request types - for creating/updating prescriptions
 export interface PrescriptionItemRequest {
   medicine_id?: string | null;
@@ -12,6 +19,19 @@ export interface PrescriptionItemRequest {
   duration?: string;
   instructions?: string;
   tapering_steps?: TaperingStep[];
+  brand?: string | null;
+  form?: string | null;
+  strength?: string | null;
+  route?: string | null;
+  dose?: string | null;
+  frequency_structure?: StructuredFrequency | null;
+  timing?: string | null;
+  quantity?: string | null;
+  is_prn?: boolean | null;
+  prn_reason?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  special_instructions?: string | null;
 }
 
 /**
@@ -73,6 +93,19 @@ export interface PrescriptionItemResponse {
   created_at: string;
   created_by: string | null;
   tapering_steps?: TaperingStep[];
+  brand?: string | null;
+  form?: string | null;
+  strength?: string | null;
+  route?: string | null;
+  dose?: string | null;
+  frequency_structure?: StructuredFrequency | null;
+  timing?: string | null;
+  quantity?: string | null;
+  is_prn?: boolean | null;
+  prn_reason?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  special_instructions?: string | null;
 }
 
 export interface PrescriptionResponse {

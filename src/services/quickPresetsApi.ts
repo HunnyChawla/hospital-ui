@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/api";
 import { TaperingStep } from "@/types";
+import type { StructuredFrequency } from "./prescriptionsApi";
 
 // Types
 export interface QuickDiagnosis {
@@ -17,12 +18,23 @@ export interface QuickMedicine {
     color: "sky" | "purple" | "emerald" | "amber" | "rose" | "slate" | "blue" | "indigo";
     medicine_name: string;
     generic_name?: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
+    dosage?: string;
+    frequency?: string;
+    duration?: string;
     instructions?: string;
     tapering_steps?: TaperingStep[];
     position?: number;
+    brand?: string | null;
+    form?: string | null;
+    strength?: string | null;
+    route?: string | null;
+    dose?: string | null;
+    frequency_structure?: StructuredFrequency | null;
+    timing?: string | null;
+    quantity?: string | null;
+    is_prn?: boolean | null;
+    prn_reason?: string | null;
+    special_instructions?: string | null;
 }
 
 

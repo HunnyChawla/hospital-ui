@@ -11,6 +11,8 @@ import {
   PRESCRIPTION_PRINT_SECTIONS,
   orderPrescriptionSections,
 } from "./prescriptionSections";
+import { usePrescriptionSettings } from "@/hooks/usePrescriptionSettings";
+import { formatFrequencyByPreference } from "@/utils/frequencyDisplay";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
 
 import {
@@ -47,6 +49,7 @@ export function PrescriptionPrint({
   sectionOrder,
 }: PrescriptionPrintProps) {
   const { tenant } = useTenant();
+  const { frequencyFormat } = usePrescriptionSettings(prescription.doctor_id);
 
   const { data: savedLayout } = usePrintLayout("prescription");
 
@@ -286,46 +289,99 @@ export function PrescriptionPrint({
                   </span>
                 </div>
                 <div>
-                  <div className={`${isCompact ? "space-y-1" : "space-y-2"}`}>
-                    {prescription.items.map((item, idx) => (
-                      <div key={item.id || idx} className={sectionFontClass}>
-                        <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap items-center">
-                          <span>{idx + 1}. {item.medicine_name}</span>
-                          {item.generic_name && (
-                            <span className="italic font-normal text-slate-500 text-[10px] mt-0.5">
-                              ({item.generic_name})
-                            </span>
-                          )}
-                        </div>
-                        <div className="pl-5 text-[10px] text-slate-600">
-                          {item.tapering_steps && item.tapering_steps.length > 0 ? (
-                            <div className="mt-1 bg-purple-50/30 border border-purple-100/50 rounded-md p-2 max-w-md">
-                              <span className="text-[9px] font-bold text-purple-800 uppercase block mb-1">📉 Tapering Dose Schedule:</span>
-                              <div className="space-y-1">
-                                {item.tapering_steps.map((step, sIdx) => (
-                                  <div key={sIdx} className="text-[9px] text-slate-700">
-                                    <span className="font-bold text-purple-950">Step {sIdx + 1}: </span>
-                                    <span>{step.dosage || item.dosage || ""}</span>
-                                    {step.frequency && <span> • {step.frequency}</span>}
-                                    {step.duration && <span> • {step.duration}</span>}
-                                    {step.instructions && <span className="italic text-slate-500"> ({step.instructions})</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              {item.instructions && <span className="mr-2">({item.instructions})</span>}
-                              <span className="uppercase font-medium">
-                                {item.dosage && `${item.dosage} • `}
-                                {item.frequency && `${item.frequency} • `}
-                                {item.duration && `${item.duration}`}
+                  <div className={`${isCompact ? "space-y-1" : "space-y-2.5"}`}>
+                    {prescription.items.map((item, idx) => {
+                      const doseText = item.dose || item.dosage;
+                      const formattedFreq = formatFrequencyByPreference(
+                        item.frequency_structure,
+                        item.frequency,
+                        item.is_prn,
+                        frequencyFormat
+                      );
+                      const freqDisplay = item.is_prn
+                        ? `PRN / SOS${item.prn_reason ? ` (Reason: ${item.prn_reason})` : ""}`
+                        : (formattedFreq || item.frequency);
+                      const datesText =
+                        item.start_date || item.end_date
+                          ? `${formatDateVal(item.start_date)} ${item.end_date ? `to ${formatDateVal(item.end_date)}` : ""}`
+                          : "";
+
+                      return (
+                        <div key={item.id || idx} className={sectionFontClass}>
+                          {/* Main Title line */}
+                          <div className="font-bold flex gap-2 leading-tight text-sky-900 flex-wrap items-center">
+                            <span>{idx + 1}. {item.medicine_name}</span>
+                            {item.generic_name && (
+                              <span className="italic font-normal text-slate-500 text-[10px]">
+                                ({item.generic_name})
                               </span>
-                            </>
-                          )}
+                            )}
+                            {item.brand && (
+                              <span className="font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 text-[9px] rounded border border-slate-200">
+                                Brand: {item.brand}
+                              </span>
+                            )}
+                            {(item.form || item.strength) && (
+                              <span className="font-semibold text-slate-700 text-[10px]">
+                                • {[item.form, item.strength].filter(Boolean).join(" ")}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Detail Lines */}
+                          <div className="pl-5 text-[10px] text-slate-700 space-y-0.5 mt-0.5">
+                            {item.tapering_steps && item.tapering_steps.length > 0 ? (
+                              <div className="mt-1 bg-purple-50/30 border border-purple-100/50 rounded-md p-2 max-w-md">
+                                <span className="text-[9px] font-bold text-purple-800 uppercase block mb-1">📉 Tapering Dose Schedule:</span>
+                                <div className="space-y-1">
+                                  {item.tapering_steps.map((step, sIdx) => (
+                                    <div key={sIdx} className="text-[9px] text-slate-700">
+                                      <span className="font-bold text-purple-950">Step {sIdx + 1}: </span>
+                                      <span>{step.dosage || item.dosage || ""}</span>
+                                      {step.frequency && <span> • {step.frequency}</span>}
+                                      {step.duration && <span> • {step.duration}</span>}
+                                      {step.instructions && <span className="italic text-slate-500"> ({step.instructions})</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {/* Dosage, Route, Frequency, Timing */}
+                                <div className="font-medium flex flex-wrap gap-x-2 text-slate-800">
+                                  {doseText && <span><strong className="text-slate-900">Dose:</strong> {doseText}</span>}
+                                  {item.route && <span>• <strong className="text-slate-900">Route:</strong> {item.route}</span>}
+                                  {freqDisplay && <span>• <strong className="text-slate-900">Frequency:</strong> {freqDisplay}</span>}
+                                  {item.timing && <span>• <strong className="text-slate-900">Timing:</strong> {item.timing}</span>}
+                                </div>
+
+                                {/* Duration, Dates, Quantity */}
+                                {(item.duration || datesText || item.quantity) && (
+                                  <div className="text-slate-600 flex flex-wrap gap-x-2 text-[9.5px]">
+                                    {item.duration && <span><strong className="text-slate-700">Duration:</strong> {item.duration}</span>}
+                                    {datesText && <span>({datesText.trim()})</span>}
+                                    {item.quantity && <span>• <strong className="text-slate-700">Qty:</strong> {item.quantity}</span>}
+                                  </div>
+                                )}
+
+                                {/* Instructions & Special Instructions */}
+                                {(item.instructions || item.special_instructions) && (
+                                  <div className="text-slate-600 text-[9.5px] italic">
+                                    {item.instructions && <span>Instructions: {item.instructions}</span>}
+                                    {item.instructions && item.special_instructions && <span> • </span>}
+                                    {item.special_instructions && (
+                                      <span className="text-amber-800 font-normal">
+                                        Special Note: {item.special_instructions}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -400,7 +456,7 @@ export function PrescriptionPrint({
                   </span>
                 </div>
                 <div className="text-xs text-left font-bold text-slate-900">
-                  Review on {formatDateVal(prescription.followup_date)}
+                  Follow up on {formatDateVal(prescription.followup_date)}
                 </div>
               </div>
             ) : null;

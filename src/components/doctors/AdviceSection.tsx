@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, FlaskConical, ClipboardList, Loader2, Sparkles, Settings } from "lucide-react";
+import { Plus, Trash2, FlaskConical, ClipboardList, Loader2, Sparkles, Settings, Calendar, X } from "lucide-react";
 import type { AdviceItemRequest } from "@/services/prescriptionsApi";
 import { quickPresetsApi, type QuickAdvice, type QuickLabTest } from "@/services/quickPresetsApi";
 import { advicesApi } from "@/services/advicesApi";
@@ -9,6 +9,28 @@ import { labTestsApi } from "@/services/labTestsApi";
 import { AdviceQuickChips, LabTestQuickChips } from "../optometrist/prescriptions/QuickSelectChips";
 import { QuickPresetsSettingsModal } from "../optometrist/prescriptions/settings/QuickPresetsSettingsModal";
 import { toast } from "sonner";
+
+const FOLLOWUP_QUICK_PRESETS = [
+    { label: "3 days", days: 3 },
+    { label: "5 days", days: 5 },
+    { label: "7 days", days: 7 },
+    { label: "15 days", days: 15 },
+    { label: "1 month", months: 1 },
+    { label: "3 months", months: 3 },
+];
+
+function getFollowupDateString(days?: number, months?: number): string {
+    const d = new Date();
+    if (days) {
+        d.setDate(d.getDate() + days);
+    } else if (months) {
+        d.setMonth(d.getMonth() + months);
+    }
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
 
 interface AdviceSectionProps {
     value: AdviceItemRequest[];
@@ -395,18 +417,58 @@ export function AdviceSection({
                     </ul>
                 )}
 
-                {/* Review/Followup date */}
-                <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Review on <span className="font-normal text-slate-400">(optional)</span>
-                    </label>
-                    <input
-                        type="date"
-                        value={followupDate ?? ""}
-                        onChange={(e) => onFollowupDateChange(e.target.value || null)}
-                        disabled={disabled}
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                    />
+                {/* Follow up date */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                            <Calendar className="h-4 w-4 text-sky-600" />
+                            <span>Follow up <span className="font-normal text-slate-400">(optional)</span></span>
+                        </label>
+                        {followupDate && !disabled && (
+                            <button
+                                type="button"
+                                onClick={() => onFollowupDateChange(null)}
+                                className="text-xs text-rose-600 hover:text-rose-700 font-medium flex items-center gap-0.5"
+                            >
+                                <X className="h-3 w-3" /> Clear date
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <input
+                            type="date"
+                            value={followupDate ?? ""}
+                            onChange={(e) => onFollowupDateChange(e.target.value || null)}
+                            disabled={disabled}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
+                        />
+
+                        {!disabled && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-0.5">Quick:</span>
+                                {FOLLOWUP_QUICK_PRESETS.map((preset) => {
+                                    const targetDate = getFollowupDateString(preset.days, preset.months);
+                                    const isSelected = followupDate === targetDate;
+
+                                    return (
+                                        <button
+                                            key={preset.label}
+                                            type="button"
+                                            onClick={() => onFollowupDateChange(targetDate)}
+                                            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                                                isSelected
+                                                    ? "bg-sky-600 text-white shadow-xs"
+                                                    : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 hover:text-slate-900"
+                                            }`}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

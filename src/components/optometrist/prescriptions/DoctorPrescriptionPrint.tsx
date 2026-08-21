@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { usePrescriptionSettings } from "@/hooks/usePrescriptionSettings";
+import { formatFrequencyByPreference } from "@/utils/frequencyDisplay";
 
 interface DoctorPrescriptionPrintProps {
     prescription: OptometryPrescription;
@@ -52,6 +54,7 @@ interface DoctorPrescriptionPrintProps {
 export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescriptionPrintProps>(
     ({ prescription, layout, showHeader, doctorSignature, visitData, plannedSurgeries, visibleSections, sectionOrder }, ref) => {
         const { tenant } = useTenant();
+        const { frequencyFormat } = usePrescriptionSettings(prescription.doctor_id);
 
         // `layout` is the modern input; the individual props remain supported so
         // existing call sites keep working, and win when explicitly provided.
@@ -543,8 +546,8 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                     ) : (
                                                         <>
                                                             {med.instructions && <span className="mr-2">({med.instructions})</span>}
-                                                            <span className="uppercase font-medium">
-                                                                {med.frequency && `${med.frequency}, `}
+                                                            <span className="font-medium">
+                                                                {med.frequency && `${formatFrequencyByPreference(med.frequency_structure, med.frequency, med.is_prn, frequencyFormat) || med.frequency}, `}
                                                                 {med.duration && `${med.duration}`}
                                                             </span>
                                                         </>
