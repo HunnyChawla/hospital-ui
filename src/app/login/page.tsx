@@ -31,12 +31,24 @@ function LoginForm() {
     // Restore session on mount
     dispatch(restoreSession());
 
-    // Fetch tenant data if not already loaded
+    // Fetch tenant data if not already loaded and not already attempted
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-    if (tenantId && (!tenant.tenant && !tenant.loading)) {
+    if (
+      tenantId &&
+      !tenant.tenant &&
+      !tenant.loading &&
+      !tenant.error &&
+      tenant.lastAttemptedTenantId !== tenantId
+    ) {
       dispatch(fetchTenant(tenantId));
     }
-  }, [dispatch, tenant]);
+  }, [
+    dispatch,
+    tenant.tenant,
+    tenant.loading,
+    tenant.error,
+    tenant.lastAttemptedTenantId,
+  ]);
 
   useEffect(() => {
     // Detect subdomain on mount

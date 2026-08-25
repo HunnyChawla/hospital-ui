@@ -6,6 +6,7 @@ type TenantState = {
   logoDataUrl: string | null;
   loading: boolean;
   error: string | null;
+  lastAttemptedTenantId: string | null;
 };
 
 const initialState: TenantState = {
@@ -13,6 +14,7 @@ const initialState: TenantState = {
   logoDataUrl: null,
   loading: false,
   error: null,
+  lastAttemptedTenantId: null,
 };
 
 export const fetchTenant = createAsyncThunk(
@@ -45,7 +47,7 @@ export const fetchTenant = createAsyncThunk(
 
       return { tenant: tenantData, logoDataUrl };
     } catch (error: any) {
-      return rejectWithValue(error);
+      return rejectWithValue(error?.response?.data || error?.message || "Failed to load tenant information");
     }
   }
 );
@@ -57,26 +59,35 @@ const tenantSlice = createSlice({
     clearTenant(state) {
       state.tenant = null;
       state.logoDataUrl = null;
+      state.loading = false;
       state.error = null;
+      state.lastAttemptedTenantId = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTenant.pending, (state) => {
+      .addCase(fetchTenant.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        state.lastAttemptedTenantId = action.meta.arg;
       })
       .addCase(fetchTenant.fulfilled, (state, action) => {
         state.loading = false;
         state.tenant = action.payload.tenant;
         state.logoDataUrl = action.payload.logoDataUrl;
         state.error = null;
+        state.lastAttemptedTenantId = action.meta.arg;
       })
-      .addCase(fetchTenant.rejected, (state) => {
+      .addCase(fetchTenant.rejected, (state, action) => {
         state.loading = false;
-        state.error = "Failed to load tenant information";
+        state.error =
+          (action.payload as any)?.message ||
+          (action.payload as any)?.detail ||
+          action.error.message ||
+          "Failed to load tenant information";
         state.tenant = null;
         state.logoDataUrl = null;
+        state.lastAttemptedTenantId = action.meta.arg;
       });
   },
 });

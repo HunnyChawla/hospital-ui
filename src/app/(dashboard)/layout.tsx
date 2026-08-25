@@ -246,14 +246,27 @@ export default function DashboardLayout({
   }, [isAuthenticated, isCheckingAuth, router]);
 
   useEffect(() => {
-    // Fetch tenant data if not already loaded
+    // Fetch tenant data if not already loaded and not already attempted
     if (isAuthenticated && typeof window !== "undefined") {
       const tenantId = localStorage.getItem("tenant_id");
-      if (tenantId && !tenant.tenant && !tenant.loading) {
+      if (
+        tenantId &&
+        !tenant.tenant &&
+        !tenant.loading &&
+        !tenant.error &&
+        tenant.lastAttemptedTenantId !== tenantId
+      ) {
         dispatch(fetchTenant(tenantId));
       }
     }
-  }, [isAuthenticated, dispatch, tenant]);
+  }, [
+    isAuthenticated,
+    dispatch,
+    tenant.tenant,
+    tenant.loading,
+    tenant.error,
+    tenant.lastAttemptedTenantId,
+  ]);
 
   // Show nothing while checking auth or if not authenticated
   if (isCheckingAuth || !isAuthenticated) {

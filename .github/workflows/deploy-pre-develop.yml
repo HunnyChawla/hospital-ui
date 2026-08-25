@@ -161,6 +161,16 @@ jobs:
               --log-opt max-size=10m --log-opt max-file=3 \
               "$TV_IMAGE_TAG"
 
+            # Connect hospital-ui and tv-legacy to any additional network hms-caddy is on (e.g. hms-deploy_hms-network)
+            CADDY_NETWORKS=$(sudo docker inspect hms-caddy --format '{{range $net, $v := .NetworkSettings.Networks}}{{$net}} {{end}}' 2>/dev/null || true)
+            for net in $CADDY_NETWORKS; do
+              if [ -n "$net" ] && [ "$net" != "hms-network" ]; then
+                echo "Connecting UI & TV containers to Caddy network: $net"
+                sudo docker network connect "$net" hospital-ui 2>/dev/null || true
+                sudo docker network connect "$net" tv-legacy 2>/dev/null || true
+              fi
+            done
+
             # 5. Reload Caddy reverse proxy configuration if running
             echo "Reloading Caddy reverse proxy..."
             sudo docker exec hms-caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || \
