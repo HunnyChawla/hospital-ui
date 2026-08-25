@@ -36,7 +36,7 @@ EXPOSE 5500
 
 # Add healthcheck to verify server is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:5500/ || exit 1
+    CMD wget -q -O /dev/null http://127.0.0.1:5500/ || exit 1
 
 # Set environment variables (can be overridden)
 ENV PORT=5500
