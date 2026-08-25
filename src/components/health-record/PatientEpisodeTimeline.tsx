@@ -6,6 +6,7 @@ import {
     BedDouble,
     Syringe,
     Scissors,
+    FlaskConical,
     Unlock,
     Loader2,
     FileText,
@@ -44,6 +45,7 @@ const EPISODE_ICONS: Record<EpisodeType, React.ElementType> = {
     ipd_admission: BedDouble,
     day_care_visit: Syringe,
     planned_surgery: Scissors,
+    lab_booking: FlaskConical,
 };
 
 const EPISODE_LABELS: Record<EpisodeType, string> = {
@@ -51,6 +53,7 @@ const EPISODE_LABELS: Record<EpisodeType, string> = {
     ipd_admission: "Admission",
     day_care_visit: "Day care",
     planned_surgery: "Surgery",
+    lab_booking: "Lab booking",
 };
 
 /**

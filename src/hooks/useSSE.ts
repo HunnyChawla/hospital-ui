@@ -70,8 +70,8 @@ export function useSSE(
       setError(null);
 
       // Get base URL at runtime to ensure window.__ENV is available
-      const baseURL = getEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000");
-      const fullUrl = url.startsWith("http") ? url : `${baseURL}${url}`;
+      const baseURL = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");
+      const fullUrl = url.startsWith("http") ? url : `${baseURL}${url.startsWith("/") ? "" : "/"}${url}`;
 
       // Get auth token from localStorage
       const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;

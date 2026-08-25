@@ -6,15 +6,22 @@ import {
     Columns, MessageSquare, Activity, FlaskConical, Info,
     Stethoscope, Calendar, GripVertical, ChevronUp, ChevronDown, ClipboardCheck,
     PanelTop, PanelLeft, PanelRight, Ban, Building2, AlignLeft, AlignCenter, AlignRight,
-    Undo2, AlertTriangle, Pill,
+    Undo2, AlertTriangle, Pill, Download, Target, History,
 } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { PrescriptionPrint } from "./PrescriptionPrint";
-import type { PrescriptionResponse } from "@/services/prescriptionsApi";
+import { prescriptionsApi, type PrescriptionResponse } from "@/services/prescriptionsApi";
 import type { PlannedSurgery } from "@/types";
 import { Footer } from "@/components/layout/Footer";
 import { usePrescriptionPrintLayout } from "@/hooks/queries/usePrintLayout";
-import { prescriptionDataApi, type PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { patientsApi } from "@/services/patientsApi";
+import { opdVisitsApi } from "@/services/opdVisitsApi";
+import { doctorsApi } from "@/services/doctorsApi";
+import { vitalSignsApi } from "@/services/vitalSignsApi";
+import { complaintsApi } from "@/services/complaintsApi";
+import { drugAllergyApi } from "@/services/drugAllergyApi";
+import { medicalHistoryApi } from "@/services/medicalHistoryApi";
+import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import {
     A4_HEIGHT_MM,
     A4_WIDTH_MM,
@@ -36,10 +43,17 @@ interface PrescriptionPrintPreviewModalProps {
 }
 
 const ALL_SECTIONS = [
+    "complaints",
+    "vitals",
+    "allergies",
+    "history",
     "diagnosis",
     "medicines",
     "tests",
     "advice",
+    "plan",
+    "remarks",
+    "surgeries",
     "notes",
     "followup",
     "Digital Signature",
@@ -47,19 +61,33 @@ const ALL_SECTIONS = [
 ];
 
 const DEFAULT_CONTENT_SECTIONS = [
+    "complaints",
+    "vitals",
+    "allergies",
+    "history",
     "diagnosis",
     "medicines",
     "tests",
     "advice",
+    "plan",
+    "remarks",
+    "surgeries",
     "notes",
     "followup",
 ];
 
 const SECTION_LABELS: Record<string, string> = {
+    complaints: "Presenting Complaints",
+    vitals: "Vital Signs",
+    allergies: "Drug Allergies",
+    history: "Medical History",
     diagnosis: "Diagnosis",
     medicines: "Medicines",
     tests: "Lab Investigations",
     advice: "Advice",
+    plan: "Plan of Action",
+    remarks: "Remarks",
+    surgeries: "Planned Procedures",
     notes: "Notes",
     followup: "Follow-up",
 };
@@ -94,21 +122,86 @@ export function PrescriptionPrintPreviewModal({
     onFinalize,
 }: PrescriptionPrintPreviewModalProps) {
     const [isFinalizing, setIsFinalizing] = useState(false);
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const [zoom, setZoom] = useState(0.9);
     const printRef = useRef<HTMLDivElement>(null);
-    const [visitData, setVisitData] = useState<PrescriptionDataResponse | null>(null);
+    const [visitData, setVisitData] = useState<any | null>(null);
+    const [patientData, setPatientData] = useState<any>(null);
+    const [doctorData, setDoctorData] = useState<any>(null);
+    const [activeSignature, setActiveSignature] = useState<string | null>(doctorSignature || null);
+    const [activeSurgeries, setActiveSurgeries] = useState<PlannedSurgery[]>(plannedSurgeries);
+
+    const handleDownloadPdf = async () => {
+        try {
+            setIsDownloadingPdf(true);
+            await prescriptionsApi.downloadPdf(
+                prescription.id,
+                `Prescription-${prescription.prescription_number || prescription.id.slice(0, 8)}.pdf`
+            );
+        } catch (err) {
+            console.error("Failed to download prescription PDF:", err);
+            handlePrint();
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    };
 
     useEffect(() => {
-        if (isOpen && prescription.patient_id && prescription.visit_id) {
-            prescriptionDataApi.getPrescriptionData(prescription.patient_id, prescription.visit_id)
-                .then((data) => {
-                    setVisitData(data);
-                })
-                .catch((err) => {
-                    console.error("Failed to fetch prescription data:", err);
+        if (isOpen && prescription.patient_id) {
+            Promise.all([
+                patientsApi.getById(prescription.patient_id).catch(() => null),
+                prescription.visit_id ? opdVisitsApi.getById(prescription.visit_id).catch(() => null) : Promise.resolve(null),
+                prescription.doctor_id ? doctorsApi.getById(prescription.doctor_id).catch(() => null) : Promise.resolve(null),
+                prescription.doctor_id && !doctorSignature ? doctorsApi.getSignature(prescription.doctor_id).catch(() => null) : Promise.resolve(null),
+                prescription.visit_id ? vitalSignsApi.list({ patient_id: prescription.patient_id, visit_id: prescription.visit_id }).catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
+                prescription.visit_id ? complaintsApi.list({ patient_id: prescription.patient_id, visit_id: prescription.visit_id }).catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
+                drugAllergyApi.list({ patient_id: prescription.patient_id }).catch(() => ({ items: [] })),
+                medicalHistoryApi.get(prescription.patient_id).catch(() => null),
+                prescription.visit_id ? plannedSurgeriesApi.list({ visit_id: prescription.visit_id }).catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
+            ]).then(([patientRes, visitRes, doctorRes, sigRes, vitalsRes, complaintsRes, allergiesRes, medHistoryRes, surgeriesRes]) => {
+                const patientFullName =
+                    [patientRes?.first_name, patientRes?.last_name].filter(Boolean).join(" ") ||
+                    (patientRes as any)?.name ||
+                    prescription.patient_name;
+
+                if (patientRes) {
+                    setPatientData({
+                        ...patientRes,
+                        name: patientFullName,
+                    });
+                }
+                if (doctorRes) setDoctorData(doctorRes);
+                if (sigRes?.signature) setActiveSignature(sigRes.signature);
+                if (surgeriesRes?.items && surgeriesRes.items.length > 0) {
+                    setActiveSurgeries(surgeriesRes.items);
+                }
+
+                setVisitData({
+                    patient_id: prescription.patient_id,
+                    name: patientFullName,
+                    uhid: patientRes?.uhid || (patientRes as any)?.healthId || null,
+                    date_of_birth: patientRes?.date_of_birth || null,
+                    gender: patientRes?.gender || null,
+                    mobile: patientRes?.mobile || null,
+                    address: patientRes?.address || [patientRes?.city, patientRes?.state].filter(Boolean).join(", ") || null,
+                    category: patientRes?.category || "General",
+                    visit_id: prescription.visit_id,
+                    visit_number: visitRes?.visit_number || prescription.visit_number || null,
+                    checked_in_at: visitRes?.checked_in_at || prescription.created_at,
+                    chief_complaint: visitRes?.chief_complaint || null,
+                    complaints: complaintsRes?.items?.map((c: any) => c.complaint) || [],
+                    vital_signs: vitalsRes?.items || [],
+                    vitals: vitalsRes?.items?.[0] || null,
+                    drug_allergies: allergiesRes?.items || [],
+                    allergies: allergiesRes?.items || [],
+                    medical_conditions: medHistoryRes || null,
+                    medical_history: medHistoryRes || null,
                 });
+            }).catch((err) => {
+                console.error("Failed to fetch prescription encounter details:", err);
+            });
         }
-    }, [isOpen, prescription.patient_id, prescription.visit_id]);
+    }, [isOpen, prescription.patient_id, prescription.visit_id, prescription.doctor_id, doctorSignature]);
 
     const {
         layout,
@@ -358,6 +451,16 @@ export function PrescriptionPrintPreviewModal({
                                     <span>Print Document</span>
                                 </button>
                             )}
+
+                            <button
+                                onClick={handleDownloadPdf}
+                                disabled={isDownloadingPdf}
+                                className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-all text-xs shadow-2xs disabled:opacity-50"
+                                title="Download server-rendered PDF"
+                            >
+                                {isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin text-sky-600" /> : <Download className="h-4 w-4 text-sky-600" />}
+                                <span>Download PDF</span>
+                            </button>
 
                             <div className="w-px h-6 bg-slate-200 mx-1" />
 
@@ -614,10 +717,17 @@ export function PrescriptionPrintPreviewModal({
                                                             {isSelected && <CheckCircle className="h-3 w-3 text-white" />}
                                                         </div>
                                                         <div className="flex items-center gap-2">
+                                                            {section === "complaints" && <MessageSquare className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "vitals" && <Activity className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "allergies" && <AlertTriangle className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "history" && <History className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             {section === "diagnosis" && <ClipboardCheck className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             {section === "medicines" && <Pill className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             {section === "tests" && <FlaskConical className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             {section === "advice" && <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "plan" && <Target className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "remarks" && <MessageSquare className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                                                            {section === "surgeries" && <Stethoscope className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             {section === "notes" && <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             {section === "followup" && <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                                                             <span className="text-xs font-semibold">{SECTION_LABELS[section] || section}</span>
@@ -760,8 +870,11 @@ export function PrescriptionPrintPreviewModal({
                                         <PrescriptionPrint
                                             prescription={prescription}
                                             layout={effectiveLayout}
-                                            doctorSignature={doctorSignature}
+                                            doctorSignature={activeSignature || doctorSignature}
+                                            patient={patientData}
+                                            doctor={doctorData}
                                             visitData={visitData}
+                                            plannedSurgeries={activeSurgeries.length > 0 ? activeSurgeries : plannedSurgeries}
                                         />
                                     </div>
                                 </div>

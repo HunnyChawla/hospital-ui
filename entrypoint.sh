@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # Default values
-: "${NEXT_PUBLIC_API_BASE_URL:=http://127.0.0.1:8000}"
-: "${NEXT_PUBLIC_DOMAIN_URL:=http://localhost:3000}"
+: "${NEXT_PUBLIC_API_BASE_URL:=/api}"
+: "${NEXT_PUBLIC_DOMAIN_URL:=}"
 
 # Create env-config.js
 cat <<EOF > /usr/share/nginx/html/env-config.js

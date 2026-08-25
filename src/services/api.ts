@@ -8,7 +8,7 @@ let _apiClient: ReturnType<typeof axios.create> | null = null;
 const getApiClient = () => {
   if (_apiClient === null) {
     _apiClient = axios.create({
-      baseURL: getEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000"),
+      baseURL: getEnv("NEXT_PUBLIC_API_BASE_URL", "/api"),
       headers: {
         "Content-Type": "application/json",
       },

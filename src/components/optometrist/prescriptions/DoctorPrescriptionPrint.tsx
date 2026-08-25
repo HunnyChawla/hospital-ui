@@ -167,7 +167,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                     <ul className="list-none m-0 p-0">
                                         {visitData.complaints.map((c, idx) => (
                                             <li key={idx}>
-                                                Both Eye: {c.complaint} {c.duration ? `[${c.duration}]` : ""}
+                                                {c.complaint} {c.duration ? `[${c.duration}]` : ""}
                                             </li>
                                         ))}
                                     </ul>

@@ -14,7 +14,8 @@ export type EpisodeType =
     | "opd_visit"
     | "ipd_admission"
     | "day_care_visit"
-    | "planned_surgery";
+    | "planned_surgery"
+    | "lab_booking";
 
 export type EpisodeStatus = "open" | "finalised" | "reopened";
 

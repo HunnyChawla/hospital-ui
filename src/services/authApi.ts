@@ -23,8 +23,8 @@ export interface LoginResponse {
 export const authApi = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     // Get API URL at runtime to ensure window.__ENV is available
-    const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000").replace(/\/$/, "");
-    const loginUrl = `${baseUrl}/auth/login`;
+    const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");
+    const loginUrl = baseUrl ? `${baseUrl}/auth/login` : "/api/auth/login";
 
     const response = await axios.post<LoginResponse>(
       loginUrl,

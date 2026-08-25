@@ -16,10 +16,17 @@
  * configuration puts them in.
  */
 export const PRESCRIPTION_PRINT_SECTIONS = [
+    "complaints",
+    "vitals",
+    "allergies",
+    "history",
     "diagnosis",
     "medicines",
     "tests",
     "advice",
+    "plan",
+    "remarks",
+    "surgeries",
     "notes",
     "followup",
 ] as const;

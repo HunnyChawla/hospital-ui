@@ -124,6 +124,7 @@ export interface PrescriptionResponse {
   finalized_at: string | null;
   items: PrescriptionItemResponse[];
   advice_items: AdviceItem[];
+  symptoms?: Array<{ symptom_id?: string; symptom_name?: string; name?: string; applicable_eye?: string | null }>;
   followup_date: string | null;
   plan_of_action: string | null;
   remarks: string | null;
@@ -228,4 +229,53 @@ export const prescriptionsApi = {
     const response = await apiClient.get<PrescriptionsSearchResponse>(url);
     return response.data;
   },
+
+  async getPdf(prescriptionId: string, tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(`/prescriptions/${prescriptionId}/pdf`, {
+      params,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  async downloadPdf(prescriptionId: string, filename?: string, tenantId?: string): Promise<void> {
+    const blob = await this.getPdf(prescriptionId, tenantId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || `Prescription-${prescriptionId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  async getPrintPdf(prescriptionOrVisitId: string, sections?: string[], tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params: Record<string, any> = {};
+    if (apiTenantId) params.tenant_id = apiTenantId;
+    if (sections && sections.length > 0) {
+      params.sections = sections.join(",");
+    }
+    const response = await apiClient.get(`/prescriptions/${prescriptionOrVisitId}/print-pdf`, {
+      params,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  async downloadPrintPdf(prescriptionOrVisitId: string, filename?: string, sections?: string[], tenantId?: string): Promise<void> {
+    const blob = await this.getPrintPdf(prescriptionOrVisitId, sections, tenantId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || `Prescription-Print-${prescriptionOrVisitId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
+

@@ -16,11 +16,11 @@ import { QuickNotesPanel } from "./patient-details/QuickNotesPanel";
 import { IpdInfoPanel } from "./patient-details/IpdInfoPanel";
 import { PrescriptionFormModal } from "./PrescriptionFormModal";
 import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
-import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
+import { OpdSlipPrint, type OpdSlipPrescription } from "@/components/opd/OpdSlipPrint";
 import { useAppSelector } from "@/redux/hooks";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { admissionsApi } from "@/services/admissionsApi";
-import { patientsApi, formatPatientName } from "@/services/patientsApi";
+import { patientsApi, formatPatientName, type PatientApiResponse } from "@/services/patientsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { optometristVisitsApi } from "@/services/optometristVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
@@ -97,20 +97,8 @@ export function DoctorPanel() {
   // Print state
   const [printVisitData, setPrintVisitData] = useState<{
     visit: Visit;
-    patient: any;
-    prescription?: {
-      prescription_number: string;
-      diagnosis: string | null;
-      items: Array<{
-        medicine_name: string;
-        generic_name?: string | null;
-        dosage: string | null;
-        frequency: string | null;
-        duration: string | null;
-        instructions: string | null;
-      }>;
-      doctor_name: string;
-    };
+    patient: PatientApiResponse;
+    prescription?: OpdSlipPrescription;
   } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -363,29 +351,47 @@ export function DoctorPanel() {
       // Fetch patient details
       const patient = await patientsApi.getById(selectedPatientId);
 
-      // Fetch finalized prescription for this visit (if exists)
-      let prescription = undefined;
+      // Fetch latest prescription for this visit (finalized or draft)
+      let prescription: OpdSlipPrescription | undefined = undefined;
       try {
         const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
         const prescriptions = await prescriptionsApi.list({
           visit_id: currentVisitId,
-          status: "finalized",
           page_size: 1,
           tenant_id: tenantId || undefined,
         });
 
         if (prescriptions.items.length > 0) {
-          const rxData = prescriptions.items[0];
+          const rxSummary = prescriptions.items[0];
+          // Fetch full prescription details including all items and advice
+          const rxData = await prescriptionsApi.getById(rxSummary.id, tenantId || undefined);
           prescription = {
             prescription_number: rxData.prescription_number,
             diagnosis: rxData.diagnosis,
-            items: rxData.items.map(item => ({
+            items: (rxData.items || []).map((item) => ({
               medicine_name: item.medicine_name,
+              generic_name: item.generic_name,
+              brand: item.brand,
               dosage: item.dosage,
+              dose: item.dose,
+              dosage_form: item.form || (item as any).dosage_form,
+              strength: item.strength,
               frequency: item.frequency,
+              timing: item.timing,
               duration: item.duration,
+              route: item.route,
+              quantity: item.quantity ? Number(item.quantity) : null,
               instructions: item.instructions,
+              special_instructions: item.special_instructions,
+              is_prn: item.is_prn ?? false,
+              prn_reason: item.prn_reason,
+              tapering_steps: item.tapering_steps,
             })),
+            advice_items: rxData.advice_items || [],
+            plan_of_action: rxData.plan_of_action,
+            remarks: rxData.remarks,
+            notes: rxData.notes,
+            followup_date: rxData.followup_date,
             doctor_name: rxData.doctor_name,
           };
         }

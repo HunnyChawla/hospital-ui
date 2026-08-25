@@ -22,6 +22,7 @@ import {
     BedDouble,
     Syringe,
     Scissors,
+    FlaskConical,
     FileText,
     Loader2,
     CheckCircle2,
@@ -55,6 +56,7 @@ const EPISODE_ICONS: Record<EpisodeType, React.ElementType> = {
     ipd_admission: BedDouble,
     day_care_visit: Syringe,
     planned_surgery: Scissors,
+    lab_booking: FlaskConical,
 };
 
 const EPISODE_LABELS: Record<EpisodeType, string> = {
@@ -62,6 +64,7 @@ const EPISODE_LABELS: Record<EpisodeType, string> = {
     ipd_admission: "Admission",
     day_care_visit: "Day care",
     planned_surgery: "Surgery",
+    lab_booking: "Lab booking",
 };
 
 const HI_TYPE_LABELS: Record<HiType, string> = {
