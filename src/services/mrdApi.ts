@@ -27,6 +27,7 @@ export interface MRDDocument {
   admission_id: string | null;
   lab_booking_id: string | null;
   visit_id: string | null;
+  episode_id?: string | null;
   document_name: string;
   document_type: DocumentType;
   category: MRDDocumentCategory;
@@ -40,6 +41,8 @@ export interface MRDDocument {
   download_url: string;
   created_at: string;
   updated_at: string;
+  abha_link_status?: "linked" | "pending" | "unlinked" | "sms_sent" | "failed" | "no_abha" | "excluded_id_proof" | string | null;
+  care_context_reference?: string | null;
 }
 
 export interface CreateMRDDocumentRequest {

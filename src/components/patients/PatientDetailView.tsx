@@ -40,6 +40,8 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { getAbhaError } from "@/utils/abhaErrors";
 import { getTenantIdForApi } from "@/utils/auth";
 import { paymentsApi } from "@/services/paymentsApi";
+import { MRDUploadForm } from "@/components/mrd/MRDUploadForm";
+import { MRDDocumentList } from "@/components/mrd/MRDDocumentList";
 import {
   ArrowLeft,
   CreditCard,
@@ -66,6 +68,8 @@ import {
   FileText,
   Download,
   ShieldCheck,
+  FolderOpen,
+  Upload,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -81,11 +85,13 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const doctors = useAppSelector((s) => s.doctors.list);
 
   const [activeTab, setActiveTab] = useState<
-    "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation" | "abdm_records"
+    "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation" | "abdm_records" | "documents"
   >("appointment");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
+  const [showMrdUploadModal, setShowMrdUploadModal] = useState(false);
+  const [mrdRefreshTrigger, setMrdRefreshTrigger] = useState(0);
 
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
@@ -1037,6 +1043,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 { id: "tests", label: "Tests", icon: TestTube },
                 { id: "record", label: "Health Record", icon: FileText },
                 { id: "immunisation", label: "Immunisation", icon: Syringe },
+                { id: "documents", label: "MRD Documents", icon: FolderOpen },
                 { id: "abdm_records", label: "ABDM External Records", icon: ShieldCheck },
               ].map((tab) => (
                 <button
@@ -1672,6 +1679,83 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
               {activeTab === "immunisation" && (
                 <ImmunisationPanel patientId={patient?.id ?? null} />
+              )}
+
+              {activeTab === "documents" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900">Medical Records & Documents</p>
+                        {patient?.abhaAddress && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200">
+                            <ShieldCheck className="h-3 w-3" />
+                            ABHA Linked (Auto-synced)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Upload and view patient clinical documents, discharge summaries, certificates, and ID proofs.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowMrdUploadModal(true)}
+                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload Document
+                    </button>
+                  </div>
+
+                  {/* Banner explaining ABDM linking rule */}
+                  <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-4 text-xs text-sky-800 flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 text-sky-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-sky-900">ABDM Health Document Linking</p>
+                      <p className="mt-0.5 text-sky-700">
+                        All clinical documents (discharge summaries, lab reports, medical certificates, etc.) uploaded for this patient are automatically linked to their ABDM Care Context as Health Documents. Administrative ID proofs (Aadhaar, PAN) are securely stored and strictly excluded from ABDM sharing.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Document List */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <MRDDocumentList
+                      patientId={patient?.id}
+                      refreshTrigger={mrdRefreshTrigger}
+                    />
+                  </div>
+
+                  {/* Upload Modal */}
+                  {showMrdUploadModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                      <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-900">Upload MRD Document</h3>
+                            <p className="text-xs text-slate-500">
+                              Patient: <span className="font-medium text-slate-700">{patient?.name}</span> ({patient?.healthId})
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setShowMrdUploadModal(false)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        </div>
+                        <MRDUploadForm
+                          defaultPatientId={patient?.id}
+                          onSuccess={() => {
+                            setShowMrdUploadModal(false);
+                            setMrdRefreshTrigger((prev) => prev + 1);
+                            toast.success("Document uploaded and linked successfully!");
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeTab === "abdm_records" && (

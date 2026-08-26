@@ -6,7 +6,24 @@ import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { FileText, Download, Edit, Trash2, Eye, Loader2, Calendar, User, Tag } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Edit,
+  Trash2,
+  Eye,
+  Loader2,
+  Calendar,
+  User,
+  Tag,
+  ShieldCheck,
+  ShieldAlert,
+  CheckCircle2,
+  Clock,
+  Ban,
+  Info,
+  Link2,
+} from "lucide-react";
 import { formatDate as formatDateUtil } from "@/utils/format";
 
 interface MRDDocumentListProps {
@@ -60,6 +77,97 @@ export function MRDDocumentList({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const limit = 20;
+
+  const renderAbhaLinkBadge = (document: MRDDocument) => {
+    const status = document.abha_link_status;
+    const isIdProof = document.category === "ID_PROOF";
+
+    if (isIdProof || status === "excluded_id_proof") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 border border-slate-200"
+          title="Identity proofs are administrative records and are strictly excluded from ABDM health records"
+        >
+          <Ban className="h-3 w-3 text-slate-400" />
+          ID Proof (Excluded)
+        </span>
+      );
+    }
+
+    if (status === "linked") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200 shadow-sm"
+          title={`Linked to ABDM Care Context${document.care_context_reference ? ` (${document.care_context_reference})` : ""}`}
+        >
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+          Linked to ABHA
+        </span>
+      );
+    }
+
+    if (status === "pending") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 border border-sky-200 animate-pulse"
+          title="Sync job queued to link with ABDM"
+        >
+          <Clock className="h-3 w-3 text-sky-600" />
+          Syncing to ABHA
+        </span>
+      );
+    }
+
+    if (status === "sms_sent") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200"
+          title="ABDM deep-link SMS sent to patient"
+        >
+          <Link2 className="h-3 w-3 text-blue-600" />
+          SMS Sent
+        </span>
+      );
+    }
+
+    if (status === "failed") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 border border-rose-200"
+          title="Linking attempt failed. Will retry automatically"
+        >
+          <ShieldAlert className="h-3 w-3 text-rose-600" />
+          Link Failed
+        </span>
+      );
+    }
+
+    if (status === "no_abha") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500 border border-slate-200"
+          title="Patient has no ABHA address on file"
+        >
+          <Info className="h-3 w-3 text-slate-400" />
+          No ABHA
+        </span>
+      );
+    }
+
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200"
+        title={
+          document.care_context_reference
+            ? `Care context ${document.care_context_reference} active`
+            : "Will be linked upon episode finalisation"
+        }
+      >
+        <Clock className="h-3 w-3 text-amber-500" />
+        {document.care_context_reference ? "Care Context Active" : "Pending Sync"}
+      </span>
+    );
+  };
 
   // Map API response to Patient type
   const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
@@ -235,6 +343,9 @@ export function MRDDocumentList({
                   Category
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  ABHA Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
                   File Info
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -271,6 +382,9 @@ export function MRDDocumentList({
                     <span className="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
                       {CATEGORY_LABELS[document.category] || document.category}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {renderAbhaLinkBadge(document)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-xs text-slate-600">
