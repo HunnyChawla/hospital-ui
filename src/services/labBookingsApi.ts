@@ -91,7 +91,8 @@ export interface AdvisedTest {
 
 export interface BookAdvisedTestsRequest {
   patient_id: string;
-  visit_id: string;
+  visit_id?: string;
+  admission_id?: string;
   scheduled_date: string; // YYYY-MM-DD
   priority?: TestPriority;
   lab_test_ids: string[];
@@ -183,9 +184,18 @@ export const labBookingsApi = {
     return response.data;
   },
 
-  async getAdvisedTests(visitId: string, tenantId?: string): Promise<AdvisedTest[]> {
+  async getAdvisedTests(
+    identifier: string | { visit_id?: string; admission_id?: string },
+    tenantId?: string
+  ): Promise<AdvisedTest[]> {
     const apiTenantId = getTenantIdForApi(tenantId);
-    const params: Record<string, string> = { visit_id: visitId };
+    const params: Record<string, string> = {};
+    if (typeof identifier === "string") {
+      params.visit_id = identifier;
+    } else {
+      if (identifier.visit_id) params.visit_id = identifier.visit_id;
+      if (identifier.admission_id) params.admission_id = identifier.admission_id;
+    }
     if (apiTenantId) {
       params.tenant_id = apiTenantId;
     }
@@ -221,13 +231,17 @@ export interface PatientWithPendingTests {
   patient_uhid?: string | null;
   patient_name: string;
   patient_mobile: string | null;
-  visit_id: string;
+  visit_id?: string | null;
   visit_number: string;
   visit_date: string;
   doctor_name: string | null;
   pending_test_count: number;
   total_advised_count?: number;
   booked_count?: number;
+  admission_id?: string | null;
+  admission_number?: string | null;
+  encounter_type?: "opd" | "ipd";
+  encounter_details?: string | null;
 }
 
 export interface PatientWithPendingTestsResponse {

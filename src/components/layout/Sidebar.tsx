@@ -139,6 +139,11 @@ export function Sidebar() {
       items.push({ label: "Day Care Surgery", href: "/day-care", icon: Activity });
     }
 
+    // Ensure IPD Workspace is in the navigation items fallback
+    if (!items.find((i) => i.href === "/ipd-workspace") && ["admin", "receptionist", "nurse", "examiner", "doctor", "platform_owner"].includes(userRole || "")) {
+      items.push({ label: "IPD Patients", href: "/ipd-workspace", icon: BedDouble });
+    }
+
     // Platform Owner only screens
     const platformOwnerScreens = ["/screens", "/tenants", "/platform-billing"];
 

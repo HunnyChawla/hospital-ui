@@ -10,7 +10,8 @@ import { AdmissionFormModal } from "./AdmissionFormModal";
 import { Ward } from "@/services/wardsApi";
 import { Bed } from "@/services/bedsApi";
 import { Admission } from "@/services/admissionsApi";
-import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2 } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2, Stethoscope } from "lucide-react";
 
 interface ManageIPDProps {
   defaultTab?: "wards" | "beds" | "admissions";
@@ -96,16 +97,26 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
             </button>
           )}
           {activeTab === "admissions" && (
-            <button
-              onClick={() => setShowAdmissionModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-            >
-              <div className="relative flex items-center justify-center">
-                <BedDouble className="h-4 w-4" />
-                <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
-              </div>
-              Admit Patient
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/ipd-workspace"
+                className="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-semibold text-teal-800 shadow-2xs transition hover:bg-teal-100"
+              >
+                <Stethoscope className="h-4 w-4 text-teal-600" />
+                <span>Doctor & Nurse Workspace</span>
+              </Link>
+
+              <button
+                onClick={() => setShowAdmissionModal(true)}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
+              >
+                <div className="relative flex items-center justify-center">
+                  <BedDouble className="h-4 w-4" />
+                  <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+                </div>
+                Admit Patient
+              </button>
+            </div>
           )}
         </div>
       </div>

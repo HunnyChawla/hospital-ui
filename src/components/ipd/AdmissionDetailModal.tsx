@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
+import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 import { admissionsApi, Admission, AmountDueResponse } from "@/services/admissionsApi";
@@ -41,6 +42,7 @@ interface AdmissionDetailModalProps {
 }
 
 export function AdmissionDetailModal({ isOpen, onClose, admissionId }: AdmissionDetailModalProps) {
+  const router = useRouter();
   const { tenant, hospitalName } = useTenant();
   const [admission, setAdmission] = useState<Admission | null>(null);
   const [loading, setLoading] = useState(false);
@@ -901,6 +903,16 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
 
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          <button
+            onClick={() => {
+              onClose();
+              router.push(`/ipd-workspace?admission_id=${admission.id}`);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-sky-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-teal-500/30 transition-all hover:from-teal-700 hover:to-sky-700 hover:shadow-md"
+          >
+            <Stethoscope className="h-4 w-4" />
+            <span>Doctor & Nurse Chart</span>
+          </button>
           {/* Consent Form - Available for all statuses */}
           <button
             onClick={handlePrintConsentFormClick}

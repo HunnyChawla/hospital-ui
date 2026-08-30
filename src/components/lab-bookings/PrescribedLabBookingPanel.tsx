@@ -26,9 +26,10 @@ export function PrescribedLabBookingPanel({
   // Mode selection
   const isDirectMode = !!propVisitId;
 
-  // Selected visit state
+  // Selected visit/encounter state
   const [selectedVisitId, setSelectedVisitId] = useState<string>(propVisitId || "");
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [selectedEncounter, setSelectedEncounter] = useState<PatientWithPendingTests | null>(null);
 
   // Standalone mode state: Pending patients and date filters
   const [pendingPatients, setPendingPatients] = useState<PatientWithPendingTests[]>([]);
@@ -109,8 +110,18 @@ export function PrescribedLabBookingPanel({
 
       setPendingPatients(res.items || []);
 
-      // If the currently selected visit is not in the new list, deselect it
-      if (selectedVisitId) {
+      // If the currently selected encounter is not in the new list, deselect it
+      if (selectedEncounter) {
+        const stillPending = (res.items || []).some(
+          (item) =>
+            (item.admission_id && item.admission_id === selectedEncounter.admission_id) ||
+            (item.visit_id && item.visit_id === selectedEncounter.visit_id)
+        );
+        if (!stillPending) {
+          setSelectedEncounter(null);
+          setSelectedVisitId("");
+        }
+      } else if (selectedVisitId) {
         const stillPending = (res.items || []).some((item) => item.visit_id === selectedVisitId);
         if (!stillPending) {
           setSelectedVisitId("");
@@ -122,7 +133,7 @@ export function PrescribedLabBookingPanel({
     } finally {
       setLoadingPatients(false);
     }
-  }, [dateFilter, customStartDate, customEndDate, selectedVisitId]);
+  }, [dateFilter, customStartDate, customEndDate, selectedEncounter, selectedVisitId]);
 
   useEffect(() => {
     if (isDirectMode) return;
@@ -145,13 +156,11 @@ export function PrescribedLabBookingPanel({
     };
   }, [fetchPendingPatients, isDirectMode]);
 
-  // Standalone Mode: Fetch selected visit detail
+  // Standalone Mode: Fetch selected visit detail (for OPD visits)
   useEffect(() => {
     if (isDirectMode) return;
     if (!selectedVisitId) {
       setSelectedVisit(null);
-      setAdvisedTests([]);
-      setSelectedTestIds([]);
       return;
     }
 
@@ -161,18 +170,17 @@ export function PrescribedLabBookingPanel({
         setSelectedVisit(visit);
       } catch (error) {
         console.error("Failed to fetch visit details:", error);
-        toast.error("Failed to load visit details");
       }
     };
 
     fetchVisitDetail();
   }, [selectedVisitId, isDirectMode]);
 
-  // Fetch Advised Tests for the selected visit
-  const fetchAdvisedTests = async (vId: string) => {
+  // Fetch Advised Tests for the selected encounter
+  const fetchAdvisedTests = async (identifier: string | { visit_id?: string; admission_id?: string }) => {
     setLoadingTests(true);
     try {
-      const tests = await labBookingsApi.getAdvisedTests(vId);
+      const tests = await labBookingsApi.getAdvisedTests(identifier);
       // Sort: unbooked tests (already_booked === false) on top
       const sortedTests = [...(tests || [])].sort((a, b) => {
         if (a.already_booked !== b.already_booked) {
@@ -206,10 +214,10 @@ export function PrescribedLabBookingPanel({
   };
 
   useEffect(() => {
-    if (selectedVisitId) {
-      fetchAdvisedTests(selectedVisitId);
+    if (isDirectMode && propVisitId) {
+      fetchAdvisedTests(propVisitId);
     }
-  }, [selectedVisitId]);
+  }, [isDirectMode, propVisitId]);
 
   // Load active prescription fields for each advised test
   useEffect(() => {
@@ -418,8 +426,8 @@ export function PrescribedLabBookingPanel({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedVisitId) {
-      toast.error("No active visit selected");
+    if (!isDirectMode && !selectedEncounter && !selectedVisitId) {
+      toast.error("No active encounter selected");
       return;
     }
 
@@ -439,7 +447,7 @@ export function PrescribedLabBookingPanel({
 
     setIsSubmitting(true);
     try {
-      const pId = isDirectMode ? propPatientId : selectedVisit?.patient_id;
+      const pId = isDirectMode ? propPatientId : (selectedEncounter?.patient_id || selectedVisit?.patient_id);
       if (!pId) {
         toast.error("Patient details not available");
         setIsSubmitting(false);
@@ -460,7 +468,8 @@ export function PrescribedLabBookingPanel({
 
       const bookingReq: BookAdvisedTestsRequest = {
         patient_id: pId,
-        visit_id: selectedVisitId,
+        visit_id: isDirectMode ? propVisitId : (selectedEncounter?.visit_id || (selectedVisitId || undefined)),
+        admission_id: selectedEncounter?.admission_id || undefined,
         scheduled_date: scheduledDate,
         priority,
         lab_test_ids: selectedTestIds,
@@ -491,7 +500,11 @@ export function PrescribedLabBookingPanel({
       // Refresh pending patients list and advised tests list
       await Promise.all([
         fetchPendingPatients(),
-        fetchAdvisedTests(selectedVisitId),
+        isDirectMode
+          ? fetchAdvisedTests(propVisitId!)
+          : selectedEncounter?.admission_id
+          ? fetchAdvisedTests({ admission_id: selectedEncounter.admission_id })
+          : fetchAdvisedTests({ visit_id: selectedEncounter?.visit_id || selectedVisitId }),
       ]);
 
       onSuccess?.();
@@ -683,7 +696,9 @@ export function PrescribedLabBookingPanel({
         )}
       </div>
     );
-  }  // Standalone Mode render
+  }
+
+  // Standalone Mode render
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left Column: Prescribed Patient Selection */}
@@ -787,13 +802,35 @@ export function PrescribedLabBookingPanel({
               {pendingPatients
                 .filter(p => showOnlyPending ? p.pending_test_count > 0 : true)
                 .map((patient) => {
-                  const isSelected = patient.visit_id === selectedVisitId;
+                  const encounterKey = patient.admission_id ? `ipd_${patient.admission_id}` : `opd_${patient.visit_id}`;
+                  const currentSelectedKey = selectedEncounter?.admission_id
+                    ? `ipd_${selectedEncounter.admission_id}`
+                    : selectedEncounter?.visit_id
+                    ? `opd_${selectedEncounter.visit_id}`
+                    : selectedVisitId
+                    ? `opd_${selectedVisitId}`
+                    : "";
+                  const isSelected = encounterKey === currentSelectedKey;
                   const isFullyBooked = patient.pending_test_count === 0;
+                  const isIpd = patient.encounter_type === "ipd" || !!patient.admission_id;
 
                   return (
                     <div
-                      key={patient.visit_id}
-                      onClick={() => setSelectedVisitId(patient.visit_id)}
+                      key={encounterKey}
+                      onClick={() => {
+                        setSelectedEncounter(patient);
+                        if (patient.visit_id) {
+                          setSelectedVisitId(patient.visit_id);
+                        } else {
+                          setSelectedVisitId("");
+                          setSelectedVisit(null);
+                        }
+                        if (patient.admission_id) {
+                          fetchAdvisedTests({ admission_id: patient.admission_id });
+                        } else if (patient.visit_id) {
+                          fetchAdvisedTests({ visit_id: patient.visit_id });
+                        }
+                      }}
                       className={`p-3 rounded-xl border transition-all cursor-pointer text-left ${
                         isSelected
                           ? "border-l-4 border-l-sky-500 border-sky-300 bg-white shadow-sm ring-1 ring-sky-500/10"
@@ -804,26 +841,42 @@ export function PrescribedLabBookingPanel({
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900 truncate">
-                            {patient.patient_name}
-                          </p>
-                          <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                                isIpd
+                                  ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                  : "bg-sky-100 text-sky-700 border border-sky-200"
+                              }`}
+                            >
+                              {isIpd ? "IPD" : "OPD"}
+                            </span>
+                            <p className="text-sm font-semibold text-slate-900 truncate">
+                              {patient.patient_name}
+                            </p>
+                          </div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                             <span className="font-mono text-[11px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                               UHID: {patient.patient_uhid || patient.patient_id.substring(0, 8)}
                             </span>
+                            {patient.encounter_details && (
+                              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[200px]">
+                                {patient.encounter_details}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
                           isSelected ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-slate-100 text-slate-600 border-slate-200"
                         }`}>
-                          {patient.visit_number}
+                          {patient.admission_number || patient.visit_number}
                         </span>
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-500 mt-2">
                         <span>Mob: {patient.patient_mobile || "N/A"}</span>
                         <span className="font-medium text-slate-600 truncate max-w-[120px]">
-                          {patient.doctor_name || "OPD Doctor"}
+                          {patient.doctor_name || (isIpd ? "Attending Doctor" : "OPD Doctor")}
                         </span>
                       </div>
 
@@ -851,19 +904,32 @@ export function PrescribedLabBookingPanel({
 
       {/* Right Column: Advised Tests Detail and Form */}
       <div className="lg:col-span-2">
-        {selectedVisitId ? (
+        {(selectedEncounter || selectedVisitId) ? (
           <div>
-            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <FileText className="h-5 w-5 text-sky-500" />
                 <h2 className="text-base font-semibold text-slate-950">
                   Prescriptions for{" "}
                   <span className="text-sky-600">
-                    {selectedVisit?.patient_name || "Patient"}
+                    {selectedEncounter?.patient_name || selectedVisit?.patient_name || "Patient"}
                   </span>
                 </h2>
+                {selectedEncounter?.encounter_type && (
+                  <span
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                      selectedEncounter.encounter_type === "ipd"
+                        ? "bg-purple-100 text-purple-800 border border-purple-200"
+                        : "bg-sky-100 text-sky-800 border border-sky-200"
+                    }`}
+                  >
+                    {selectedEncounter.encounter_type === "ipd" ? "IPD Admission" : "OPD Visit"}
+                  </span>
+                )}
               </div>
-              <span className="text-xs text-slate-400 font-mono">Visit: {selectedVisit?.visit_number}</span>
+              <span className="text-xs text-slate-500 font-mono font-semibold bg-slate-100 px-2 py-1 rounded">
+                {selectedEncounter?.admission_number ? `Adm: ${selectedEncounter.admission_number}` : `Visit: ${selectedEncounter?.visit_number || selectedVisit?.visit_number}`}
+              </span>
             </div>
 
             {loadingTests ? (
@@ -876,7 +942,7 @@ export function PrescribedLabBookingPanel({
                 <AlertCircle className="mx-auto h-8 w-8 text-slate-400" />
                 <h3 className="mt-2 text-sm font-semibold text-slate-900">No Prescribed Tests</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  No catalog-linked lab tests were prescribed for this visit.
+                  No catalog-linked lab tests were prescribed for this encounter.
                 </p>
               </div>
             ) : (
@@ -897,7 +963,7 @@ export function PrescribedLabBookingPanel({
                   <div className="col-span-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
                     <span>
-                      <strong>Re-booking Notice:</strong> One or more selected tests were previously booked. Proceeding will create an intentional repeat booking for this visit.
+                      <strong>Re-booking Notice:</strong> One or more selected tests were previously booked. Proceeding will create an intentional repeat booking for this encounter.
                     </span>
                   </div>
                 )}
