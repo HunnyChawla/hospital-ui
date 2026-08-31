@@ -102,19 +102,19 @@ export function IpdNursingMarTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 1. Quick Dose Administration (Ward / Nursing Station) */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-100 text-teal-700 shrink-0">
               <Clock className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900">
-                Medication Administration (Nursing / Examiner Action)
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                Medication Administration (Nursing Station)
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] sm:text-xs text-slate-500">
                 Record doses administered to patient as prescribed by doctor
               </p>
             </div>
@@ -126,7 +126,7 @@ export function IpdNursingMarTab({
             No active medication orders to administer.
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {activeMedications.map((med) => (
               <div
                 key={med.id}
@@ -134,8 +134,8 @@ export function IpdNursingMarTab({
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-bold text-slate-900">{med.medicine_name}</span>
-                    <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-bold text-teal-800">
+                    <span className="font-bold text-slate-900 text-xs sm:text-sm">{med.medicine_name}</span>
+                    <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-bold text-teal-800 shrink-0">
                       {med.route}
                     </span>
                   </div>
@@ -164,7 +164,7 @@ export function IpdNursingMarTab({
 
                   <button
                     onClick={() => handleOpenAdministerModal(med)}
-                    className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-teal-700 transition"
+                    className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     <span>Administer</span>
@@ -177,21 +177,21 @@ export function IpdNursingMarTab({
       </div>
 
       {/* 2. Chronological MAR Administration Timeline */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shrink-0">
               <CheckCircle2 className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900">MAR Timeline</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base">MAR Timeline</h3>
+              <p className="text-[11px] sm:text-xs text-slate-500">
                 Detailed record of all doses given, time, and administering nurse/examiner
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <label className="text-xs text-slate-500 font-medium">Filter Date:</label>
             <input
               type="date"
@@ -202,7 +202,7 @@ export function IpdNursingMarTab({
             {filterDate && (
               <button
                 onClick={() => setFilterDate("")}
-                className="text-xs text-sky-600 hover:underline font-medium"
+                className="text-xs text-sky-600 hover:underline font-medium cursor-pointer"
               >
                 Clear
               </button>
@@ -219,7 +219,7 @@ export function IpdNursingMarTab({
             </p>
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="mt-3.5 space-y-2.5">
             {filteredMar.map((log) => {
               const isGiven = log.status === "given";
               const isHeld = log.status === "held";
@@ -228,10 +228,10 @@ export function IpdNursingMarTab({
               return (
                 <div
                   key={log.id}
-                  className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 hover:bg-white transition"
+                  className="flex items-start gap-2.5 sm:gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 hover:bg-white transition"
                 >
                   <div
-                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                    className={`mt-0.5 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl ${
                       isGiven
                         ? "bg-emerald-100 text-emerald-700"
                         : isHeld
@@ -258,9 +258,9 @@ export function IpdNursingMarTab({
                       </span>
                     </div>
 
-                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
                       <span className="flex items-center gap-1">
-                        <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+                        <UserCheck className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                         <span>Administered by: <strong>{log.administered_by_name}</strong></span>
                       </span>
 
@@ -278,7 +278,7 @@ export function IpdNursingMarTab({
                     </div>
 
                     {log.notes && (
-                      <p className="mt-1 text-xs text-slate-500 bg-white p-2 rounded-lg border border-slate-100">
+                      <p className="mt-1.5 text-xs text-slate-500 bg-white p-2 rounded-lg border border-slate-100">
                         📝 {log.notes}
                       </p>
                     )}
@@ -292,22 +292,22 @@ export function IpdNursingMarTab({
 
       {/* Modal: Administer Medication */}
       {administerMed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-teal-700">
                 <CheckCircle2 className="h-5 w-5" />
-                <h3 className="font-bold text-slate-900">Record Dose Administration</h3>
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Record Dose Administration</h3>
               </div>
               <button
                 onClick={() => setAdministerMed(null)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAdministerSubmit} className="mt-4 space-y-4 text-xs">
+            <form onSubmit={handleAdministerSubmit} className="mt-4 space-y-3.5 sm:space-y-4 text-xs">
               <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
                 <p className="font-bold text-slate-900">{administerMed.medicine_name}</p>
                 <p className="text-slate-600">
@@ -327,7 +327,7 @@ export function IpdNursingMarTab({
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-teal-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-teal-500 focus:outline-none font-semibold"
                 >
                   <option value="given">Given / Administered</option>
                   <option value="held">Held (e.g. NPO / patient asleep)</option>
@@ -375,18 +375,18 @@ export function IpdNursingMarTab({
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-slate-100 pt-3">
                 <button
                   type="button"
                   onClick={() => setAdministerMed(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-xl bg-teal-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
+                  className="rounded-xl bg-teal-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? "Recording..." : "Save Administration"}
                 </button>

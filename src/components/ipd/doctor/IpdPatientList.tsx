@@ -63,15 +63,15 @@ export function IpdPatientList({
   });
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm">
       {/* Header & Tabs */}
-      <div className="space-y-3 pb-3 border-b border-slate-100">
+      <div className="space-y-2.5 pb-3 border-b border-slate-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BedDouble className="h-5 w-5 text-sky-600" />
-            <h3 className="font-bold text-slate-900">Admitted Patients</h3>
+            <BedDouble className="h-5 w-5 text-sky-600 shrink-0" />
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">Admitted Patients</h3>
           </div>
-          <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800">
+          <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800 shrink-0">
             {filteredPatients.length} active
           </span>
         </div>
@@ -80,7 +80,7 @@ export function IpdPatientList({
         <div className="flex rounded-xl bg-slate-100 p-1">
           <button
             onClick={() => setFilterMode("my")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition cursor-pointer ${
               filterMode === "my"
                 ? "bg-white text-sky-700 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
@@ -91,7 +91,7 @@ export function IpdPatientList({
           </button>
           <button
             onClick={() => setFilterMode("all")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition cursor-pointer ${
               filterMode === "all"
                 ? "bg-white text-sky-700 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
@@ -116,12 +116,12 @@ export function IpdPatientList({
           </div>
 
           {wards.length > 0 && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] scrollbar-none">
               <button
                 onClick={() => setSelectedWard("all")}
-                className={`rounded-lg px-2 py-1 font-semibold whitespace-nowrap transition ${
+                className={`rounded-lg px-2.5 py-1 font-semibold whitespace-nowrap transition cursor-pointer ${
                   selectedWard === "all"
-                    ? "bg-slate-800 text-white"
+                    ? "bg-slate-800 text-white shadow-2xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -131,9 +131,9 @@ export function IpdPatientList({
                 <button
                   key={ward}
                   onClick={() => setSelectedWard(ward)}
-                  className={`rounded-lg px-2 py-1 font-semibold whitespace-nowrap transition ${
+                  className={`rounded-lg px-2.5 py-1 font-semibold whitespace-nowrap transition cursor-pointer ${
                     selectedWard === ward
-                      ? "bg-sky-600 text-white"
+                      ? "bg-sky-600 text-white shadow-2xs"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
@@ -146,9 +146,9 @@ export function IpdPatientList({
       </div>
 
       {/* Patient List Items */}
-      <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="mt-2.5 flex-1 space-y-2 overflow-y-auto pr-0.5 max-h-[65vh] sm:max-h-[calc(100vh-280px)]">
         {loading ? (
-          <div className="space-y-3 py-6 text-center">
+          <div className="space-y-3 py-8 text-center">
             <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-slate-200 border-t-sky-600" />
             <p className="text-xs text-slate-500">Loading admitted patients...</p>
           </div>
@@ -159,7 +159,7 @@ export function IpdPatientList({
             {filterMode === "my" && (
               <button
                 onClick={() => setFilterMode("all")}
-                className="mt-2 text-xs font-bold text-sky-600 hover:underline"
+                className="mt-2 text-xs font-bold text-sky-600 hover:underline cursor-pointer"
               >
                 View all IPD patients
               </button>
@@ -172,10 +172,10 @@ export function IpdPatientList({
               <div
                 key={patient.admission_id}
                 onClick={() => onSelectPatient(patient.admission_id)}
-                className={`group relative cursor-pointer rounded-xl border p-3 transition ${
+                className={`group relative cursor-pointer rounded-xl border p-3 transition active:scale-[0.99] ${
                   isSelected
-                    ? "border-sky-500 bg-sky-50/70 shadow-sm ring-1 ring-sky-400"
-                    : "border-slate-200 bg-white hover:border-sky-300 hover:bg-slate-50/80"
+                    ? "border-sky-500 bg-sky-50/80 shadow-sm ring-1 ring-sky-400"
+                    : "border-slate-200 bg-white hover:border-sky-300 hover:bg-slate-50/80 active:bg-slate-100"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -186,7 +186,7 @@ export function IpdPatientList({
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-slate-500 truncate">
                       {patient.uhid} • {patient.age ? `${patient.age}y` : ""} {patient.gender || ""}
                     </p>
                   </div>
@@ -200,24 +200,27 @@ export function IpdPatientList({
                 </div>
 
                 {/* Stay & Diagnosis */}
-                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600">
-                  <span className="font-semibold text-sky-700">
+                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600 gap-2">
+                  <span className="font-semibold text-sky-700 shrink-0">
                     Day {patient.days_admitted + 1}
                   </span>
-                  <span className="truncate max-w-[150px] text-slate-500" title={patient.diagnosis || "No diagnosis"}>
+                  <span className="truncate text-right text-slate-500 flex-1" title={patient.diagnosis || "No diagnosis"}>
                     {patient.diagnosis || patient.reason_for_admission || "Admitted"}
                   </span>
                 </div>
 
-                {/* Badges strip: Active Meds, Attending Doctor */}
+                {/* Badges strip: Active Meds, Attending Doctor, Mobile arrow */}
                 <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5 text-[10px] text-slate-500">
                   <span className="flex items-center gap-1">
                     <Pill className="h-3 w-3 text-emerald-600" />
                     <span>{patient.active_medications_count} Meds</span>
                   </span>
-                  <span className="truncate max-w-[120px]" title={patient.doctor_name}>
-                    {patient.doctor_name || "Doctor"}
-                  </span>
+                  <div className="flex items-center gap-1 truncate max-w-[140px]">
+                    <span className="truncate" title={patient.doctor_name}>
+                      {patient.doctor_name || "Doctor"}
+                    </span>
+                    <ChevronRight className="h-3 w-3 text-slate-400 group-hover:text-sky-600 shrink-0" />
+                  </div>
                 </div>
               </div>
             );

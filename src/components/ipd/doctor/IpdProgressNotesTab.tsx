@@ -89,17 +89,22 @@ export function IpdProgressNotesTab({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm">
         {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-100 text-purple-700 shrink-0">
               <FileText className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900">Daily Progress Notes</h3>
-              <p className="text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Daily Progress Notes</h3>
+                <span className="rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5">
+                  {progressNotes.length}
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-500">
                 Doctor rounds, clinical progress (SOAP), and nursing shift observations
               </p>
             </div>
@@ -111,7 +116,7 @@ export function IpdProgressNotesTab({
               setNoteTime(new Date().toISOString().slice(0, 16));
               setShowAddModal(true);
             }}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow"
+            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
           >
             <PlusCircle className="h-4 w-4" />
             <span>Create Progress Note</span>
@@ -128,15 +133,15 @@ export function IpdProgressNotesTab({
             </p>
           </div>
         ) : (
-          <div className="mt-4 space-y-4">
+          <div className="mt-3.5 space-y-3 sm:space-y-4">
             {progressNotes.map((note) => (
               <div
                 key={note.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 hover:bg-white hover:shadow-sm transition"
+                className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4 hover:bg-white hover:shadow-sm transition space-y-2.5"
               >
                 {/* Note Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-slate-200/60 pb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-bold text-purple-800 capitalize">
                       {note.note_type.replace("_", " ")}
                     </span>
@@ -145,13 +150,13 @@ export function IpdProgressNotesTab({
                     </span>
                   </div>
 
-                  <span className="text-xs text-slate-500">
+                  <span className="text-[11px] text-slate-500">
                     ⏱️ {formatDt(note.note_time || `${note.note_date}T00:00:00`)}
                   </span>
                 </div>
 
                 {/* SOAP Content */}
-                <div className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
+                <div className="mt-2.5 grid grid-cols-1 gap-2.5 text-xs sm:grid-cols-2">
                   {note.subjective && (
                     <div className="rounded-xl bg-white p-3 border border-slate-100 shadow-2xs">
                       <p className="font-bold text-purple-900 mb-1">
@@ -211,24 +216,24 @@ export function IpdProgressNotesTab({
 
       {/* Modal: Create Daily Progress Note */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-purple-600" />
-                <h3 className="font-bold text-slate-900">Create Daily Progress Note (SOAP)</h3>
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Create Daily Progress Note (SOAP)</h3>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddNoteSubmit} className="mt-4 space-y-4 text-xs">
+            <form onSubmit={handleAddNoteSubmit} className="mt-4 space-y-3.5 sm:space-y-4 text-xs">
               {/* Type and Timestamp */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Note Type
@@ -236,7 +241,7 @@ export function IpdProgressNotesTab({
                   <select
                     value={noteType}
                     onChange={(e) => setNoteType(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none font-semibold"
                   >
                     <option value="doctor_daily">Doctor Daily Round (SOAP)</option>
                     <option value="nursing_shift">Nursing Shift Note</option>
@@ -332,18 +337,18 @@ export function IpdProgressNotesTab({
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-slate-100 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:shadow disabled:opacity-50"
+                  className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:shadow disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? "Saving..." : "Save Progress Note"}
                 </button>
