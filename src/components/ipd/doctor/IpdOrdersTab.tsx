@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   ClipboardList,
   PlusCircle,
@@ -17,35 +17,47 @@ import {
   X,
   Search,
   Clock,
+  Scissors,
+  Loader2,
 } from "lucide-react";
-import { IpdOrder, OrderCategory } from "@/types/ipdDoctor";
+import { IpdOrder } from "@/types/ipdDoctor";
 import { ipdDoctorApi } from "@/services/ipdDoctorApi";
 import { labTestsApi, LabTest } from "@/services/labTestsApi";
+import { surgeriesApi, SurgeryPrescriptionOption } from "@/services/surgeriesApi";
+import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
+import { BodyPartPicker } from "@/components/planned-surgeries/BodyPartPicker";
+import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
 import { toast } from "sonner";
-import { getErrorMessage } from "@/utils/errorHandler";
-import { currency } from "@/utils/format";
+import { getErrorMessage, handleError } from "@/utils/errorHandler";
+import { currency, getTodayDateLocal } from "@/utils/format";
 
 interface IpdOrdersTabProps {
   admissionId: string;
+  patientId?: string;
+  doctorId?: string;
   orders: IpdOrder[];
   onRefresh: () => void;
+  isDischarged?: boolean;
 }
 
 const CATEGORIES: { id: string; label: string; icon: any }[] = [
   { id: "all", label: "All Orders", icon: ClipboardList },
-  { id: "medication", label: "Medication", icon: Activity },
+  { id: "procedure", label: "Procedure / Surgery", icon: Scissors },
   { id: "lab", label: "Lab Orders", icon: FlaskConical },
   { id: "radiology", label: "Radiology", icon: Radio },
-  { id: "procedure", label: "Procedure", icon: Activity },
   { id: "diet", label: "Diet Orders", icon: Utensils },
   { id: "nursing_instruction", label: "Nursing Instructions", icon: HeartHandshake },
+  { id: "medication", label: "Medication", icon: Activity },
   { id: "other", label: "Other", icon: FileText },
 ];
 
 export function IpdOrdersTab({
   admissionId,
+  patientId,
+  doctorId,
   orders,
   onRefresh,
+  isDischarged = false,
 }: IpdOrdersTabProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -53,7 +65,7 @@ export function IpdOrdersTab({
   const [discontinueReason, setDiscontinueReason] = useState("");
 
   // Add Order form state
-  const [orderCategory, setOrderCategory] = useState<string>("lab");
+  const [orderCategory, setOrderCategory] = useState<string>("procedure");
   const [orderTitle, setOrderTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [priority, setPriority] = useState<string>("routine");
@@ -66,16 +78,62 @@ export function IpdOrdersTab({
   const [labSearchQuery, setLabSearchQuery] = useState("");
   const [isLabSearchFocused, setIsLabSearchFocused] = useState(false);
 
+  // Surgery Catalog search state (identical surgery-first architecture to prescription panel)
+  const [surgerySearchQuery, setSurgerySearchQuery] = useState("");
+  const [surgeryResults, setSurgeryResults] = useState<SurgeryPrescriptionOption[]>([]);
+  const [searchingSurgeries, setSearchingSurgeries] = useState(false);
+  const [showSurgeryDropdown, setShowSurgeryDropdown] = useState(false);
+  const [selectedSurgery, setSelectedSurgery] = useState<SurgeryPrescriptionOption | null>(null);
+  const [selectedBodyPartId, setSelectedBodyPartId] = useState<string | null>(null);
+  const [plannedDate, setPlannedDate] = useState("");
+  const [advisedDate, setAdvisedDate] = useState(getTodayDateLocal());
+  const [saveToPlannedSchedule, setSaveToPlannedSchedule] = useState(true);
+  const surgerySearchRef = useRef<HTMLDivElement>(null);
+
+  const minDate = getTodayDateLocal();
+
+  // Load Lab Catalog on mount
   useEffect(() => {
     const loadCatalog = async () => {
       try {
         const res = await labTestsApi.list({ is_active: true, page_size: 150 });
         setAvailableLabTests(res.items || []);
       } catch (err) {
-        console.error("Failed to load catalog in OrdersTab:", err);
+        console.error("Failed to load lab catalog in OrdersTab:", err);
       }
     };
     loadCatalog();
+  }, []);
+
+  // Debounced backend search for surgery catalog
+  useEffect(() => {
+    if (!showAddModal || orderCategory !== "procedure") return;
+    const handler = setTimeout(async () => {
+      setSearchingSurgeries(true);
+      try {
+        const response = await surgeriesApi.listForPrescription({
+          search: surgerySearchQuery.trim() || undefined,
+          page_size: 20,
+        });
+        setSurgeryResults(response.items || []);
+      } catch (error) {
+        handleError(error, { defaultMessage: "Failed to search surgeries", logError: true });
+      } finally {
+        setSearchingSurgeries(false);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [surgerySearchQuery, showAddModal, orderCategory]);
+
+  // Close surgery dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (surgerySearchRef.current && !surgerySearchRef.current.contains(e.target as Node)) {
+        setShowSurgeryDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const filteredLabCatalog = useMemo(() => {
@@ -90,6 +148,19 @@ export function IpdOrdersTab({
   }, [availableLabTests, labSearchQuery]);
 
   // Quick preset chips for convenience
+  const PROCEDURE_PRESETS = [
+    "Phacoemulsification with Foldable IOL",
+    "Small Incision Cataract Surgery (SICS)",
+    "Trabeculectomy with MMC",
+    "Pterygium Excision with Conjunctival Autograft",
+    "Intravitreal Anti-VEGF Injection",
+    "Pars Plana Vitrectomy (PPV)",
+    "Chalazion Incision & Curettage",
+    "Dacryocystorhinostomy (DCR)",
+    "Nd:YAG Laser Capsulotomy",
+    "Wound Debridement & Dressing",
+  ];
+
   const DIET_PRESETS = [
     "Diabetic Diet (Low glycemic index, no refined sugar)",
     "Low Sodium Diet (Salt restricted < 2g/day)",
@@ -121,9 +192,15 @@ export function IpdOrdersTab({
     setOrderCategory(cat);
     setSelectedLabTest(null);
     setLabSearchQuery("");
-    if (cat === "diet" && !orderTitle) setOrderTitle(DIET_PRESETS[0]);
-    if (cat === "nursing_instruction" && !orderTitle) setOrderTitle(NURSING_PRESETS[0]);
-    if (cat === "lab" && !orderTitle) setOrderTitle(LAB_PRESETS[0]);
+    setSelectedSurgery(null);
+    setSurgerySearchQuery("");
+    setSelectedBodyPartId(null);
+    setPlannedDate("");
+    setAdvisedDate(getTodayDateLocal());
+    setOrderTitle("");
+    if (cat === "diet") setOrderTitle(DIET_PRESETS[0]);
+    if (cat === "nursing_instruction") setOrderTitle(NURSING_PRESETS[0]);
+    if (cat === "lab") setOrderTitle(LAB_PRESETS[0]);
   };
 
   const handleSelectLabTest = (t: LabTest) => {
@@ -132,16 +209,54 @@ export function IpdOrdersTab({
     setLabSearchQuery(t.test_name);
   };
 
+  const handleSelectSurgery = (surgery: SurgeryPrescriptionOption) => {
+    setSelectedSurgery(surgery);
+    setSurgerySearchQuery(surgery.name);
+    setOrderTitle(surgery.name);
+    setShowSurgeryDropdown(false);
+    // 0/1/2+ body part convention matching prescription panel
+    setSelectedBodyPartId(surgery.body_parts.length === 1 ? surgery.body_parts[0].id : null);
+  };
+
+  const handleSelectProcedurePreset = (preset: string) => {
+    setOrderTitle(preset);
+    setSurgerySearchQuery(preset);
+    const matched = surgeryResults.find((s) =>
+      s.name.toLowerCase().includes(preset.toLowerCase().slice(0, 10))
+    );
+    if (matched) {
+      handleSelectSurgery(matched);
+    } else {
+      setSelectedSurgery(null);
+      setSelectedBodyPartId(null);
+    }
+  };
+
   const handleAddOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalTitle = selectedLabTest ? selectedLabTest.test_name : orderTitle.trim();
+
+    let finalTitle = orderTitle.trim();
+    if (orderCategory === "lab" && selectedLabTest) {
+      finalTitle = selectedLabTest.test_name;
+    } else if (orderCategory === "procedure" && selectedSurgery) {
+      const bp = selectedSurgery.body_parts.find((b) => b.id === selectedBodyPartId);
+      finalTitle = bp ? `${selectedSurgery.name} (${bp.name})` : selectedSurgery.name;
+    }
+
     if (!finalTitle) {
       toast.error("Please enter order title or select from catalog");
       return;
     }
 
+    // Validation for multi-body-part surgery
+    if (orderCategory === "procedure" && selectedSurgery && selectedSurgery.body_parts.length > 1 && !selectedBodyPartId) {
+      toast.error("Please select the applicable body part for this surgery");
+      return;
+    }
+
     setSubmittingAdd(true);
     try {
+      // 1. Create IPD Doctor Order
       await ipdDoctorApi.createOrder(admissionId, {
         order_category: orderCategory,
         order_title: finalTitle,
@@ -150,11 +265,38 @@ export function IpdOrdersTab({
         lab_test_id: selectedLabTest ? selectedLabTest.id : null,
       });
 
-      toast.success("Order created successfully");
+      // 2. If procedure selected from catalog & saveToPlannedSchedule is enabled, also create Planned Surgery
+      if (orderCategory === "procedure" && selectedSurgery && patientId && saveToPlannedSchedule) {
+        try {
+          await plannedSurgeriesApi.create({
+            patient_id: patientId,
+            visit_id: null,
+            surgery_id: selectedSurgery.id,
+            surgery_name: selectedSurgery.name,
+            body_part_id: selectedBodyPartId,
+            planned_date: plannedDate || null,
+            advised_date: advisedDate || getTodayDateLocal(),
+            surgeon_id: doctorId || "",
+            notes: instructions.trim() || null,
+          });
+          toast.success("Procedure order placed & surgery planned successfully");
+        } catch (planErr: any) {
+          console.warn("Planned surgery schedule creation notice:", planErr);
+          toast.success("Procedure order placed in patient chart");
+        }
+      } else {
+        toast.success("Doctor order placed successfully");
+      }
+
       setShowAddModal(false);
       setOrderTitle("");
       setSelectedLabTest(null);
       setLabSearchQuery("");
+      setSelectedSurgery(null);
+      setSurgerySearchQuery("");
+      setSelectedBodyPartId(null);
+      setPlannedDate("");
+      setAdvisedDate(getTodayDateLocal());
       setInstructions("");
       setPriority("routine");
       onRefresh();
@@ -179,6 +321,8 @@ export function IpdOrdersTab({
       toast.success(
         discontinuingOrder.order_category === "lab"
           ? "Lab order cancelled"
+          : discontinuingOrder.order_category === "procedure"
+          ? "Procedure order cancelled"
           : "Order discontinued"
       );
       setDiscontinuingOrder(null);
@@ -203,14 +347,18 @@ export function IpdOrdersTab({
 
   const getCategoryIcon = (cat: string) => {
     switch (cat) {
+      case "procedure":
+        return <Scissors className="h-4 w-4 text-amber-600" />;
       case "lab":
         return <FlaskConical className="h-4 w-4 text-sky-600" />;
       case "radiology":
         return <Radio className="h-4 w-4 text-purple-600" />;
       case "diet":
-        return <Utensils className="h-4 w-4 text-amber-600" />;
+        return <Utensils className="h-4 w-4 text-emerald-600" />;
       case "nursing_instruction":
-        return <HeartHandshake className="h-4 w-4 text-emerald-600" />;
+        return <HeartHandshake className="h-4 w-4 text-teal-600" />;
+      case "medication":
+        return <Activity className="h-4 w-4 text-indigo-600" />;
       default:
         return <ClipboardList className="h-4 w-4 text-slate-600" />;
     }
@@ -233,23 +381,36 @@ export function IpdOrdersTab({
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-500">
-                Lab orders, radiology, diet, and nursing care instructions
+                Procedures, surgery planning, lab orders, radiology, diet, and nursing care instructions
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setOrderCategory("lab");
-              setOrderTitle("");
-              setInstructions("");
-              setShowAddModal(true);
-            }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Add Doctor Order</span>
-          </button>
+          {!isDischarged && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  handleCategorySelectForAdd("procedure");
+                  setShowAddModal(true);
+                }}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 shadow-2xs transition hover:bg-amber-100 cursor-pointer"
+              >
+                <Scissors className="h-3.5 w-3.5 text-amber-700" />
+                <span>Plan Surgery / Procedure</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleCategorySelectForAdd("procedure");
+                  setShowAddModal(true);
+                }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>Add Doctor Order</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Category Pills */}
@@ -257,9 +418,10 @@ export function IpdOrdersTab({
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
-            const count = cat.id === "all"
-              ? orders.length
-              : orders.filter((o) => o.order_category === cat.id).length;
+            const count =
+              cat.id === "all"
+                ? orders.length
+                : orders.filter((o) => o.order_category === cat.id).length;
 
             return (
               <button
@@ -298,18 +460,27 @@ export function IpdOrdersTab({
               const isActive = order.status === "active";
               const isStat = order.priority === "stat";
               const isUrgent = order.priority === "urgent";
+              const isProcedure = order.order_category === "procedure";
 
               return (
                 <div
                   key={order.id}
                   className={`flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 sm:gap-3 rounded-xl border p-3 sm:p-3.5 transition ${
-                    isActive
+                    isProcedure
+                      ? isActive
+                        ? "border-amber-200 bg-amber-50/20 hover:border-amber-400 hover:shadow-sm"
+                        : "border-slate-100 bg-slate-50/60 opacity-80"
+                      : isActive
                       ? "border-slate-200 bg-white hover:border-sky-300 hover:shadow-sm"
                       : "border-slate-100 bg-slate-50/60 opacity-80"
                   }`}
                 >
                   <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
-                    <div className="mt-0.5 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                    <div
+                      className={`mt-0.5 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl ${
+                        isProcedure ? "bg-amber-100 text-amber-700" : "bg-slate-100"
+                      }`}
+                    >
                       {getCategoryIcon(order.order_category)}
                     </div>
 
@@ -347,6 +518,13 @@ export function IpdOrdersTab({
                         >
                           {order.status}
                         </span>
+
+                        {isProcedure && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold border border-amber-200">
+                            <Scissors className="h-3 w-3" />
+                            Procedure / Surgery Order
+                          </span>
+                        )}
 
                         {/* If category is lab, show booking status badge */}
                         {order.order_category === "lab" && (
@@ -394,24 +572,33 @@ export function IpdOrdersTab({
                     </div>
                   </div>
 
-                  {isActive && (
+                  {isActive && !isDischarged && (
                     <div className="shrink-0 self-end sm:self-center pt-1 sm:pt-0">
                       <button
                         onClick={() => {
                           const isLab = order.order_category === "lab";
+                          const isProc = order.order_category === "procedure";
                           setDiscontinuingOrder(order);
                           setDiscontinueReason(
-                            isLab ? "Cancelled by doctor" : "Goal achieved / Completed"
+                            isLab
+                              ? "Cancelled by doctor"
+                              : isProc
+                              ? "Procedure cancelled / postponed"
+                              : "Goal achieved / Completed"
                           );
                         }}
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer shadow-2xs"
                       >
-                        {order.order_category === "lab" ? (
+                        {order.order_category === "lab" || order.order_category === "procedure" ? (
                           <XCircle className="h-3.5 w-3.5 text-rose-500" />
                         ) : (
                           <StopCircle className="h-3.5 w-3.5 text-slate-500" />
                         )}
-                        <span>{order.order_category === "lab" ? "Cancel Order" : "Discontinue"}</span>
+                        <span>
+                          {order.order_category === "lab" || order.order_category === "procedure"
+                            ? "Cancel Order"
+                            : "Discontinue"}
+                        </span>
                       </button>
                     </div>
                   )}
@@ -422,14 +609,20 @@ export function IpdOrdersTab({
         )}
       </div>
 
-      {/* Modal: Add Doctor Order */}
+      {/* Modal: Add Doctor Order / Plan Surgery */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-sky-600" />
-                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Add Doctor Order</h3>
+                {orderCategory === "procedure" ? (
+                  <Scissors className="h-5 w-5 text-amber-600" />
+                ) : (
+                  <ClipboardList className="h-5 w-5 text-sky-600" />
+                )}
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                  {orderCategory === "procedure" ? "Plan Surgery / Order Procedure" : "Add Doctor Order"}
+                </h3>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -447,22 +640,25 @@ export function IpdOrdersTab({
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
+                    { id: "procedure", label: "Procedure / Surgery", icon: Scissors },
                     { id: "lab", label: "Lab Order", icon: FlaskConical },
                     { id: "radiology", label: "Radiology", icon: Radio },
-                    { id: "procedure", label: "Procedure", icon: Activity },
                     { id: "diet", label: "Diet Order", icon: Utensils },
                     { id: "nursing_instruction", label: "Nursing Care", icon: HeartHandshake },
                     { id: "other", label: "Other", icon: FileText },
                   ].map((cat) => {
                     const Icon = cat.icon;
+                    const isSelected = orderCategory === cat.id;
                     return (
                       <button
                         key={cat.id}
                         type="button"
                         onClick={() => handleCategorySelectForAdd(cat.id)}
                         className={`flex items-center justify-center gap-1.5 rounded-xl border p-2 text-xs font-semibold transition cursor-pointer ${
-                          orderCategory === cat.id
-                            ? "border-sky-500 bg-sky-50 text-sky-700 ring-1 ring-sky-400"
+                          isSelected
+                            ? cat.id === "procedure"
+                              ? "border-amber-500 bg-amber-50 text-amber-800 ring-1 ring-amber-400"
+                              : "border-sky-500 bg-sky-50 text-sky-700 ring-1 ring-sky-400"
                             : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                         }`}
                       >
@@ -474,8 +670,203 @@ export function IpdOrdersTab({
                 </div>
               </div>
 
-              {/* Order Title or Searchable Lab Test Catalog */}
-              {orderCategory === "lab" ? (
+              {/* Procedure / Surgery Search (Identical to Prescription Panel) */}
+              {orderCategory === "procedure" ? (
+                <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  <div>
+                    <label className="block font-semibold text-slate-800 mb-1">
+                      Search Surgery Catalog <span className="text-rose-500">*</span>
+                    </label>
+
+                    <div className="relative" ref={surgerySearchRef}>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={surgerySearchQuery}
+                          onChange={(e) => {
+                            setSurgerySearchQuery(e.target.value);
+                            setOrderTitle(e.target.value);
+                            setSelectedSurgery(null);
+                            setShowSurgeryDropdown(true);
+                          }}
+                          onFocus={() => setShowSurgeryDropdown(true)}
+                          placeholder="Search surgeries by name, category..."
+                          className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-8 py-2 text-xs focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20"
+                          required
+                        />
+                        {surgerySearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSurgery(null);
+                              setSurgerySearchQuery("");
+                              setOrderTitle("");
+                              setSelectedBodyPartId(null);
+                              setShowSurgeryDropdown(false);
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                            title="Clear search"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {showSurgeryDropdown && (
+                        <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-100">
+                          {searchingSurgeries ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+                            </div>
+                          ) : surgeryResults.length === 0 ? (
+                            <p className="px-3 py-2.5 text-xs text-slate-500">
+                              No matching surgeries found in catalog. You can still order by typing custom name.
+                            </p>
+                          ) : (
+                            surgeryResults.map((surg) => (
+                              <button
+                                key={surg.id}
+                                type="button"
+                                onClick={() => handleSelectSurgery(surg)}
+                                className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-amber-50/80 transition cursor-pointer"
+                              >
+                                <span className="font-bold text-slate-900 text-xs">{surg.name}</span>
+                                {surg.category && (
+                                  <span className="text-[10px] text-slate-500">{surg.category}</span>
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Selected Surgery Banner */}
+                  {selectedSurgery && (
+                    <div className="flex items-center justify-between rounded-xl bg-white border border-amber-300 p-2.5 shadow-2xs">
+                      <div>
+                        <span className="text-[9px] font-bold text-amber-800 uppercase tracking-wide">
+                          Selected Surgery
+                        </span>
+                        <p className="font-bold text-slate-900 text-xs">{selectedSurgery.name}</p>
+                        {selectedSurgery.category && (
+                          <p className="text-[10px] text-slate-500">{selectedSurgery.category}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSurgery(null);
+                          setSurgerySearchQuery("");
+                          setOrderTitle("");
+                          setSelectedBodyPartId(null);
+                        }}
+                        className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                        title="Remove surgery"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Body Part Selection (surfaced when selected surgery has 2+ body parts) */}
+                  {selectedSurgery && selectedSurgery.body_parts.length > 1 && (
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Body Part / Eye <span className="text-rose-500">*</span>
+                      </label>
+                      <BodyPartPicker
+                        bodyParts={selectedSurgery.body_parts}
+                        value={selectedBodyPartId}
+                        onChange={setSelectedBodyPartId}
+                      />
+                    </div>
+                  )}
+
+                  {selectedSurgery && selectedSurgery.body_parts.length === 1 && (
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="font-semibold">Body Part:</span>
+                      <BodyPartBadge
+                        name={selectedSurgery.body_parts[0].name}
+                        laterality={selectedSurgery.body_parts[0].laterality}
+                        department={selectedSurgery.body_parts[0].department}
+                      />
+                    </div>
+                  )}
+
+                  {/* Date Selection */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Advised Date <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={advisedDate}
+                        onChange={(e) => setAdvisedDate(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Planned Surgery Date <span className="text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={plannedDate}
+                        onChange={(e) => setPlannedDate(e.target.value)}
+                        min={minDate}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Common Presets */}
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-600 mb-1">Common Procedures & Surgeries:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {PROCEDURE_PRESETS.map((preset) => {
+                        const isSelected =
+                          selectedSurgery?.name.toLowerCase().includes(preset.toLowerCase().slice(0, 10)) ||
+                          orderTitle.toLowerCase() === preset.toLowerCase();
+                        return (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => handleSelectProcedurePreset(preset)}
+                            className={`rounded-lg px-2 py-1 text-[11px] font-medium transition cursor-pointer border ${
+                              isSelected
+                                ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                                : "bg-white border-amber-200 text-amber-900 hover:bg-amber-100"
+                            }`}
+                          >
+                            {preset.split("(")[0].trim()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Checkbox: Add to Planned Surgeries Schedule */}
+                  {patientId && (
+                    <label className="flex items-center gap-2 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={saveToPlannedSchedule}
+                        onChange={(e) => setSaveToPlannedSchedule(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="text-xs text-slate-700 font-medium">
+                        Record in Patient&apos;s Planned Surgeries / OT Schedule
+                      </span>
+                    </label>
+                  )}
+                </div>
+              ) : orderCategory === "lab" ? (
                 <div className="space-y-2">
                   <label className="block font-semibold text-slate-700 mb-1">
                     Select Catalog Lab Test <span className="text-rose-500">*</span>
@@ -614,7 +1005,7 @@ export function IpdOrdersTab({
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Complete Blood Count, Diabetic Diet, Q2H Vitals..."
+                    placeholder="e.g. Diabetic Diet, Q2H Vitals, Physiotherapy..."
                     value={orderTitle}
                     onChange={(e) => setOrderTitle(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 focus:outline-none"
@@ -690,11 +1081,17 @@ export function IpdOrdersTab({
               {/* Instructions */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Specific Instructions (for Lab, Nursing, or Dietary Staff)
+                  {orderCategory === "procedure"
+                    ? "Pre-operative / Procedure Instructions"
+                    : "Specific Instructions (for Lab, Nursing, or Dietary Staff)"}
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Draw sample before starting morning antibiotics; fasting sample required; check temp every 2 hours..."
+                  placeholder={
+                    orderCategory === "procedure"
+                      ? "e.g. NPO after 10 PM; pre-op antibiotic eye drops Q1H; obtain cardiac & anesthesia fitness; prepare right eye..."
+                      : "e.g. Draw sample before starting morning antibiotics; fasting sample required; check temp every 2 hours..."
+                  }
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 focus:outline-none"
@@ -713,9 +1110,17 @@ export function IpdOrdersTab({
                 <button
                   type="submit"
                   disabled={submittingAdd}
-                  className="rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:shadow disabled:opacity-50 cursor-pointer"
+                  className={`rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-sm transition disabled:opacity-50 cursor-pointer ${
+                    orderCategory === "procedure"
+                      ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+                      : "bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700"
+                  }`}
                 >
-                  {submittingAdd ? "Placing Order..." : "Place Order"}
+                  {submittingAdd
+                    ? "Placing Order..."
+                    : orderCategory === "procedure"
+                    ? "Plan Surgery / Place Order"
+                    : "Place Order"}
                 </button>
               </div>
             </form>
@@ -729,7 +1134,7 @@ export function IpdOrdersTab({
           <div className="w-full max-w-md rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-slate-800">
-                {discontinuingOrder.order_category === "lab" ? (
+                {discontinuingOrder.order_category === "lab" || discontinuingOrder.order_category === "procedure" ? (
                   <XCircle className="h-5 w-5 text-rose-600" />
                 ) : (
                   <StopCircle className="h-5 w-5 text-rose-600" />
@@ -737,6 +1142,8 @@ export function IpdOrdersTab({
                 <h3 className="font-bold text-slate-900 text-sm sm:text-base">
                   {discontinuingOrder.order_category === "lab"
                     ? "Cancel Lab Investigation"
+                    : discontinuingOrder.order_category === "procedure"
+                    ? "Cancel Procedure Order"
                     : "Discontinue Order"}
                 </h3>
               </div>
@@ -758,7 +1165,7 @@ export function IpdOrdersTab({
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  {discontinuingOrder.order_category === "lab"
+                  {discontinuingOrder.order_category === "lab" || discontinuingOrder.order_category === "procedure"
                     ? "Reason for Cancellation"
                     : "Reason for Discontinuation"}{" "}
                   <span className="text-rose-500">*</span>
@@ -768,6 +1175,8 @@ export function IpdOrdersTab({
                   placeholder={
                     discontinuingOrder.order_category === "lab"
                       ? "e.g. Test not required, Ordered in error, Duplicate test..."
+                      : discontinuingOrder.order_category === "procedure"
+                      ? "e.g. Surgery postponed, Patient not fit, Ordered in error..."
                       : "e.g. Completed, No longer required, Patient stable..."
                   }
                   value={discontinueReason}
@@ -791,10 +1200,8 @@ export function IpdOrdersTab({
                   className="rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                 >
                   {submittingDiscontinue
-                    ? discontinuingOrder.order_category === "lab"
-                      ? "Cancelling..."
-                      : "Discontinuing..."
-                    : discontinuingOrder.order_category === "lab"
+                    ? "Processing..."
+                    : discontinuingOrder.order_category === "lab" || discontinuingOrder.order_category === "procedure"
                     ? "Confirm Cancel"
                     : "Confirm Discontinue"}
                 </button>

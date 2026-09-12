@@ -15,6 +15,7 @@ import {
   UserCheck,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/redux/hooks";
@@ -57,6 +58,7 @@ export function IpdWorkspace() {
   // Data state
   const [patients, setPatients] = useState<IpdAdmittedPatient[]>([]);
   const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
   const [chart, setChart] = useState<IpdPatientChart | null>(null);
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loadingChart, setLoadingChart] = useState(false);
@@ -65,30 +67,40 @@ export function IpdWorkspace() {
   // Mobile active subview: "queue" (patient list) vs "chart" (active patient clinical chart)
   const [mobileView, setMobileView] = useState<"queue" | "chart">("queue");
 
-  // Fetch all active admitted patients
-  const fetchPatients = useCallback(async () => {
+  // Fetch admitted or discharged patients
+  const fetchPatients = useCallback(async (targetStatus?: "active" | "discharged") => {
     setLoadingPatients(true);
     try {
-      const list = await ipdDoctorApi.listAdmittedPatients({});
+      const activeStatus = targetStatus || statusFilter;
+      const list = await ipdDoctorApi.listAdmittedPatients({ status: activeStatus });
       setPatients(list);
 
       // Auto-select patient from query param or select first
       if (admissionIdParam && list.some((p) => p.admission_id === admissionIdParam)) {
         setSelectedAdmissionId(admissionIdParam);
         setMobileView("chart");
-      } else if (list.length > 0 && !selectedAdmissionId) {
-        // If current doctor has patients, select their first patient, otherwise first overall
-        const doctorPatient = list.find((p) => p.doctor_id === currentDoctor?.id);
-        const autoSelected = doctorPatient ? doctorPatient.admission_id : list[0].admission_id;
-        setSelectedAdmissionId(autoSelected);
+      } else if (list.length > 0) {
+        if (!selectedAdmissionId || !list.some((p) => p.admission_id === selectedAdmissionId)) {
+          const doctorPatient = list.find((p) => p.doctor_id === currentDoctor?.id);
+          const autoSelected = doctorPatient ? doctorPatient.admission_id : list[0].admission_id;
+          setSelectedAdmissionId(autoSelected);
+        }
+      } else {
+        setSelectedAdmissionId(null);
+        setChart(null);
       }
     } catch (err) {
-      console.error("Failed to load admitted patients", err);
-      toast.error("Failed to load admitted patients");
+      console.error("Failed to load patients", err);
+      toast.error("Failed to load patient queue");
     } finally {
       setLoadingPatients(false);
     }
-  }, [admissionIdParam, currentDoctor?.id, selectedAdmissionId]);
+  }, [admissionIdParam, currentDoctor?.id, selectedAdmissionId, statusFilter]);
+
+  const handleStatusFilterChange = (newStatus: "active" | "discharged") => {
+    setStatusFilter(newStatus);
+    fetchPatients(newStatus);
+  };
 
   useEffect(() => {
     fetchPatients();
@@ -225,8 +237,8 @@ export function IpdWorkspace() {
           </div>
 
           <button
-            onClick={fetchPatients}
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs shrink-0"
+            onClick={() => fetchPatients()}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs shrink-0 cursor-pointer"
             title="Refresh All"
           >
             <RefreshCw className="h-4 w-4" />
@@ -313,6 +325,8 @@ export function IpdWorkspace() {
                 selectedAdmissionId={selectedAdmissionId}
                 onSelectPatient={handleSelectPatient}
                 currentDoctorId={currentDoctor?.id || null}
+                statusFilter={statusFilter}
+                onStatusFilterChange={handleStatusFilterChange}
                 loading={loadingPatients}
               />
             </div>
@@ -364,6 +378,32 @@ export function IpdWorkspace() {
                 loading={loadingChart}
               />
 
+              {/* Discharged Read-Only Notice Banner */}
+              {chart && ["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status) && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/90 p-3 sm:px-4 sm:py-3 text-xs text-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        Discharged Patient Clinical Chart (Read-Only Mode)
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        This patient has been discharged. All medication orders, administrations, clinical orders, and vitals are archived for record review only.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowDischargeModal(true)}
+                    className="inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-1.5 font-bold text-sky-700 hover:bg-sky-50 transition shadow-2xs self-start sm:self-auto cursor-pointer"
+                  >
+                    <span>View Discharge Summary</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Chart Tabs Navigation */}
               <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 sm:p-2 shadow-xs text-xs scrollbar-none">
                 {tabs.map((tab) => {
@@ -405,6 +445,7 @@ export function IpdWorkspace() {
                     activeMedications={chart.active_medications}
                     discontinuedMedications={chart.discontinued_medications}
                     onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
                   />
                 )}
 
@@ -414,14 +455,18 @@ export function IpdWorkspace() {
                     activeMedications={chart.active_medications}
                     marTimeline={chart.mar_timeline}
                     onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
                   />
                 )}
 
                 {activeTab === "orders" && (
                   <IpdOrdersTab
                     admissionId={chart.admission.id}
+                    patientId={chart.patient.id}
+                    doctorId={chart.admission.doctor_id || currentDoctor?.id}
                     orders={chart.orders}
                     onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
                   />
                 )}
 
@@ -430,6 +475,7 @@ export function IpdWorkspace() {
                     admissionId={chart.admission.id}
                     progressNotes={chart.progress_notes}
                     onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
                   />
                 )}
 
@@ -439,6 +485,7 @@ export function IpdWorkspace() {
                     admissionId={chart.admission.id}
                     vitals={chart.vitals}
                     onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
                   />
                 )}
 
@@ -449,6 +496,7 @@ export function IpdWorkspace() {
                     labBookings={chart.lab_bookings}
                     orders={chart.orders}
                     onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
                   />
                 )}
               </div>

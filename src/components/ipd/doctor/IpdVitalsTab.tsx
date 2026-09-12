@@ -21,6 +21,7 @@ interface IpdVitalsTabProps {
   admissionId: string;
   vitals: any[];
   onRefresh: () => void;
+  isDischarged?: boolean;
 }
 
 export function IpdVitalsTab({
@@ -28,6 +29,7 @@ export function IpdVitalsTab({
   admissionId,
   vitals,
   onRefresh,
+  isDischarged = false,
 }: IpdVitalsTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [systolic, setSystolic] = useState("");
@@ -160,16 +162,18 @@ export function IpdVitalsTab({
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setRecordedAt(new Date().toISOString().slice(0, 16));
-              setShowAddModal(true);
-            }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Record Vitals</span>
-          </button>
+          {!isDischarged && (
+            <button
+              onClick={() => {
+                setRecordedAt(new Date().toISOString().slice(0, 16));
+                setShowAddModal(true);
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Record Vitals</span>
+            </button>
+          )}
         </div>
 
         {vitals.length === 0 ? (
@@ -177,7 +181,9 @@ export function IpdVitalsTab({
             <Activity className="mx-auto h-8 w-8 text-slate-300" />
             <p className="mt-2 text-xs font-semibold">No vitals captured during this stay</p>
             <p className="text-[11px] text-slate-400">
-              Click &quot;Record Vitals&quot; to log patient readings.
+              {isDischarged
+                ? "No vitals captured during this stay."
+                : 'Click "Record Vitals" to log patient readings.'}
             </p>
           </div>
         ) : (

@@ -31,6 +31,7 @@ interface IpdInvestigationsTabProps {
   labBookings?: any[];
   orders?: IpdOrder[];
   onRefresh: () => void;
+  isDischarged?: boolean;
 }
 
 interface SelectedInvestigationItem {
@@ -63,6 +64,7 @@ export function IpdInvestigationsTab({
   labBookings = [],
   orders = [],
   onRefresh,
+  isDischarged = false,
 }: IpdInvestigationsTabProps) {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [testSearch, setTestSearch] = useState("");
@@ -326,18 +328,20 @@ export function IpdInvestigationsTab({
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setSelectedTests([]);
-              setTestSearch("");
-              setIsSearchFocused(false);
-              setShowOrderModal(true);
-            }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-4 py-2 sm:py-2.5 text-xs font-bold text-white shadow-sm transition hover:shadow-md cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Order Lab Investigations</span>
-          </button>
+          {!isDischarged && (
+            <button
+              onClick={() => {
+                setSelectedTests([]);
+                setTestSearch("");
+                setIsSearchFocused(false);
+                setShowOrderModal(true);
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-4 py-2 sm:py-2.5 text-xs font-bold text-white shadow-sm transition hover:shadow-md cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Order Lab Investigations</span>
+            </button>
+          )}
         </div>
 
         {/* Section 1: Active Doctor Lab Orders */}
@@ -436,7 +440,7 @@ export function IpdInvestigationsTab({
                       <span>Ordered by: <strong>{order.doctor_name || "Doctor"}</strong></span>
                       <div className="flex items-center gap-2">
                         <span>⏱️ {new Date(order.ordered_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                        {!isCancelled && !isCompleted && (
+                        {!isCancelled && !isCompleted && !isDischarged && (
                           <button
                             onClick={() => {
                               setCancellingOrder(order);

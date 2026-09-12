@@ -20,8 +20,7 @@ import {
   SaveDischargeSummaryRequest,
 } from "@/types/ipdDoctor";
 import { ipdDoctorApi } from "@/services/ipdDoctorApi";
-import { IpdDischargeSummaryPrint } from "./IpdDischargeSummaryPrint";
-import { useReactToPrint } from "react-to-print";
+import { DischargeSummaryPdfPreviewModal } from "@/components/ipd/DischargeSummaryPdfPreviewModal";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 
@@ -77,12 +76,7 @@ export function IpdDischargeSummaryModal({
   const [followupDate, setFollowupDate] = useState("");
   const [followupInstructions, setFollowupInstructions] = useState("");
 
-  // Print ref
-  const printRef = useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: summaryData ? `Discharge_Summary_${summaryData.admission_number}` : "Discharge_Summary",
-  });
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
 
   // Load auto-fill data on modal open
   useEffect(() => {
@@ -265,12 +259,12 @@ export function IpdDischargeSummaryModal({
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-2">
             <button
-              onClick={() => handlePrint()}
+              onClick={() => setShowPdfPreview(true)}
               disabled={loading}
               className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-slate-700 shadow-2xs hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 transition cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Print Preview</span>
+              <span className="hidden sm:inline">Print / Preview PDF</span>
             </button>
             <button
               onClick={onClose}
@@ -715,11 +709,11 @@ export function IpdDischargeSummaryModal({
             <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 border-t border-slate-200 pt-4">
               <button
                 type="button"
-                onClick={() => handlePrint()}
+                onClick={() => setShowPdfPreview(true)}
                 className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
-                <span>Print Document</span>
+                <span>Print / Preview PDF</span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -744,14 +738,15 @@ export function IpdDischargeSummaryModal({
           </form>
         )}
 
-        {/* Hidden printable content for react-to-print */}
-        {currentSummaryForPrint && (
-          <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-            <div ref={printRef} className="print-content">
-              <IpdDischargeSummaryPrint summary={currentSummaryForPrint} />
-            </div>
-          </div>
-        )}
+        {/* Server-rendered PDF Preview & Native Print Modal */}
+        <DischargeSummaryPdfPreviewModal
+          isOpen={showPdfPreview}
+          onClose={() => setShowPdfPreview(false)}
+          admissionId={admissionId}
+          patientName={summaryData?.patient_name}
+          uhid={summaryData?.uhid}
+          documentTitle="Inpatient Discharge Summary"
+        />
       </div>
     </div>
   );

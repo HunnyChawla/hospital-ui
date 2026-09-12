@@ -1,15 +1,64 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
 
-export type AdmissionStatus = "admitted" | "discharge_initiated" | "discharged" | "transferred" | "deceased" | "cancelled";
+export type AdmissionStatus =
+  | "ACTIVE"
+  | "DISCHARGE_INITIATED"
+  | "DISCHARGED"
+  | "CANCELLED"
+  | "admitted"
+  | "discharge_initiated"
+  | "discharged"
+  | "cancelled";
+
+export type PatientStatus =
+  | "IN_HOSPITAL"
+  | "ON_LEAVE"
+  | "TRANSFERRED"
+  | "EXPIRED"
+  | "LAMA"
+  | "DAMA"
+  | "ABSCONDED";
+
+export type CareStatus =
+  | "ADMITTED"
+  | "UNDER_TREATMENT"
+  | "RECOVERY"
+  | "READY_FOR_DISCHARGE";
+
 export type AdmissionType = "emergency" | "planned" | "transfer" | "day_care";
 export type DischargeType = "normal" | "ama" | "transfer" | "deceased" | "lama";
+
+export interface IPDStatusHistory {
+  id: string;
+  tenant_id: string;
+  admission_id: string;
+  status_type: string;
+  from_status: string | null;
+  to_status: string;
+  reason: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface UpdatePatientStatusRequest {
+  patient_status: PatientStatus;
+  reason?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdateCareStatusRequest {
+  care_status: CareStatus;
+  notes?: string | null;
+}
 
 export interface Admission {
   id: string;
   tenant_id: string;
   patient_id: string;
   patient_name: string | null; // Populated in responses
+  patient_mobile: string | null; // Populated in responses
   doctor_id: string;
   doctor_name: string | null; // Populated in responses
   bed_id: string;
@@ -20,6 +69,8 @@ export interface Admission {
   admission_time: string; // date-time format
   admission_type: AdmissionType;
   status: AdmissionStatus;
+  patient_status: PatientStatus;
+  care_status: CareStatus;
   reason_for_admission: string | null;
   diagnosis: string | null;
   insurance_provider: string | null;
@@ -48,6 +99,8 @@ export interface CreateAdmissionRequest {
   bed_id: string;
   admission_date: string; // YYYY-MM-DD
   admission_type: AdmissionType;
+  patient_status?: PatientStatus | null;
+  care_status?: CareStatus | null;
   reason_for_admission?: string | null;
   diagnosis?: string | null;
   insurance_provider?: string | null;
@@ -97,6 +150,9 @@ export interface InitiateDischargeRequest {
   discharge_summary?: string | null;
   discharge_instructions?: string | null;
   final_diagnosis?: string | null;
+  tax_rate?: number | null;
+  discount?: number | null;
+  gst_number?: string | null;
 }
 
 export interface AmountDueCharge {
@@ -126,6 +182,8 @@ export interface AdmissionsSearchParams {
   ward_id?: string;
   bed_id?: string;
   status?: AdmissionStatus;
+  patient_status?: PatientStatus;
+  care_status?: CareStatus;
   admission_date?: string; // YYYY-MM-DD (kept for backward compatibility)
   start_date?: string; // YYYY-MM-DD
   end_date?: string; // YYYY-MM-DD
@@ -157,6 +215,8 @@ export const admissionsApi = {
     if (params?.ward_id) queryParams.append("ward_id", params.ward_id);
     if (params?.bed_id) queryParams.append("bed_id", params.bed_id);
     if (params?.status) queryParams.append("status", params.status);
+    if (params?.patient_status) queryParams.append("patient_status", params.patient_status);
+    if (params?.care_status) queryParams.append("care_status", params.care_status);
     
     // Use start_date and end_date if provided, otherwise fall back to admission_date
     if (params?.start_date && params?.end_date) {
@@ -190,6 +250,46 @@ export const admissionsApi = {
     return response.data;
   },
 
+  async updatePatientStatus(
+    admissionId: string,
+    statusData: UpdatePatientStatusRequest,
+    tenantId?: string
+  ): Promise<Admission> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<Admission>(
+      `/admissions/${admissionId}/patient-status`,
+      statusData,
+      { params }
+    );
+    return response.data;
+  },
+
+  async updateCareStatus(
+    admissionId: string,
+    statusData: UpdateCareStatusRequest,
+    tenantId?: string
+  ): Promise<Admission> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<Admission>(
+      `/admissions/${admissionId}/care-status`,
+      statusData,
+      { params }
+    );
+    return response.data;
+  },
+
+  async getStatusHistory(admissionId: string, tenantId?: string): Promise<IPDStatusHistory[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<IPDStatusHistory[]>(
+      `/admissions/${admissionId}/status-history`,
+      { params }
+    );
+    return response.data;
+  },
+
   async discharge(admissionId: string, dischargeData: DischargeRequest, tenantId?: string): Promise<Admission> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
@@ -217,4 +317,27 @@ export const admissionsApi = {
     const response = await apiClient.get<AmountDueResponse>(`/admissions/${admissionId}/amount-due`, { params });
     return response.data;
   },
+
+  async getDischargeSummaryPdf(admissionId: string, tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(`/admissions/${admissionId}/discharge-summary/pdf`, {
+      params,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  async downloadDischargeSummaryPdf(admissionId: string, filename?: string, tenantId?: string): Promise<void> {
+    const blob = await this.getDischargeSummaryPdf(admissionId, tenantId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || `Discharge-Summary-${admissionId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
+

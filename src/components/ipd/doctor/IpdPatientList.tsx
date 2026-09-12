@@ -10,14 +10,18 @@ import {
   Activity,
   Pill,
   ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import { IpdAdmittedPatient } from "@/types/ipdDoctor";
+import { CareStatusBadge, PatientStatusBadge, AdmissionStatusBadge } from "../StatusBadges";
 
 interface IpdPatientListProps {
   patients: IpdAdmittedPatient[];
   selectedAdmissionId: string | null;
   onSelectPatient: (admissionId: string) => void;
   currentDoctorId?: string | null;
+  statusFilter?: "active" | "discharged";
+  onStatusFilterChange?: (status: "active" | "discharged") => void;
   loading?: boolean;
 }
 
@@ -26,6 +30,8 @@ export function IpdPatientList({
   selectedAdmissionId,
   onSelectPatient,
   currentDoctorId,
+  statusFilter = "active",
+  onStatusFilterChange,
   loading = false,
 }: IpdPatientListProps) {
   const [filterMode, setFilterMode] = useState<"my" | "all">("my");
@@ -69,35 +75,73 @@ export function IpdPatientList({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BedDouble className="h-5 w-5 text-sky-600 shrink-0" />
-            <h3 className="font-bold text-slate-900 text-sm sm:text-base">Admitted Patients</h3>
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+              {statusFilter === "discharged" ? "Discharged Patients" : "Admitted Patients"}
+            </h3>
           </div>
-          <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800 shrink-0">
-            {filteredPatients.length} active
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-bold shrink-0 ${
+              statusFilter === "discharged"
+                ? "bg-slate-100 text-slate-700"
+                : "bg-sky-100 text-sky-800"
+            }`}
+          >
+            {filteredPatients.length} {statusFilter === "discharged" ? "discharged" : "active"}
           </span>
         </div>
 
-        {/* Filter Mode Toggle */}
+        {/* Status Mode: Inpatients vs Discharged */}
         <div className="flex rounded-xl bg-slate-100 p-1">
           <button
-            onClick={() => setFilterMode("my")}
+            type="button"
+            onClick={() => onStatusFilterChange?.("active")}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition cursor-pointer ${
-              filterMode === "my"
+              statusFilter === "active"
                 ? "bg-white text-sky-700 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <UserCheck className="h-3.5 w-3.5" />
+            <BedDouble className="h-3.5 w-3.5" />
+            <span>Inpatients</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onStatusFilterChange?.("discharged")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition cursor-pointer ${
+              statusFilter === "discharged"
+                ? "bg-white text-sky-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>Discharged</span>
+          </button>
+        </div>
+
+        {/* Filter Mode Toggle: My Patients vs All IPD */}
+        <div className="flex rounded-xl bg-slate-50 border border-slate-200/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setFilterMode("my")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1 text-[11px] font-bold transition cursor-pointer ${
+              filterMode === "my"
+                ? "bg-white text-sky-700 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <UserCheck className="h-3 w-3" />
             <span>My Patients</span>
           </button>
           <button
+            type="button"
             onClick={() => setFilterMode("all")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition cursor-pointer ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1 text-[11px] font-bold transition cursor-pointer ${
               filterMode === "all"
-                ? "bg-white text-sky-700 shadow-sm"
+                ? "bg-white text-sky-700 shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <Users className="h-3.5 w-3.5" />
+            <Users className="h-3 w-3" />
             <span>All IPD</span>
           </button>
         </div>
@@ -150,24 +194,29 @@ export function IpdPatientList({
         {loading ? (
           <div className="space-y-3 py-8 text-center">
             <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-slate-200 border-t-sky-600" />
-            <p className="text-xs text-slate-500">Loading admitted patients...</p>
+            <p className="text-xs text-slate-500">
+              Loading {statusFilter === "discharged" ? "discharged" : "admitted"} patients...
+            </p>
           </div>
         ) : filteredPatients.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             <BedDouble className="mx-auto h-10 w-10 text-slate-300" />
-            <p className="mt-2 text-xs font-semibold">No admitted patients found</p>
+            <p className="mt-2 text-xs font-semibold">
+              No {statusFilter === "discharged" ? "discharged" : "admitted"} patients found
+            </p>
             {filterMode === "my" && (
               <button
                 onClick={() => setFilterMode("all")}
                 className="mt-2 text-xs font-bold text-sky-600 hover:underline cursor-pointer"
               >
-                View all IPD patients
+                View all {statusFilter === "discharged" ? "discharged" : "IPD"} patients
               </button>
             )}
           </div>
         ) : (
           filteredPatients.map((patient) => {
             const isSelected = patient.admission_id === selectedAdmissionId;
+            const isPatientDischarged = patient.status?.toUpperCase() === "DISCHARGED";
             return (
               <div
                 key={patient.admission_id}
@@ -199,14 +248,31 @@ export function IpdPatientList({
                   </div>
                 </div>
 
-                {/* Stay & Diagnosis */}
-                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600 gap-2">
+                {/* Stay & Status Badges */}
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-600">
                   <span className="font-semibold text-sky-700 shrink-0">
-                    Day {patient.days_admitted + 1}
+                    {isPatientDischarged
+                      ? `${Math.max(1, patient.days_admitted)} ${Math.max(1, patient.days_admitted) === 1 ? "day" : "days"} stay`
+                      : `Day ${patient.days_admitted + 1}`}
                   </span>
-                  <span className="truncate text-right text-slate-500 flex-1" title={patient.diagnosis || "No diagnosis"}>
-                    {patient.diagnosis || patient.reason_for_admission || "Admitted"}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {isPatientDischarged ? (
+                      <>
+                        <AdmissionStatusBadge status="DISCHARGED" size="sm" />
+                        {patient.patient_status &&
+                          !["IN_HOSPITAL", "DISCHARGED"].includes(patient.patient_status.toUpperCase()) && (
+                            <PatientStatusBadge status={patient.patient_status} size="sm" />
+                          )}
+                      </>
+                    ) : (
+                      <>
+                        {patient.patient_status && patient.patient_status !== "IN_HOSPITAL" && (
+                          <PatientStatusBadge status={patient.patient_status} size="sm" />
+                        )}
+                        <CareStatusBadge status={patient.care_status} size="sm" />
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Badges strip: Active Meds, Attending Doctor, Mobile arrow */}

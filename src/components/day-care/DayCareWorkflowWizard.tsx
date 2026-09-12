@@ -51,6 +51,7 @@ import {
 } from "@/types/dayCare";
 import { useReactToPrint } from "react-to-print";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
+import { DischargeSummaryPdfPreviewModal } from "@/components/ipd/DischargeSummaryPdfPreviewModal";
 import { ConsentFormPrint } from "./ConsentFormPrint";
 import { mrdApi, MRDDocument, MRDDocumentCategory } from "@/services/mrdApi";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
@@ -186,6 +187,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   const [printData, setPrintData] = useState<DischargeSummaryPrintResponse | null>(null);
   const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
+  const [showDischargePdfModal, setShowDischargePdfModal] = useState(false);
 
   // MRD Documents state for this visit
   const [mrdDocuments, setMrdDocuments] = useState<MRDDocument[]>([]);
@@ -697,44 +699,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       }
       await fetchAllDetails(false);
 
-      // Fetch print data and trigger browser print dialog
-      toast.info("Preparing Discharge Summary Print...");
-      const res = await dayCareApi.getDischargeSummaryPrintData(visit.id);
-      setPrintData(res);
-
-      // Fetch surgeon's signature
-      if (visit.surgeon_id) {
-        try {
-          const sigRes = await doctorsApi.getSignature(visit.surgeon_id);
-          if (sigRes && sigRes.signature) {
-            setDoctorSignature(sigRes.signature);
-          } else {
-            const docProfile = await doctorsApi.getById(visit.surgeon_id);
-            if (docProfile?.signature) {
-              setDoctorSignature(docProfile.signature);
-            } else {
-              setDoctorSignature(null);
-            }
-          }
-        } catch (sigErr) {
-          console.error("Failed to fetch doctor signature:", sigErr);
-          try {
-            const docProfile = await doctorsApi.getById(visit.surgeon_id);
-            if (docProfile?.signature) {
-              setDoctorSignature(docProfile.signature);
-            } else {
-              setDoctorSignature(null);
-            }
-          } catch (innerErr) {
-            console.error("Failed backup signature fetch:", innerErr);
-            setDoctorSignature(null);
-          }
-        }
-      } else {
-        setDoctorSignature(null);
-      }
-
-      setShouldPrint(true);
+      setShowDischargePdfModal(true);
     } catch (err) {
       toast.error(getErrorMessage(err) || "Failed to save discharge record");
     } finally {
@@ -1835,62 +1800,18 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               {visit?.status === "discharged" ? (
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (!visit) return;
-                    try {
-                      toast.info("Preparing Discharge Summary Print...");
-                      const res = await dayCareApi.getDischargeSummaryPrintData(visit.id);
-                      setPrintData(res);
-
-                      // Fetch surgeon's signature
-                      if (visit.surgeon_id) {
-                        try {
-                          const sigRes = await doctorsApi.getSignature(visit.surgeon_id);
-                          if (sigRes && sigRes.signature) {
-                            setDoctorSignature(sigRes.signature);
-                          } else {
-                            const docProfile = await doctorsApi.getById(visit.surgeon_id);
-                            if (docProfile?.signature) {
-                              setDoctorSignature(docProfile.signature);
-                            } else {
-                              setDoctorSignature(null);
-                            }
-                          }
-                        } catch (sigErr) {
-                          console.error("Failed to fetch doctor signature:", sigErr);
-                          try {
-                            const docProfile = await doctorsApi.getById(visit.surgeon_id);
-                            if (docProfile?.signature) {
-                              setDoctorSignature(docProfile.signature);
-                            } else {
-                              setDoctorSignature(null);
-                            }
-                          } catch (innerErr) {
-                            console.error("Failed backup signature fetch:", innerErr);
-                            setDoctorSignature(null);
-                          }
-                        }
-                      } else {
-                        setDoctorSignature(null);
-                      }
-
-                      setShouldPrint(true);
-                    } catch (err) {
-                      console.error("Print Data Fetch error:", err);
-                      toast.error("Failed to load print data.");
-                    }
-                  }}
-                  className="w-full md:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 transition"
+                  onClick={() => setShowDischargePdfModal(true)}
+                  className="w-full md:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <FilePlus2 className="w-5 h-5" />
-                  Print Discharge Summary
+                  Print / Preview Discharge Summary
                 </button>
               ) : <div />}
               
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full md:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-500 transition-all disabled:opacity-50"
+                className="w-full md:w-auto inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-500 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {visit?.status === "discharged" ? "Update and Print Discharge Summary" : "Discharge and Print Discharge Summary"}
                 <CheckCircle2 className="w-5 h-5" />
@@ -2006,6 +1927,17 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         onClose={() => setIsRefundModalOpen(false)}
         surgery={surgery || null}
       />
+
+      {/* Day Care Discharge Summary PDF Preview & Print Modal */}
+      <DischargeSummaryPdfPreviewModal
+        isOpen={showDischargePdfModal}
+        onClose={() => setShowDischargePdfModal(false)}
+        dayCareVisitId={visit?.id}
+        patientName={visit?.patient_name}
+        uhid={visit?.patient_uhid}
+        documentTitle="Day Care Discharge Summary"
+      />
     </div>
   );
 }
+

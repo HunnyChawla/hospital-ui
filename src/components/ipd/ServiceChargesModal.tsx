@@ -474,11 +474,11 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                     </div>
                     <div>
                       <p className="text-slate-500">Unit Price</p>
-                      <p className="font-semibold text-slate-900">{currency(parseFloat(charge.unit_price))}</p>
+                      <p className="font-semibold text-slate-900">{currency(Number(charge.unit_price))}</p>
                     </div>
                     <div>
                       <p className="text-slate-500">Total</p>
-                      <p className="font-bold text-slate-900">{currency(parseFloat(charge.total_amount))}</p>
+                      <p className="font-bold text-slate-900">{currency(Number(charge.total_amount))}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs">
@@ -529,8 +529,8 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                         <td className="px-4 py-3 text-xs text-slate-900 font-medium">{charge.service_name}</td>
                         <td className="px-3 py-3 text-xs text-slate-600">{charge.service_category}</td>
                         <td className="px-2 py-3 text-center text-xs text-slate-700">{charge.quantity}</td>
-                        <td className="px-2 py-3 text-right text-xs text-slate-700">{currency(parseFloat(charge.unit_price))}</td>
-                        <td className="px-3 py-3 text-right text-xs font-bold text-slate-900">{currency(parseFloat(charge.total_amount))}</td>
+                        <td className="px-2 py-3 text-right text-xs text-slate-700">{currency(Number(charge.unit_price))}</td>
+                        <td className="px-3 py-3 text-right text-xs font-bold text-slate-900">{currency(Number(charge.total_amount))}</td>
                         <td className="px-3 py-3 text-center">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(charge.status)}`}>
                             {charge.status}
@@ -609,7 +609,7 @@ export function ServiceChargesModal({ isOpen, onClose, admissionId }: ServiceCha
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Total Amount:</span>
-                    <span className="font-bold">{currency(parseFloat(chargeToCancel.total_amount))}</span>
+                    <span className="font-bold">{currency(Number(chargeToCancel.total_amount))}</span>
                   </div>
                 </div>
               </div>

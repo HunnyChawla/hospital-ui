@@ -22,6 +22,7 @@ interface IpdMedicationsTabProps {
   activeMedications: IpdMedicationOrder[];
   discontinuedMedications: IpdMedicationOrder[];
   onRefresh: () => void;
+  isDischarged?: boolean;
 }
 
 export function IpdMedicationsTab({
@@ -29,6 +30,7 @@ export function IpdMedicationsTab({
   activeMedications,
   discontinuedMedications,
   onRefresh,
+  isDischarged = false,
 }: IpdMedicationsTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [stoppingMed, setStoppingMed] = useState<IpdMedicationOrder | null>(null);
@@ -196,20 +198,26 @@ export function IpdMedicationsTab({
             </div>
           </div>
 
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Prescribe Medication</span>
-          </button>
+          {!isDischarged && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Prescribe Medication</span>
+            </button>
+          )}
         </div>
 
         {activeMedications.length === 0 ? (
           <div className="py-10 text-center text-slate-500">
             <Pill className="mx-auto h-8 w-8 text-slate-300" />
             <p className="mt-2 text-xs font-semibold">No active medications</p>
-            <p className="text-[11px] text-slate-400">Click &quot;Prescribe Medication&quot; to order medication.</p>
+            <p className="text-[11px] text-slate-400">
+              {isDischarged
+                ? "No active medications at time of discharge."
+                : 'Click "Prescribe Medication" to order medication.'}
+            </p>
           </div>
         ) : (
           <>
@@ -261,17 +269,19 @@ export function IpdMedicationsTab({
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setStoppingMed(med);
-                        setStopTime(new Date().toISOString().slice(0, 16));
-                        setStopReason("Changed antibiotic");
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
-                    >
-                      <StopCircle className="h-3.5 w-3.5" />
-                      <span>Stop Med</span>
-                    </button>
+                    {!isDischarged && (
+                      <button
+                        onClick={() => {
+                          setStoppingMed(med);
+                          setStopTime(new Date().toISOString().slice(0, 16));
+                          setStopReason("Changed antibiotic");
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                      >
+                        <StopCircle className="h-3.5 w-3.5" />
+                        <span>Stop Med</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -289,7 +299,9 @@ export function IpdMedicationsTab({
                     <th className="py-2.5 px-3 font-semibold">Start</th>
                     <th className="py-2.5 px-3 font-semibold">Stop</th>
                     <th className="py-2.5 px-3 font-semibold">Doses Given</th>
-                    <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                    {!isDischarged && (
+                      <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -338,19 +350,21 @@ export function IpdMedicationsTab({
                           </p>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            setStoppingMed(med);
-                            setStopTime(new Date().toISOString().slice(0, 16));
-                            setStopReason("Changed antibiotic");
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
-                        >
-                          <StopCircle className="h-3.5 w-3.5" />
-                          <span>Stop</span>
-                        </button>
-                      </td>
+                      {!isDischarged && (
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setStoppingMed(med);
+                              setStopTime(new Date().toISOString().slice(0, 16));
+                              setStopReason("Changed antibiotic");
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                          >
+                            <StopCircle className="h-3.5 w-3.5" />
+                            <span>Stop</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

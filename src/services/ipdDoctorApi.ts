@@ -14,12 +14,13 @@ import {
 
 export const ipdDoctorApi = {
   /**
-   * List active admitted patients with stay details and order counts.
+   * List admitted or discharged patients with stay details and order counts.
    */
   async listAdmittedPatients(params?: {
     doctor_id?: string;
     ward_id?: string;
     search?: string;
+    status?: "active" | "discharged" | "all";
     tenant_id?: string;
   }): Promise<IpdAdmittedPatient[]> {
     const apiTenantId = getTenantIdForApi(params?.tenant_id);
@@ -27,6 +28,7 @@ export const ipdDoctorApi = {
     if (params?.doctor_id) query.append("doctor_id", params.doctor_id);
     if (params?.ward_id) query.append("ward_id", params.ward_id);
     if (params?.search) query.append("search", params.search);
+    if (params?.status) query.append("status", params.status);
     if (apiTenantId) query.append("tenant_id", apiTenantId);
 
     const queryString = query.toString();
@@ -267,4 +269,43 @@ export const ipdDoctorApi = {
     );
     return response.data;
   },
+
+  /**
+   * Fetch high-fidelity server-rendered PDF blob for IPD discharge summary.
+   */
+  async getDischargeSummaryPdf(
+    admissionId: string,
+    tenantId?: string
+  ): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(
+      `/ipd/workspace/admissions/${admissionId}/discharge-summary/pdf`,
+      {
+        params,
+        responseType: "blob",
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Download high-fidelity server-rendered PDF for IPD discharge summary.
+   */
+  async downloadDischargeSummaryPdf(
+    admissionId: string,
+    filename?: string,
+    tenantId?: string
+  ): Promise<void> {
+    const blob = await this.getDischargeSummaryPdf(admissionId, tenantId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || `Discharge-Summary-${admissionId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
+

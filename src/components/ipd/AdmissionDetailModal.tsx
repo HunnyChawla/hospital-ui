@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
-import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 import { admissionsApi, Admission, AmountDueResponse } from "@/services/admissionsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
@@ -20,7 +19,11 @@ import {
   Building2,
   ClipboardList,
   Printer,
-  Shield
+  Shield,
+  Activity,
+  PlaneTakeoff,
+  ArrowRightLeft,
+  History as HistoryIcon,
 } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
@@ -28,10 +31,18 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
+import { DischargeSummaryPdfPreviewModal } from "./DischargeSummaryPdfPreviewModal";
 import { ConsentFormPrint } from "./ConsentFormPrint";
 import { getTenantIdForApi } from "@/utils/auth";
-import { ServiceChargesModal } from "./ServiceChargesModal";
+import { IpdBillingDrawer } from "./billing/IpdBillingDrawer";
+import { TransferBedFormModal } from "./TransferBedFormModal";
 import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
+import { DischargeFormModal } from "./DischargeFormModal";
+import { UpdatePatientStatusModal } from "./UpdatePatientStatusModal";
+import { UpdateCareStatusModal } from "./UpdateCareStatusModal";
+import { AdmissionStatusBadge, PatientStatusBadge, CareStatusBadge } from "./StatusBadges";
+import { IpdWorkflowStepper } from "./IpdWorkflowStepper";
+import { StatusHistoryTimeline } from "./StatusHistoryTimeline";
 import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 
@@ -55,9 +66,15 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   const [paymentDetails, setPaymentDetails] = useState<Payment | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [showServiceChargesModal, setShowServiceChargesModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [showInitiateDischargeModal, setShowInitiateDischargeModal] = useState(false);
+  const [showDischargeModal, setShowDischargeModal] = useState(false);
+  const [showPatientStatusModal, setShowPatientStatusModal] = useState(false);
+  const [showCareStatusModal, setShowCareStatusModal] = useState(false);
   const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
   const [shouldPrintPayment, setShouldPrintPayment] = useState(false);
+  const [showDischargeSummaryPdfModal, setShowDischargeSummaryPdfModal] = useState(false);
+  const [dischargeSummaryPatientInfo, setDischargeSummaryPatientInfo] = useState<{ name: string; uhid?: string } | null>(null);
   const [printDischargeSummaryData, setPrintDischargeSummaryData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
   const [shouldPrintDischargeSummary, setShouldPrintDischargeSummary] = useState(false);
   const [printConsentFormData, setPrintConsentFormData] = useState<{ admission: Admission; patient: PatientApiResponse } | null>(null);
@@ -259,17 +276,17 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId || undefined);
 
-      // Fetch patient details
+      // Fetch patient details for header
       const patient = await patientsApi.getById(admission.patient_id, apiTenantId);
-
-      setPrintDischargeSummaryData({
-        admission,
-        patient,
+      const fullName = `${patient.first_name || ""} ${patient.last_name || ""}`.trim();
+      setDischargeSummaryPatientInfo({
+        name: fullName || "Patient",
+        uhid: patient.uhid || undefined,
       });
-      setShouldPrintDischargeSummary(true);
-    } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to fetch patient details");
+      setShowDischargeSummaryPdfModal(true);
+    } catch {
+      // Still open modal with admission ID if patient lookup fails
+      setShowDischargeSummaryPdfModal(true);
     }
   };
 
@@ -465,51 +482,82 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Admission Details" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Inpatient Admission Management" size="xl">
       <div className="space-y-4 -mx-6 -mb-6 px-6 pb-6">
+        {/* 7-Stage Clinical & Administrative Roadmap Stepper */}
+        <IpdWorkflowStepper admission={admission} isInvoicePaid={invoice?.status === "paid"} />
+
         {/* Patient & Admission Information */}
-        <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-sky-50 via-sky-50/80 to-teal-50/50 p-3 shadow-sm">
-          <div className="mb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/50 pb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-teal-500 text-white shadow-md">
-                <User className="h-4 w-4" />
+        <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-sky-50 via-sky-50/80 to-teal-50/50 p-4 shadow-sm">
+          <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-teal-500 text-white shadow-md">
+                <User className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Patient</p>
-                <p className="mt-0.5 text-sm font-bold text-slate-900">{admission.patient_name || "N/A"}</p>
+                <p className="mt-0.5 text-base font-bold text-slate-900">{admission.patient_name || "N/A"}</p>
+                {admission.patient_mobile && (
+                  <p className="text-xs text-slate-600 font-medium">{admission.patient_mobile}</p>
+                )}
               </div>
             </div>
-            <div className="text-left sm:text-right ml-10 sm:ml-0">
-              <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Doctor</p>
-              <p className="mt-0.5 text-sm font-bold text-slate-900">{admission.doctor_name || "N/A"}</p>
+
+            {/* Status Badges & Quick Action Triggers */}
+            <div className="flex flex-col items-start sm:items-end gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <AdmissionStatusBadge status={admission.status} size="md" />
+                {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) ? (
+                  <>
+                    <PatientStatusBadge status={admission.patient_status} size="md" />
+                    <CareStatusBadge status={admission.care_status} size="md" />
+                  </>
+                ) : (
+                  ["EXPIRED", "TRANSFERRED", "LAMA", "DAMA", "ABSCONDED"].includes((admission.patient_status || "").toUpperCase()) && (
+                    <PatientStatusBadge status={admission.patient_status} size="md" />
+                  )
+                )}
+              </div>
+
+              {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCareStatusModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 hover:from-sky-600 hover:to-teal-600 text-white shadow-xs transition-all cursor-pointer"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Update Care</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPatientStatusModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <PlaneTakeoff className="w-3.5 h-3.5" />
+                    <span>Update Presence</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-          <div className={`grid grid-cols-2 gap-2.5 ${(admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 0
-            ? 'md:grid-cols-4'
-            : (admission.payment_id ? 1 : 0) + (admission.discharge_time ? 1 : 0) === 1
-              ? 'md:grid-cols-5'
-              : 'md:grid-cols-6'
-            }`}>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admission #</p>
-              <p className="text-xs font-bold text-slate-900 truncate">{admission.admission_number}</p>
-              {/* Separate from discharge: discharging is clinical, finalising
-                  freezes the record so it can be published. */}
-              <div className="mt-1.5">
-                <FinaliseVisitAction episodeType="ipd_admission" sourceId={admission.id} compact />
-              </div>
+              <p className="text-xs font-bold font-mono text-slate-900 truncate">{admission.admission_number}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admitted Doctor</p>
+              <p className="text-xs font-bold text-slate-900">{admission.doctor_name || "N/A"}</p>
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Admitted at</p>
               <p className="text-xs font-bold text-slate-900">{formatDateTime(admission.admission_time || `${admission.admission_date}T00:00:00`)}</p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Status</p>
-              <p className="text-xs font-bold text-slate-900">{admission.status.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}</p>
-            </div>
-            <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-0.5">Ward / Bed</p>
-              <p className="text-xs font-bold text-slate-900">{admission.ward_name && admission.bed_number ? `${admission.ward_name} / ${admission.bed_number}` : admission.ward_name || admission.bed_number || "N/A"}</p>
+              <p className="text-xs font-bold text-slate-900">{admission.ward_name && admission.bed_number ? `${admission.ward_name} / Bed ${admission.bed_number}` : admission.ward_name || admission.bed_number || "N/A"}</p>
             </div>
             {admission.discharge_time && (
               <div>
@@ -532,31 +580,6 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           </div>
         </div>
 
-        {/* Advance Payment Details */}
-        {admission.advance_payment_amount !== undefined && admission.advance_payment_amount > 0 && (
-          <div className="rounded-lg border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md">
-                  <CreditCard className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Advance Payment</p>
-                  <p className="text-lg font-bold text-emerald-700">{currency(admission.advance_payment_amount)}</p>
-                </div>
-              </div>
-              {admission.advance_invoice_id && (
-                <button
-                  onClick={handlePrintAdvancePaymentReceipt}
-                  className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
-                >
-                  <Printer className="h-3.5 w-3.5" />
-                  Download Receipt
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Invoice Details */}
         {admission.invoice_id && (
@@ -901,6 +924,11 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
           </div>
         )}
 
+        {/* Status History & Audit Log Section */}
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <StatusHistoryTimeline admissionId={admission.id} />
+        </div>
+
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-200">
           <button
@@ -921,20 +949,38 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
             <Printer className="h-4 w-4" />
             <span className="hidden xs:inline">Print</span> Consent
           </button>
-          {admission.status === "admitted" && (
-            <button
-              onClick={() => setShowServiceChargesModal(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
-            >
-              <CreditCard className="h-4 w-4" />
-              <span className="hidden xs:inline">Service</span> Charges
-            </button>
+          {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) && (
+            <>
+              <button
+                onClick={() => setShowTransferModal(true)}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-amber-500/30 transition-all hover:shadow-md"
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+                <span className="hidden xs:inline">Transfer</span> Bed
+              </button>
+              <button
+                onClick={() => setShowServiceChargesModal(true)}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md cursor-pointer"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span className="hidden xs:inline">IPD</span> Billing & Ledger
+              </button>
+              {["DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) && (
+                <button
+                  onClick={() => setShowDischargeModal(true)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm shadow-rose-600/30 transition-all hover:from-rose-700 hover:to-rose-800 hover:shadow-md cursor-pointer"
+                >
+                  <BedDouble className="h-4 w-4" />
+                  <span>Complete Discharge</span>
+                </button>
+              )}
+            </>
           )}
-          {admission.status === "discharged" && (
+          {["DISCHARGED", "discharged"].includes(admission.status) && (
             <>
               <button
                 onClick={handlePrintDischargeSummaryClick}
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-indigo-500/30 transition-all hover:from-indigo-600 hover:to-purple-600 hover:shadow-md cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
                 <span className="hidden xs:inline">Print</span> Summary
@@ -942,7 +988,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               {admission.invoice_id && (
                 <button
                   onClick={() => handlePrintInvoice(admission.invoice_id!)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md cursor-pointer"
                 >
                   <Printer className="h-4 w-4" />
                   Invoice
@@ -951,7 +997,7 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               {admission.invoice_id && (
                 <button
                   onClick={handlePrintPaymentReceipt}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 transition-all hover:from-emerald-600 hover:to-teal-600 hover:shadow-md cursor-pointer"
                 >
                   <Printer className="h-4 w-4" />
                   Receipt
@@ -959,10 +1005,10 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
               )}
             </>
           )}
-          {admission.status !== "discharged" && admission.invoice_id && (
+          {!["DISCHARGED", "discharged"].includes(admission.status) && admission.invoice_id && (
             <button
               onClick={() => handlePrintInvoice(admission.invoice_id!)}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md cursor-pointer"
             >
               <Printer className="h-4 w-4" />
               Invoice
@@ -1032,11 +1078,33 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
         </div>
       )}
 
-      {/* Service Charges Modal */}
-      <ServiceChargesModal
+      {/* Transfer Bed Modal */}
+      {showTransferModal && admission?.bed_id && (
+        <TransferBedFormModal
+          isOpen={showTransferModal}
+          onClose={() => setShowTransferModal(false)}
+          admissionId={admissionId}
+          currentBedId={admission.bed_id}
+          onSubmit={async (admId, transferData) => {
+            try {
+              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+              await admissionsApi.transferBed(admId, transferData, tenantId || undefined);
+              toast.success("Bed transferred successfully!");
+              await fetchAdmissionDetails();
+              setShowTransferModal(false);
+            } catch (error: any) {
+              const errorMessage = getErrorMessage(error);
+              toast.error(errorMessage || "Failed to transfer bed");
+              throw error;
+            }
+          }}
+        />
+      )}
+      <IpdBillingDrawer
         isOpen={showServiceChargesModal}
         onClose={() => setShowServiceChargesModal(false)}
         admissionId={admissionId}
+        onAdmissionUpdated={fetchAdmissionDetails}
       />
 
       {/* Initiate Discharge Modal */}
@@ -1045,12 +1113,71 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
         onClose={() => setShowInitiateDischargeModal(false)}
         admissionId={admissionId}
         onSuccess={async (updatedAdmission) => {
-          // Refresh admission details to show updated status
           await fetchAdmissionDetails();
           setShowInitiateDischargeModal(false);
         }}
       />
+
+      {/* Discharge Form Modal (Complete Discharge) */}
+      {showDischargeModal && (
+        <DischargeFormModal
+          isOpen={showDischargeModal}
+          onClose={() => setShowDischargeModal(false)}
+          admissionId={admissionId}
+          admissionStatus={admission?.status}
+          onSubmit={async (admId, dischargeData) => {
+            try {
+              const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+              await admissionsApi.discharge(admId, dischargeData, tenantId || undefined);
+              toast.success("Patient successfully discharged!");
+              setShowDischargeModal(false);
+              await fetchAdmissionDetails();
+            } catch (error: any) {
+              const errorMessage = getErrorMessage(error);
+              toast.error(errorMessage || "Failed to discharge patient");
+              throw error;
+            }
+          }}
+        />
+      )}
+
+      {/* Update Patient Status Modal */}
+      {showPatientStatusModal && admission && (
+        <UpdatePatientStatusModal
+          isOpen={showPatientStatusModal}
+          onClose={() => setShowPatientStatusModal(false)}
+          admission={admission}
+          onSuccess={async () => {
+            await fetchAdmissionDetails();
+            setShowPatientStatusModal(false);
+          }}
+        />
+      )}
+
+      {/* Update Care Status Modal */}
+      {showCareStatusModal && admission && (
+        <UpdateCareStatusModal
+          isOpen={showCareStatusModal}
+          onClose={() => setShowCareStatusModal(false)}
+          admission={admission}
+          onSuccess={async () => {
+            await fetchAdmissionDetails();
+            setShowCareStatusModal(false);
+          }}
+        />
+      )}
+
+      {/* Discharge Summary PDF Preview & Print Modal */}
+      <DischargeSummaryPdfPreviewModal
+        isOpen={showDischargeSummaryPdfModal}
+        onClose={() => setShowDischargeSummaryPdfModal(false)}
+        admissionId={admissionId}
+        patientName={dischargeSummaryPatientInfo?.name}
+        uhid={dischargeSummaryPatientInfo?.uhid}
+        documentTitle="Inpatient Discharge Summary"
+      />
     </Modal>
   );
 }
+
 

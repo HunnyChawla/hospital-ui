@@ -26,6 +26,7 @@ interface IpdNursingMarTabProps {
   activeMedications: IpdMedicationOrder[];
   marTimeline: MedicationAdministration[];
   onRefresh: () => void;
+  isDischarged?: boolean;
 }
 
 export function IpdNursingMarTab({
@@ -33,6 +34,7 @@ export function IpdNursingMarTab({
   activeMedications,
   marTimeline,
   onRefresh,
+  isDischarged = false,
 }: IpdNursingMarTabProps) {
   const [administerMed, setAdministerMed] = useState<IpdMedicationOrder | null>(null);
   const [doseGiven, setDoseGiven] = useState("");
@@ -115,7 +117,9 @@ export function IpdNursingMarTab({
                 Medication Administration (Nursing Station)
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-500">
-                Record doses administered to patient as prescribed by doctor
+                {isDischarged
+                  ? "Patient is discharged. Medication administration is closed."
+                  : "Record doses administered to patient as prescribed by doctor"}
               </p>
             </div>
           </div>
@@ -123,7 +127,9 @@ export function IpdNursingMarTab({
 
         {activeMedications.length === 0 ? (
           <div className="py-8 text-center text-xs text-slate-400">
-            No active medication orders to administer.
+            {isDischarged
+              ? "No active medication orders at discharge."
+              : "No active medication orders to administer."}
           </div>
         ) : (
           <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -162,13 +168,15 @@ export function IpdNursingMarTab({
                     Given: <strong className="text-slate-800">{med.total_doses_given}</strong>
                   </span>
 
-                  <button
-                    onClick={() => handleOpenAdministerModal(med)}
-                    className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Administer</span>
-                  </button>
+                  {!isDischarged && (
+                    <button
+                      onClick={() => handleOpenAdministerModal(med)}
+                      className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Administer</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

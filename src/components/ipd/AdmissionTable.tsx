@@ -1,12 +1,10 @@
-"use client";
-
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/redux/hooks";
 import { useAdmissions, admissionKeys, useDischargeAdmission } from "@/hooks/queries/useAdmissions";
-import { admissionsApi, Admission, DischargeRequest, TransferBedRequest } from "@/services/admissionsApi";
+import { admissionsApi, Admission, DischargeRequest, TransferBedRequest, PatientStatus, CareStatus } from "@/services/admissionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2, LayoutGrid, List } from "lucide-react";
+import { BedDouble, User, Calendar, Stethoscope, X, ArrowRightLeft, ChevronLeft, ChevronRight, Eye, MinusCircle, CreditCard, FileText, Printer, ChevronDown, Download, Loader2, LayoutGrid, List, Activity, PlaneTakeoff } from "lucide-react";
 import { SkeletonRow } from "@/components/shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -16,10 +14,13 @@ import autoTable from "jspdf-autotable";
 import { DischargeFormModal } from "./DischargeFormModal";
 import { AdmissionDetailModal } from "./AdmissionDetailModal";
 import { TransferBedFormModal } from "./TransferBedFormModal";
-import { ServiceChargesModal } from "./ServiceChargesModal";
+import { IpdBillingDrawer } from "./billing/IpdBillingDrawer";
 import { InitiateDischargeFormModal } from "./InitiateDischargeFormModal";
+import { UpdatePatientStatusModal } from "./UpdatePatientStatusModal";
+import { UpdateCareStatusModal } from "./UpdateCareStatusModal";
+import { AdmissionStatusBadge, PatientStatusBadge, CareStatusBadge } from "./StatusBadges";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
-import { paymentsApi } from "@/services/paymentsApi";
+import { DischargeSummaryPdfPreviewModal } from "./DischargeSummaryPdfPreviewModal";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import { useReactToPrint } from "react-to-print";
@@ -42,6 +43,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
   const beds = useAppSelector((s) => s.beds.list);
   const [selectedWardId, setSelectedWardId] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [patientStatusFilter, setPatientStatusFilter] = useState<string>("all");
+  const [careStatusFilter, setCareStatusFilter] = useState<string>("all");
+  const [updatingPatientStatusAdmission, setUpdatingPatientStatusAdmission] = useState<Admission | null>(null);
+  const [updatingCareStatusAdmission, setUpdatingCareStatusAdmission] = useState<Admission | null>(null);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargingAdmissionId, setDischargingAdmissionId] = useState<string | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -79,6 +84,8 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
     patient_id: patientId || undefined,
     ward_id: selectedWardId || undefined,
     status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+    patient_status: patientStatusFilter !== "all" ? (patientStatusFilter as any) : undefined,
+    care_status: careStatusFilter !== "all" ? (careStatusFilter as any) : undefined,
     start_date: startDate || undefined,
     end_date: endDate || undefined,
   });
@@ -146,7 +153,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filter changes
-  }, [patientId, selectedWardId, statusFilter, startDate, endDate]);
+  }, [patientId, selectedWardId, statusFilter, patientStatusFilter, careStatusFilter, startDate, endDate]);
 
   // Handle external admission ID and action from URL parameters (Doctor Panel navigation)
   useEffect(() => {
@@ -581,13 +588,12 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
   return (
     <div className="space-y-4">
       {/* Filters - stack on mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 flex-1">
           <label className="space-y-1">
-            <span className="text-slate-600 text-sm flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <span className="hidden xs:inline">Start Date</span>
-              <span className="xs:hidden">Start</span>
+            <span className="text-slate-600 text-xs font-medium flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Start Date</span>
             </span>
             <input
               type="date"
@@ -595,15 +601,14 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
               onChange={(e) => setStartDate(e.target.value)}
               max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
               min={endDate ? getMinStartDate() : undefined}
-              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
             />
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600 text-sm flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <span className="hidden xs:inline">End Date</span>
-              <span className="xs:hidden">End</span>
+            <span className="text-slate-600 text-xs font-medium flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>End Date</span>
             </span>
             <input
               type="date"
@@ -611,16 +616,16 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
               max={startDate ? getMaxEndDate() : getTodayDateLocal()}
-              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
             />
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600 text-sm">Ward</span>
+            <span className="text-slate-600 text-xs font-medium">Ward</span>
             <select
               value={selectedWardId}
               onChange={(e) => setSelectedWardId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
             >
               <option value="">All Wards</option>
               {wards.map((ward) => (
@@ -632,71 +637,110 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
           </label>
 
           <label className="space-y-1">
-            <span className="text-slate-600 text-sm">Status</span>
+            <span className="text-slate-600 text-xs font-medium">Admission</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-2 sm:px-3 py-2 text-sm outline-none focus:border-sky-400"
+              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400 font-medium"
             >
               <option value="all">All Status</option>
-              <option value="admitted">Admitted</option>
-              <option value="discharged">Discharged</option>
-              <option value="transferred">Transferred</option>
-              <option value="deceased">Deceased</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="ACTIVE">Active</option>
+              <option value="DISCHARGE_INITIATED">Discharge Initiated</option>
+              <option value="DISCHARGED">Discharged</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-slate-600 text-xs font-medium">Patient Presence</span>
+            <select
+              value={patientStatusFilter}
+              onChange={(e) => setPatientStatusFilter(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
+            >
+              <option value="all">All Presence</option>
+              <option value="IN_HOSPITAL">In Hospital</option>
+              <option value="ON_LEAVE">On Leave</option>
+              <option value="TRANSFERRED">Transferred</option>
+              <option value="LAMA">LAMA</option>
+              <option value="DAMA">DAMA</option>
+              <option value="ABSCONDED">Absconded</option>
+              <option value="EXPIRED">Expired</option>
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-slate-600 text-xs font-medium">Care Status</span>
+            <select
+              value={careStatusFilter}
+              onChange={(e) => setCareStatusFilter(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-sky-400"
+            >
+              <option value="all">All Care Stages</option>
+              <option value="ADMITTED">Admitted</option>
+              <option value="UNDER_TREATMENT">Under Treatment</option>
+              <option value="RECOVERY">Recovery</option>
+              <option value="READY_FOR_DISCHARGE">Ready for Discharge</option>
             </select>
           </label>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View Toggle - Desktop only */}
-          <div className="hidden md:flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
-            <button
-              onClick={() => {
-                setDesktopView("list");
-                localStorage.setItem("ipd_admissions_view", "list");
-              }}
-              className={`flex items-center justify-center rounded-lg p-2 transition ${desktopView === "list"
-                ? "bg-sky-500 text-white"
-                : "text-slate-500 hover:bg-slate-50"
-                }`}
-              title="List View"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => {
-                setDesktopView("grid");
-                localStorage.setItem("ipd_admissions_view", "grid");
-              }}
-              className={`flex items-center justify-center rounded-lg p-2 transition ${desktopView === "grid"
-                ? "bg-sky-500 text-white"
-                : "text-slate-500 hover:bg-slate-50"
-                }`}
-              title="Grid View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
+        <div className="flex items-center justify-between gap-2">
+          {/* Active summary filter pill counter */}
+          <div className="text-xs text-slate-500">
+            Showing <span className="font-semibold text-slate-900">{admissions.length}</span> of <span className="font-semibold text-slate-900">{total}</span> records
           </div>
 
-          <button
-            onClick={handleExportPDF}
-            disabled={!!dateRangeError || exporting}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500 w-full sm:w-auto"
-            title="Export all admissions to PDF"
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Exporting...</span>
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                <span>Export PDF</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* View Toggle - Desktop only */}
+            <div className="hidden md:flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+              <button
+                onClick={() => {
+                  setDesktopView("list");
+                  localStorage.setItem("ipd_admissions_view", "list");
+                }}
+                className={`flex items-center justify-center rounded-lg p-2 transition ${desktopView === "list"
+                  ? "bg-sky-500 text-white"
+                  : "text-slate-500 hover:bg-slate-50"
+                  }`}
+                title="List View"
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setDesktopView("grid");
+                  localStorage.setItem("ipd_admissions_view", "grid");
+                }}
+                className={`flex items-center justify-center rounded-lg p-2 transition ${desktopView === "grid"
+                  ? "bg-sky-500 text-white"
+                  : "text-slate-500 hover:bg-slate-50"
+                  }`}
+                title="Grid View"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={handleExportPDF}
+              disabled={!!dateRangeError || exporting}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
+              title="Export all admissions to PDF"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Export PDF</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -744,19 +788,33 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                   className="p-4 cursor-pointer active:bg-sky-50/50 transition"
                   onClick={() => handleRowClick(admission.id)}
                 >
-                  {/* Patient Name & Status */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 text-base truncate">
-                        {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
-                      </h3>
-                      {admission.admission_number && (
-                        <p className="text-xs text-slate-500 mt-0.5">{admission.admission_number}</p>
-                      )}
+                  {/* Patient Name & Status Badges */}
+                  <div className="flex flex-col gap-2 mb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 text-base truncate">
+                          {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
+                        </h3>
+                        {admission.admission_number && (
+                          <p className="text-xs text-slate-500 font-mono mt-0.5">{admission.admission_number}</p>
+                        )}
+                      </div>
+                      <AdmissionStatusBadge status={admission.status} size="sm" />
                     </div>
-                    <span className={`pill px-2.5 py-1 text-xs font-medium shrink-0 rounded-full ${getStatusColor(admission.status)}`}>
-                      {formatStatus(admission.status)}
-                    </span>
+
+                    {/* Patient & Care Status Badges */}
+                    {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <PatientStatusBadge status={admission.patient_status} size="sm" />
+                        <CareStatusBadge status={admission.care_status} size="sm" />
+                      </div>
+                    ) : (
+                      ["EXPIRED", "TRANSFERRED", "LAMA", "DAMA", "ABSCONDED"].includes((admission.patient_status || "").toUpperCase()) && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <PatientStatusBadge status={admission.patient_status} size="sm" />
+                        </div>
+                      )
+                    )}
                   </div>
 
                   {/* Info Grid */}
@@ -791,7 +849,56 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                 {/* Action Buttons Section */}
                 <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {admission.status === "admitted" && (
+                    {/* Quick status actions for Active / Inpatient */}
+                    {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUpdatingCareStatusAdmission(admission);
+                          }}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-teal-500 p-2 text-white transition-all duration-300 hover:bg-teal-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Update Care Progress"
+                        >
+                          <Activity className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Care Status</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUpdatingPatientStatusAdmission(admission);
+                          }}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-indigo-500 p-2 text-white transition-all duration-300 hover:bg-indigo-600"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="Update Patient Presence (Leave, Transfer, etc.)"
+                        >
+                          <PlaneTakeoff className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Presence</span>
+                        </button>
+                      </>
+                    )}
+                    {["ACTIVE", "admitted"].includes(admission.status) && (
                       <>
                         <button
                           onClick={(e) => handleServiceChargesClick(e, admission.id)}
@@ -807,10 +914,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                             e.currentTarget.style.paddingLeft = "0.5rem";
                             e.currentTarget.style.paddingRight = "0.5rem";
                           }}
-                          title="Service Charges"
+                          title="IPD Billing & Ledger"
                         >
                           <CreditCard className="h-4 w-4 shrink-0" />
-                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Charges</span>
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Billing</span>
                         </button>
                         <button
                           onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
@@ -948,19 +1055,25 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                     className="p-4 cursor-pointer hover:bg-sky-50/30 transition"
                     onClick={() => handleRowClick(admission.id)}
                   >
-                    {/* Patient Name & Status */}
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-slate-900 text-base truncate">
-                          {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
-                        </h3>
-                        {admission.admission_number && (
-                          <p className="text-xs text-slate-500 mt-0.5">{admission.admission_number}</p>
-                        )}
+                    {/* Patient Name & Status Badges */}
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-slate-900 text-base truncate">
+                            {admission.patient_name || `Patient ${admission.patient_id.slice(0, 8)}...`}
+                          </h3>
+                          {admission.admission_number && (
+                            <p className="text-xs text-slate-500 font-mono mt-0.5">{admission.admission_number}</p>
+                          )}
+                        </div>
+                        <AdmissionStatusBadge status={admission.status} size="sm" />
                       </div>
-                      <span className={`pill px-2.5 py-1 text-xs font-medium shrink-0 rounded-full ${getStatusColor(admission.status)}`}>
-                        {formatStatus(admission.status)}
-                      </span>
+
+                      {/* Patient & Care Status Badges */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <PatientStatusBadge status={admission.patient_status} size="sm" />
+                        <CareStatusBadge status={admission.care_status} size="sm" />
+                      </div>
                     </div>
 
                     {/* Info Grid */}
@@ -1011,10 +1124,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                               e.currentTarget.style.paddingLeft = "0.5rem";
                               e.currentTarget.style.paddingRight = "0.5rem";
                             }}
-                            title="Service Charges"
+                            title="IPD Billing & Ledger"
                           >
                             <CreditCard className="h-4 w-4 shrink-0" />
-                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Charges</span>
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline text-xs font-medium">Billing</span>
                           </button>
                           <button
                             onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
@@ -1170,14 +1283,74 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                     <td className="px-4 py-3 text-slate-700">
                       {formatDate(admission.admission_date)}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(admission.status)}`}>
-                        {formatStatus(admission.status)}
-                      </span>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <AdmissionStatusBadge status={admission.status} size="sm" />
+                        {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <PatientStatusBadge status={admission.patient_status} size="sm" />
+                            <CareStatusBadge status={admission.care_status} size="sm" />
+                          </div>
+                        ) : (
+                          ["EXPIRED", "TRANSFERRED", "LAMA", "DAMA", "ABSCONDED"].includes((admission.patient_status || "").toUpperCase()) && (
+                            <div className="flex flex-wrap items-center gap-1">
+                              <PatientStatusBadge status={admission.patient_status} size="sm" />
+                            </div>
+                          )
+                        )}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 min-w-[200px]">
-                      <div className="flex justify-end gap-2">
-                        {admission.status === "admitted" && (
+                    <td className="px-4 py-3 min-w-[220px]">
+                      <div className="flex justify-end gap-1.5">
+                        {["ACTIVE", "admitted", "DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUpdatingCareStatusAdmission(admission);
+                              }}
+                              className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-teal-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-teal-600"
+                              style={{ width: "2rem" }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.width = "auto";
+                                e.currentTarget.style.paddingLeft = "0.75rem";
+                                e.currentTarget.style.paddingRight = "0.75rem";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.width = "2rem";
+                                e.currentTarget.style.paddingLeft = "0.5rem";
+                                e.currentTarget.style.paddingRight = "0.5rem";
+                              }}
+                              title="Update Care Progress"
+                            >
+                              <Activity className="h-4 w-4 shrink-0" />
+                              <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Care Status</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUpdatingPatientStatusAdmission(admission);
+                              }}
+                              className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-indigo-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-indigo-600"
+                              style={{ width: "2rem" }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.width = "auto";
+                                e.currentTarget.style.paddingLeft = "0.75rem";
+                                e.currentTarget.style.paddingRight = "0.75rem";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.width = "2rem";
+                                e.currentTarget.style.paddingLeft = "0.5rem";
+                                e.currentTarget.style.paddingRight = "0.5rem";
+                              }}
+                              title="Update Patient Presence (Leave, Transfer, etc.)"
+                            >
+                              <PlaneTakeoff className="h-4 w-4 shrink-0" />
+                              <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Presence</span>
+                            </button>
+                          </>
+                        )}
+                        {["ACTIVE", "admitted"].includes(admission.status) && (
                           <button
                             onClick={(e) => handleServiceChargesClick(e, admission.id)}
                             className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
@@ -1192,13 +1365,13 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                               e.currentTarget.style.paddingLeft = "0.5rem";
                               e.currentTarget.style.paddingRight = "0.5rem";
                             }}
-                            title="Service Charges"
+                            title="IPD Billing & Ledger"
                           >
                             <CreditCard className="h-4 w-4 shrink-0" />
-                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Service Charges</span>
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Billing</span>
                           </button>
                         )}
-                        {admission.status === "admitted" && (
+                        {["ACTIVE", "admitted"].includes(admission.status) && (
                           <button
                             onClick={(e) => handleInitiateDischargeClick(e, admission.id)}
                             className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-purple-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-purple-600"
@@ -1219,7 +1392,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                             <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Initiate Discharge</span>
                           </button>
                         )}
-                        {admission.status === "admitted" && (
+                        {["ACTIVE", "admitted"].includes(admission.status) && (
                           <button
                             onClick={(e) => handleTransferClick(e, admission)}
                             className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-amber-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-amber-600"
@@ -1240,7 +1413,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                             <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Transfer Bed</span>
                           </button>
                         )}
-                        {admission.status === "discharge_initiated" && (
+                        {["DISCHARGE_INITIATED", "discharge_initiated"].includes(admission.status) && (
                           <button
                             onClick={(e) => handleDischargeClick(e, admission.id, admission.status)}
                             className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-rose-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-rose-600"
@@ -1255,18 +1428,40 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                               e.currentTarget.style.paddingLeft = "0.5rem";
                               e.currentTarget.style.paddingRight = "0.5rem";
                             }}
-                            title="Discharge"
+                            title="Complete Discharge"
                           >
                             <div className="relative flex items-center justify-center shrink-0">
                               <BedDouble className="h-4 w-4" />
-                              <MinusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
+                              <MinusCircle className="h-2.5 w-2.5 absolute -bottom-0.5 -right-0.5 bg-rose-500 rounded-full" />
                             </div>
-                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Discharge</span>
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Complete Discharge</span>
                           </button>
                         )}
-                        {admission.status === "discharged" && (
+                        {["DISCHARGED", "discharged"].includes(admission.status) && (
                           <PrintButtonsGroup admission={admission} />
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(admission.id);
+                          }}
+                          className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-slate-200 p-2 text-xs font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-300"
+                          style={{ width: "2rem" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.width = "auto";
+                            e.currentTarget.style.paddingLeft = "0.75rem";
+                            e.currentTarget.style.paddingRight = "0.75rem";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.width = "2rem";
+                            e.currentTarget.style.paddingLeft = "0.5rem";
+                            e.currentTarget.style.paddingRight = "0.5rem";
+                          }}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4 shrink-0" />
+                          <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">View Details</span>
+                        </button>
                         {onEditClick && (
                           <button
                             onClick={(e) => handleViewClick(e, admission)}
@@ -1282,10 +1477,10 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
                               e.currentTarget.style.paddingLeft = "0.5rem";
                               e.currentTarget.style.paddingRight = "0.5rem";
                             }}
-                            title="View"
+                            title="Edit"
                           >
                             <Eye className="h-4 w-4 shrink-0" />
-                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">View</span>
+                            <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Edit</span>
                           </button>
                         )}
                       </div>
@@ -1395,13 +1590,16 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
       )}
 
       {selectedAdmissionIdForCharges && (
-        <ServiceChargesModal
+        <IpdBillingDrawer
           isOpen={showServiceChargesModal}
           onClose={() => {
             setShowServiceChargesModal(false);
             setSelectedAdmissionIdForCharges(null);
           }}
           admissionId={selectedAdmissionIdForCharges}
+          onAdmissionUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
+          }}
         />
       )}
 
@@ -1416,6 +1614,28 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
           onSuccess={handleInitiateDischargeSuccess}
         />
       )}
+
+      {updatingPatientStatusAdmission && (
+        <UpdatePatientStatusModal
+          isOpen={!!updatingPatientStatusAdmission}
+          onClose={() => setUpdatingPatientStatusAdmission(null)}
+          admission={updatingPatientStatusAdmission}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
+          }}
+        />
+      )}
+
+      {updatingCareStatusAdmission && (
+        <UpdateCareStatusModal
+          isOpen={!!updatingCareStatusAdmission}
+          onClose={() => setUpdatingCareStatusAdmission(null)}
+          admission={updatingCareStatusAdmission}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1423,6 +1643,7 @@ export function AdmissionTable({ patientId, onEditClick, selectedAdmissionId: ex
 // Print Buttons Group Component for Discharged Admissions
 function PrintButtonsGroup({ admission }: { admission: Admission }) {
   const [showPrintDropdown, setShowPrintDropdown] = useState(false);
+  const [showDischargeSummaryModal, setShowDischargeSummaryModal] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const [printInvoiceData, setPrintInvoiceData] = useState<{ invoice: Invoice; patientName: string; patientMobile?: string } | null>(null);
   const [printPaymentInvoiceId, setPrintPaymentInvoiceId] = useState<string | null>(null);
@@ -1597,43 +1818,70 @@ function PrintButtonsGroup({ admission }: { admission: Admission }) {
 
         {showPrintDropdown && dropdownPosition && (
           <div
-            className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white shadow-lg"
+            className="fixed z-50 w-52 rounded-xl border border-slate-200 bg-white shadow-xl py-1 divide-y divide-slate-100"
             style={{
               top: `${dropdownPosition.top}px`,
               right: `${dropdownPosition.right}px`,
             }}
           >
-            {hasInvoice ? (
+            <div className="py-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handlePrintInvoice();
+                  setShowPrintDropdown(false);
+                  setShowDischargeSummaryModal(true);
                 }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 cursor-pointer"
               >
-                <Printer className="h-4 w-4" />
-                Print Invoice
+                <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
+                Print Discharge Summary
               </button>
-            ) : (
-              <div className="px-4 py-2 text-xs text-slate-500">No invoice available</div>
-            )}
-            {admission.invoice_id ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePrintPaymentReceipt();
-                }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-              >
-                <Printer className="h-4 w-4" />
-                Print Payment Receipt
-              </button>
-            ) : (
-              <div className="px-4 py-2 text-xs text-slate-500">No payment receipt available</div>
-            )}
+            </div>
+
+            <div className="py-1">
+              {hasInvoice ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrintInvoice();
+                  }}
+                  className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4 text-slate-500 shrink-0" />
+                  Print Invoice
+                </button>
+              ) : (
+                <div className="px-3.5 py-1.5 text-[11px] text-slate-400">No invoice available</div>
+              )}
+              {admission.invoice_id ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrintPaymentReceipt();
+                  }}
+                  className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4 text-slate-500 shrink-0" />
+                  Print Payment Receipt
+                </button>
+              ) : (
+                <div className="px-3.5 py-1.5 text-[11px] text-slate-400">No payment receipt available</div>
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Discharge Summary PDF Modal */}
+      {showDischargeSummaryModal && (
+        <DischargeSummaryPdfPreviewModal
+          isOpen={showDischargeSummaryModal}
+          onClose={() => setShowDischargeSummaryModal(false)}
+          admissionId={admission.id}
+          patientName={admission.patient_name}
+          documentTitle="Inpatient Discharge Summary"
+        />
+      )}
 
       {/* Hidden printable invoice */}
       {printInvoiceData && (

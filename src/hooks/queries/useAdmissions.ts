@@ -312,3 +312,89 @@ export function useTransferBed() {
     },
   });
 }
+
+/**
+ * Update patient presence/physical status (on leave, transfer, expired, lama, absconded)
+ */
+export function useUpdatePatientStatus() {
+  const queryClient = useQueryClient();
+  const { tenantId, isPlatformOwner } = useTenantContext();
+
+  return useMutation({
+    mutationFn: async ({
+      admissionId,
+      data,
+    }: {
+      admissionId: string;
+      data: { patient_status: any; reason?: string | null; notes?: string | null };
+    }) => {
+      return await admissionsApi.updatePatientStatus(
+        admissionId,
+        data,
+        isPlatformOwner ? tenantId ?? undefined : undefined
+      );
+    },
+    onSuccess: (data) => {
+      toast.success('Patient status updated successfully');
+      queryClient.invalidateQueries({ queryKey: admissionKeys.detail(data.id) });
+      queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...admissionKeys.detail(data.id), 'status-history'] });
+    },
+    onError: (err) => {
+      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update patient status';
+      toast.error(errorMessage);
+    },
+  });
+}
+
+/**
+ * Update clinical care status (admitted, under_treatment, recovery, ready_for_discharge)
+ */
+export function useUpdateCareStatus() {
+  const queryClient = useQueryClient();
+  const { tenantId, isPlatformOwner } = useTenantContext();
+
+  return useMutation({
+    mutationFn: async ({
+      admissionId,
+      data,
+    }: {
+      admissionId: string;
+      data: { care_status: any; notes?: string | null };
+    }) => {
+      return await admissionsApi.updateCareStatus(
+        admissionId,
+        data,
+        isPlatformOwner ? tenantId ?? undefined : undefined
+      );
+    },
+    onSuccess: (data) => {
+      toast.success('Care status updated successfully');
+      queryClient.invalidateQueries({ queryKey: admissionKeys.detail(data.id) });
+      queryClient.invalidateQueries({ queryKey: admissionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...admissionKeys.detail(data.id), 'status-history'] });
+    },
+    onError: (err) => {
+      const errorMessage = (err as any)?.response?.data?.detail || 'Failed to update care status';
+      toast.error(errorMessage);
+    },
+  });
+}
+
+/**
+ * Fetch status change history for an admission
+ */
+export function useStatusHistory(admissionId: string | null) {
+  const { tenantId, isPlatformOwner } = useTenantContext();
+
+  return useQuery({
+    queryKey: [...admissionKeys.detail(admissionId || ''), 'status-history'] as const,
+    queryFn: async () => {
+      return await admissionsApi.getStatusHistory(
+        admissionId!,
+        isPlatformOwner ? tenantId ?? undefined : undefined
+      );
+    },
+    enabled: !!admissionId,
+  });
+}

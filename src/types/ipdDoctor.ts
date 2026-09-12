@@ -122,9 +122,13 @@ export interface IpdAdmittedPatient {
   admission_time: string;
   admission_type: string;
   status: string;
+  patient_status?: string | null;
+  care_status?: string | null;
   diagnosis?: string | null;
   reason_for_admission?: string | null;
   days_admitted: number;
+  discharge_date?: string | null;
+  discharge_time?: string | null;
   active_medications_count: number;
   active_orders_count: number;
   latest_vitals?: {
@@ -146,11 +150,14 @@ export interface IpdPatientChart {
     admission_time: string;
     admission_type: string;
     status: string;
+    patient_status?: string | null;
+    care_status?: string | null;
     diagnosis?: string | null;
     reason_for_admission?: string | null;
     doctor_id: string;
     doctor_name: string;
     ward_name?: string | null;
+    bed_id?: string | null;
     bed_number?: string | null;
     days_admitted: number;
     discharge_date?: string | null;

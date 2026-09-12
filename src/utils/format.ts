@@ -5,6 +5,8 @@ export const currency = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+export const formatCurrency = currency;
+
 // Format currency for PDF exports (using "Rs." prefix instead of ₹ symbol for better PDF compatibility)
 export const formatCurrencyForPDF = (value: number): string => {
   const formattedNumber = new Intl.NumberFormat("en-IN", {

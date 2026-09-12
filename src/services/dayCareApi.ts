@@ -169,6 +169,28 @@ export const dayCareApi = {
     return data;
   },
 
+  async getDischargeSummaryPdf(visitId: string, tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(`/day-care/visits/${visitId}/discharge/pdf`, {
+      params,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  async downloadDischargeSummaryPdf(visitId: string, filename?: string, tenantId?: string): Promise<void> {
+    const blob = await this.getDischargeSummaryPdf(visitId, tenantId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || `Day-Care-Discharge-Summary-${visitId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
   async getDischargeSummaryPrintData(visitId: string, tenantId?: string): Promise<DischargeSummaryPrintResponse> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};

@@ -20,12 +20,14 @@ interface IpdProgressNotesTabProps {
   admissionId: string;
   progressNotes: IpdProgressNote[];
   onRefresh: () => void;
+  isDischarged?: boolean;
 }
 
 export function IpdProgressNotesTab({
   admissionId,
   progressNotes,
   onRefresh,
+  isDischarged = false,
 }: IpdProgressNotesTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [noteType, setNoteType] = useState<string>("doctor_daily");
@@ -110,17 +112,19 @@ export function IpdProgressNotesTab({
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setNoteDate(new Date().toISOString().slice(0, 10));
-              setNoteTime(new Date().toISOString().slice(0, 16));
-              setShowAddModal(true);
-            }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Create Progress Note</span>
-          </button>
+          {!isDischarged && (
+            <button
+              onClick={() => {
+                setNoteDate(new Date().toISOString().slice(0, 10));
+                setNoteTime(new Date().toISOString().slice(0, 16));
+                setShowAddModal(true);
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Create Progress Note</span>
+            </button>
+          )}
         </div>
 
         {/* Progress Notes Timeline */}
@@ -129,7 +133,9 @@ export function IpdProgressNotesTab({
             <FileText className="mx-auto h-8 w-8 text-slate-300" />
             <p className="mt-2 text-xs font-semibold">No progress notes recorded yet</p>
             <p className="text-[11px] text-slate-400">
-              Click &quot;Create Progress Note&quot; to write today&apos;s round observations.
+              {isDischarged
+                ? "No progress notes recorded during this admission."
+                : 'Click "Create Progress Note" to write today\'s round observations.'}
             </p>
           </div>
         ) : (
