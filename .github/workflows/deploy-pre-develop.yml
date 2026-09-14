@@ -1,4 +1,4 @@
-name: Build, Push to OCIR, and Deploy to Oracle Cloud (pre-develop)
+name: Build, Push to Docker Hub, and Deploy to Oracle Cloud (pre-develop)
 
 on:
   push:
@@ -11,20 +11,28 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OCI_REGION_KEY: ${{ vars.OCI_REGION_KEY || secrets.OCI_REGION_KEY || 'bom' }}
-  OCI_TENANCY_NAMESPACE: ${{ vars.OCI_TENANCY_NAMESPACE || secrets.OCI_TENANCY_NAMESPACE }}
-  OCIR_UI_REPOSITORY: hospital-ui
-  OCIR_TV_REPOSITORY: tv-legacy-display
+  DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME || vars.DOCKER_HUB_USERNAME || secrets.DOCKERHUB_USERNAME || secrets.DOCKER_HUB_USERNAME || 'technesian' }}
+  DOCKERHUB_UI_REPOSITORY: ${{ vars.DOCKERHUB_UI_REPOSITORY || 'hospital-ui' }}
+  DOCKERHUB_TV_REPOSITORY: ${{ vars.DOCKERHUB_TV_REPOSITORY || 'tv-legacy-display' }}
   NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || secrets.NEXT_PUBLIC_API_BASE_URL || '/api' }}
   NEXT_PUBLIC_DOMAIN_URL: ${{ vars.NEXT_PUBLIC_DOMAIN_URL || secrets.NEXT_PUBLIC_DOMAIN_URL || '' }}
 
 jobs:
   build-and-push:
-    name: Build and Push Docker Images to OCIR
+    name: Build and Push Docker Images to Docker Hub
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Validate Docker Hub Credentials
+        run: |
+          DOCKER_TOKEN="${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_HUB_TOKEN || secrets.DOCKERHUB_PASSWORD || secrets.DOCKER_HUB_PASSWORD }}"
+          if [ -z "$DOCKER_TOKEN" ]; then
+            echo "::error::Docker Hub token/password is missing. Please add DOCKERHUB_TOKEN (or DOCKER_HUB_TOKEN) to GitHub Repository Secrets."
+            exit 1
+          fi
+          echo "Docker Hub credentials configured for '${{ env.DOCKERHUB_USERNAME }}'."
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -32,28 +40,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Resolve OCIR Username
-        id: ocir-auth
-        run: |
-          RAW_USER="${{ secrets.OCI_OCIR_USERNAME }}"
-          NAMESPACE="${{ env.OCI_TENANCY_NAMESPACE }}"
-          if [[ "$RAW_USER" == *"/"* ]]; then
-            FORMATTED_USER="$RAW_USER"
-          elif [ -n "$NAMESPACE" ]; then
-            FORMATTED_USER="${NAMESPACE}/${RAW_USER}"
-          else
-            FORMATTED_USER="$RAW_USER"
-          fi
-          echo "username=$FORMATTED_USER" >> $GITHUB_OUTPUT
-
-      - name: Log in to Oracle Cloud Infrastructure Registry (OCIR)
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.OCI_REGION_KEY }}.ocir.io
-          username: ${{ steps.ocir-auth.outputs.username }}
-          password: ${{ secrets.OCI_AUTH_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_HUB_TOKEN || secrets.DOCKERHUB_PASSWORD || secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: Build and Push Hospital UI Docker Image to OCIR
+      - name: Build and Push Hospital UI Docker Image to Docker Hub
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -65,12 +58,13 @@ jobs:
             NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}
             NEXT_PUBLIC_DOMAIN_URL=${{ env.NEXT_PUBLIC_DOMAIN_URL }}
           tags: |
-            ${{ env.OCI_REGION_KEY }}.ocir.io/${{ env.OCI_TENANCY_NAMESPACE }}/${{ env.OCIR_UI_REPOSITORY }}:pre-develop
-            ${{ env.OCI_REGION_KEY }}.ocir.io/${{ env.OCI_TENANCY_NAMESPACE }}/${{ env.OCIR_UI_REPOSITORY }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_UI_REPOSITORY }}:pre-develop
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_UI_REPOSITORY }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_UI_REPOSITORY }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and Push TV Legacy Docker Image to OCIR
+      - name: Build and Push TV Legacy Docker Image to Docker Hub
         uses: docker/build-push-action@v5
         with:
           context: ./tv-legacy
@@ -78,8 +72,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.OCI_REGION_KEY }}.ocir.io/${{ env.OCI_TENANCY_NAMESPACE }}/${{ env.OCIR_TV_REPOSITORY }}:pre-develop
-            ${{ env.OCI_REGION_KEY }}.ocir.io/${{ env.OCI_TENANCY_NAMESPACE }}/${{ env.OCIR_TV_REPOSITORY }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_TV_REPOSITORY }}:pre-develop
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_TV_REPOSITORY }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_TV_REPOSITORY }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -98,39 +93,44 @@ jobs:
 
       - name: SSH and Deploy to Oracle Cloud VM
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKERHUB_USERNAME: ${{ env.DOCKERHUB_USERNAME }}
+          DOCKERHUB_UI_REPOSITORY: ${{ env.DOCKERHUB_UI_REPOSITORY }}
+          DOCKERHUB_TV_REPOSITORY: ${{ env.DOCKERHUB_TV_REPOSITORY }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_HUB_TOKEN || secrets.DOCKERHUB_PASSWORD || secrets.DOCKER_HUB_PASSWORD }}
+          DEPLOY_IMAGE_TAG: ${{ github.sha }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_DOMAIN_URL: ${{ env.NEXT_PUBLIC_DOMAIN_URL }}
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER || 'ubuntu' }}
           key: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
           port: 22
-          envs: NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_DOMAIN_URL
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_UI_REPOSITORY,DOCKERHUB_TV_REPOSITORY,DOCKERHUB_TOKEN,DEPLOY_IMAGE_TAG,NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_DOMAIN_URL
           script: |
             set -e
 
             USER_NAME="${{ secrets.OCI_USER || 'ubuntu' }}"
-            OCIR_REGISTRY="${{ env.OCI_REGION_KEY }}.ocir.io"
-            NAMESPACE="${{ env.OCI_TENANCY_NAMESPACE }}"
-            UI_IMAGE_TAG="${OCIR_REGISTRY}/${NAMESPACE}/${{ env.OCIR_UI_REPOSITORY }}:${{ github.sha }}"
-            TV_IMAGE_TAG="${OCIR_REGISTRY}/${NAMESPACE}/${{ env.OCIR_TV_REPOSITORY }}:${{ github.sha }}"
+            UI_IMAGE_TAG="${DOCKERHUB_USERNAME}/${DOCKERHUB_UI_REPOSITORY}:${DEPLOY_IMAGE_TAG}"
+            TV_IMAGE_TAG="${DOCKERHUB_USERNAME}/${DOCKERHUB_TV_REPOSITORY}:${DEPLOY_IMAGE_TAG}"
 
-            echo "Authenticating Docker with OCIR on VM..."
-            RAW_USER="${{ secrets.OCI_OCIR_USERNAME }}"
-            if [[ "$RAW_USER" == *"/"* ]]; then
-              FINAL_USER="$RAW_USER"
-            elif [ -n "$NAMESPACE" ]; then
-              FINAL_USER="${NAMESPACE}/${RAW_USER}"
+            echo "Configuring Docker Hub access on VM..."
+            if [ -n "$DOCKERHUB_TOKEN" ] && [ -n "$DOCKERHUB_USERNAME" ]; then
+              echo "$DOCKERHUB_TOKEN" | sudo docker login --username "$DOCKERHUB_USERNAME" --password-stdin || {
+                echo "Warning: Docker login to Docker Hub failed on VM. Attempting pull anyway..."
+              }
             else
-              FINAL_USER="$RAW_USER"
+              echo "No Docker Hub credentials passed; pulling as public image..."
             fi
-
-            echo "${{ secrets.OCI_AUTH_TOKEN }}" | sudo docker login --username "$FINAL_USER" --password-stdin "$OCIR_REGISTRY"
 
             # 1. Ensure shared Docker network exists
             sudo docker network create hms-network 2>/dev/null || true
 
-            # 2. Pull new images
-            echo "Pulling latest images from OCIR..."
+            # 2. Pull new images from Docker Hub
+            echo "Pulling latest images from Docker Hub..."
+            echo "Pulling UI image: $UI_IMAGE_TAG"
             sudo docker pull "$UI_IMAGE_TAG"
+            echo "Pulling TV image: $TV_IMAGE_TAG"
             sudo docker pull "$TV_IMAGE_TAG"
 
             # 3. Deploy / Update hospital-ui container
