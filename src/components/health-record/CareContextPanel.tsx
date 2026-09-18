@@ -34,6 +34,7 @@ import {
     RefreshCw,
     ChevronDown,
     ChevronUp,
+    HeartPulse,
 } from "lucide-react";
 import {
     usePatientTimeline,
@@ -57,6 +58,7 @@ const EPISODE_ICONS: Record<EpisodeType, React.ElementType> = {
     day_care_visit: Syringe,
     planned_surgery: Scissors,
     lab_booking: FlaskConical,
+    wellness_record: HeartPulse,
 };
 
 const EPISODE_LABELS: Record<EpisodeType, string> = {
@@ -65,6 +67,7 @@ const EPISODE_LABELS: Record<EpisodeType, string> = {
     day_care_visit: "Day care",
     planned_surgery: "Surgery",
     lab_booking: "Lab booking",
+    wellness_record: "Wellness & Vitals",
 };
 
 const HI_TYPE_LABELS: Record<HiType, string> = {

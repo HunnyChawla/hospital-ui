@@ -19,6 +19,7 @@ import {
     RefreshCw,
     ChevronDown,
     ChevronUp,
+    HeartPulse,
 } from "lucide-react";
 import {
     usePatientTimeline,
@@ -35,6 +36,7 @@ import type {
 } from "@/services/healthRecordApi";
 import { DocumentVersionHistory } from "./DocumentVersionHistory";
 import { FinaliseConfirmDialog, mayReopenEpisode } from "./FinaliseConfirmDialog";
+import { RecordWellnessModal } from "./RecordWellnessModal";
 
 interface PatientEpisodeTimelineProps {
     patientId: string | null;
@@ -46,6 +48,7 @@ const EPISODE_ICONS: Record<EpisodeType, React.ElementType> = {
     day_care_visit: Syringe,
     planned_surgery: Scissors,
     lab_booking: FlaskConical,
+    wellness_record: HeartPulse,
 };
 
 const EPISODE_LABELS: Record<EpisodeType, string> = {
@@ -54,6 +57,7 @@ const EPISODE_LABELS: Record<EpisodeType, string> = {
     day_care_visit: "Day care",
     planned_surgery: "Surgery",
     lab_booking: "Lab booking",
+    wellness_record: "Wellness & Vitals",
 };
 
 /**
@@ -91,6 +95,7 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
         id: string;
         mode: "reopen";
     } | null>(null);
+    const [isWellnessModalOpen, setIsWellnessModalOpen] = useState(false);
 
     const mayReopen = mayReopenEpisode(isAdmin, userRole);
 
@@ -106,29 +111,46 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
 
     const episodes = data?.items ?? [];
 
-    if (episodes.length === 0) {
-        return (
-            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-10 text-center">
-                <FileText className="mx-auto h-10 w-10 text-slate-300" />
-                <p className="mt-3 text-sm font-semibold text-slate-600">No visits recorded yet</p>
-                <p className="mt-1 text-xs text-slate-500">
-                    Episodes are created automatically when a visit is registered.
-                </p>
-            </div>
-        );
-    }
-
     return (
-        <ol className="space-y-3">
-            {episodes.map((episode) => (
-                <EpisodeRow
-                    key={episode.id}
-                    episode={episode}
-                    mayReopen={mayReopen}
-                    onReopen={() => setConfirming({ id: episode.id, mode: "reopen" })}
-                    isBusy={reopen.isPending && reopen.variables?.episodeId === episode.id}
-                />
-            ))}
+        <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5">
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-900">Health Records & Care Contexts</h3>
+                    <p className="text-xs text-slate-500">
+                        Chronological encounter history, clinical documents, and ABDM care contexts.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setIsWellnessModalOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 transition"
+                >
+                    <HeartPulse className="h-4 w-4" />
+                    <span>Record Vitals & Wellness</span>
+                </button>
+            </div>
+
+            {episodes.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+                    <FileText className="mx-auto h-10 w-10 text-slate-300" />
+                    <p className="mt-3 text-sm font-semibold text-slate-600">No encounters or visits recorded yet</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                        Episodes are created automatically when visits occur, or you can record vitals above anytime.
+                    </p>
+                </div>
+            ) : (
+                <ol className="space-y-3">
+                    {episodes.map((episode) => (
+                        <EpisodeRow
+                            key={episode.id}
+                            episode={episode}
+                            mayReopen={mayReopen}
+                            onReopen={() => setConfirming({ id: episode.id, mode: "reopen" })}
+                            isBusy={reopen.isPending && reopen.variables?.episodeId === episode.id}
+                        />
+                    ))}
+                </ol>
+            )}
 
             {confirming && (
                 <FinaliseConfirmDialog
@@ -141,7 +163,13 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
                     }}
                 />
             )}
-        </ol>
+
+            <RecordWellnessModal
+                isOpen={isWellnessModalOpen}
+                onClose={() => setIsWellnessModalOpen(false)}
+                patientId={patientId}
+            />
+        </div>
     );
 }
 

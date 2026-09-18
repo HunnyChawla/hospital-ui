@@ -15,7 +15,8 @@ export type EpisodeType =
     | "ipd_admission"
     | "day_care_visit"
     | "planned_surgery"
-    | "lab_booking";
+    | "lab_booking"
+    | "wellness_record";
 
 export type EpisodeStatus = "open" | "finalised" | "reopened";
 
@@ -38,6 +39,20 @@ export interface ReopenEpisodeRequest {
     reason: ReopenReason;
     /** Optional detail — except for "other", where the server requires it. */
     note?: string;
+}
+
+export interface RecordWellnessPayload {
+    systolic_bp?: number;
+    diastolic_bp?: number;
+    pulse_rate?: number;
+    temperature?: number;
+    spo2?: number;
+    respiratory_rate?: number;
+    height?: number;
+    weight?: number;
+    bmi?: number;
+    notes?: string;
+    recorded_at?: string;
 }
 
 /** ABDM health-information types. */
@@ -261,6 +276,22 @@ export const episodesApi = {
         const response = await apiClient.post<Episode>(
             `/episodes/${episodeId}/link-abdm`,
             {},
+            tenantParams(tenantId)
+        );
+        return response.data;
+    },
+
+    /**
+     * Record vitals & wellness independently, creating a standalone Care Context linked to ABDM.
+     */
+    async recordWellness(
+        patientId: string,
+        payload: RecordWellnessPayload,
+        tenantId?: string
+    ): Promise<Episode> {
+        const response = await apiClient.post<Episode>(
+            `/episodes/patient/${patientId}/wellness`,
+            payload,
             tenantParams(tenantId)
         );
         return response.data;

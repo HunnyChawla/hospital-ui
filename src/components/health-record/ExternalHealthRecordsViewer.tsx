@@ -26,6 +26,7 @@ import {
   FileCheck,
   FileText,
   Fingerprint,
+  HeartPulse,
   Home,
   Hourglass,
   Info,
@@ -33,6 +34,7 @@ import {
   Pill,
   Receipt,
   RotateCcw,
+  Scale,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -246,6 +248,13 @@ export function ExternalHealthRecordsViewer({
         return {
           icon: <Receipt className="h-3.5 w-3.5 text-cyan-600" />,
           style: "bg-cyan-50 text-cyan-700 border-cyan-200",
+        };
+      case "WellnessRecord":
+      case "Wellness Record":
+      case "Wellness":
+        return {
+          icon: <HeartPulse className="h-3.5 w-3.5 text-teal-600" />,
+          style: "bg-teal-50 text-teal-700 border-teal-200",
         };
       default:
         return {
@@ -545,6 +554,7 @@ export function ExternalHealthRecordsViewer({
               const diagnoses = summary.diagnoses || [];
               const obs = summary.observations || [];
               const invoice = summary.invoice;
+              const wellness = summary.wellness;
 
               // Default collapsed as requested by user
               const isExpanded = expandedRecordIds[rec.id] ?? false;
@@ -787,6 +797,54 @@ export function ExternalHealthRecordsViewer({
                               </table>
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* 2.5 Wellness Metrics (Vitals & Physical Examination) */}
+                      {wellness && (
+                        <div className="rounded-xl bg-teal-50/40 p-3.5 border border-teal-200/70 space-y-3">
+                          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-900">
+                            <HeartPulse className="h-4 w-4 text-teal-600" />
+                            Wellness Record Summary
+                          </p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {wellness.vitals && wellness.vitals.length > 0 && (
+                              <div className="rounded-lg bg-white p-3 border border-teal-100 shadow-2xs">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700 mb-2">
+                                  Vital Signs
+                                </p>
+                                <div className="space-y-1.5">
+                                  {wellness.vitals.map((v, vIdx) => (
+                                    <div key={vIdx} className="text-xs text-slate-800 flex items-center justify-between">
+                                      <span className="text-slate-600">{v.name}:</span>
+                                      <span className="font-semibold text-teal-900 bg-teal-50/80 px-2 py-0.5 rounded border border-teal-200/50">
+                                        {v.value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {wellness.measurements && wellness.measurements.length > 0 && (
+                              <div className="rounded-lg bg-white p-3 border border-teal-100 shadow-2xs">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700 mb-2">
+                                  Body Metrics & Measurements
+                                </p>
+                                <div className="space-y-1.5">
+                                  {wellness.measurements.map((m, mIdx) => (
+                                    <div key={mIdx} className="text-xs text-slate-800 flex items-center justify-between">
+                                      <span className="text-slate-600">{m.name}:</span>
+                                      <span className="font-semibold text-teal-900 bg-teal-50/80 px-2 py-0.5 rounded border border-teal-200/50">
+                                        {m.value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 

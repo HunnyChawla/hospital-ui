@@ -72,6 +72,12 @@ export interface ClinicalProcedure {
   status?: string | null;
 }
 
+export interface ClinicalWellness {
+  vitals?: ClinicalObservation[];
+  measurements?: ClinicalObservation[];
+  general?: ClinicalObservation[];
+}
+
 export interface ClinicalSummary {
   title?: string | null;
   document_type?: string | null;
@@ -84,6 +90,7 @@ export interface ClinicalSummary {
   procedures?: ClinicalProcedure[];
   notes?: string[];
   invoice?: ClinicalInvoice | null;
+  wellness?: ClinicalWellness | null;
 }
 
 export interface ExternalHealthRecordDto {

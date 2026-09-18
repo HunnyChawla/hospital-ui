@@ -10,6 +10,7 @@ import {
     type EpisodeType,
     type HiType,
     type RecordImmunisationRequest,
+    type RecordWellnessPayload,
     type ReopenEpisodeRequest,
 } from "@/services/healthRecordApi";
 import { useTenantContext } from "@/lib/tenant-context";
@@ -208,5 +209,25 @@ export function useManualLinkCareContext() {
         },
         onError: (error) =>
             toast.error(getErrorMessage(error) || "Could not initiate ABDM linking for this episode"),
+    });
+}
+
+/**
+ * Record vitals & wellness, creating a standalone Care Context linked to ABDM.
+ */
+export function useRecordWellness(patientId: string) {
+    const queryClient = useQueryClient();
+    const tenant = useTenant();
+
+    return useMutation<Episode, Error, RecordWellnessPayload>({
+        mutationFn: (payload: RecordWellnessPayload) =>
+            episodesApi.recordWellness(patientId, payload, tenant),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: healthRecordKeys.timeline(patientId) });
+            queryClient.invalidateQueries({ queryKey: healthRecordKeys.all });
+            toast.success("Vitals & wellness recorded and linked to ABDM");
+        },
+        onError: (error) =>
+            toast.error(getErrorMessage(error) || "Could not record vitals"),
     });
 }
