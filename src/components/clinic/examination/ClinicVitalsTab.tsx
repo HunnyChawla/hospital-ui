@@ -222,7 +222,26 @@ export function ClinicVitalsTab({ patientId, visitId, readOnly = false }: Clinic
       {/* Latest reading tiles */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-800">Latest Reading</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-800">Latest Reading</h3>
+            {latest?.recorded_at && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  latest.visit_id === visitId
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                }`}
+              >
+                {latest.visit_id === visitId
+                  ? "This visit"
+                  : "Previous visit (history)"} • {new Date(latest.recorded_at).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+              </span>
+            )}
+          </div>
           <button
             onClick={loadVitals}
             className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"

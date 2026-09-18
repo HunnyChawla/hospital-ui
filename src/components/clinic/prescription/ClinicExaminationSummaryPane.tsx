@@ -119,7 +119,7 @@ export function ClinicExaminationSummaryPane({
     const load = async () => {
       if (!patientId) return;
       try {
-        // Prefer the visit's reading; fall back to the latest patient reading
+        // Only load vitals for the current visit encounter; prior readings belong to history
         if (visitId) {
           const byVisit = await vitalSignsApi.list({
             patient_id: patientId,
@@ -127,17 +127,17 @@ export function ClinicExaminationSummaryPane({
             page: 1,
             page_size: 1,
           });
-          if (!cancelled && byVisit.items.length > 0) {
-            setVitals(byVisit.items[0]);
-            return;
+          if (!cancelled) {
+            setVitals(byVisit.items[0] ?? null);
           }
+        } else {
+          const latest = await vitalSignsApi.list({
+            patient_id: patientId,
+            page: 1,
+            page_size: 1,
+          });
+          if (!cancelled) setVitals(latest.items[0] ?? null);
         }
-        const latest = await vitalSignsApi.list({
-          patient_id: patientId,
-          page: 1,
-          page_size: 1,
-        });
-        if (!cancelled) setVitals(latest.items[0] ?? null);
       } catch {
         if (!cancelled) setVitals(null);
       }
@@ -273,7 +273,7 @@ export function ClinicExaminationSummaryPane({
             </table>
           </div>
         ) : (
-          <span className="text-slate-400">No vitals recorded</span>
+          <span className="text-slate-400">No vitals recorded for this visit</span>
         )}
       </Section>
 

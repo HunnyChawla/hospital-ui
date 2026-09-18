@@ -256,16 +256,18 @@ export function ClinicExaminationTabs({
     };
   }, [activeModal, activeModalTab]);
 
+  // Current visit vitals: prior readings belong to patient history, not today's encounter
+  const currentVisitVital = useMemo(() => {
+    if (!componentProps.visitId) return vitalSigns[0] || null;
+    return vitalSigns.find((v) => v.visit_id === componentProps.visitId) || null;
+  }, [vitalSigns, componentProps.visitId]);
+
   const sectionStatuses = useMemo(() => {
     const statuses: Record<string, "empty" | "partial" | "complete"> = {};
 
     visibleTabs.forEach((tab) => {
       if (tab.key === "vitals") {
-        const latest = vitalSigns[0];
-        const hasVitalsForVisit = latest && latest.visit_id === componentProps.visitId;
-        statuses[tab.key] = hasVitalsForVisit
-          ? "complete"
-          : (vitalSigns.length > 0 ? "partial" : "empty");
+        statuses[tab.key] = currentVisitVital ? "complete" : "empty";
       } else if (tab.key === "chief_complaint") {
         statuses[tab.key] = complaints.length > 0 ? "complete" : "empty";
       } else if (tab.key === "medical_history") {
@@ -283,7 +285,7 @@ export function ClinicExaminationTabs({
     });
 
     return statuses;
-  }, [visibleTabs, vitalSigns, complaints, medicalConditions, drugAllergies, patientHistory, labBookings, componentProps.visitId]);
+  }, [visibleTabs, currentVisitVital, complaints, medicalConditions, drugAllergies, patientHistory, labBookings]);
 
   const completedCount = useMemo(() => {
     return visibleTabs.filter((tab) => sectionStatuses[tab.key] === "complete").length;
@@ -298,12 +300,13 @@ export function ClinicExaminationTabs({
   const getStatusText = (key: string): string | undefined => {
     switch (key) {
       case "vitals": {
-        const latest = vitalSigns[0];
-        if (!latest) return undefined;
+        if (!currentVisitVital) return undefined;
         const items = [];
-        if (latest.temperature) items.push(`${latest.temperature}°F`);
-        if (latest.systolic_bp && latest.diastolic_bp) items.push(`${latest.systolic_bp}/${latest.diastolic_bp}`);
-        if (latest.pulse_rate) items.push(`${latest.pulse_rate} bpm`);
+        if (currentVisitVital.temperature) items.push(`${currentVisitVital.temperature}°F`);
+        if (currentVisitVital.systolic_bp && currentVisitVital.diastolic_bp) {
+          items.push(`${currentVisitVital.systolic_bp}/${currentVisitVital.diastolic_bp}`);
+        }
+        if (currentVisitVital.pulse_rate) items.push(`${currentVisitVital.pulse_rate} bpm`);
         return items.length > 0 ? items.join(", ") : "Recorded";
       }
       case "chief_complaint":
@@ -336,7 +339,7 @@ export function ClinicExaminationTabs({
   const getSummaryContent = (key: string) => {
     switch (key) {
       case "vitals":
-        return <VitalsSummary record={vitalSigns[0]} />;
+        return currentVisitVital ? <VitalsSummary record={currentVisitVital} /> : null;
       case "chief_complaint":
         return <ComplaintsSummary complaints={complaints} />;
       case "medical_history":
@@ -441,7 +444,8 @@ export function ClinicExaminationTabs({
               id={`section-${tab.key}`}
               title={tab.resolvedLabel}
               icon={<Icon className="h-5 w-5" />}
-              status="complete"
+              status={sectionStatuses[tab.key] || "empty"}
+              statusText={getStatusText(tab.key)}
               isExpanded={isExpanded}
               onToggle={() => toggleSection(tab.key)}
             >
