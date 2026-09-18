@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cura-hospital-v3'; // Bumping version to force update
+const CACHE_NAME = 'cura-hospital-v4'; // Bumping version to force update and purge stale API caches
 const urlsToCache = [
   '/manifest.json',
   '/cura-logo-v2.png',
@@ -49,7 +49,19 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Strategy for HTML/navigation requests: Network First
+  // 1. Never intercept backend API calls, health checks, or microservices
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.includes('/api/') ||
+    url.pathname.startsWith('/tts') ||
+    url.pathname.includes('/tts/') ||
+    url.pathname.startsWith('/abdm') ||
+    url.pathname.startsWith('/health')
+  ) {
+    return;
+  }
+
+  // 2. Strategy for HTML/navigation requests: Network First
   // We want the freshest HTML to get the newest chunk hashes.
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {
     event.respondWith(
@@ -76,8 +88,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy for static assets (JS, CSS, images, fonts): Cache First
+  // 3. Strategy for static assets (JS, CSS, images, fonts): Cache First
   // These assets usually have hashes in their names, making them immutable.
+  const isStaticAsset =
+    ['style', 'script', 'image', 'font'].includes(event.request.destination) ||
+    /\.(js|css|png|jpg|jpeg|svg|webp|ico|woff2?|map)$/i.test(url.pathname);
+
+  if (!isStaticAsset) {
+    // Let all other requests go straight to the network without SW interception
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -98,8 +119,8 @@ self.addEventListener('fetch', (event) => {
 
           return networkResponse;
         }).catch(err => {
-          // For static assets, if fetch fails and not in cache, just return the error
-          return null;
+          // For static assets, if fetch fails and not in cache, propagate error
+          throw err;
         });
       })
   );
