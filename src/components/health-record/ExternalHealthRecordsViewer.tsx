@@ -119,38 +119,22 @@ export function ExternalHealthRecordsViewer({
       const careContextGroups: CareContextGroup[] = [];
 
       for (const [ccKey, contextRecords] of Object.entries(contextMap)) {
-        // Step 3: Smart Deduplication & Event Tracking
-        const seenEvents = new Set<string>();
-        const deduplicatedRecords: ExternalHealthRecordDto[] = [];
-
-        for (const rec of contextRecords) {
-          const chk = rec.checksum || rec.id;
-          const eraseKey = rec.data_erase_at ? rec.data_erase_at.substring(0, 10) : "no-erase";
-          const createdKey = rec.created_at ? rec.created_at.substring(0, 13) : "no-create";
-          const eventFingerprint = `${chk}_${eraseKey}_${createdKey}`;
-
-          if (!seenEvents.has(eventFingerprint)) {
-            seenEvents.add(eventFingerprint);
-            deduplicatedRecords.push(rec);
-          }
-        }
-
         // Sort records within care context descending by record_date / created_at
-        deduplicatedRecords.sort((a, b) => {
+        const sortedRecords = [...contextRecords].sort((a, b) => {
           const dateA = new Date(a.record_date || a.created_at).getTime();
           const dateB = new Date(b.record_date || b.created_at).getTime();
           return dateB - dateA;
         });
 
-        const latestContextDate = deduplicatedRecords[0]
-          ? deduplicatedRecords[0].record_date || deduplicatedRecords[0].created_at
+        const latestContextDate = sortedRecords[0]
+          ? sortedRecords[0].record_date || sortedRecords[0].created_at
           : new Date().toISOString();
 
         careContextGroups.push({
           careContextReference: ccKey,
           careContextName: contextRecords[0]?.care_context_name || null,
           latestDate: latestContextDate,
-          records: deduplicatedRecords,
+          records: sortedRecords,
         });
       }
 
