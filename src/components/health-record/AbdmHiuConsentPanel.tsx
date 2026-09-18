@@ -176,11 +176,15 @@ export function AbdmHiuConsentPanel({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={loadData}
+            onClick={async () => {
+              await loadData();
+              toast.success("External health records refreshed");
+            }}
             disabled={loadingRequests || loadingRecords}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            title="Refresh External Health Records"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loadingRequests ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingRequests || loadingRecords ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </button>
 

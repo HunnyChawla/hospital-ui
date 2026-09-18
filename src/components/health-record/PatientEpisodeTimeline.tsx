@@ -37,6 +37,7 @@ import type {
 import { DocumentVersionHistory } from "./DocumentVersionHistory";
 import { FinaliseConfirmDialog, mayReopenEpisode } from "./FinaliseConfirmDialog";
 import { RecordWellnessModal } from "./RecordWellnessModal";
+import { toast } from "sonner";
 
 interface PatientEpisodeTimelineProps {
     patientId: string | null;
@@ -88,7 +89,7 @@ const HI_TYPE_LABELS: Record<HiType, string> = {
  * after visit completion, corrected notes, etc.).
  */
 export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProps) {
-    const { data, isLoading } = usePatientTimeline(patientId);
+    const { data, isLoading, isFetching, refetch } = usePatientTimeline(patientId);
     const reopen = useReopenEpisode();
     const { isAdmin, userRole } = usePermissions();
     const [confirming, setConfirming] = useState<{
@@ -120,14 +121,29 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
                         Chronological encounter history, clinical documents, and ABDM care contexts.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setIsWellnessModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 transition"
-                >
-                    <HeartPulse className="h-4 w-4" />
-                    <span>Record Vitals & Wellness</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            await refetch();
+                            toast.success("Health records refreshed");
+                        }}
+                        disabled={isFetching}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50 cursor-pointer"
+                        title="Refresh Health Records"
+                    >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+                        <span>Refresh</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsWellnessModalOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
+                    >
+                        <HeartPulse className="h-4 w-4" />
+                        <span>Record Vitals & Wellness</span>
+                    </button>
+                </div>
             </div>
 
             {episodes.length === 0 ? (

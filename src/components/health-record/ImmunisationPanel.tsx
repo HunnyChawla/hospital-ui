@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Syringe, Plus, Trash2, Loader2 } from "lucide-react";
+import { Syringe, Plus, Trash2, Loader2, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
     usePatientImmunisations,
     useVaccines,
@@ -27,7 +28,7 @@ const SITES = ["Left arm", "Right arm", "Left thigh", "Right thigh", "Oral", "Na
  */
 export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelProps) {
     const { data: vaccines } = useVaccines();
-    const { data: history, isLoading } = usePatientImmunisations(patientId);
+    const { data: history, isLoading, isFetching, refetch } = usePatientImmunisations(patientId);
     const record = useRecordImmunisation();
     const remove = useDeleteImmunisation();
 
@@ -84,15 +85,30 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                     <Syringe className="h-4 w-4 text-slate-500" />
                     Immunisations
                 </h3>
-                {!showForm && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setShowForm(true)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-sky-600"
+                        type="button"
+                        onClick={async () => {
+                            await refetch();
+                            toast.success("Immunisation records refreshed");
+                        }}
+                        disabled={isFetching}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                        title="Refresh Immunisations"
                     >
-                        <Plus className="h-3.5 w-3.5" />
-                        Record a dose
+                        <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+                        <span>Refresh</span>
                     </button>
-                )}
+                    {!showForm && (
+                        <button
+                            onClick={() => setShowForm(true)}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-sky-600 cursor-pointer"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            Record a dose
+                        </button>
+                    )}
+                </div>
             </div>
 
             {showForm && (

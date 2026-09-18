@@ -3,6 +3,9 @@
 
 import { resolveAbhaNumber } from "@/utils/abha";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { admissionKeys } from "@/hooks/queries/useAdmissions";
+import { healthRecordKeys } from "@/hooks/queries/useHealthRecord";
 import { useReactToPrint } from "react-to-print";
 import { PatientEpisodeTimeline } from "@/components/health-record/PatientEpisodeTimeline";
 import { ImmunisationPanel } from "@/components/health-record/ImmunisationPanel";
@@ -70,6 +73,7 @@ import {
   ShieldCheck,
   FolderOpen,
   Upload,
+  RefreshCw,
 } from "lucide-react";
 
 interface PatientDetailViewProps {
@@ -79,6 +83,9 @@ interface PatientDetailViewProps {
 
 export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps) {
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
+  const [admissionsRefreshing, setAdmissionsRefreshing] = useState(false);
+  const [tabRefreshing, setTabRefreshing] = useState(false);
   const patientsList = useAppSelector((s) => s.patients.list);
   const selectedPatient = useAppSelector((s) => s.patients.selected);
   const patient = patientsList.find((p) => p.id === patientId) || (selectedPatient?.id === patientId ? selectedPatient : null);
@@ -674,6 +681,86 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     }
   }, [activeTab, invoiceStatusFilter]);
 
+  // Dedicated refresh handlers for tabs
+  const handleRefreshAppointments = async () => {
+    setAppointmentsLoading(true);
+    await fetchAppointments();
+    toast.success("Appointments refreshed");
+  };
+
+  const handleRefreshOpd = async () => {
+    setOpdTabVisitsLoading(true);
+    await fetchOpdTabVisits();
+    toast.success("OPD visits refreshed");
+  };
+
+  const handleRefreshAdmissions = async () => {
+    setAdmissionsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: admissionKeys.all });
+    toast.success("Admissions refreshed");
+    setTimeout(() => setAdmissionsRefreshing(false), 500);
+  };
+
+  const handleRefreshBilling = async () => {
+    setInvoicesLoading(true);
+    await fetchInvoices();
+    toast.success("Invoices refreshed");
+  };
+
+  const handleRefreshTests = async () => {
+    setLabBookingsLoading(true);
+    setLoadingPrescribedVisits(true);
+    await Promise.all([fetchLabBookings(), fetchPatientPrescribedVisits()]);
+    toast.success("Lab tests & bookings refreshed");
+  };
+
+  const handleRefreshDocuments = () => {
+    setMrdRefreshTrigger((prev) => prev + 1);
+    toast.success("MRD documents refreshed");
+  };
+
+  const handleActiveTabRefresh = async () => {
+    setTabRefreshing(true);
+    try {
+      if (patientId) {
+        dispatch(getPatientById({ patientId }));
+      }
+      switch (activeTab) {
+        case "appointment":
+          await fetchAppointments();
+          break;
+        case "opd":
+          await fetchOpdTabVisits();
+          break;
+        case "admit":
+          await queryClient.invalidateQueries({ queryKey: admissionKeys.all });
+          break;
+        case "billing":
+          await fetchInvoices();
+          break;
+        case "tests":
+          await Promise.all([fetchLabBookings(), fetchPatientPrescribedVisits()]);
+          break;
+        case "record":
+          await queryClient.invalidateQueries({ queryKey: healthRecordKeys.timeline(patientId) });
+          break;
+        case "immunisation":
+          await queryClient.invalidateQueries({ queryKey: healthRecordKeys.immunisations(patientId) });
+          break;
+        case "documents":
+          setMrdRefreshTrigger((prev) => prev + 1);
+          break;
+        case "abdm_records":
+          break;
+      }
+      toast.success("Tab refreshed");
+    } catch {
+      toast.error("Failed to refresh tab");
+    } finally {
+      setTimeout(() => setTabRefreshing(false), 400);
+    }
+  };
+
   // Handle print invoice (for lab bookings)
   const handlePrintInvoiceFromBooking = async (invoiceId: string, booking: LabBooking) => {
     try {
@@ -1034,30 +1121,42 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
           <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6 scrollbar-hide">
             {/* Action Tabs */}
-            <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200">
-              {[
-                { id: "appointment", label: "Appointment", icon: Calendar },
-                { id: "opd", label: "OPD Slip", icon: Stethoscope },
-                { id: "admit", label: "Admit/Discharge", icon: BedDouble },
-                { id: "billing", label: "Billing", icon: CreditCard },
-                { id: "tests", label: "Tests", icon: TestTube },
-                { id: "record", label: "Health Record", icon: FileText },
-                { id: "immunisation", label: "Immunisation", icon: Syringe },
-                { id: "documents", label: "MRD Documents", icon: FolderOpen },
-                { id: "abdm_records", label: "ABDM External Records", icon: ShieldCheck },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition ${activeTab === tab.id
-                    ? "border-sky-500 text-sky-700"
-                    : "border-transparent text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              ))}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "appointment", label: "Appointment", icon: Calendar },
+                  { id: "opd", label: "OPD Slip", icon: Stethoscope },
+                  { id: "admit", label: "Admit/Discharge", icon: BedDouble },
+                  { id: "billing", label: "Billing", icon: CreditCard },
+                  { id: "tests", label: "Tests", icon: TestTube },
+                  { id: "record", label: "Health Record", icon: FileText },
+                  { id: "immunisation", label: "Immunisation", icon: Syringe },
+                  { id: "documents", label: "MRD Documents", icon: FolderOpen },
+                  { id: "abdm_records", label: "ABDM External Records", icon: ShieldCheck },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                    className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition cursor-pointer ${activeTab === tab.id
+                      ? "border-sky-500 text-sky-700"
+                      : "border-transparent text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    <tab.icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleActiveTabRefresh}
+                disabled={tabRefreshing}
+                className="mb-1.5 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                title="Refresh current tab"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${tabRefreshing ? "animate-spin" : ""}`} />
+                <span>Refresh Tab</span>
+              </button>
             </div>
 
             {/* Tab Content */}
@@ -1069,16 +1168,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                       <p className="text-sm font-semibold text-slate-900">Appointments</p>
                       <p className="text-xs text-slate-500">View appointments for this patient</p>
                     </div>
-                    <button
-                      onClick={() => setShowAppointmentModal(true)}
-                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        <Calendar className="h-4 w-4" />
-                        <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
-                      </div>
-                      Create Appointment
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshAppointments}
+                        disabled={appointmentsLoading}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                        title="Refresh Appointments"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${appointmentsLoading ? "animate-spin" : ""}`} />
+                        <span className="hidden sm:inline">Refresh</span>
+                      </button>
+                      <button
+                        onClick={() => setShowAppointmentModal(true)}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow cursor-pointer"
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <Calendar className="h-4 w-4" />
+                          <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+                        </div>
+                        Create Appointment
+                      </button>
+                    </div>
                   </div>
 
                   {appointmentsLoading ? (
@@ -1230,16 +1341,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                       <p className="text-sm font-semibold text-slate-900">OPD Visits</p>
                       <p className="text-xs text-slate-500">View OPD visits for this patient</p>
                     </div>
-                    <button
-                      onClick={() => setShowOpdModal(true)}
-                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        <Stethoscope className="h-4 w-4" />
-                        <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
-                      </div>
-                      Create OPD
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshOpd}
+                        disabled={opdTabVisitsLoading}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                        title="Refresh OPD Visits"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${opdTabVisitsLoading ? "animate-spin" : ""}`} />
+                        <span className="hidden sm:inline">Refresh</span>
+                      </button>
+                      <button
+                        onClick={() => setShowOpdModal(true)}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow cursor-pointer"
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <Stethoscope className="h-4 w-4" />
+                          <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+                        </div>
+                        Create OPD
+                      </button>
+                    </div>
                   </div>
 
                   {opdTabVisitsLoading ? (
@@ -1520,16 +1643,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                       <p className="text-sm font-semibold text-slate-900">Admissions</p>
                       <p className="text-xs text-slate-500">View and manage patient admissions</p>
                     </div>
-                    <button
-                      onClick={() => setShowAdmissionModal(true)}
-                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        <BedDouble className="h-4 w-4" />
-                        <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
-                      </div>
-                      Admit Patient
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshAdmissions}
+                        disabled={admissionsRefreshing}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                        title="Refresh Admissions"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${admissionsRefreshing ? "animate-spin" : ""}`} />
+                        <span className="hidden sm:inline">Refresh</span>
+                      </button>
+                      <button
+                        onClick={() => setShowAdmissionModal(true)}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow cursor-pointer"
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <BedDouble className="h-4 w-4" />
+                          <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+                        </div>
+                        Admit Patient
+                      </button>
+                    </div>
                   </div>
                   <AdmissionTable patientId={patientId} />
                 </div>
@@ -1537,26 +1672,42 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
               {activeTab === "billing" && (
                 <div className="space-y-4">
-                  {/* Status Toggle Buttons */}
-                  <div className="flex justify-end -mt-4">
-                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                  {/* Header & Status Toggle Buttons */}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Billing & Invoices</p>
+                      <p className="text-xs text-slate-500">View invoices and payments for this patient</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                        <button
+                          onClick={() => setInvoiceStatusFilter("pending")}
+                          className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${invoiceStatusFilter === "pending"
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                            }`}
+                        >
+                          Pending
+                        </button>
+                        <button
+                          onClick={() => setInvoiceStatusFilter("paid")}
+                          className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${invoiceStatusFilter === "paid"
+                            ? "bg-emerald-500 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                            }`}
+                        >
+                          Paid
+                        </button>
+                      </div>
                       <button
-                        onClick={() => setInvoiceStatusFilter("pending")}
-                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${invoiceStatusFilter === "pending"
-                          ? "bg-amber-500 text-white shadow-sm"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                          }`}
+                        type="button"
+                        onClick={handleRefreshBilling}
+                        disabled={invoicesLoading}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                        title="Refresh Invoices"
                       >
-                        Pending
-                      </button>
-                      <button
-                        onClick={() => setInvoiceStatusFilter("paid")}
-                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${invoiceStatusFilter === "paid"
-                          ? "bg-emerald-500 text-white shadow-sm"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                          }`}
-                      >
-                        Paid
+                        <RefreshCw className={`h-3.5 w-3.5 ${invoicesLoading ? "animate-spin" : ""}`} />
+                        <span>Refresh</span>
                       </button>
                     </div>
                   </div>
@@ -1698,13 +1849,24 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                         Upload and view patient clinical documents, discharge summaries, certificates, and ID proofs.
                       </p>
                     </div>
-                    <button
-                      onClick={() => setShowMrdUploadModal(true)}
-                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Upload Document
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshDocuments}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 cursor-pointer"
+                        title="Refresh Documents"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        <span className="hidden sm:inline">Refresh</span>
+                      </button>
+                      <button
+                        onClick={() => setShowMrdUploadModal(true)}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow cursor-pointer"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Upload Document
+                      </button>
+                    </div>
                   </div>
 
                   {/* Banner explaining ABDM linking rule */}
@@ -1776,16 +1938,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                       <p className="text-sm font-semibold text-slate-900">Lab Test Bookings</p>
                       <p className="text-xs text-slate-500">View test bookings for this patient</p>
                     </div>
-                    <button
-                      onClick={() => setShowLabBookingModal(true)}
-                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        <Beaker className="h-4 w-4" />
-                        <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
-                      </div>
-                      Create Booking
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshTests}
+                        disabled={labBookingsLoading || loadingPrescribedVisits}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                        title="Refresh Tests & Bookings"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${labBookingsLoading || loadingPrescribedVisits ? "animate-spin" : ""}`} />
+                        <span className="hidden sm:inline">Refresh</span>
+                      </button>
+                      <button
+                        onClick={() => setShowLabBookingModal(true)}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow cursor-pointer"
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <Beaker className="h-4 w-4" />
+                          <PlusCircle className="h-3 w-3 absolute -bottom-0.5 -right-0.5 bg-sky-500 rounded-full" />
+                        </div>
+                        Create Booking
+                      </button>
+                    </div>
                   </div>
 
                   {labBookingsLoading ? (
