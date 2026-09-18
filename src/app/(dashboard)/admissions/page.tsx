@@ -9,7 +9,7 @@ import { admissionKeys } from "@/hooks/queries/useAdmissions";
 export default function AdmissionsPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">("admissions");
+  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions" | "opd_advice">("admissions");
   const [action, setAction] = useState<string | null>(null);
   const [admissionId, setAdmissionId] = useState<string | null>(null);
 
@@ -20,7 +20,7 @@ export default function AdmissionsPage() {
     const admissionIdParam = searchParams.get("admission_id");
 
     // Set active tab if provided
-    if (tab === "wards" || tab === "beds" || tab === "admissions") {
+    if (tab === "wards" || tab === "beds" || tab === "admissions" || tab === "opd_advice") {
       setActiveTab(tab);
     }
 
@@ -35,7 +35,7 @@ export default function AdmissionsPage() {
     }
   }, [searchParams]);
 
-  const handleTabChange = (tab: "wards" | "beds" | "admissions") => {
+  const handleTabChange = (tab: "wards" | "beds" | "admissions" | "opd_advice") => {
     setActiveTab(tab);
 
     // Invalidate queries to refetch data when switching tabs

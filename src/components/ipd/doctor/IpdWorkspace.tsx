@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   BedDouble,
   Pill,
@@ -38,14 +38,17 @@ export function IpdWorkspace() {
   const searchParams = useSearchParams();
   const admissionIdParam = searchParams.get("admission_id");
 
-  // Auth and Current Doctor
+  // Auth and Role Detection
   const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
-  const userRole = typeof window !== "undefined" ? localStorage.getItem("user_role") : null;
+  const rawRole = typeof window !== "undefined" ? (localStorage.getItem("role") || localStorage.getItem("user_role")) : null;
+  const userRole = rawRole ? rawRole.toLowerCase() : null;
+  const isDoctor = userRole === "doctor";
+  const isAdmin = userRole === "admin" || userRole === "platform_owner";
+  const isNurseOrExaminer = !isDoctor && !isAdmin;
   const doctors = useAppSelector((state) => state.doctors.list);
   const currentDoctor = doctors.find((d) => d.user_id === userId);
 
   // Mode: Doctor View vs Nursing View
-  const isNurseOrExaminer = userRole === "nurse" || userRole === "examiner";
   const [workspaceMode, setWorkspaceMode] = useState<"doctor" | "nursing">(
     isNurseOrExaminer ? "nursing" : "doctor"
   );
@@ -141,7 +144,14 @@ export function IpdWorkspace() {
 
   const selectedPatientObj = patients.find((p) => p.admission_id === selectedAdmissionId);
 
-  const tabs: { id: TabKey; label: string; icon: any; badge?: number }[] = [
+  interface WorkspaceTabItem {
+    id: TabKey;
+    label: string;
+    icon: any;
+    badge?: number;
+  }
+
+  const allTabs: WorkspaceTabItem[] = [
     {
       id: "medications",
       label: "Medications",
@@ -180,6 +190,31 @@ export function IpdWorkspace() {
     },
   ];
 
+  // Role-based tabs:
+  // Nursing Station: MAR, Vitals & Trends, Progress Notes, Doctor Orders (read-only), Investigations (read-only)
+  // Doctor View: Medications, Doctor Orders, Progress Notes, Vitals & Trends, Investigations, MAR (Admin)
+  const tabs: WorkspaceTabItem[] = useMemo(() => {
+    if (workspaceMode === "nursing") {
+      const nursingKeys: TabKey[] = ["mar", "vitals", "progress_notes", "orders", "investigations"];
+      return nursingKeys
+        .map((k) => allTabs.find((t) => t.id === k))
+        .filter((t): t is WorkspaceTabItem => Boolean(t));
+    }
+    const doctorKeys: TabKey[] = ["medications", "orders", "progress_notes", "vitals", "investigations", "mar"];
+    return doctorKeys
+      .map((k) => allTabs.find((t) => t.id === k))
+      .filter((t): t is WorkspaceTabItem => Boolean(t));
+  }, [workspaceMode, chart]);
+
+  // Keep activeTab valid within available tabs
+  useEffect(() => {
+    if (!tabs.some((t: WorkspaceTabItem) => t.id === activeTab)) {
+      if (tabs.length > 0) {
+        setActiveTab(tabs[0].id);
+      }
+    }
+  }, [tabs, activeTab]);
+
   return (
     <div className="space-y-3 pb-8 max-w-full overflow-hidden">
       {/* Top Workspace Header */}
@@ -191,50 +226,56 @@ export function IpdWorkspace() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                IPD Inpatient Workspace
+                {workspaceMode === "nursing" ? "IPD Nursing Station" : "IPD Doctor Workspace"}
               </h1>
               <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-800 shrink-0">
                 {patients.length} Patients
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-              {currentDoctor ? `${currentDoctor.name} • ${currentDoctor.specialization || "Inpatient Care"}` : "Doctor & Nursing Clinical Station"}
+              {workspaceMode === "doctor"
+                ? currentDoctor
+                  ? `${currentDoctor.name} • ${currentDoctor.specialization || "Inpatient Care"}`
+                  : "Doctor Clinical Station"
+                : "Nursing & Examiner Station • Inpatient Care"}
             </p>
           </div>
         </div>
 
         {/* View Mode Toggle & Refresh */}
         <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-          <div className="flex rounded-xl bg-slate-100 p-1 text-xs">
-            <button
-              onClick={() => {
-                setWorkspaceMode("doctor");
-                setActiveTab("medications");
-              }}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
-                workspaceMode === "doctor"
-                  ? "bg-white text-sky-700 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Stethoscope className="h-3.5 w-3.5 shrink-0" />
-              <span>Doctor View</span>
-            </button>
-            <button
-              onClick={() => {
-                setWorkspaceMode("nursing");
-                setActiveTab("mar");
-              }}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
-                workspaceMode === "nursing"
-                  ? "bg-white text-teal-700 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <HeartHandshake className="h-3.5 w-3.5 shrink-0" />
-              <span>Nursing Station</span>
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex rounded-xl bg-slate-100 p-1 text-xs">
+              <button
+                onClick={() => {
+                  setWorkspaceMode("doctor");
+                  setActiveTab("medications");
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
+                  workspaceMode === "doctor"
+                    ? "bg-white text-sky-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Stethoscope className="h-3.5 w-3.5 shrink-0" />
+                <span>Doctor View</span>
+              </button>
+              <button
+                onClick={() => {
+                  setWorkspaceMode("nursing");
+                  setActiveTab("mar");
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
+                  workspaceMode === "nursing"
+                    ? "bg-white text-teal-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <HeartHandshake className="h-3.5 w-3.5 shrink-0" />
+                <span>Nursing Station</span>
+              </button>
+            </div>
+          )}
 
           <button
             onClick={() => fetchPatients()}
@@ -376,6 +417,7 @@ export function IpdWorkspace() {
                 onRefresh={handleRefreshCurrentChart}
                 onOpenDischargeSummary={() => setShowDischargeModal(true)}
                 loading={loadingChart}
+                isDoctor={isDoctor || isAdmin}
               />
 
               {/* Discharged Read-Only Notice Banner */}
@@ -446,6 +488,7 @@ export function IpdWorkspace() {
                     discontinuedMedications={chart.discontinued_medications}
                     onRefresh={handleRefreshCurrentChart}
                     isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
+                    isDoctor={isDoctor || isAdmin}
                   />
                 )}
 
@@ -467,6 +510,7 @@ export function IpdWorkspace() {
                     orders={chart.orders}
                     onRefresh={handleRefreshCurrentChart}
                     isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
+                    isDoctor={isDoctor || isAdmin}
                   />
                 )}
 
@@ -476,6 +520,7 @@ export function IpdWorkspace() {
                     progressNotes={chart.progress_notes}
                     onRefresh={handleRefreshCurrentChart}
                     isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
+                    isDoctor={isDoctor || isAdmin}
                   />
                 )}
 
@@ -497,6 +542,7 @@ export function IpdWorkspace() {
                     orders={chart.orders}
                     onRefresh={handleRefreshCurrentChart}
                     isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
+                    isDoctor={isDoctor || isAdmin}
                   />
                 )}
               </div>
@@ -511,6 +557,7 @@ export function IpdWorkspace() {
           isOpen={showDischargeModal}
           onClose={() => setShowDischargeModal(false)}
           admissionId={selectedAdmissionId}
+          isDoctor={isDoctor || isAdmin}
           onSuccess={() => {
             setShowDischargeModal(false);
             handleRefreshCurrentChart();

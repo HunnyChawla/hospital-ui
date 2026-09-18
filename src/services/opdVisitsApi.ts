@@ -67,6 +67,10 @@ export interface Visit {
   cancelled_at?: string | null;
   cancelled_by?: string | null;
   cancellation_fee?: number | null;
+  // Admission advice
+  advised_to_admit?: boolean;
+  admission_advice_notes?: string | null;
+  admission_advised_at?: string | null;
 }
 
 export interface CancelVisitRequest {

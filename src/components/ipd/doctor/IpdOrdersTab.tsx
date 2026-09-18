@@ -38,6 +38,7 @@ interface IpdOrdersTabProps {
   orders: IpdOrder[];
   onRefresh: () => void;
   isDischarged?: boolean;
+  isDoctor?: boolean;
 }
 
 const CATEGORIES: { id: string; label: string; icon: any }[] = [
@@ -58,6 +59,7 @@ export function IpdOrdersTab({
   orders,
   onRefresh,
   isDischarged = false,
+  isDoctor = true,
 }: IpdOrdersTabProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -89,6 +91,7 @@ export function IpdOrdersTab({
   const [advisedDate, setAdvisedDate] = useState(getTodayDateLocal());
   const [saveToPlannedSchedule, setSaveToPlannedSchedule] = useState(true);
   const surgerySearchRef = useRef<HTMLDivElement>(null);
+  const labSearchRef = useRef<HTMLDivElement>(null);
 
   const minDate = getTodayDateLocal();
 
@@ -125,11 +128,14 @@ export function IpdOrdersTab({
     return () => clearTimeout(handler);
   }, [surgerySearchQuery, showAddModal, orderCategory]);
 
-  // Close surgery dropdown on outside click
+  // Close surgery and lab dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (surgerySearchRef.current && !surgerySearchRef.current.contains(e.target as Node)) {
         setShowSurgeryDropdown(false);
+      }
+      if (labSearchRef.current && !labSearchRef.current.contains(e.target as Node)) {
+        setIsLabSearchFocused(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -138,7 +144,7 @@ export function IpdOrdersTab({
 
   const filteredLabCatalog = useMemo(() => {
     const q = labSearchQuery.trim().toLowerCase();
-    if (!q) return [];
+    if (!q) return availableLabTests.slice(0, 15);
     return availableLabTests.filter(
       (t) =>
         t.test_name.toLowerCase().includes(q) ||
@@ -179,15 +185,6 @@ export function IpdOrdersTab({
     "Blood Sugar Monitoring (QID before meals)",
   ];
 
-  const LAB_PRESETS = [
-    "Complete Blood Count (CBC) with ESR",
-    "Serum Electrolytes (Na+, K+, Cl-)",
-    "Liver Function Test (LFT)",
-    "Renal Function Test / Serum Creatinine",
-    "Blood Culture & Sensitivity",
-    "Arterial Blood Gas (ABG)",
-  ];
-
   const handleCategorySelectForAdd = (cat: string) => {
     setOrderCategory(cat);
     setSelectedLabTest(null);
@@ -200,7 +197,6 @@ export function IpdOrdersTab({
     setOrderTitle("");
     if (cat === "diet") setOrderTitle(DIET_PRESETS[0]);
     if (cat === "nursing_instruction") setOrderTitle(NURSING_PRESETS[0]);
-    if (cat === "lab") setOrderTitle(LAB_PRESETS[0]);
   };
 
   const handleSelectLabTest = (t: LabTest) => {
@@ -234,6 +230,10 @@ export function IpdOrdersTab({
 
   const handleAddOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can create clinical orders.");
+      return;
+    }
 
     let finalTitle = orderTitle.trim();
     if (orderCategory === "lab" && selectedLabTest) {
@@ -309,6 +309,10 @@ export function IpdOrdersTab({
 
   const handleDiscontinueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can discontinue clinical orders.");
+      return;
+    }
     if (!discontinuingOrder) return;
     if (!discontinueReason.trim()) {
       toast.error("Please provide a discontinue reason");
@@ -386,7 +390,7 @@ export function IpdOrdersTab({
             </div>
           </div>
 
-          {!isDischarged && (
+          {!isDischarged && isDoctor && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -412,6 +416,12 @@ export function IpdOrdersTab({
             </div>
           )}
         </div>
+
+        {!isDoctor && (
+          <div className="mt-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 flex items-center gap-2">
+            <span>Clinical Instructions (View Only) — Review doctor orders, nursing instructions, diet plans, and procedure schedules. Creating or discontinuing clinical orders is restricted to attending doctors.</span>
+          </div>
+        )}
 
         {/* Category Pills */}
         <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
@@ -572,7 +582,7 @@ export function IpdOrdersTab({
                     </div>
                   </div>
 
-                  {isActive && !isDischarged && (
+                  {isActive && !isDischarged && isDoctor && (
                     <div className="shrink-0 self-end sm:self-center pt-1 sm:pt-0">
                       <button
                         onClick={() => {
@@ -871,7 +881,7 @@ export function IpdOrdersTab({
                   <label className="block font-semibold text-slate-700 mb-1">
                     Select Catalog Lab Test <span className="text-rose-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div className="relative" ref={labSearchRef}>
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
@@ -902,30 +912,39 @@ export function IpdOrdersTab({
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
-                  </div>
 
-                  {isLabSearchFocused && !selectedLabTest && filteredLabCatalog.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-md divide-y divide-slate-100">
-                      {filteredLabCatalog.map((t) => (
-                        <div
-                          key={t.id}
-                          onClick={() => {
-                            handleSelectLabTest(t);
-                            setIsLabSearchFocused(false);
-                          }}
-                          className="p-2 hover:bg-sky-50 transition cursor-pointer flex justify-between items-center text-xs"
-                        >
-                          <div>
-                            <p className="font-bold text-slate-900">{t.test_name}</p>
-                            <p className="text-[10px] text-slate-500 font-mono">
-                              Code: {t.test_code} • {t.category || "General"}
-                            </p>
+                    {isLabSearchFocused && !selectedLabTest && (
+                      <div className="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-100">
+                        {filteredLabCatalog.length === 0 ? (
+                          <div className="p-3 text-center text-slate-500 text-xs">
+                            {labSearchQuery.trim()
+                              ? `No matching lab tests found in catalog.`
+                              : "No lab tests found in database catalog."}
                           </div>
-                          <span className="font-bold text-slate-700">{currency(t.price || 0)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ) : (
+                          filteredLabCatalog.map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                handleSelectLabTest(t);
+                                setIsLabSearchFocused(false);
+                              }}
+                              className="flex w-full items-center justify-between p-2.5 hover:bg-sky-50 transition cursor-pointer text-left text-xs"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-900">{t.test_name}</p>
+                                <p className="text-[10px] text-slate-500 font-mono">
+                                  Code: {t.test_code} • {t.category || "General"}
+                                </p>
+                              </div>
+                              <span className="font-bold text-sky-700">{currency(t.price || 0)}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {selectedLabTest && (
                     <div className="flex items-center justify-between rounded-xl bg-sky-50 border border-sky-200 p-2.5">
@@ -954,49 +973,6 @@ export function IpdOrdersTab({
                       </div>
                     </div>
                   )}
-
-                  <div>
-                    <p className="text-[11px] font-semibold text-slate-500 mb-1">Common Lab Tests:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {LAB_PRESETS.map((preset) => {
-                        const isSelected =
-                          selectedLabTest?.test_name.toLowerCase().includes(preset.toLowerCase().slice(0, 10)) ||
-                          orderTitle.toLowerCase() === preset.toLowerCase();
-                        return (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedLabTest(null);
-                                setOrderTitle("");
-                                setLabSearchQuery("");
-                                setIsLabSearchFocused(false);
-                                return;
-                              }
-                              const matched = availableLabTests.find((t) =>
-                                t.test_name.toLowerCase().includes(preset.toLowerCase().slice(0, 10))
-                              );
-                              if (matched) {
-                                handleSelectLabTest(matched);
-                              } else {
-                                setSelectedLabTest(null);
-                                setOrderTitle(preset);
-                                setLabSearchQuery(preset);
-                              }
-                            }}
-                            className={`rounded-lg px-2 py-1 text-[11px] font-medium transition cursor-pointer border ${
-                              isSelected
-                                ? "bg-sky-600 text-white border-sky-600 shadow-2xs"
-                                : "bg-sky-50 border-sky-200 text-sky-900 hover:bg-sky-100"
-                            }`}
-                          >
-                            {preset.split("(")[0].trim()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div>

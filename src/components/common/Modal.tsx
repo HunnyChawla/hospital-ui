@@ -60,6 +60,8 @@ export function Modal({ isOpen, onClose, title, children, size = "md", closeOnOu
           )}
           <button
             onClick={onClose}
+            aria-label="Close modal"
+            data-testid="modal-close-button"
             className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-5 w-5" />

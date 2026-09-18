@@ -29,6 +29,7 @@ interface IpdDischargeSummaryModalProps {
   onClose: () => void;
   admissionId: string;
   onSuccess?: () => void;
+  isDoctor?: boolean;
 }
 
 const STANDARD_CONDITIONS = [
@@ -48,6 +49,7 @@ export function IpdDischargeSummaryModal({
   onClose,
   admissionId,
   onSuccess,
+  isDoctor = true,
 }: IpdDischargeSummaryModalProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -167,6 +169,10 @@ export function IpdDischargeSummaryModal({
 
   const handleSaveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can save or finalize discharge summaries.");
+      return;
+    }
     if (!finalDiagnosis.trim()) {
       toast.error("Please specify the final diagnosis");
       return;
@@ -287,6 +293,11 @@ export function IpdDischargeSummaryModal({
           </div>
         ) : (
           <form onSubmit={handleSaveSubmit} className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-6 text-xs">
+            {!isDoctor && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-xs text-sky-800">
+                Inpatient Discharge Summary (View Only) — Summary authoring and finalization are restricted to attending doctors. You can review stay records and print or preview the PDF.
+              </div>
+            )}
             {/* Section 1: Quick Confirmations (Minimal Input) */}
             <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-3.5 sm:p-4 space-y-3">
               <div className="flex items-center gap-2 font-bold text-slate-900 text-xs sm:text-sm">
@@ -725,14 +736,16 @@ export function IpdDischargeSummaryModal({
                   Close
                 </button>
 
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-2 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 sm:px-6 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition disabled:opacity-50 cursor-pointer"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{saving ? "Saving..." : "Save & Finalize"}</span>
-                </button>
+                {isDoctor && (
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-2 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 sm:px-6 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition disabled:opacity-50 cursor-pointer"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>{saving ? "Saving..." : "Save & Finalize"}</span>
+                  </button>
+                )}
               </div>
             </div>
           </form>

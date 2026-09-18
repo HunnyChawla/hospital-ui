@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import clsx from "clsx";
-import { Stethoscope, X, ClipboardList, FileEdit, LayoutGrid, LayoutList, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { Stethoscope, X, ClipboardList, FileEdit, LayoutGrid, LayoutList, LayoutDashboard, ShieldCheck, BedDouble } from "lucide-react";
 import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
 import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
+import { AdviseAdmissionModal } from "../shared/AdviseAdmissionModal";
 import { ClinicStatusBadge } from "../shared/ClinicStatusBadge";
 import type { ClinicPanelMode } from "@/redux/clinicPanelSlice";
 
@@ -22,6 +23,10 @@ interface ClinicActivePatientCardProps {
   mode: ClinicPanelMode;
   onModeChange: (mode: ClinicPanelMode) => void;
   onClose: () => void;
+  advisedToAdmit?: boolean;
+  admissionAdviceNotes?: string | null;
+  admissionAdvisedAt?: string | null;
+  isAdmitted?: boolean;
   children: React.ReactNode;
 }
 
@@ -43,9 +48,14 @@ export function ClinicActivePatientCard({
   mode,
   onModeChange,
   onClose,
+  advisedToAdmit = false,
+  admissionAdviceNotes,
+  admissionAdvisedAt,
+  isAdmitted = false,
   children,
 }: ClinicActivePatientCardProps) {
   const [showPatientDetail, setShowPatientDetail] = useState(false);
+  const [showAdviseModal, setShowAdviseModal] = useState(false);
   const { viewMode, setViewMode } = useExaminationViewPreference();
 
   if (!patientId) {
@@ -189,6 +199,39 @@ export function ClinicActivePatientCard({
                   <span className="hidden sm:inline">Compact</span>
                 </button>
               </div>
+            )}
+
+            {isDoctor && visitId && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowAdviseModal(true)}
+                  className={clsx(
+                    "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold shadow-xs transition-all active:scale-95",
+                    advisedToAdmit
+                      ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-500/30 hover:from-amber-600 hover:to-orange-700"
+                      : "border border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:bg-amber-50/50 hover:text-amber-800"
+                  )}
+                  title={advisedToAdmit ? "View / Edit Admission Advice" : "Advise Patient Admission to IPD"}
+                >
+                  <BedDouble className={clsx("h-3.5 w-3.5", advisedToAdmit ? "text-white" : "text-amber-600")} />
+                  <span className="hidden sm:inline">
+                    {advisedToAdmit ? (isAdmitted ? "Admitted" : "Admission Advised") : "Advise Admission"}
+                  </span>
+                </button>
+
+                <AdviseAdmissionModal
+                  isOpen={showAdviseModal}
+                  onClose={() => setShowAdviseModal(false)}
+                  visitId={visitId}
+                  patientName={patientName}
+                  patientUhid={patientUhid}
+                  currentlyAdvised={advisedToAdmit}
+                  existingNotes={admissionAdviceNotes}
+                  advisedAt={admissionAdvisedAt}
+                  isAdmitted={isAdmitted}
+                />
+              </>
             )}
 
             {isDoctor && visitId && (

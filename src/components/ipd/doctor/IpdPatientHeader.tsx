@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   BedDouble,
   Calendar,
@@ -14,6 +14,8 @@ import {
   CreditCard,
   ArrowRightLeft,
   CheckCircle2,
+  SlidersHorizontal,
+  ChevronDown,
 } from "lucide-react";
 import { IpdPatientChart } from "@/types/ipdDoctor";
 import { Admission, admissionsApi } from "@/services/admissionsApi";
@@ -30,6 +32,15 @@ interface IpdPatientHeaderProps {
   onRefresh: () => void;
   onOpenDischargeSummary: () => void;
   loading?: boolean;
+  isDoctor?: boolean;
+}
+
+function formatStatusLabel(str?: string | null): string {
+  if (!str) return "";
+  return str
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function IpdPatientHeader({
@@ -37,6 +48,7 @@ export function IpdPatientHeader({
   onRefresh,
   onOpenDischargeSummary,
   loading = false,
+  isDoctor = true,
 }: IpdPatientHeaderProps) {
   const { admission, patient } = chart;
   const isDischarged = ["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(admission.status);
@@ -44,6 +56,28 @@ export function IpdPatientHeader({
   const [showPatientStatusModal, setShowPatientStatusModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBillingDrawer, setShowBillingDrawer] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close actions menu when clicking outside or pressing Escape
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowActionsMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   // Construct Admission object for status modals
   const admissionForModal: Admission = {
@@ -154,73 +188,144 @@ export function IpdPatientHeader({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-            {isDischarged ? (
-              <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 shadow-2xs">
-                <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
-                <span>Discharged (Read-Only)</span>
-              </span>
-            ) : (
-              <>
-                {/* Quick Status Modifiers */}
-                <button
-                  onClick={() => setShowCareStatusModal(true)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 hover:from-sky-600 hover:to-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer"
-                  title="Update clinical care progress"
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                  <span>Care Stage</span>
-                </button>
-
-                <button
-                  onClick={() => setShowPatientStatusModal(true)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 transition shadow-2xs cursor-pointer"
-                  title="Update patient physical presence"
-                >
-                  <PlaneTakeoff className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Presence</span>
-                </button>
-
-                {admission.bed_id && (
-                  <button
-                    onClick={() => setShowTransferModal(true)}
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 transition shadow-2xs cursor-pointer"
-                    title="Transfer patient to another bed/room"
-                  >
-                    <ArrowRightLeft className="h-3.5 w-3.5 text-amber-600" />
-                    <span>Transfer Bed</span>
-                  </button>
-                )}
-              </>
-            )}
-
+          {/* Action Controls - Clean Single-Row Layout */}
+          <div className="flex items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 flex-wrap sm:flex-nowrap">
+            {/* Refresh Chart Icon Button */}
             <button
+              type="button"
+              onClick={onRefresh}
+              disabled={loading}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
+              title="Refresh patient chart"
+              aria-label="Refresh patient chart"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-emerald-600" : ""}`} />
+            </button>
+
+            {/* Billing Drawer */}
+            <button
+              type="button"
               onClick={() => setShowBillingDrawer(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/70 hover:bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 transition shadow-2xs cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 px-3 text-xs font-semibold text-slate-700 transition shadow-2xs cursor-pointer shrink-0"
               title="Open IPD Running Billing Account"
             >
-              <CreditCard className="h-3.5 w-3.5 text-sky-600" />
+              <CreditCard className="h-3.5 w-3.5 text-slate-500" />
               <span>Billing</span>
             </button>
 
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:opacity-50 cursor-pointer shadow-2xs"
-              title="Refresh patient chart"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </button>
+            {/* Patient & Bed Operations Menu */}
+            {!isDischarged ? (
+              <div className="relative" ref={actionsMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowActionsMenu((prev) => !prev)}
+                  className={`inline-flex items-center justify-center gap-1.5 h-9 rounded-xl border px-3 text-xs font-semibold transition shadow-2xs cursor-pointer shrink-0 ${
+                    showActionsMenu
+                      ? "border-emerald-500 bg-emerald-50/60 text-emerald-900"
+                      : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700"
+                  }`}
+                  title="Patient and bed management actions"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Manage</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-150 ${
+                      showActionsMenu ? "rotate-180 text-emerald-600" : ""
+                    }`}
+                  />
+                </button>
 
-            <button
-              onClick={onOpenDischargeSummary}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-3.5 sm:px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:from-indigo-700 hover:to-purple-700 hover:shadow cursor-pointer"
-            >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span>Discharge Summary</span>
-            </button>
+                {showActionsMenu && (
+                  <div className="absolute right-0 top-full mt-1.5 z-40 w-64 sm:w-72 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Patient & Bed Operations
+                    </div>
+
+                    {/* Update Care Stage */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        setShowCareStatusModal(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-slate-50 transition group cursor-pointer"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 group-hover:bg-sky-100 transition">
+                        <Activity className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-800">Care Stage</p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          Stage: <span className="font-medium text-sky-700">{formatStatusLabel(admission.care_status || "Admitted")}</span>
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Update Patient Presence */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        setShowPatientStatusModal(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-slate-50 transition group cursor-pointer"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition">
+                        <PlaneTakeoff className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-800">Patient Presence</p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          Status: <span className="font-medium text-teal-700">{formatStatusLabel(admission.patient_status || "In Hospital")}</span>
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Transfer Bed (if bed allocated) */}
+                    {admission.bed_id && (
+                      <>
+                        <div className="my-1 border-t border-slate-100" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            setShowTransferModal(true);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-amber-50/60 transition group cursor-pointer"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition">
+                            <ArrowRightLeft className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-slate-800">Transfer Bed</p>
+                            <p className="text-[11px] text-slate-400 truncate">
+                              Current: <span className="font-medium text-amber-700">{admission.ward_name} / Bed {admission.bed_number}</span>
+                            </p>
+                          </div>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-600 shadow-2xs shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
+                <span>Discharged</span>
+              </span>
+            )}
+
+            {/* Primary Action: Discharge Summary */}
+            {(isDoctor || isDischarged) && (
+              <button
+                type="button"
+                onClick={onOpenDischargeSummary}
+                className="inline-flex items-center justify-center gap-1.5 h-9 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-3.5 sm:px-4 text-xs font-bold text-white shadow-xs transition hover:shadow cursor-pointer shrink-0"
+              >
+                <FileText className="h-4 w-4 shrink-0" />
+                <span>Discharge Summary</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -300,6 +405,7 @@ export function IpdPatientHeader({
           isOpen={showCareStatusModal}
           onClose={() => setShowCareStatusModal(false)}
           admission={admissionForModal}
+          isDoctor={isDoctor}
           onSuccess={() => {
             setShowCareStatusModal(false);
             onRefresh();

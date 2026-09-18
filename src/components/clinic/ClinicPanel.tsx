@@ -480,6 +480,10 @@ function ClinicPanelInner() {
                   mode={mode}
                   onModeChange={setMode}
                   onClose={() => selectPatient(null, null)}
+                  advisedToAdmit={selectedQueuePatient?.advised_to_admit}
+                  admissionAdviceNotes={selectedQueuePatient?.admission_advice_notes}
+                  admissionAdvisedAt={selectedQueuePatient?.admission_advised_at}
+                  isAdmitted={selectedQueuePatient?.is_admitted}
                 >
                   {cardBody}
                 </ClinicActivePatientCard>
@@ -525,7 +529,7 @@ function ClinicPanelInner() {
 
 export function ClinicPanel() {
   const rawRole = typeof window !== "undefined" ? localStorage.getItem("role") : null;
-  const role = rawRole?.toLowerCase() === "examiner" ? "examiner" : "doctor";
+  const role = rawRole?.toLowerCase() === "doctor" ? "doctor" : "examiner";
 
   return (
     <ExaminationViewProvider>

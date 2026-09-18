@@ -32,8 +32,8 @@ export const useClinicPanel = () => {
   const userRole = rawRole ? rawRole.toLowerCase() : null;
   const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
 
-  const panelRole: ClinicPanelRole = userRole === "examiner" ? "examiner" : "doctor";
-  const isDoctor = panelRole === "doctor";
+  const isDoctor = userRole === "doctor";
+  const panelRole: ClinicPanelRole = isDoctor ? "doctor" : "examiner";
 
   const [doctorMappings, setDoctorMappings] = useState<ExaminerDoctorMapping[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
@@ -100,9 +100,9 @@ export const useClinicPanel = () => {
     [userId]
   );
 
-  // Verify authorization and fetch mappings (examiners only)
+  // Verify authorization and fetch mappings (examiners and nurses only)
   useEffect(() => {
-    if (!userId || !["examiner", "doctor"].includes(userRole || "")) {
+    if (!userId || !["examiner", "doctor", "nurse"].includes(userRole || "")) {
       setMappingsError("User is not authorized");
       return;
     }

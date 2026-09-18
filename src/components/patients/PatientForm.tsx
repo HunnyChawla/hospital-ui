@@ -745,7 +745,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       </div>
 
       {/* Gender */}
-      <label className="space-y-1">
+      <div className="space-y-1">
         <span className="text-slate-600">Gender <span className="text-rose-500">*</span></span>
         <div className="grid grid-cols-3 gap-3">
           {[
@@ -756,6 +756,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             <button
               key={g.id}
               type="button"
+              data-testid={`gender-${g.id}`}
               onClick={() => setValue('gender', g.id as any, { shouldValidate: true })}
               className={`py-2 rounded-xl border text-sm font-medium transition ${watch('gender') === g.id
                 ? 'bg-sky-50 border-sky-300 text-sky-700'
@@ -770,7 +771,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         {errors.gender && (
           <p className="text-xs text-rose-500">{errors.gender.message}</p>
         )}
-      </label>
+      </div>
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">Optional Details</h3>

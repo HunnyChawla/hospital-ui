@@ -10,17 +10,19 @@ import { AdmissionFormModal } from "./AdmissionFormModal";
 import { Ward } from "@/services/wardsApi";
 import { Bed } from "@/services/bedsApi";
 import { Admission } from "@/services/admissionsApi";
+import { OpdAdmissionAdviceTable } from "./OpdAdmissionAdviceTable";
+import { ClinicVisitResponse } from "@/services/clinicVisitsApi";
 import Link from "next/link";
 import { ClipboardList, BedDouble, LayoutList, PlusCircle, Building2, Stethoscope } from "lucide-react";
 
 interface ManageIPDProps {
-  defaultTab?: "wards" | "beds" | "admissions";
+  defaultTab?: "wards" | "beds" | "admissions" | "opd_advice";
   action?: string | null;
   admissionId?: string | null;
 }
 
 export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageIPDProps) {
-  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"wards" | "beds" | "admissions" | "opd_advice">(defaultTab);
 
   // Update tab when defaultTab prop changes
   useEffect(() => {
@@ -32,6 +34,7 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
   const [showWardModal, setShowWardModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
+  const [selectedAdvisedVisit, setSelectedAdvisedVisit] = useState<ClinicVisitResponse | null>(null);
   const [editingWard, setEditingWard] = useState<Ward | null>(null);
   const [editingBed, setEditingBed] = useState<Bed | null>(null);
 
@@ -42,6 +45,11 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
     }
   }, [action, activeTab]);
 
+  const handleAdmitFromAdvice = (visit: ClinicVisitResponse) => {
+    setSelectedAdvisedVisit(visit);
+    setShowAdmissionModal(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -51,6 +59,7 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
             { id: "wards", label: "Wards", icon: Building2 },
             { id: "beds", label: "Beds", icon: LayoutList },
             { id: "admissions", label: "Admissions", icon: ClipboardList },
+            { id: "opd_advice", label: "OPD Advice", icon: Stethoscope },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -107,7 +116,10 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
               </Link>
 
               <button
-                onClick={() => setShowAdmissionModal(true)}
+                onClick={() => {
+                  setSelectedAdvisedVisit(null);
+                  setShowAdmissionModal(true);
+                }}
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow"
               >
                 <div className="relative flex items-center justify-center">
@@ -151,6 +163,12 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
             <AdmissionTable selectedAdmissionId={admissionId} action={action} />
           </div>
         )}
+
+        {activeTab === "opd_advice" && (
+          <div>
+            <OpdAdmissionAdviceTable onAdmitPatient={handleAdmitFromAdvice} />
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -174,7 +192,14 @@ export function ManageIPD({ defaultTab = "wards", action, admissionId }: ManageI
 
       <AdmissionFormModal
         isOpen={showAdmissionModal}
-        onClose={() => setShowAdmissionModal(false)}
+        onClose={() => {
+          setShowAdmissionModal(false);
+          setSelectedAdvisedVisit(null);
+        }}
+        defaultPatientId={selectedAdvisedVisit?.patient_id}
+        defaultDoctorId={selectedAdvisedVisit?.doctor_id || undefined}
+        defaultVisitId={selectedAdvisedVisit?.id}
+        defaultReason={selectedAdvisedVisit?.admission_advice_notes || ""}
       />
     </div>
   );

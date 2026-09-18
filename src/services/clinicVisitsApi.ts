@@ -9,10 +9,12 @@ export interface ClinicVisitResponse {
   tenant_id: string;
   patient_id: string;
   patient_name: string;
+  patient_uhid?: string | null;
   patient_mobile: string;
   patient_category?: string | null;
   doctor_id: string | null;
   doctor_name?: string | null;
+  doctor_cabin?: string | null;
   visit_type: "walk_in" | "appointment" | "emergency";
   visit_number: string;
   status: string;
@@ -37,6 +39,19 @@ export interface ClinicVisitResponse {
   picked_by_doctor_id?: string | null;
   picked_by_doctor_name?: string | null;
   doctor_picked_at?: string | null;
+  // Admission advice fields
+  advised_to_admit?: boolean;
+  admission_advice_notes?: string | null;
+  admission_advised_at?: string | null;
+  is_admitted?: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 function config(tenantId?: string) {
@@ -162,6 +177,55 @@ export const clinicVisitsApi = {
   /** GET /opd/general/visits/{visit_id}/timeline */
   async getTimeline(visitId: string, tenantId?: string): Promise<unknown> {
     const response = await apiClient.get(`${VISITS_BASE}/${visitId}/timeline`, config(tenantId));
+    return response.data;
+  },
+
+  /** POST /opd/general/visits/{visit_id}/advise-admission */
+  async adviseAdmission(
+    visitId: string,
+    notes?: string,
+    tenantId?: string
+  ): Promise<ClinicVisitResponse> {
+    const response = await apiClient.post<ClinicVisitResponse>(
+      `${VISITS_BASE}/${visitId}/advise-admission`,
+      { notes: notes ?? null },
+      config(tenantId)
+    );
+    return response.data;
+  },
+
+  /** DELETE /opd/general/visits/{visit_id}/advise-admission */
+  async revokeAdmissionAdvice(
+    visitId: string,
+    tenantId?: string
+  ): Promise<ClinicVisitResponse> {
+    const response = await apiClient.delete<ClinicVisitResponse>(
+      `${VISITS_BASE}/${visitId}/advise-admission`,
+      config(tenantId)
+    );
+    return response.data;
+  },
+
+  /** GET /opd/general/admission-advised */
+  async getAdmissionAdvisedVisits(
+    params?: {
+      is_admitted?: boolean;
+      doctor_id?: string;
+      visit_date?: string;
+      page?: number;
+      page_size?: number;
+    },
+    tenantId?: string
+  ): Promise<PaginatedResponse<ClinicVisitResponse>> {
+    const baseConfig = config(tenantId);
+    const requestParams: Record<string, unknown> = { ...params };
+    if (baseConfig?.params?.tenant_id) {
+      requestParams.tenant_id = baseConfig.params.tenant_id;
+    }
+    const response = await apiClient.get<PaginatedResponse<ClinicVisitResponse>>(
+      `/opd/general/admission-advised`,
+      { params: requestParams }
+    );
     return response.data;
   },
 };

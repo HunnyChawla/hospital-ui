@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   AlertTriangle,
   X,
+  BedDouble,
 } from "lucide-react";
 import {
   CLINIC_EXAMINER_QUEUE_FILTERS,
@@ -468,6 +469,24 @@ export function ClinicCollapsibleQueueSection({
                               <span>·</span>
                               <span className="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
                                 Revisit
+                              </span>
+                            </>
+                          )}
+
+                          {patient.advised_to_admit && (
+                            <>
+                              <span>·</span>
+                              <span
+                                className={clsx(
+                                  "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold border shadow-2xs whitespace-nowrap",
+                                  patient.is_admitted
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                                )}
+                                title={patient.admission_advice_notes || "Advised to Admit"}
+                              >
+                                <BedDouble className="h-2.5 w-2.5" />
+                                {patient.is_admitted ? "Admitted" : "Advised Admit"}
                               </span>
                             </>
                           )}

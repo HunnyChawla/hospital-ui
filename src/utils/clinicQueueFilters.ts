@@ -22,6 +22,10 @@ export interface ClinicQueuePatient {
   picked_by_doctor_name?: string | null;
   is_revisit?: boolean;
   abha_verified?: boolean;
+  advised_to_admit?: boolean;
+  admission_advice_notes?: string | null;
+  admission_advised_at?: string | null;
+  is_admitted?: boolean;
 }
 
 export interface FilterConfig {

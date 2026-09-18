@@ -32,6 +32,7 @@ interface IpdInvestigationsTabProps {
   orders?: IpdOrder[];
   onRefresh: () => void;
   isDischarged?: boolean;
+  isDoctor?: boolean;
 }
 
 interface SelectedInvestigationItem {
@@ -65,6 +66,7 @@ export function IpdInvestigationsTab({
   orders = [],
   onRefresh,
   isDischarged = false,
+  isDoctor = true,
 }: IpdInvestigationsTabProps) {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [testSearch, setTestSearch] = useState("");
@@ -220,6 +222,10 @@ export function IpdInvestigationsTab({
 
   const handleOrderLabsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can order lab investigations.");
+      return;
+    }
     if (selectedTests.length === 0) {
       toast.error("Please select at least one lab test to order");
       return;
@@ -277,6 +283,10 @@ export function IpdInvestigationsTab({
 
   const handleCancelOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can cancel lab orders.");
+      return;
+    }
     if (!cancellingOrder) return;
     if (!cancelReason.trim()) {
       toast.error("Please provide a cancellation reason");
@@ -328,7 +338,7 @@ export function IpdInvestigationsTab({
             </div>
           </div>
 
-          {!isDischarged && (
+          {!isDischarged && isDoctor && (
             <button
               onClick={() => {
                 setSelectedTests([]);
@@ -344,6 +354,12 @@ export function IpdInvestigationsTab({
           )}
         </div>
 
+        {!isDoctor && (
+          <div className="mt-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 flex items-center gap-2">
+            <span>Lab & Investigations (View Only) — Review ordered lab tests and test results. Ordering or cancelling investigations is restricted to attending doctors.</span>
+          </div>
+        )}
+
         {/* Section 1: Active Doctor Lab Orders */}
         <div className="mt-4 sm:mt-5 space-y-3">
           <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -358,7 +374,9 @@ export function IpdInvestigationsTab({
               <FlaskConical className="mx-auto h-6 w-6 text-slate-300 mb-1" />
               <p className="text-xs font-semibold text-slate-600">No lab tests ordered yet</p>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Click &quot;Order Lab Investigations&quot; to order one or multiple tests. They will appear in the Lab Bookings panel.
+                {isDoctor
+                  ? 'Click "Order Lab Investigations" to order one or multiple tests. They will appear in the Lab Bookings panel.'
+                  : 'No lab tests currently ordered for this patient.'}
               </p>
             </div>
           ) : (
@@ -440,7 +458,7 @@ export function IpdInvestigationsTab({
                       <span>Ordered by: <strong>{order.doctor_name || "Doctor"}</strong></span>
                       <div className="flex items-center gap-2">
                         <span>⏱️ {new Date(order.ordered_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                        {!isCancelled && !isCompleted && !isDischarged && (
+                        {!isCancelled && !isCompleted && !isDischarged && isDoctor && (
                           <button
                             onClick={() => {
                               setCancellingOrder(order);

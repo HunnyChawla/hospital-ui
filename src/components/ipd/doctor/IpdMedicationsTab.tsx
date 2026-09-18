@@ -17,12 +17,127 @@ import { medicinesApi, Medicine } from "@/services/medicinesApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 
+/**
+ * Automatically derive the most appropriate dose string for a medicine.
+ * Priority:
+ * 1. Default dosage from master (e.g. "1 tablet", "5 ml")
+ * 2. Strength from master (e.g. "500mg", "5mg", "1g", "40mg")
+ * 3. Extracted strength from medicine name (e.g. "A 1 5mg Tablet" -> "5mg", "Ceftriaxone 1g Inj" -> "1g")
+ * 4. Formulation unit based on dosage form / keywords (e.g. "1 Tablet", "1 Capsule", "1 Vial", "1-2 Drops", "5 ml")
+ * 5. Fallback "1 Tablet"
+ */
+function deriveDoseFromMedicine(med: Partial<Medicine> & { name: string }): string {
+  if (med.default_dosage && med.default_dosage.trim()) {
+    return med.default_dosage.trim();
+  }
+
+  if (med.strength && med.strength.trim()) {
+    return med.strength.trim();
+  }
+
+  const name = med.name || "";
+
+  // Extract strength pattern with unit from medicine name (e.g. 5mg, 500 mg, 1g, 40mg, 100ml, 0.5mg, 500mg/125mg)
+  const strengthMatch = name.match(
+    /\b(\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?\s*(?:mg|g|mcg|ml|iu|%|meq|iu\/ml|mg\/ml))\b/i
+  );
+  if (strengthMatch) {
+    return strengthMatch[1].trim();
+  }
+
+  const formOrName = `${med.dosage_form || ""} ${name}`.toLowerCase();
+  if (formOrName.includes("tab")) return "1 Tablet";
+  if (formOrName.includes("cap")) return "1 Capsule";
+  if (
+    formOrName.includes("inj") ||
+    formOrName.includes("vial") ||
+    formOrName.includes("amp") ||
+    formOrName.includes("infusion")
+  ) {
+    return "1 Vial";
+  }
+  if (
+    formOrName.includes("syp") ||
+    formOrName.includes("syrup") ||
+    formOrName.includes("susp") ||
+    formOrName.includes("liquid")
+  ) {
+    return "5 ml";
+  }
+  if (formOrName.includes("drop")) return "1-2 Drops";
+  if (
+    formOrName.includes("puff") ||
+    formOrName.includes("inhal") ||
+    formOrName.includes("respule") ||
+    formOrName.includes("rotacap")
+  ) {
+    return "1-2 Puffs";
+  }
+  if (formOrName.includes("sachet") || formOrName.includes("powder")) return "1 Sachet";
+  if (
+    formOrName.includes("ointment") ||
+    formOrName.includes("cream") ||
+    formOrName.includes("gel") ||
+    formOrName.includes("lotion")
+  ) {
+    return "Apply thin layer";
+  }
+  if (formOrName.includes("supposit") || formOrName.includes("rectal")) return "1 Suppository";
+
+  return "1 Tablet";
+}
+
+/**
+ * Automatically derive the most likely administration route for a medicine.
+ */
+function deriveRouteFromMedicine(med: Partial<Medicine> & { name: string }): string {
+  const formOrName = `${med.dosage_form || ""} ${med.name || ""}`.toLowerCase();
+  if (formOrName.includes("eye") || formOrName.includes("ophth") || formOrName.includes("drop")) {
+    return "Eye Drop";
+  }
+  if (
+    formOrName.includes("inj") ||
+    formOrName.includes("iv") ||
+    formOrName.includes("infusion")
+  ) {
+    return "IV";
+  }
+  if (formOrName.includes("im") || formOrName.includes("intramuscular")) {
+    return "IM";
+  }
+  if (formOrName.includes("sc") || formOrName.includes("subcut")) {
+    return "SC";
+  }
+  if (
+    formOrName.includes("inhal") ||
+    formOrName.includes("respule") ||
+    formOrName.includes("rotacap") ||
+    formOrName.includes("spray")
+  ) {
+    return "Inhalation";
+  }
+  if (
+    formOrName.includes("cream") ||
+    formOrName.includes("ointment") ||
+    formOrName.includes("gel") ||
+    formOrName.includes("lotion") ||
+    formOrName.includes("topical")
+  ) {
+    return "Topical";
+  }
+  if (formOrName.includes("supposit") || formOrName.includes("rectal") || formOrName.includes("enema")) {
+    return "Rectal";
+  }
+  return "Oral";
+}
+
 interface IpdMedicationsTabProps {
   admissionId: string;
   activeMedications: IpdMedicationOrder[];
   discontinuedMedications: IpdMedicationOrder[];
   onRefresh: () => void;
   isDischarged?: boolean;
+  isDoctor?: boolean;
 }
 
 export function IpdMedicationsTab({
@@ -31,6 +146,7 @@ export function IpdMedicationsTab({
   discontinuedMedications,
   onRefresh,
   isDischarged = false,
+  isDoctor = true,
 }: IpdMedicationsTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [stoppingMed, setStoppingMed] = useState<IpdMedicationOrder | null>(null);
@@ -80,26 +196,33 @@ export function IpdMedicationsTab({
     setMedicineName(med.name);
     setMedicineSearch(med.name);
     setMedicineSearchResults([]);
-    if (med.default_dosage) setDose(med.default_dosage);
-    if (med.dosage_form) {
-      if (med.dosage_form.toLowerCase().includes("inj")) setRoute("IV");
-      else if (med.dosage_form.toLowerCase().includes("drop")) setRoute("Eye Drop");
-      else setRoute("Oral");
-    }
+
+    // Autopopulate dose from strength, default dosage, name extraction, or form unit
+    const derivedDose = deriveDoseFromMedicine(med);
+    setDose(derivedDose);
+
+    // Autopopulate route
+    const derivedRoute = deriveRouteFromMedicine(med);
+    setRoute(derivedRoute);
+
     if (med.default_frequency) setFrequency(med.default_frequency);
     if (med.default_instructions) setInstructions(med.default_instructions);
   };
 
   const handleAddMedicationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can prescribe medications.");
+      return;
+    }
     if (!medicineName.trim()) {
       toast.error("Please enter a medicine name");
       return;
     }
-    if (!dose.trim()) {
-      toast.error("Please specify the dose (e.g. 1 g, 40 mg, 650 mg)");
-      return;
-    }
+
+    const finalDose =
+      dose.trim() ||
+      deriveDoseFromMedicine(selectedMedicine || { name: medicineName.trim() });
 
     setSubmittingAdd(true);
     try {
@@ -107,7 +230,7 @@ export function IpdMedicationsTab({
         medicine_id: selectedMedicine?.id || null,
         medicine_name: medicineName.trim(),
         generic_name: selectedMedicine?.generic_name || null,
-        dose: dose.trim(),
+        dose: finalDose,
         route,
         frequency,
         start_date_time: new Date(startDateTime).toISOString(),
@@ -138,6 +261,10 @@ export function IpdMedicationsTab({
 
   const handleStopMedicationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor) {
+      toast.error("Only attending doctors can discontinue medications.");
+      return;
+    }
     if (!stoppingMed) return;
     if (!stopReason.trim()) {
       toast.error("Please provide a reason for stopping this medication");
@@ -198,7 +325,7 @@ export function IpdMedicationsTab({
             </div>
           </div>
 
-          {!isDischarged && (
+          {!isDischarged && isDoctor && (
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
@@ -209,6 +336,12 @@ export function IpdMedicationsTab({
           )}
         </div>
 
+        {!isDoctor && (
+          <div className="mt-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 flex items-center gap-2">
+            <span>Inpatient Medications (View Only) — Medication ordering and discontinuation are restricted to attending doctors. Administer scheduled doses from the MAR tab.</span>
+          </div>
+        )}
+
         {activeMedications.length === 0 ? (
           <div className="py-10 text-center text-slate-500">
             <Pill className="mx-auto h-8 w-8 text-slate-300" />
@@ -216,7 +349,9 @@ export function IpdMedicationsTab({
             <p className="text-[11px] text-slate-400">
               {isDischarged
                 ? "No active medications at time of discharge."
-                : 'Click "Prescribe Medication" to order medication.'}
+                : isDoctor
+                ? 'Click "Prescribe Medication" to order medication.'
+                : "No active medications currently ordered for this patient."}
             </p>
           </div>
         ) : (
@@ -269,7 +404,7 @@ export function IpdMedicationsTab({
                       </span>
                     </div>
 
-                    {!isDischarged && (
+                    {!isDischarged && isDoctor && (
                       <button
                         onClick={() => {
                           setStoppingMed(med);
@@ -299,7 +434,7 @@ export function IpdMedicationsTab({
                     <th className="py-2.5 px-3 font-semibold">Start</th>
                     <th className="py-2.5 px-3 font-semibold">Stop</th>
                     <th className="py-2.5 px-3 font-semibold">Doses Given</th>
-                    {!isDischarged && (
+                    {!isDischarged && isDoctor && (
                       <th className="py-2.5 px-3 font-semibold text-right">Action</th>
                     )}
                   </tr>
@@ -350,7 +485,7 @@ export function IpdMedicationsTab({
                           </p>
                         )}
                       </td>
-                      {!isDischarged && (
+                      {!isDischarged && isDoctor && (
                         <td className="py-3 px-3 text-right whitespace-nowrap">
                           <button
                             onClick={() => {
@@ -499,6 +634,14 @@ export function IpdMedicationsTab({
                   placeholder="Type to search (e.g. Ceftriaxone, Pantoprazole)..."
                   value={medicineSearch}
                   onChange={(e) => handleMedicineSearch(e.target.value)}
+                  onBlur={() => {
+                    if (medicineName.trim() && !dose.trim()) {
+                      const autoDose = deriveDoseFromMedicine(selectedMedicine || { name: medicineName.trim() });
+                      setDose(autoDose);
+                      const autoRoute = deriveRouteFromMedicine(selectedMedicine || { name: medicineName.trim() });
+                      setRoute(autoRoute);
+                    }
+                  }}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -526,10 +669,15 @@ export function IpdMedicationsTab({
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Dose <span className="text-rose-500">*</span>
+                    {dose && (
+                      <span className="ml-1 text-[10px] font-normal text-emerald-600">
+                        (auto-populated)
+                      </span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. 1 g, 40 mg"
+                    placeholder="e.g. 5mg, 1 Tablet, 1 g"
                     value={dose}
                     onChange={(e) => setDose(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none"

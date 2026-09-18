@@ -21,6 +21,7 @@ interface IpdProgressNotesTabProps {
   progressNotes: IpdProgressNote[];
   onRefresh: () => void;
   isDischarged?: boolean;
+  isDoctor?: boolean;
 }
 
 export function IpdProgressNotesTab({
@@ -28,9 +29,10 @@ export function IpdProgressNotesTab({
   progressNotes,
   onRefresh,
   isDischarged = false,
+  isDoctor = true,
 }: IpdProgressNotesTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [noteType, setNoteType] = useState<string>("doctor_daily");
+  const [noteType, setNoteType] = useState<string>(isDoctor ? "doctor_daily" : "nursing_shift");
   const [noteDate, setNoteDate] = useState(new Date().toISOString().slice(0, 10));
   const [noteTime, setNoteTime] = useState(new Date().toISOString().slice(0, 16));
   const [subjective, setSubjective] = useState("");
@@ -42,6 +44,10 @@ export function IpdProgressNotesTab({
 
   const handleAddNoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDoctor && noteType !== "nursing_shift") {
+      toast.error("Examiners and nurses can only submit Nursing Shift Notes.");
+      return;
+    }
     if (!subjective.trim() && !objective.trim() && !assessment.trim() && !plan.trim() && !notes.trim()) {
       toast.error("Please enter progress note content");
       return;
@@ -107,7 +113,9 @@ export function IpdProgressNotesTab({
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-500">
-                Doctor rounds, clinical progress (SOAP), and nursing shift observations
+                {isDoctor
+                  ? "Doctor rounds, clinical progress (SOAP), and nursing shift observations"
+                  : "Nursing shift observations, vitals checks, and nursing care progress"}
               </p>
             </div>
           </div>
@@ -117,6 +125,7 @@ export function IpdProgressNotesTab({
               onClick={() => {
                 setNoteDate(new Date().toISOString().slice(0, 10));
                 setNoteTime(new Date().toISOString().slice(0, 16));
+                setNoteType(isDoctor ? "doctor_daily" : "nursing_shift");
                 setShowAddModal(true);
               }}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
@@ -247,11 +256,18 @@ export function IpdProgressNotesTab({
                   <select
                     value={noteType}
                     onChange={(e) => setNoteType(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none font-semibold"
+                    disabled={!isDoctor}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none font-semibold disabled:bg-slate-100 disabled:text-slate-600 cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <option value="doctor_daily">Doctor Daily Round (SOAP)</option>
-                    <option value="nursing_shift">Nursing Shift Note</option>
-                    <option value="consultant_round">Consultant Round</option>
+                    {isDoctor ? (
+                      <>
+                        <option value="doctor_daily">Doctor Daily Round (SOAP)</option>
+                        <option value="nursing_shift">Nursing Shift Note</option>
+                        <option value="consultant_round">Consultant Round</option>
+                      </>
+                    ) : (
+                      <option value="nursing_shift">Nursing Shift Note</option>
+                    )}
                   </select>
                 </div>
 

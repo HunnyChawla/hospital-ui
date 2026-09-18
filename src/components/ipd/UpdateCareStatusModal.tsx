@@ -18,6 +18,7 @@ interface UpdateCareStatusModalProps {
   onClose: () => void;
   admission: Admission;
   onSuccess?: () => void;
+  isDoctor?: boolean;
 }
 
 const CARE_STATUS_OPTIONS: {
@@ -62,6 +63,7 @@ export function UpdateCareStatusModal({
   onClose,
   admission,
   onSuccess,
+  isDoctor = true,
 }: UpdateCareStatusModalProps) {
   const currentCareStatus = (admission.care_status || "ADMITTED").toUpperCase() as CareStatus;
   const [selectedStatus, setSelectedStatus] = useState<CareStatus>(currentCareStatus);
@@ -71,6 +73,11 @@ export function UpdateCareStatusModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isDoctor && selectedStatus === "READY_FOR_DISCHARGE") {
+      toast.error("Medical clearance for discharge can only be approved by attending doctors.");
+      return;
+    }
 
     try {
       await updateMutation.mutateAsync({
@@ -113,16 +120,20 @@ export function UpdateCareStatusModal({
               const Icon = opt.icon;
               const isSelected = selectedStatus === opt.value;
               const isCurrent = currentCareStatus === opt.value;
+              const isDisabled = opt.value === "READY_FOR_DISCHARGE" && !isDoctor;
 
               return (
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setSelectedStatus(opt.value)}
-                  className={`w-full flex items-start gap-3 p-3 text-left rounded-xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? "border-sky-500 bg-sky-50/70 shadow-xs ring-1 ring-sky-400"
-                      : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50"
+                  disabled={isDisabled}
+                  onClick={() => !isDisabled && setSelectedStatus(opt.value)}
+                  className={`w-full flex items-start gap-3 p-3 text-left rounded-xl border transition-all ${
+                    isDisabled
+                      ? "opacity-50 cursor-not-allowed bg-slate-50 border-slate-200"
+                      : isSelected
+                      ? "border-sky-500 bg-sky-50/70 shadow-xs ring-1 ring-sky-400 cursor-pointer"
+                      : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50 cursor-pointer"
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
@@ -141,6 +152,11 @@ export function UpdateCareStatusModal({
                       {isCurrent && (
                         <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-slate-100 rounded-full text-slate-600">
                           Current
+                        </span>
+                      )}
+                      {isDisabled && (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-amber-100 rounded-full text-amber-800">
+                          Doctor Only
                         </span>
                       )}
                     </div>

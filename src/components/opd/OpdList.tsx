@@ -7,7 +7,7 @@ import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { opdVisitsApi, VisitStatus, Visit } from "@/services/opdVisitsApi";
 import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
-import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw, Droplets, LayoutGrid, List } from "lucide-react";
+import { Stethoscope, Calendar, CheckCircle2, XCircle, Clock as ClockIcon, User, Play, CheckCircle, X, Printer, ChevronLeft, ChevronRight, FileText, Receipt, Download, Loader2, RotateCcw, Droplets, LayoutGrid, List, BedDouble } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -307,6 +307,15 @@ function VisitListRow({
               <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
             </span>
           )}
+          {visit.advised_to_admit && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+              title={visit.admission_advice_notes ? `Advised Admission: ${visit.admission_advice_notes}` : "Advised Admission to IPD"}
+            >
+              <BedDouble className="h-2.5 w-2.5 text-amber-600" />
+              Advised Admit
+            </span>
+          )}
         </div>
         {(visit.doctor_name || visit.optometrist_name) && (
           <div className="flex flex-col gap-0.5 text-[10px] text-slate-500">
@@ -470,6 +479,17 @@ function VisitCard({
               <span className={`pill flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
                 {getStatusIcon(visit.status)}
                 <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
+              </span>
+            )}
+
+            {/* Advised to admit indicator */}
+            {visit.advised_to_admit && (
+              <span
+                className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                title={visit.admission_advice_notes ? `Advised Admission: ${visit.admission_advice_notes}` : "Advised Admission to IPD"}
+              >
+                <BedDouble className="h-3 w-3 text-amber-600" />
+                <span>Advised Admit</span>
               </span>
             )}
 

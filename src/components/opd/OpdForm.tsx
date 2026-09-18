@@ -727,6 +727,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {/* Cash */}
               <label
+                data-testid="payment-method-cash"
                 className={`
                   flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
                   ${paymentMethod === "cash"
@@ -739,6 +740,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                   type="radio"
                   name="paymentMethod"
                   value="cash"
+                  data-testid="payment-input-cash"
                   checked={paymentMethod === "cash"}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
                   className="sr-only"
@@ -752,6 +754,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
               {/* UPI */}
               <label
+                data-testid="payment-method-upi"
                 className={`
                   flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
                   ${paymentMethod === "upi"
@@ -764,6 +767,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                   type="radio"
                   name="paymentMethod"
                   value="upi"
+                  data-testid="payment-input-upi"
                   checked={paymentMethod === "upi"}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
                   className="sr-only"
@@ -777,6 +781,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
               {/* Card */}
               <label
+                data-testid="payment-method-card"
                 className={`
                   flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
                   ${paymentMethod === "card"
@@ -789,6 +794,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                   type="radio"
                   name="paymentMethod"
                   value="card"
+                  data-testid="payment-input-card"
                   checked={paymentMethod === "card"}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
                   className="sr-only"
@@ -802,6 +808,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
               {/* Cheque */}
               <label
+                data-testid="payment-method-cheque"
                 className={`
                   flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all
                   ${paymentMethod === "cheque"
@@ -814,6 +821,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                   type="radio"
                   name="paymentMethod"
                   value="cheque"
+                  data-testid="payment-input-cheque"
                   checked={paymentMethod === "cheque"}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
                   className="sr-only"
@@ -864,6 +872,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
         {!createdVisitId ? (
           <button
             type="submit"
+            data-testid="create-visit-button"
             disabled={isCreating}
             className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -883,6 +892,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
           <>
             <button
               type="button"
+              data-testid="create-another-visit-button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -914,6 +924,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
             </button>
             <button
               type="button"
+              data-testid="print-opd-slip-button"
               onClick={handlePrint}
               className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-2 text-sm font-semibold text-white shadow transition hover:shadow-lg"
             >

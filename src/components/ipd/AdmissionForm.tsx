@@ -17,6 +17,9 @@ import { PatientFormModal } from "@/components/patients/PatientFormModal";
 
 interface AdmissionFormProps {
   defaultPatientId?: string;
+  defaultDoctorId?: string;
+  defaultVisitId?: string;
+  defaultReason?: string;
   hidePatientSearch?: boolean;
   showDropdownSearch?: boolean;
   onSuccess?: () => void;
@@ -24,18 +27,22 @@ interface AdmissionFormProps {
 
 export function AdmissionForm({
   defaultPatientId,
+  defaultDoctorId,
+  defaultVisitId,
+  defaultReason,
   hidePatientSearch = false,
   showDropdownSearch = false,
   onSuccess,
 }: AdmissionFormProps) {
   const dispatch = useAppDispatch();
   const [patientId, setPatientId] = useState(defaultPatientId || "");
-  const [doctorId, setDoctorId] = useState("");
+  const [doctorId, setDoctorId] = useState(defaultDoctorId || "");
+  const [visitId, setVisitId] = useState(defaultVisitId || "");
   const [wardId, setWardId] = useState("");
   const [bedId, setBedId] = useState("");
   const [admissionDate, setAdmissionDate] = useState("");
   const [admissionType, setAdmissionType] = useState<AdmissionType>("planned");
-  const [reasonForAdmission, setReasonForAdmission] = useState("");
+  const [reasonForAdmission, setReasonForAdmission] = useState(defaultReason || "");
   const [diagnosis, setDiagnosis] = useState("");
   const [insuranceProvider, setInsuranceProvider] = useState("");
   const [insurancePolicyNumber, setInsurancePolicyNumber] = useState("");
@@ -43,6 +50,13 @@ export function AdmissionForm({
   const [nextOfKinRelation, setNextOfKinRelation] = useState("");
   const [nextOfKinContact, setNextOfKinContact] = useState("");
   const [enableAdvancePayment, setEnableAdvancePayment] = useState(false);
+
+  useEffect(() => {
+    if (defaultPatientId) setPatientId(defaultPatientId);
+    if (defaultDoctorId) setDoctorId(defaultDoctorId);
+    if (defaultVisitId) setVisitId(defaultVisitId);
+    if (defaultReason) setReasonForAdmission(defaultReason);
+  }, [defaultPatientId, defaultDoctorId, defaultVisitId, defaultReason]);
   const [advancePaymentAmount, setAdvancePaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
@@ -360,6 +374,7 @@ export function AdmissionForm({
         next_of_kin_name: nextOfKinName.trim() || null,
         next_of_kin_relation: nextOfKinRelation.trim() || null,
         next_of_kin_contact: nextOfKinContact.trim() || null,
+        visit_id: visitId || defaultVisitId || null,
         advance_payment_amount: enableAdvancePayment && advancePaymentAmount ? parseFloat(advancePaymentAmount) : null,
         payment_method: enableAdvancePayment && paymentMethod ? paymentMethod : null,
         payment_reference: enableAdvancePayment && paymentReference.trim() ? paymentReference.trim() : null,

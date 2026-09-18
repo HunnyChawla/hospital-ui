@@ -7,9 +7,19 @@ interface AdmissionFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultPatientId?: string;
+  defaultDoctorId?: string;
+  defaultVisitId?: string;
+  defaultReason?: string;
 }
 
-export function AdmissionFormModal({ isOpen, onClose, defaultPatientId }: AdmissionFormModalProps) {
+export function AdmissionFormModal({
+  isOpen,
+  onClose,
+  defaultPatientId,
+  defaultDoctorId,
+  defaultVisitId,
+  defaultReason,
+}: AdmissionFormModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -19,6 +29,9 @@ export function AdmissionFormModal({ isOpen, onClose, defaultPatientId }: Admiss
     >
       <AdmissionForm
         defaultPatientId={defaultPatientId}
+        defaultDoctorId={defaultDoctorId}
+        defaultVisitId={defaultVisitId}
+        defaultReason={defaultReason}
         showDropdownSearch={true}
         onSuccess={onClose}
       />
