@@ -10,7 +10,7 @@ import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
-import { Search, User, Upload, X, FileText, Loader2, BedDouble, FlaskConical, Activity } from "lucide-react";
+import { Search, User, Upload, X, FileText, Loader2, BedDouble, FlaskConical, Activity, ShieldCheck, Sparkles, Info } from "lucide-react";
 import { formatDate } from "@/utils/format";
 
 const DOCUMENT_CATEGORIES: { value: MRDDocumentCategory; label: string }[] = [
@@ -57,6 +57,16 @@ export function MRDUploadForm({
   const [admissionId, setAdmissionId] = useState(defaultAdmissionId || "");
   const [labBookingId, setLabBookingId] = useState(defaultLabBookingId || "");
   const [visitId, setVisitId] = useState(defaultVisitId || "");
+
+  // Encounter link mode: "none" creates an independent care context, others link to specific encounters
+  const initialMode = defaultVisitId
+    ? "opd"
+    : defaultAdmissionId
+    ? "ipd"
+    : defaultLabBookingId
+    ? "lab"
+    : "none";
+  const [linkMode, setLinkMode] = useState<"none" | "opd" | "ipd" | "lab">(initialMode);
 
   // Patient search
   const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
@@ -324,6 +334,7 @@ export function MRDUploadForm({
     setAdmissionId("");
     setLabBookingId("");
     setVisitId("");
+    setLinkMode("none");
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -368,25 +379,28 @@ export function MRDUploadForm({
         patient_id: patientId,
         description: description.trim() || undefined,
         tags: tags.trim() ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
-        admission_id: admissionId || undefined,
-        lab_booking_id: labBookingId || undefined,
-        visit_id: visitId || undefined,
+        admission_id: linkMode === "ipd" ? admissionId || undefined : undefined,
+        lab_booking_id: linkMode === "lab" ? labBookingId || undefined : undefined,
+        visit_id: linkMode === "opd" ? visitId || undefined : undefined,
       };
 
       await mrdApi.upload(uploadData, undefined, (progress) => {
         setUploadProgress(progress);
       });
 
-      toast.success("Document uploaded successfully");
+      toast.success("Document uploaded and care context linked successfully!");
 
       // Reset form
       setSelectedFile(null);
       setDocumentName("");
       setDescription("");
       setTags("");
-      setAdmissionId("");
-      setLabBookingId("");
-      setVisitId("");
+      if (!defaultAdmissionId && !defaultLabBookingId && !defaultVisitId) {
+        setAdmissionId("");
+        setLabBookingId("");
+        setVisitId("");
+        setLinkMode("none");
+      }
       // Don't reset patient if defaultPatientId is provided
       if (!defaultPatientId) {
         handleClearPatient();
@@ -602,93 +616,145 @@ export function MRDUploadForm({
         <p className="text-xs text-slate-500">e.g., id-proof, aadhaar, insurance</p>
       </div>
 
-      {/* Related Records - Only show when patient is selected */}
+      {/* Encounter Linking & ABDM Care Context Mode - Only show when patient is selected */}
       {patientId && (
-        <>
-          {/* Admission ID Selector */}
-          {!defaultAdmissionId && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <BedDouble className="h-4 w-4 text-slate-400" />
-                Admission (Optional)
-              </label>
-              <select
-                value={admissionId}
-                onChange={(e) => setAdmissionId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:opacity-50"
-                disabled={isUploading || loadingAdmissions}
-              >
-                <option value="">Select admission (optional)</option>
-                {loadingAdmissions ? (
-                  <option value="" disabled>Loading admissions...</option>
-                ) : admissions.length === 0 ? (
-                  <option value="" disabled>No admissions found</option>
-                ) : (
-                  admissions.map((admission) => {
-                    const statusLabel = admission.status.charAt(0).toUpperCase() + admission.status.slice(1).replace(/_/g, " ");
-                    const dateStr = formatDate(admission.admission_date);
-                    return (
-                      <option key={admission.id} value={admission.id}>
-                        {admission.admission_number} - {dateStr} ({statusLabel})
-                      </option>
-                    );
-                  })
-                )}
-              </select>
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <label className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-sky-600" />
+              Link to Hospital Encounter (Care Context)
+            </label>
+            <span className="text-[11px] text-slate-500">Mutually exclusive encounter linking</span>
+          </div>
+
+          {/* Mode Selector Buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLinkMode("none");
+                setVisitId("");
+                setAdmissionId("");
+                setLabBookingId("");
+              }}
+              disabled={isUploading || !!defaultVisitId || !!defaultAdmissionId || !!defaultLabBookingId}
+              className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+                linkMode === "none"
+                  ? "border-sky-500 bg-sky-50 text-sky-800 shadow-xs ring-1 ring-sky-500 font-semibold"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <Sparkles className="h-4 w-4 mb-1 text-sky-600" />
+              <span>Independent</span>
+              <span className="text-[10px] text-slate-400 font-normal">New Care Context</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLinkMode("opd");
+                setAdmissionId("");
+                setLabBookingId("");
+                if (!visitId && visits.length > 0) {
+                  setVisitId(visits[0].id);
+                }
+              }}
+              disabled={isUploading || !!defaultAdmissionId || !!defaultLabBookingId}
+              className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+                linkMode === "opd"
+                  ? "border-sky-500 bg-sky-50 text-sky-800 shadow-xs ring-1 ring-sky-500 font-semibold"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <Activity className="h-4 w-4 mb-1 text-teal-600" />
+              <span>OPD Visit</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                {visits.length > 0 ? `${visits.length} available` : "No visits"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLinkMode("ipd");
+                setVisitId("");
+                setLabBookingId("");
+                if (!admissionId && admissions.length > 0) {
+                  setAdmissionId(admissions[0].id);
+                }
+              }}
+              disabled={isUploading || !!defaultVisitId || !!defaultLabBookingId}
+              className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+                linkMode === "ipd"
+                  ? "border-sky-500 bg-sky-50 text-sky-800 shadow-xs ring-1 ring-sky-500 font-semibold"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <BedDouble className="h-4 w-4 mb-1 text-indigo-600" />
+              <span>IPD Admission</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                {admissions.length > 0 ? `${admissions.length} available` : "No admissions"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLinkMode("lab");
+                setVisitId("");
+                setAdmissionId("");
+                if (!labBookingId && labBookings.length > 0) {
+                  setLabBookingId(labBookings[0].id);
+                }
+              }}
+              disabled={isUploading || !!defaultVisitId || !!defaultAdmissionId}
+              className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+                linkMode === "lab"
+                  ? "border-sky-500 bg-sky-50 text-sky-800 shadow-xs ring-1 ring-sky-500 font-semibold"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <FlaskConical className="h-4 w-4 mb-1 text-amber-600" />
+              <span>Lab Booking</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                {labBookings.length > 0 ? `${labBookings.length} available` : "No bookings"}
+              </span>
+            </button>
+          </div>
+
+          {/* Contextual Dropdowns / Guidance */}
+          {linkMode === "none" && (
+            <div className="rounded-xl border border-sky-100 bg-white p-3 text-xs text-sky-900 flex items-start gap-2">
+              <Info className="h-4 w-4 text-sky-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Standalone Independent Document</p>
+                <p className="text-slate-600 mt-0.5">
+                  {category === "ID_PROOF"
+                    ? "Administrative ID proof will be stored securely. It is excluded from ABDM health records."
+                    : "This document will be assigned a new ABDM Care Context (DOC-...) and published directly to the patient's ABHA account."}
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Lab Booking ID Selector */}
-          {!defaultLabBookingId && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <FlaskConical className="h-4 w-4 text-slate-400" />
-                Lab Booking (Optional)
-              </label>
-              <select
-                value={labBookingId}
-                onChange={(e) => setLabBookingId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:opacity-50"
-                disabled={isUploading || loadingLabBookings}
-              >
-                <option value="">Select lab booking (optional)</option>
-                {loadingLabBookings ? (
-                  <option value="" disabled>Loading lab bookings...</option>
-                ) : labBookings.length === 0 ? (
-                  <option value="" disabled>No lab bookings found</option>
-                ) : (
-                  labBookings.map((booking) => {
-                    const statusLabel = booking.status.charAt(0).toUpperCase() + booking.status.slice(1).replace(/_/g, " ");
-                    const dateStr = formatDate(booking.scheduled_date);
-                    return (
-                      <option key={booking.id} value={booking.id}>
-                        {booking.booking_number} - {dateStr} ({statusLabel})
-                      </option>
-                    );
-                  })
-                )}
-              </select>
-            </div>
-          )}
-
-          {/* Visit ID Selector */}
-          {!defaultVisitId && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Activity className="h-4 w-4 text-slate-400" />
-                OPD Visit (Optional)
+          {linkMode === "opd" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5 text-slate-400" />
+                Select OPD Visit <span className="text-rose-500">*</span>
               </label>
               <select
                 value={visitId}
                 onChange={(e) => setVisitId(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:opacity-50"
-                disabled={isUploading || loadingVisits}
+                disabled={isUploading || loadingVisits || !!defaultVisitId}
+                required
               >
-                <option value="">Select OPD visit (optional)</option>
+                <option value="">Select OPD visit...</option>
                 {loadingVisits ? (
                   <option value="" disabled>Loading visits...</option>
                 ) : visits.length === 0 ? (
-                  <option value="" disabled>No visits found</option>
+                  <option value="" disabled>No visits found for this patient</option>
                 ) : (
                   visits.map((visit) => {
                     const statusLabel = visit.status.charAt(0).toUpperCase() + visit.status.slice(1).replace(/_/g, " ");
@@ -701,9 +767,84 @@ export function MRDUploadForm({
                   })
                 )}
               </select>
+              <p className="text-[11px] text-slate-500">
+                Document will be linked to the OPD visit's Care Context (VN-...).
+              </p>
             </div>
           )}
-        </>
+
+          {linkMode === "ipd" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
+                <BedDouble className="h-3.5 w-3.5 text-slate-400" />
+                Select IPD Admission <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={admissionId}
+                onChange={(e) => setAdmissionId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:opacity-50"
+                disabled={isUploading || loadingAdmissions || !!defaultAdmissionId}
+                required
+              >
+                <option value="">Select admission...</option>
+                {loadingAdmissions ? (
+                  <option value="" disabled>Loading admissions...</option>
+                ) : admissions.length === 0 ? (
+                  <option value="" disabled>No admissions found for this patient</option>
+                ) : (
+                  admissions.map((admission) => {
+                    const statusLabel = admission.status.charAt(0).toUpperCase() + admission.status.slice(1).replace(/_/g, " ");
+                    const dateStr = formatDate(admission.admission_date);
+                    return (
+                      <option key={admission.id} value={admission.id}>
+                        {admission.admission_number} - {dateStr} ({statusLabel})
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+              <p className="text-[11px] text-slate-500">
+                Document will be linked to the IPD Admission's Care Context (ADM-...).
+              </p>
+            </div>
+          )}
+
+          {linkMode === "lab" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
+                <FlaskConical className="h-3.5 w-3.5 text-slate-400" />
+                Select Lab Booking <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={labBookingId}
+                onChange={(e) => setLabBookingId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 disabled:opacity-50"
+                disabled={isUploading || loadingLabBookings || !!defaultLabBookingId}
+                required
+              >
+                <option value="">Select lab booking...</option>
+                {loadingLabBookings ? (
+                  <option value="" disabled>Loading lab bookings...</option>
+                ) : labBookings.length === 0 ? (
+                  <option value="" disabled>No lab bookings found for this patient</option>
+                ) : (
+                  labBookings.map((booking) => {
+                    const statusLabel = booking.status.charAt(0).toUpperCase() + booking.status.slice(1).replace(/_/g, " ");
+                    const dateStr = formatDate(booking.scheduled_date);
+                    return (
+                      <option key={booking.id} value={booking.id}>
+                        {booking.booking_number} - {dateStr} ({statusLabel})
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+              <p className="text-[11px] text-slate-500">
+                Document will be linked to the Lab Booking's Care Context (LB-...).
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Upload Progress */}

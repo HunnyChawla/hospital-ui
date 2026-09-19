@@ -23,6 +23,9 @@ import {
   Ban,
   Info,
   Link2,
+  Activity,
+  BedDouble,
+  FlaskConical,
 } from "lucide-react";
 import { formatDate as formatDateUtil } from "@/utils/format";
 
@@ -78,6 +81,94 @@ export function MRDDocumentList({
 
   const limit = 20;
 
+  const renderCareContextBadge = (document: MRDDocument) => {
+    const isIdProof = document.category === "ID_PROOF" || document.abha_link_status === "excluded_id_proof";
+
+    if (isIdProof) {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 border border-slate-200"
+          title="Administrative ID proof — excluded from ABDM care contexts"
+        >
+          <Ban className="h-3 w-3 text-slate-400" />
+          <span>Excluded</span>
+        </span>
+      );
+    }
+
+    const ref = document.care_context_reference;
+
+    if (ref?.startsWith("DOC-") || (!document.visit_id && !document.admission_id && !document.lab_booking_id)) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200">
+            <FileText className="h-3 w-3 text-sky-600" />
+            Independent
+          </span>
+          {ref && (
+            <span className="text-[11px] font-mono font-medium text-slate-600 pl-0.5" title={ref}>
+              {ref}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (ref?.startsWith("VN-") || document.visit_id) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700 border border-teal-200">
+            <Activity className="h-3 w-3 text-teal-600" />
+            OPD Visit
+          </span>
+          {ref && (
+            <span className="text-[11px] font-mono font-medium text-slate-600 pl-0.5" title={ref}>
+              {ref}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (ref?.startsWith("ADM-") || document.admission_id) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
+            <BedDouble className="h-3 w-3 text-indigo-600" />
+            IPD Admission
+          </span>
+          {ref && (
+            <span className="text-[11px] font-mono font-medium text-slate-600 pl-0.5" title={ref}>
+              {ref}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (ref?.startsWith("LB-") || document.lab_booking_id) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+            <FlaskConical className="h-3 w-3 text-amber-600" />
+            Lab Booking
+          </span>
+          {ref && (
+            <span className="text-[11px] font-mono font-medium text-slate-600 pl-0.5" title={ref}>
+              {ref}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <span className="text-xs text-slate-400 italic">
+        {ref || "Unlinked"}
+      </span>
+    );
+  };
+
   const renderAbhaLinkBadge = (document: MRDDocument) => {
     const status = document.abha_link_status;
     const isIdProof = document.category === "ID_PROOF";
@@ -89,7 +180,7 @@ export function MRDDocumentList({
           title="Identity proofs are administrative records and are strictly excluded from ABDM health records"
         >
           <Ban className="h-3 w-3 text-slate-400" />
-          ID Proof (Excluded)
+          ID Proof
         </span>
       );
     }
@@ -97,11 +188,11 @@ export function MRDDocumentList({
     if (status === "linked") {
       return (
         <span
-          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200 shadow-sm"
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200 shadow-xs"
           title={`Linked to ABDM Care Context${document.care_context_reference ? ` (${document.care_context_reference})` : ""}`}
         >
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          Linked to ABHA
+          Linked
         </span>
       );
     }
@@ -113,7 +204,7 @@ export function MRDDocumentList({
           title="Sync job queued to link with ABDM"
         >
           <Clock className="h-3 w-3 text-sky-600" />
-          Syncing to ABHA
+          Syncing
         </span>
       );
     }
@@ -137,7 +228,7 @@ export function MRDDocumentList({
           title="Linking attempt failed. Will retry automatically"
         >
           <ShieldAlert className="h-3 w-3 text-rose-600" />
-          Link Failed
+          Failed
         </span>
       );
     }
@@ -164,7 +255,7 @@ export function MRDDocumentList({
         }
       >
         <Clock className="h-3 w-3 text-amber-500" />
-        {document.care_context_reference ? "Care Context Active" : "Pending Sync"}
+        {document.care_context_reference ? "Active" : "Pending"}
       </span>
     );
   };
@@ -336,14 +427,19 @@ export function MRDDocumentList({
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Document
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  Patient
-                </th>
+                {!patientId && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                    Patient
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Category
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  ABHA Status
+                  Care Context
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  ABHA Sync
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
                   File Info
@@ -361,7 +457,7 @@ export function MRDDocumentList({
                 <tr key={document.id} className="transition hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-sky-500" />
+                      <FileText className="h-4 w-4 text-sky-500 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-slate-900">{document.document_name}</p>
                         {document.description && (
@@ -370,18 +466,23 @@ export function MRDDocumentList({
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="text-sm text-slate-700">
-                        {patientNames[document.patient_id] || "Loading..."}
-                      </span>
-                    </div>
-                  </td>
+                  {!patientId && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-sm text-slate-700">
+                          {patientNames[document.patient_id] || "Loading..."}
+                        </span>
+                      </div>
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
                       {CATEGORY_LABELS[document.category] || document.category}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {renderCareContextBadge(document)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {renderAbhaLinkBadge(document)}

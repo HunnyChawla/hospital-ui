@@ -5,7 +5,23 @@ import { mrdApi, MRDDocument, UpdateMRDDocumentRequest, MRDDocumentCategory } fr
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Modal } from "@/components/common/Modal";
-import { FileText, Download, Trash2, Loader2, Save, X, Calendar, User, Tag, File } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Trash2,
+  Loader2,
+  Save,
+  X,
+  Calendar,
+  User,
+  Tag,
+  File,
+  ShieldCheck,
+  Activity,
+  BedDouble,
+  FlaskConical,
+  Ban,
+} from "lucide-react";
 import { formatDate as formatDateUtil } from "@/utils/format";
 
 const DOCUMENT_CATEGORIES: { value: MRDDocumentCategory; label: string }[] = [
@@ -233,19 +249,47 @@ export function MRDDocumentModal({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-slate-400" />
+              <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="h-4 w-4 text-slate-400 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-slate-500">Uploaded</p>
                     <p className="text-sm font-medium text-slate-700">{formatDate(document.created_at)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <File className="h-4 w-4 text-slate-400" />
+                <div className="flex items-center gap-2.5">
+                  <File className="h-4 w-4 text-slate-400 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-slate-500">File Type</p>
                     <p className="text-sm font-medium text-slate-700">{document.mime_type || document.document_type}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="h-4 w-4 text-sky-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-500">Care Context Reference</p>
+                    <p className="text-sm font-medium font-mono text-slate-800">
+                      {document.category === "ID_PROOF" ? (
+                        <span className="text-slate-500 font-sans">Excluded (ID Proof)</span>
+                      ) : (
+                        document.care_context_reference || "Pending Assignment"
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Activity className="h-4 w-4 text-teal-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-500">Encounter Link Mode</p>
+                    <p className="text-sm font-medium text-slate-800">
+                      {document.visit_id
+                        ? "OPD Visit"
+                        : document.admission_id
+                        ? "IPD Admission"
+                        : document.lab_booking_id
+                        ? "Lab Booking"
+                        : "Independent Document"}
+                    </p>
                   </div>
                 </div>
               </div>

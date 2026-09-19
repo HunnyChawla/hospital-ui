@@ -16,7 +16,8 @@ export type EpisodeType =
     | "day_care_visit"
     | "planned_surgery"
     | "lab_booking"
-    | "wellness_record";
+    | "wellness_record"
+    | "health_document";
 
 export type EpisodeStatus = "open" | "finalised" | "reopened";
 
