@@ -85,7 +85,6 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [admissionsRefreshing, setAdmissionsRefreshing] = useState(false);
-  const [tabRefreshing, setTabRefreshing] = useState(false);
   const patientsList = useAppSelector((s) => s.patients.list);
   const selectedPatient = useAppSelector((s) => s.patients.selected);
   const patient = patientsList.find((p) => p.id === patientId) || (selectedPatient?.id === patientId ? selectedPatient : null);
@@ -764,48 +763,6 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     toast.success("MRD documents refreshed");
   };
 
-  const handleActiveTabRefresh = async () => {
-    setTabRefreshing(true);
-    try {
-      if (patientId) {
-        dispatch(getPatientById({ patientId }));
-      }
-      switch (activeTab) {
-        case "appointment":
-          await fetchAppointments();
-          break;
-        case "opd":
-          await fetchOpdTabVisits();
-          break;
-        case "admit":
-          await queryClient.invalidateQueries({ queryKey: admissionKeys.all });
-          break;
-        case "billing":
-          await fetchInvoices();
-          break;
-        case "tests":
-          await Promise.all([fetchLabBookings(), fetchPatientPrescribedVisits()]);
-          break;
-        case "record":
-          await queryClient.invalidateQueries({ queryKey: healthRecordKeys.timeline(patientId) });
-          break;
-        case "immunisation":
-          await queryClient.invalidateQueries({ queryKey: healthRecordKeys.immunisations(patientId) });
-          break;
-        case "documents":
-          setMrdRefreshTrigger((prev) => prev + 1);
-          break;
-        case "abdm_records":
-          break;
-      }
-      toast.success("Refreshed");
-    } catch {
-      toast.error("Failed to refresh");
-    } finally {
-      setTimeout(() => setTabRefreshing(false), 400);
-    }
-  };
-
   // Handle print invoice (for lab bookings)
   const handlePrintInvoiceFromBooking = async (invoiceId: string, booking: LabBooking) => {
     try {
@@ -1219,34 +1176,21 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 ))}
               </div>
 
-              {/* Right Controls: Right Scroll Button + Refresh Button */}
-              <div className="flex items-center gap-2 shrink-0 pb-1 pl-1">
-                <button
-                  type="button"
-                  onClick={() => scrollTabs("right")}
-                  disabled={!showRightScroll}
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition cursor-pointer shadow-2xs ${
-                    !showRightScroll
-                      ? "opacity-25 cursor-not-allowed text-slate-300"
-                      : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
-                  }`}
-                  title="Scroll tabs right"
-                  aria-label="Scroll tabs right"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleActiveTabRefresh}
-                  disabled={tabRefreshing}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
-                  title="Refresh"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${tabRefreshing ? "animate-spin" : ""}`} />
-                  <span>Refresh</span>
-                </button>
-              </div>
+              {/* Right Scroll Button */}
+              <button
+                type="button"
+                onClick={() => scrollTabs("right")}
+                disabled={!showRightScroll}
+                className={`mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition cursor-pointer shadow-2xs ${
+                  !showRightScroll
+                    ? "opacity-25 cursor-not-allowed text-slate-300"
+                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
+                }`}
+                title="Scroll tabs right"
+                aria-label="Scroll tabs right"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
 
             {/* Tab Content */}
