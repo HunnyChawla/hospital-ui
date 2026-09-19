@@ -5,10 +5,11 @@ import { useAppSelector } from "@/redux/hooks";
 import { labBookingsApi, CreateLabBookingRequest, TestPriority, PaymentMethod } from "@/services/labBookingsApi";
 import { labTestsApi, LabTest } from "@/services/labTestsApi";
 import { patientsApi } from "@/services/patientsApi";
+import { admissionsApi, Admission } from "@/services/admissionsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, Search, User, Beaker, Plus, X } from "lucide-react";
+import { Calendar, Search, User, Beaker, Plus, X, Receipt, Building2 } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { currency, getTodayDateLocal } from "@/utils/format";
 
@@ -33,6 +34,11 @@ export function LabBookingForm({
   const [paymentReference, setPaymentReference] = useState("");
   const [selectedTests, setSelectedTests] = useState<Array<{ lab_test_id: string; test: LabTest; customPrice?: number }>>([]);
   
+  // Active IPD admission check
+  const [activeAdmission, setActiveAdmission] = useState<Admission | null>(null);
+  const [checkingAdmission, setCheckingAdmission] = useState(false);
+  const [ipdPaymentOption, setIpdPaymentOption] = useState<"ledger" | "collect_now">("ledger");
+
   // Patient search
   const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
   const [dropdownResults, setDropdownResults] = useState<Patient[]>([]);
@@ -67,6 +73,41 @@ export function LabBookingForm({
       }
     }
   }, [defaultPatientId, patients]);
+
+  // Check active IPD admission when patientId changes
+  useEffect(() => {
+    if (!patientId) {
+      setActiveAdmission(null);
+      return;
+    }
+
+    const checkAdmission = async () => {
+      setCheckingAdmission(true);
+      try {
+        const res = await admissionsApi.list({
+          patient_id: patientId,
+        });
+        const active = (res.items || []).find(
+          (a) =>
+            a.status === "ACTIVE" ||
+            a.status === "admitted" ||
+            a.status === "DISCHARGE_INITIATED" ||
+            a.status === "discharge_initiated"
+        );
+        setActiveAdmission(active || null);
+        if (active) {
+          setIpdPaymentOption("ledger");
+        }
+      } catch (err) {
+        console.error("Failed to check active admission:", err);
+        setActiveAdmission(null);
+      } finally {
+        setCheckingAdmission(false);
+      }
+    };
+
+    checkAdmission();
+  }, [patientId]);
 
   // Fetch available lab tests
   useEffect(() => {
@@ -193,6 +234,8 @@ export function LabBookingForm({
 
   const selectedPatient = patients.find((p) => p.id === patientId);
   const totalAmount = selectedTests.reduce((sum, st) => sum + (st.customPrice ?? st.test.price ?? 0), 0);
+  const isIpd = Boolean(activeAdmission);
+  const shouldCollectPayment = isIpd ? ipdPaymentOption === "collect_now" : true;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,7 +251,7 @@ export function LabBookingForm({
     }
 
     // Validate payment reference if required
-    if ((paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
+    if (shouldCollectPayment && (paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && !paymentReference.trim()) {
       toast.error(`Please enter payment reference for ${paymentMethod.toUpperCase()}`);
       return;
     }
@@ -216,24 +259,31 @@ export function LabBookingForm({
     try {
       const bookingData: CreateLabBookingRequest = {
         patient_id: patientId,
+        admission_id: activeAdmission?.id || undefined,
         scheduled_date: scheduledDate,
         scheduled_time: undefined, // Not required
         priority,
+        collect_payment: shouldCollectPayment,
         tests: selectedTests.map((st) => ({
           lab_test_id: st.lab_test_id,
           price: st.customPrice,
         })),
         notes: notes.trim() || undefined,
-        payment_method: paymentMethod,
-        payment_reference: paymentReference.trim() || undefined,
+        payment_method: shouldCollectPayment ? paymentMethod : undefined,
+        payment_reference: shouldCollectPayment ? (paymentReference.trim() || undefined) : undefined,
       };
 
-      await labBookingsApi.create(bookingData);
-      toast.success("Lab test booking created successfully");
+      const result = await labBookingsApi.create(bookingData);
+      toast.success(
+        shouldCollectPayment
+          ? `Lab booking ${result.booking_number} created with invoice.`
+          : `Lab booking ${result.booking_number} created & posted to IPD ledger.`
+      );
       
       // Reset form
       setPatientId("");
       setDropdownSearchTerm("");
+      setActiveAdmission(null);
       setScheduledDate(getTodayDateLocal());
       setPriority("routine");
       setNotes("");
@@ -321,6 +371,66 @@ export function LabBookingForm({
           </div>
         </div>
 
+        {/* IPD Active Admission Banner & Billing Mode Selector */}
+        {activeAdmission && (
+          <div className="col-span-2 space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                <Receipt className="h-4 w-4 text-purple-600" /> IPD Billing & Payment Option
+              </span>
+              <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                Active IPD: {activeAdmission.admission_number || "Admitted"}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <label
+                className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                  ipdPaymentOption === "ledger"
+                    ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
+                    : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="booking_form_ipd_mode"
+                  checked={ipdPaymentOption === "ledger"}
+                  onChange={() => setIpdPaymentOption("ledger")}
+                  className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
+                />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Add to IPD Ledger (Post to Bill)</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Charges will be added to patient's admission bill. No separate invoice is created now.
+                  </p>
+                </div>
+              </label>
+
+              <label
+                className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                  ipdPaymentOption === "collect_now"
+                    ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
+                    : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="booking_form_ipd_mode"
+                  checked={ipdPaymentOption === "collect_now"}
+                  onChange={() => setIpdPaymentOption("collect_now")}
+                  className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
+                />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Collect Payment Now</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Collect payment immediately at lab desk & generate a separate paid invoice.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Scheduled Date */}
         <label className="space-y-1">
           <span className="text-slate-600">
@@ -353,35 +463,40 @@ export function LabBookingForm({
           </select>
         </label>
 
-        {/* Payment Method */}
-        <label className="col-span-2 space-y-1">
-          <span className="text-slate-600">Payment Method</span>
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-          >
-            <option value="cash">Cash</option>
-            <option value="upi">UPI</option>
-            <option value="card">Card</option>
-            <option value="cheque">Cheque</option>
-          </select>
-        </label>
+        {/* Payment inputs only if NOT posting to IPD ledger */}
+        {(!isIpd || ipdPaymentOption === "collect_now") && (
+          <>
+            {/* Payment Method */}
+            <label className="col-span-2 space-y-1">
+              <span className="text-slate-600">Payment Method</span>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              >
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+                <option value="cheque">Cheque</option>
+              </select>
+            </label>
 
-        {/* Payment Reference */}
-        {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
-          <label className="col-span-2 space-y-1">
-            <span className="text-slate-600">
-              Payment Reference <span className="text-rose-500">*</span>
-            </span>
-            <input
-              type="text"
-              value={paymentReference}
-              onChange={(e) => setPaymentReference(e.target.value)}
-              placeholder={`Enter ${paymentMethod.toUpperCase()} reference`}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-            />
-          </label>
+            {/* Payment Reference */}
+            {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+              <label className="col-span-2 space-y-1">
+                <span className="text-slate-600">
+                  Payment Reference <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder={`Enter ${paymentMethod.toUpperCase()} reference`}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                />
+              </label>
+            )}
+          </>
         )}
 
         {/* Lab Tests Selection */}
@@ -485,8 +600,10 @@ export function LabBookingForm({
         {/* Total Amount */}
         {selectedTests.length > 0 && (
           <div className="col-span-2 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <span className="text-sm font-semibold text-slate-700">Total Booking Amount:</span>
-            <span className="text-lg font-bold text-slate-900">
+            <span className="text-sm font-semibold text-slate-700">
+              {isIpd && ipdPaymentOption === "ledger" ? "Total Charges to Post to IPD Ledger:" : "Total Booking Amount:"}
+            </span>
+            <span className={`text-lg font-bold ${isIpd && ipdPaymentOption === "ledger" ? "text-purple-600" : "text-slate-900"}`}>
               {currency(totalAmount)}
             </span>
           </div>
@@ -496,10 +613,14 @@ export function LabBookingForm({
         <div className="col-span-2 flex justify-end gap-3">
           <button
             type="submit"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 font-semibold text-white shadow-sm hover:shadow"
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold text-white shadow-sm hover:shadow cursor-pointer ${
+              isIpd && ipdPaymentOption === "ledger"
+                ? "bg-gradient-to-r from-purple-600 to-indigo-600"
+                : "bg-gradient-to-r from-sky-500 to-teal-500"
+            }`}
           >
             <Beaker className="h-4 w-4" />
-            Create Booking
+            {isIpd && ipdPaymentOption === "ledger" ? "Book & Post to IPD Ledger" : "Create Booking"}
           </button>
         </div>
       </form>

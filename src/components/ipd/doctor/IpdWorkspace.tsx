@@ -539,6 +539,7 @@ export function IpdWorkspace() {
           onClose={() => setShowDischargeModal(false)}
           admissionId={selectedAdmissionId}
           isDoctor={isDoctor}
+          admissionStatus={chart?.admission?.status}
           onSuccess={() => {
             setShowDischargeModal(false);
             handleRefreshCurrentChart();

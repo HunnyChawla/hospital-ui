@@ -68,22 +68,21 @@ export function IpdOrdersTab({
   const [discontinueReason, setDiscontinueReason] = useState("");
 
   // Add Order form state
-  const [orderCategory, setOrderCategory] = useState<string>("procedure");
+  const [orderCategory, setOrderCategory] = useState<string>("lab");
   const [orderTitle, setOrderTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [priority, setPriority] = useState<string>("routine");
   const [submittingAdd, setSubmittingAdd] = useState(false);
   const [submittingDiscontinue, setSubmittingDiscontinue] = useState(false);
 
-  // Lab Catalog search state
+  // Multi-test selection state for Lab & Radiology investigations
+  const [selectedLabTests, setSelectedLabTests] = useState<LabTest[]>([]);
   const [availableLabTests, setAvailableLabTests] = useState<LabTest[]>([]);
-  const [selectedLabTest, setSelectedLabTest] = useState<LabTest | null>(null);
   const [labSearchQuery, setLabSearchQuery] = useState("");
   const [isLabSearchFocused, setIsLabSearchFocused] = useState(false);
 
-  // Radiology Catalog search state
+  const [selectedRadiologyTests, setSelectedRadiologyTests] = useState<LabTest[]>([]);
   const [availableRadiologyTests, setAvailableRadiologyTests] = useState<LabTest[]>([]);
-  const [selectedRadiologyTest, setSelectedRadiologyTest] = useState<LabTest | null>(null);
   const [radiologySearchQuery, setRadiologySearchQuery] = useState("");
   const [isRadiologySearchFocused, setIsRadiologySearchFocused] = useState(false);
 
@@ -159,7 +158,7 @@ export function IpdOrdersTab({
 
   const filteredLabCatalog = useMemo(() => {
     const q = labSearchQuery.trim().toLowerCase();
-    if (!q) return availableLabTests.slice(0, 15);
+    if (!q) return [];
     return availableLabTests.filter(
       (t) =>
         t.test_name.toLowerCase().includes(q) ||
@@ -170,7 +169,7 @@ export function IpdOrdersTab({
 
   const filteredRadiologyCatalog = useMemo(() => {
     const q = radiologySearchQuery.trim().toLowerCase();
-    if (!q) return availableRadiologyTests.slice(0, 15);
+    if (!q) return [];
     return availableRadiologyTests.filter(
       (t) =>
         t.test_name.toLowerCase().includes(q) ||
@@ -180,28 +179,6 @@ export function IpdOrdersTab({
   }, [availableRadiologyTests, radiologySearchQuery]);
 
   // Quick preset chips for convenience
-  const PROCEDURE_PRESETS = [
-    "Phacoemulsification with Foldable IOL",
-    "Small Incision Cataract Surgery (SICS)",
-    "Trabeculectomy with MMC",
-    "Pterygium Excision with Conjunctival Autograft",
-    "Intravitreal Anti-VEGF Injection",
-    "Pars Plana Vitrectomy (PPV)",
-    "Chalazion Incision & Curettage",
-    "Dacryocystorhinostomy (DCR)",
-    "Nd:YAG Laser Capsulotomy",
-    "Wound Debridement & Dressing",
-  ];
-
-  const RADIOLOGY_PRESETS = [
-    "X-Ray Chest PA View",
-    "Ultrasound (USG) Whole Abdomen & Pelvis",
-    "CT Scan Head / Brain (Plain / NCCT)",
-    "High Resolution CT Chest (HRCT)",
-    "MRI Brain (Plain)",
-    "2D Echocardiography with Color Doppler",
-  ];
-
   const DIET_PRESETS = [
     "Diabetic Diet (Low glycemic index, no refined sugar)",
     "Low Sodium Diet (Salt restricted < 2g/day)",
@@ -220,12 +197,59 @@ export function IpdOrdersTab({
     "Blood Sugar Monitoring (QID before meals)",
   ];
 
+  const handleAddLabTest = (test: LabTest) => {
+    if (selectedLabTests.some((t) => t.id === test.id || t.test_name.toLowerCase() === test.test_name.toLowerCase())) {
+      toast.info(`"${test.test_name}" is already selected`);
+      return;
+    }
+    setSelectedLabTests((prev) => [...prev, test]);
+    setLabSearchQuery("");
+    setIsLabSearchFocused(false);
+  };
+
+  const handleRemoveLabTest = (id: string) => {
+    setSelectedLabTests((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleAddRadiologyTest = (test: LabTest) => {
+    if (selectedRadiologyTests.some((t) => t.id === test.id || t.test_name.toLowerCase() === test.test_name.toLowerCase())) {
+      toast.info(`"${test.test_name}" is already selected`);
+      return;
+    }
+    setSelectedRadiologyTests((prev) => [...prev, test]);
+    setRadiologySearchQuery("");
+    setIsRadiologySearchFocused(false);
+  };
+
+  const handleRemoveRadiologyTest = (id: string) => {
+    setSelectedRadiologyTests((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const resetAddOrderForm = () => {
+    setOrderTitle("");
+    setSelectedLabTests([]);
+    setLabSearchQuery("");
+    setIsLabSearchFocused(false);
+    setSelectedRadiologyTests([]);
+    setRadiologySearchQuery("");
+    setIsRadiologySearchFocused(false);
+    setSelectedSurgery(null);
+    setSurgerySearchQuery("");
+    setSelectedBodyPartId(null);
+    setPlannedDate("");
+    setAdvisedDate(getTodayDateLocal());
+    setInstructions("");
+    setPriority("routine");
+  };
+
   const handleCategorySelectForAdd = (cat: string) => {
     setOrderCategory(cat);
-    setSelectedLabTest(null);
+    setSelectedLabTests([]);
     setLabSearchQuery("");
-    setSelectedRadiologyTest(null);
+    setIsLabSearchFocused(false);
+    setSelectedRadiologyTests([]);
     setRadiologySearchQuery("");
+    setIsRadiologySearchFocused(false);
     setSelectedSurgery(null);
     setSurgerySearchQuery("");
     setSelectedBodyPartId(null);
@@ -234,19 +258,6 @@ export function IpdOrdersTab({
     setOrderTitle("");
     if (cat === "diet") setOrderTitle(DIET_PRESETS[0]);
     if (cat === "nursing_instruction") setOrderTitle(NURSING_PRESETS[0]);
-  };
-
-  const handleSelectLabTest = (t: LabTest) => {
-    setSelectedLabTest(t);
-    setOrderTitle(t.test_name);
-    setLabSearchQuery(t.test_name);
-  };
-
-  const handleSelectRadiologyTest = (t: LabTest) => {
-    setSelectedRadiologyTest(t);
-    setOrderTitle(t.test_name);
-    setRadiologySearchQuery(t.test_name);
-    setIsRadiologySearchFocused(false);
   };
 
   const handleSelectSurgery = (surgery: SurgeryPrescriptionOption) => {
@@ -258,20 +269,6 @@ export function IpdOrdersTab({
     setSelectedBodyPartId(surgery.body_parts.length === 1 ? surgery.body_parts[0].id : null);
   };
 
-  const handleSelectProcedurePreset = (preset: string) => {
-    setOrderTitle(preset);
-    setSurgerySearchQuery(preset);
-    const matched = surgeryResults.find((s) =>
-      s.name.toLowerCase().includes(preset.toLowerCase().slice(0, 10))
-    );
-    if (matched) {
-      handleSelectSurgery(matched);
-    } else {
-      setSelectedSurgery(null);
-      setSelectedBodyPartId(null);
-    }
-  };
-
   const handleAddOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDoctor) {
@@ -279,15 +276,119 @@ export function IpdOrdersTab({
       return;
     }
 
+    // Handle Lab Orders
+    if (orderCategory === "lab") {
+      let testsToSubmit = [...selectedLabTests];
+      if (testsToSubmit.length === 0 && labSearchQuery.trim()) {
+        testsToSubmit = [
+          {
+            id: "",
+            test_name: labSearchQuery.trim(),
+            test_code: "",
+            category: "General",
+            is_active: true,
+            price: 0,
+          } as LabTest,
+        ];
+      }
+
+      if (testsToSubmit.length === 0) {
+        toast.error("Please search and select at least one lab test from the catalog");
+        return;
+      }
+
+      setSubmittingAdd(true);
+      try {
+        const ordersPayload = testsToSubmit.map((t) => ({
+          order_category: "lab",
+          order_title: t.test_name,
+          instructions: instructions.trim() || null,
+          priority,
+          lab_test_id: t.id || null,
+        }));
+
+        try {
+          await ipdDoctorApi.createOrdersBatch(admissionId, ordersPayload);
+        } catch {
+          await Promise.all(
+            ordersPayload.map((payload) => ipdDoctorApi.createOrder(admissionId, payload))
+          );
+        }
+
+        toast.success(
+          `Successfully placed ${testsToSubmit.length} ${
+            testsToSubmit.length > 1 ? "lab orders" : "lab order"
+          }`
+        );
+        setShowAddModal(false);
+        resetAddOrderForm();
+        onRefresh();
+      } catch (err: any) {
+        toast.error(getErrorMessage(err) || "Failed to create lab orders");
+      } finally {
+        setSubmittingAdd(false);
+      }
+      return;
+    }
+
+    // Handle Radiology Orders
+    if (orderCategory === "radiology") {
+      let testsToSubmit = [...selectedRadiologyTests];
+      if (testsToSubmit.length === 0 && radiologySearchQuery.trim()) {
+        testsToSubmit = [
+          {
+            id: "",
+            test_name: radiologySearchQuery.trim(),
+            test_code: "",
+            category: "Radiology",
+            is_active: true,
+            price: 0,
+          } as LabTest,
+        ];
+      }
+
+      if (testsToSubmit.length === 0) {
+        toast.error("Please search and select at least one radiology test from the catalog");
+        return;
+      }
+
+      setSubmittingAdd(true);
+      try {
+        const ordersPayload = testsToSubmit.map((t) => ({
+          order_category: "radiology",
+          order_title: t.test_name,
+          instructions: instructions.trim() || null,
+          priority,
+          lab_test_id: t.id || null,
+        }));
+
+        try {
+          await ipdDoctorApi.createOrdersBatch(admissionId, ordersPayload);
+        } catch {
+          await Promise.all(
+            ordersPayload.map((payload) => ipdDoctorApi.createOrder(admissionId, payload))
+          );
+        }
+
+        toast.success(
+          `Successfully placed ${testsToSubmit.length} ${
+            testsToSubmit.length > 1 ? "radiology orders" : "radiology order"
+          }`
+        );
+        setShowAddModal(false);
+        resetAddOrderForm();
+        onRefresh();
+      } catch (err: any) {
+        toast.error(getErrorMessage(err) || "Failed to create radiology orders");
+      } finally {
+        setSubmittingAdd(false);
+      }
+      return;
+    }
+
+    // Handle Procedures / Diet / Nursing Instructions / Other
     let finalTitle = orderTitle.trim();
-    let labTestIdToSave: string | null = null;
-    if (orderCategory === "lab" && selectedLabTest) {
-      finalTitle = selectedLabTest.test_name;
-      labTestIdToSave = selectedLabTest.id;
-    } else if (orderCategory === "radiology" && selectedRadiologyTest) {
-      finalTitle = selectedRadiologyTest.test_name;
-      labTestIdToSave = selectedRadiologyTest.id;
-    } else if (orderCategory === "procedure" && selectedSurgery) {
+    if (orderCategory === "procedure" && selectedSurgery) {
       const bp = selectedSurgery.body_parts.find((b) => b.id === selectedBodyPartId);
       finalTitle = bp ? `${selectedSurgery.name} (${bp.name})` : selectedSurgery.name;
     }
@@ -311,7 +412,7 @@ export function IpdOrdersTab({
         order_title: finalTitle,
         instructions: instructions.trim() || null,
         priority,
-        lab_test_id: labTestIdToSave,
+        lab_test_id: null,
       });
 
       // 2. If procedure selected from catalog & saveToPlannedSchedule is enabled, also create Planned Surgery
@@ -338,18 +439,7 @@ export function IpdOrdersTab({
       }
 
       setShowAddModal(false);
-      setOrderTitle("");
-      setSelectedLabTest(null);
-      setLabSearchQuery("");
-      setSelectedRadiologyTest(null);
-      setRadiologySearchQuery("");
-      setSelectedSurgery(null);
-      setSurgerySearchQuery("");
-      setSelectedBodyPartId(null);
-      setPlannedDate("");
-      setAdvisedDate(getTodayDateLocal());
-      setInstructions("");
-      setPriority("routine");
+      resetAddOrderForm();
       onRefresh();
     } catch (err: any) {
       toast.error(getErrorMessage(err) || "Failed to create order");
@@ -456,7 +546,7 @@ export function IpdOrdersTab({
 
               <button
                 onClick={() => {
-                  handleCategorySelectForAdd("procedure");
+                  handleCategorySelectForAdd("lab");
                   setShowAddModal(true);
                 }}
                 className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow cursor-pointer"
@@ -598,17 +688,17 @@ export function IpdOrdersTab({
                               <CheckCircle2 className="h-3 w-3" />
                               Results Ready
                             </span>
-                          ) : order.booking_id ? (
+                          ) : order.booking_id && order.booking_status !== "cancelled" ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-800 px-2 py-0.5 text-[10px] font-bold border border-purple-200">
                               <Clock className="h-3 w-3" />
                               Booked ({order.booking_status || "In Progress"})
                             </span>
-                          ) : (
+                          ) : isActive ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold border border-amber-200">
                               <Clock className="h-3 w-3" />
                               {order.order_category === "radiology" ? "Pending Radiology Booking" : "Pending Lab Booking"}
                             </span>
-                          )
+                          ) : null
                         )}
                       </div>
 
@@ -680,7 +770,7 @@ export function IpdOrdersTab({
       {/* Modal: Add Doctor Order / Plan Surgery */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 {orderCategory === "procedure" ? (
@@ -708,21 +798,22 @@ export function IpdOrdersTab({
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
-                    { id: "procedure", label: "Procedure / Surgery", icon: Scissors },
                     { id: "lab", label: "Lab Order", icon: FlaskConical },
                     { id: "radiology", label: "Radiology", icon: Radio },
+                    { id: "procedure", label: "Procedure / Surgery", icon: Scissors },
                     { id: "diet", label: "Diet Order", icon: Utensils },
                     { id: "nursing_instruction", label: "Nursing Care", icon: HeartHandshake },
                     { id: "other", label: "Other", icon: FileText },
                   ].map((cat) => {
                     const Icon = cat.icon;
                     const isSelected = orderCategory === cat.id;
+
                     return (
                       <button
                         key={cat.id}
                         type="button"
                         onClick={() => handleCategorySelectForAdd(cat.id)}
-                        className={`flex items-center justify-center gap-1.5 rounded-xl border p-2 text-xs font-semibold transition cursor-pointer ${
+                        className={`flex items-center gap-1.5 rounded-xl border p-2 text-xs font-semibold transition cursor-pointer ${
                           isSelected
                             ? cat.id === "procedure"
                               ? "border-amber-500 bg-amber-50 text-amber-800 ring-1 ring-amber-400"
@@ -731,7 +822,7 @@ export function IpdOrdersTab({
                         }`}
                       >
                         <Icon className="h-3.5 w-3.5 shrink-0" />
-                        <span>{cat.label}</span>
+                        <span className="truncate">{cat.label}</span>
                       </button>
                     );
                   })}
@@ -893,32 +984,6 @@ export function IpdOrdersTab({
                     </div>
                   </div>
 
-                  {/* Common Presets */}
-                  <div>
-                    <p className="text-[11px] font-semibold text-slate-600 mb-1">Common Procedures & Surgeries:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {PROCEDURE_PRESETS.map((preset) => {
-                        const isSelected =
-                          selectedSurgery?.name.toLowerCase().includes(preset.toLowerCase().slice(0, 10)) ||
-                          orderTitle.toLowerCase() === preset.toLowerCase();
-                        return (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => handleSelectProcedurePreset(preset)}
-                            className={`rounded-lg px-2 py-1 text-[11px] font-medium transition cursor-pointer border ${
-                              isSelected
-                                ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
-                                : "bg-white border-amber-200 text-amber-900 hover:bg-amber-100"
-                            }`}
-                          >
-                            {preset.split("(")[0].trim()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   {/* Checkbox: Add to Planned Surgeries Schedule */}
                   {patientId && (
                     <label className="flex items-center gap-2 cursor-pointer pt-1">
@@ -948,46 +1013,36 @@ export function IpdOrdersTab({
                       onFocus={() => setIsLabSearchFocused(true)}
                       onChange={(e) => {
                         setLabSearchQuery(e.target.value);
-                        setOrderTitle(e.target.value);
-                        setSelectedLabTest(null);
                         setIsLabSearchFocused(true);
                       }}
                       className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-8 py-2 text-xs focus:border-sky-500 focus:outline-none"
-                      required
                     />
                     {labSearchQuery && (
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedLabTest(null);
-                          setOrderTitle("");
                           setLabSearchQuery("");
                           setIsLabSearchFocused(false);
                         }}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
-                        title="Clear selection"
+                        title="Clear search"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
 
-                    {isLabSearchFocused && !selectedLabTest && (
+                    {isLabSearchFocused && labSearchQuery.trim().length > 0 && (
                       <div className="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-100">
                         {filteredLabCatalog.length === 0 ? (
                           <div className="p-3 text-center text-slate-500 text-xs">
-                            {labSearchQuery.trim()
-                              ? `No matching lab tests found in catalog.`
-                              : "No lab tests found in database catalog."}
+                            No matching lab tests found in catalog.
                           </div>
                         ) : (
                           filteredLabCatalog.map((t) => (
                             <button
                               key={t.id}
                               type="button"
-                              onClick={() => {
-                                handleSelectLabTest(t);
-                                setIsLabSearchFocused(false);
-                              }}
+                              onClick={() => handleAddLabTest(t)}
                               className="flex w-full items-center justify-between p-2.5 hover:bg-sky-50 transition cursor-pointer text-left text-xs"
                             >
                               <div>
@@ -1004,31 +1059,35 @@ export function IpdOrdersTab({
                     )}
                   </div>
 
-                  {selectedLabTest && (
-                    <div className="flex items-center justify-between rounded-xl bg-sky-50 border border-sky-200 p-2.5">
-                      <div>
-                        <span className="text-[9px] font-bold text-sky-700 uppercase tracking-wide">Selected Catalog Test</span>
-                        <p className="font-bold text-slate-900 text-xs">{selectedLabTest.test_name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">
-                          Code: {selectedLabTest.test_code} • {selectedLabTest.category || "General"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-sky-700">{currency(selectedLabTest.price || 0)}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedLabTest(null);
-                            setOrderTitle("");
-                            setLabSearchQuery("");
-                            setIsLabSearchFocused(false);
-                          }}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
-                          title="Remove / Unselect test"
+                  {selectedLabTests.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {selectedLabTests.map((test, index) => (
+                        <div
+                          key={test.id || index}
+                          className="flex items-center justify-between rounded-xl bg-sky-50 border border-sky-200 p-2.5"
                         >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                          <div>
+                            <span className="text-[9px] font-bold text-sky-700 uppercase tracking-wide">
+                              {selectedLabTests.length > 1 ? `Selected Lab Test #${index + 1}` : "Selected Catalog Lab Test"}
+                            </span>
+                            <p className="font-bold text-slate-900 text-xs">{test.test_name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              Code: {test.test_code} • {test.category || "General"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-sky-700">{currency(test.price || 0)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLabTest(test.id)}
+                              className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                              title="Remove / Unselect test"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1046,43 +1105,36 @@ export function IpdOrdersTab({
                       onFocus={() => setIsRadiologySearchFocused(true)}
                       onChange={(e) => {
                         setRadiologySearchQuery(e.target.value);
-                        setOrderTitle(e.target.value);
-                        setSelectedRadiologyTest(null);
                         setIsRadiologySearchFocused(true);
                       }}
                       className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-8 py-2 text-xs focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/20"
-                      required
                     />
                     {radiologySearchQuery && (
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedRadiologyTest(null);
-                          setOrderTitle("");
                           setRadiologySearchQuery("");
                           setIsRadiologySearchFocused(false);
                         }}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
-                        title="Clear selection"
+                        title="Clear search"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
 
-                    {isRadiologySearchFocused && !selectedRadiologyTest && (
+                    {isRadiologySearchFocused && radiologySearchQuery.trim().length > 0 && (
                       <div className="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-100">
                         {filteredRadiologyCatalog.length === 0 ? (
                           <div className="p-3 text-center text-slate-500 text-xs">
-                            {radiologySearchQuery.trim()
-                              ? "No matching radiology tests found in catalog."
-                              : "No radiology tests found in database catalog."}
+                            No matching radiology tests found in catalog.
                           </div>
                         ) : (
                           filteredRadiologyCatalog.map((t) => (
                             <button
                               key={t.id}
                               type="button"
-                              onClick={() => handleSelectRadiologyTest(t)}
+                              onClick={() => handleAddRadiologyTest(t)}
                               className="flex w-full items-center justify-between p-2.5 hover:bg-purple-50 transition cursor-pointer text-left text-xs"
                             >
                               <div>
@@ -1099,62 +1151,37 @@ export function IpdOrdersTab({
                     )}
                   </div>
 
-                  {selectedRadiologyTest && (
-                    <div className="flex items-center justify-between rounded-xl bg-purple-50 border border-purple-200 p-2.5">
-                      <div>
-                        <span className="text-[9px] font-bold text-purple-700 uppercase tracking-wide">Selected Radiology Investigation</span>
-                        <p className="font-bold text-slate-900 text-xs">{selectedRadiologyTest.test_name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">
-                          Code: {selectedRadiologyTest.test_code} • {selectedRadiologyTest.category || "Radiology"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-purple-700">{currency(selectedRadiologyTest.price || 0)}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedRadiologyTest(null);
-                            setOrderTitle("");
-                            setRadiologySearchQuery("");
-                            setIsRadiologySearchFocused(false);
-                          }}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
-                          title="Remove / Unselect test"
+                  {selectedRadiologyTests.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {selectedRadiologyTests.map((test, index) => (
+                        <div
+                          key={test.id || index}
+                          className="flex items-center justify-between rounded-xl bg-purple-50 border border-purple-200 p-2.5"
                         >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                          <div>
+                            <span className="text-[9px] font-bold text-purple-700 uppercase tracking-wide">
+                              {selectedRadiologyTests.length > 1 ? `Selected Radiology #${index + 1}` : "Selected Radiology Investigation"}
+                            </span>
+                            <p className="font-bold text-slate-900 text-xs">{test.test_name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              Code: {test.test_code} • {test.category || "Radiology"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-purple-700">{currency(test.price || 0)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRadiologyTest(test.id)}
+                              className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                              title="Remove / Unselect test"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-
-                  {/* Common Presets */}
-                  <div>
-                    <p className="text-[11px] font-semibold text-slate-500 mb-1">Quick Radiology Presets:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {RADIOLOGY_PRESETS.map((preset) => {
-                        const matched = availableRadiologyTests.find((t) =>
-                          t.test_name.toLowerCase().includes(preset.toLowerCase().slice(0, 10))
-                        );
-                        return (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => {
-                              if (matched) {
-                                handleSelectRadiologyTest(matched);
-                              } else {
-                                setOrderTitle(preset);
-                                setRadiologySearchQuery(preset);
-                              }
-                            }}
-                            className="rounded-lg bg-purple-50 border border-purple-200 px-2 py-1 text-[11px] font-medium text-purple-900 hover:bg-purple-100 transition cursor-pointer"
-                          >
-                            {preset.split("(")[0].trim()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div>
@@ -1278,6 +1305,10 @@ export function IpdOrdersTab({
                     ? "Placing Order..."
                     : orderCategory === "procedure"
                     ? "Plan Surgery / Place Order"
+                    : orderCategory === "lab" && selectedLabTests.length > 1
+                    ? `Place ${selectedLabTests.length} Lab Orders`
+                    : orderCategory === "radiology" && selectedRadiologyTests.length > 1
+                    ? `Place ${selectedRadiologyTests.length} Radiology Orders`
                     : "Place Order"}
                 </button>
               </div>

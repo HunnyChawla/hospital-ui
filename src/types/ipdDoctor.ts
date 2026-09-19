@@ -256,6 +256,7 @@ export interface SaveDischargeSummaryRequest {
   emergency_warning_signs?: string | null;
   followup_date?: string | null;
   followup_instructions?: string | null;
+  is_finalized?: boolean;
 }
 
 export interface IpdDischargeSummaryResponse {

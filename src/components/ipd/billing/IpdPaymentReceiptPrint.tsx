@@ -11,6 +11,7 @@ interface IpdPaymentReceiptPrintProps {
   admissionNumber?: string | null;
   bedNumber?: string | null;
   wardName?: string | null;
+  invoiceNumber?: string | null;
   hospitalName?: string;
   hospitalAddress?: string;
   hospitalPhone?: string;
@@ -25,6 +26,7 @@ export const IpdPaymentReceiptPrint = forwardRef<HTMLDivElement, IpdPaymentRecei
       admissionNumber = "-",
       bedNumber = "-",
       wardName = "-",
+      invoiceNumber = null,
       hospitalName = "Cura Hospital",
       hospitalAddress = "Healthcare Avenue, Medical City",
       hospitalPhone = "+91 98765 43210",
@@ -44,7 +46,11 @@ export const IpdPaymentReceiptPrint = forwardRef<HTMLDivElement, IpdPaymentRecei
           <p className="text-xs text-slate-600 mt-1">{hospitalAddress}</p>
           <p className="text-xs text-slate-600">Contact: {hospitalPhone}</p>
           <div className="mt-3 inline-block px-4 py-1 rounded bg-slate-900 text-white font-bold text-xs uppercase tracking-widest">
-            {isRefund ? "IPD Refund Voucher" : "IPD Advance / Payment Receipt"}
+            {isRefund
+              ? "IPD Refund Voucher"
+              : invoiceNumber
+              ? "IPD Bill Payment Receipt"
+              : "IPD Advance / Payment Receipt"}
           </div>
         </div>
 
@@ -59,6 +65,12 @@ export const IpdPaymentReceiptPrint = forwardRef<HTMLDivElement, IpdPaymentRecei
           <div className="text-right">
             <p className="text-slate-500 font-medium">IPD Admission No:</p>
             <p className="font-bold text-slate-900 text-sm">{admissionNumber}</p>
+            {invoiceNumber && (
+              <>
+                <p className="text-slate-500 font-medium mt-1">Invoice Reference:</p>
+                <p className="font-bold text-sky-800">{invoiceNumber}</p>
+              </>
+            )}
             <p className="text-slate-500 font-medium mt-2">Bed / Ward:</p>
             <p className="font-semibold text-slate-900">
               {wardName} - Bed {bedNumber}
@@ -94,7 +106,11 @@ export const IpdPaymentReceiptPrint = forwardRef<HTMLDivElement, IpdPaymentRecei
             <tbody className="divide-y divide-slate-100">
               <tr>
                 <td className="py-3 font-medium text-slate-900">
-                  {isRefund ? "Refund of Advance Deposit" : "Inpatient Advance Payment / Deposit"}
+                  {isRefund
+                    ? "Refund of Advance Deposit"
+                    : invoiceNumber
+                    ? "Inpatient Final Bill Payment"
+                    : "Inpatient Advance Payment / Deposit"}
                   {payment.notes && <div className="text-[11px] text-slate-500 mt-0.5">{payment.notes}</div>}
                 </td>
                 <td className="py-3 text-center uppercase font-semibold text-slate-700">

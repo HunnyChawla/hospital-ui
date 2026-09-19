@@ -271,6 +271,23 @@ export const ipdDoctorApi = {
   },
 
   /**
+   * Unlock a finalized discharge summary (Admin only, before patient is discharged).
+   */
+  async unlockDischargeSummary(
+    admissionId: string,
+    tenantId?: string
+  ): Promise<IpdDischargeSummaryResponse> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<IpdDischargeSummaryResponse>(
+      `/ipd/workspace/admissions/${admissionId}/discharge-summary/unlock`,
+      {},
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
    * Fetch high-fidelity server-rendered PDF blob for IPD discharge summary.
    */
   async getDischargeSummaryPdf(

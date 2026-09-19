@@ -22,7 +22,9 @@ export interface LabBooking {
   tenant_id: string;
   patient_id: string;
   visit_id?: string | null;
+  admission_id?: string | null;
   prescription_id?: string | null;
+  ipd_order_id?: string | null;
   sample_id?: string | null;
   booking_number: string;
   scheduled_date: string; // YYYY-MM-DD
@@ -41,10 +43,13 @@ export interface LabBooking {
 export interface CreateLabBookingRequest {
   patient_id: string;
   visit_id?: string;
+  admission_id?: string;
   prescription_id?: string;
+  ipd_order_id?: string;
   scheduled_date: string; // YYYY-MM-DD
   scheduled_time?: string; // HH:MM
   priority?: TestPriority;
+  collect_payment?: boolean;
   tests: Array<{
     lab_test_id: string;
     price?: number;
@@ -93,8 +98,10 @@ export interface BookAdvisedTestsRequest {
   patient_id: string;
   visit_id?: string;
   admission_id?: string;
+  ipd_order_id?: string;
   scheduled_date: string; // YYYY-MM-DD
   priority?: TestPriority;
+  collect_payment?: boolean;
   lab_test_ids: string[];
   test_items?: Array<{
     lab_test_id: string;

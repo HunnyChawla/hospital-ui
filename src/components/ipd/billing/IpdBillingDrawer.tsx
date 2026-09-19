@@ -5,19 +5,21 @@ import { Modal } from "@/components/common/Modal";
 import {
   serviceChargesApi,
   IpdBillingAccountResponse,
-  ServiceCharge,
-  ChargeType,
 } from "@/services/serviceChargesApi";
+import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/utils/format";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { getTenantIdForApi } from "@/utils/auth";
 import { AddChargeModal } from "./AddChargeModal";
 import { ReceiveAdvanceModal } from "./ReceiveAdvanceModal";
 import { IpdRefundModal } from "./IpdRefundModal";
 import { IpdDischargeSettlementModal } from "./IpdDischargeSettlementModal";
 import { IpdItemizedBillPrint } from "./IpdItemizedBillPrint";
 import { IpdPaymentReceiptPrint } from "./IpdPaymentReceiptPrint";
+import { InvoicePrint } from "@/components/invoices/InvoicePrint";
+import { InvoicePaymentReceiptPrint } from "@/components/payments/InvoicePaymentReceiptPrint";
 import {
   Plus,
   Receipt,
@@ -28,14 +30,12 @@ import {
   FileText,
   Layers,
   Search,
-  Filter,
   Trash2,
   Loader2,
-  AlertCircle,
   ShieldCheck,
   User,
-  Activity,
   Lock,
+  ExternalLink,
 } from "lucide-react";
 
 interface IpdBillingDrawerProps {
@@ -64,10 +64,17 @@ export function IpdBillingDrawer({
   const [showDischargeSettlement, setShowDischargeSettlement] = useState(false);
   const [cancellingChargeId, setCancellingChargeId] = useState<string | null>(null);
 
-  // Print references
+  // Print references & state
   const itemizedBillRef = useRef<HTMLDivElement>(null);
   const receiptPrintRef = useRef<HTMLDivElement>(null);
+  const invoicePrintRef = useRef<HTMLDivElement>(null);
+  const consolidatedReceiptPrintRef = useRef<HTMLDivElement>(null);
+
   const [printPayment, setPrintPayment] = useState<any | null>(null);
+  const [invoiceData, setInvoiceData] = useState<Invoice | null>(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+  const [shouldPrintInvoice, setShouldPrintInvoice] = useState(false);
+  const [shouldPrintConsolidatedReceipt, setShouldPrintConsolidatedReceipt] = useState(false);
 
   const handlePrintItemizedBill = useReactToPrint({
     contentRef: itemizedBillRef,
@@ -82,6 +89,67 @@ export function IpdBillingDrawer({
       ? `Receipt_${printPayment.payment_number}`
       : "Payment_Receipt",
   });
+
+  const handlePrintInvoiceAction = useReactToPrint({
+    contentRef: invoicePrintRef,
+    documentTitle: account
+      ? `Tax_Invoice_${account.invoice_number || account.admission_number}`
+      : "Tax_Invoice",
+  });
+
+  const handlePrintConsolidatedReceiptAction = useReactToPrint({
+    contentRef: consolidatedReceiptPrintRef,
+    documentTitle: account
+      ? `Payment_Receipt_${account.invoice_number || account.admission_number}`
+      : "Payment_Receipt",
+  });
+
+  useEffect(() => {
+    if (shouldPrintInvoice && invoicePrintRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintInvoiceAction();
+        setShouldPrintInvoice(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintInvoice, handlePrintInvoiceAction]);
+
+  useEffect(() => {
+    if (shouldPrintConsolidatedReceipt && consolidatedReceiptPrintRef.current) {
+      const timeoutId = setTimeout(() => {
+        handlePrintConsolidatedReceiptAction();
+        setShouldPrintConsolidatedReceipt(false);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [shouldPrintConsolidatedReceipt, handlePrintConsolidatedReceiptAction]);
+
+  const handleDownloadOrPrintInvoice = async () => {
+    if (!account?.invoice_id) {
+      toast.error("Tax invoice has not been generated yet. Please initiate pre-discharge review to generate invoice.");
+      return;
+    }
+    setLoadingInvoice(true);
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+      const inv = await invoicesApi.getById(account.invoice_id, getTenantIdForApi(tenantId || undefined));
+      setInvoiceData(inv);
+      setShouldPrintInvoice(true);
+    } catch (error) {
+      const err = getErrorMessage(error);
+      toast.error(err || "Failed to load tax invoice for printing/downloading");
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
+
+  const handleDownloadOrPrintConsolidatedReceipt = () => {
+    if (!account?.invoice_id) {
+      toast.error("Consolidated invoice receipt is available once final invoice is generated.");
+      return;
+    }
+    setShouldPrintConsolidatedReceipt(true);
+  };
 
   const fetchAccount = useCallback(async () => {
     if (!admissionId) return;
@@ -272,30 +340,81 @@ export function IpdBillingDrawer({
                 </div>
               )}
 
-              {/* Locked Account Warning Banner */}
+              {/* Final Invoice & Settlement Banner */}
               {isAccountLocked && (
-                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 text-amber-900 shadow-2xs">
-                  <div className="flex items-center gap-2.5">
-                    <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+                <div className="p-3.5 bg-gradient-to-r from-amber-50 to-sky-50 border border-amber-300/80 rounded-xl flex flex-wrap items-center justify-between gap-3 text-slate-800 shadow-2xs">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-2 bg-amber-500/10 border border-amber-400/30 rounded-lg text-amber-700 mt-0.5">
+                      <Lock className="h-4 w-4" />
+                    </div>
                     <div>
-                      <p className="font-bold text-xs">
-                        Billing Account is {summary?.billing_account_status === "SETTLED" ? "SETTLED" : "FROZEN FOR DISCHARGE"}
-                      </p>
-                      <p className="text-[11px] text-amber-700">
-                        {account.invoice_number
-                          ? `Final Tax Invoice #${account.invoice_number} has been generated. The charge ledger is locked against modifications.`
-                          : "Discharge billing has been initiated and the charge ledger is locked."}
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-xs text-slate-900">
+                          {account.invoice_number
+                            ? `Final Tax Invoice #${account.invoice_number}`
+                            : `Discharge Billing Initiated (${summary?.billing_account_status})`}
+                        </p>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                            summary?.outstanding_balance === 0
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : (summary?.total_paid || 0) > 0
+                              ? "bg-amber-100 text-amber-800 border border-amber-300"
+                              : "bg-rose-100 text-rose-800 border border-rose-300"
+                          }`}
+                        >
+                          {summary?.outstanding_balance === 0
+                            ? "Fully Settled (Paid)"
+                            : (summary?.total_paid || 0) > 0
+                            ? "Partially Paid"
+                            : "Payment Pending"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        Net Bill: <span className="font-bold text-slate-900 font-mono">{formatCurrency(Number(summary?.net_charges || 0))}</span> • Paid: <span className="font-bold text-emerald-700 font-mono">{formatCurrency(Number(summary?.total_paid || 0))}</span> • Balance: <span className={`font-bold font-mono ${Number(summary?.outstanding_balance || 0) > 0 ? "text-rose-600" : "text-emerald-700"}`}>{formatCurrency(Number(summary?.outstanding_balance || 0))}</span>
                       </p>
                     </div>
                   </div>
-                  {account.invoice_id && (
-                    <a
-                      href={`/billing`}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-sm shrink-0"
-                    >
-                      <Receipt className="h-3.5 w-3.5" /> View Invoice in Billing
-                    </a>
-                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {account.invoice_id && (
+                      <button
+                        type="button"
+                        onClick={handleDownloadOrPrintInvoice}
+                        disabled={loadingInvoice}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        {loadingInvoice ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
+                        Download / Print Invoice
+                      </button>
+                    )}
+
+                    {summary && summary.outstanding_balance > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowReceiveAdvance(true)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <CreditCard className="h-3.5 w-3.5" /> Collect Payment ({formatCurrency(Number(summary.outstanding_balance))})
+                      </button>
+                    )}
+
+                    {account.invoice_id && (
+                      <a
+                        href="/billing"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs flex items-center gap-1 shadow-2xs transition-colors"
+                        title="Open in Billing Management"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 text-slate-500" /> Billing Module
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -339,9 +458,47 @@ export function IpdBillingDrawer({
                       )}
                     </>
                   ) : (
-                    <span className="flex items-center gap-1 text-slate-500 font-semibold text-xs px-2 py-1">
-                      <Lock className="h-3.5 w-3.5 text-amber-600" /> Ledger Locked
-                    </span>
+                    <>
+                      {summary && summary.outstanding_balance > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowReceiveAdvance(true)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                        >
+                          <CreditCard className="h-3.5 w-3.5" /> Collect Payment
+                        </button>
+                      )}
+
+                      {summary?.is_refund_due && (
+                        <button
+                          type="button"
+                          onClick={() => setShowRefund(true)}
+                          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" /> Issue Refund ({formatCurrency(Number(summary.refund_due_amount))})
+                        </button>
+                      )}
+
+                      {account.invoice_id && (
+                        <button
+                          type="button"
+                          onClick={handleDownloadOrPrintInvoice}
+                          disabled={loadingInvoice}
+                          className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                        >
+                          {loadingInvoice ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5" />
+                          )}
+                          Print / Download Invoice
+                        </button>
+                      )}
+
+                      <span className="flex items-center gap-1 text-slate-500 font-semibold text-xs px-2 py-1">
+                        <Lock className="h-3.5 w-3.5 text-amber-600" /> Charges Locked
+                      </span>
+                    </>
                   )}
                 </div>
 
@@ -353,6 +510,16 @@ export function IpdBillingDrawer({
                   >
                     <Printer className="h-3.5 w-3.5 text-slate-600" /> Print Detailed Bill
                   </button>
+
+                  {account.invoice_id && payments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadOrPrintConsolidatedReceipt}
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-semibold rounded-lg flex items-center gap-1 shadow-sm cursor-pointer"
+                    >
+                      <Receipt className="h-3.5 w-3.5 text-emerald-700" /> All Receipts
+                    </button>
+                  )}
 
                   {!isAccountLocked && account.admission_status !== "DISCHARGED" && account.admission_status !== "discharged" && (
                     <button
@@ -577,6 +744,38 @@ export function IpdBillingDrawer({
               {/* TAB 3: Advances & Receipts */}
               {activeTab === "payments" && (
                 <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-emerald-600" />
+                      <div>
+                        <span className="font-bold text-slate-900 text-xs">
+                          {account.invoice_id ? "Bill Payments & Advance Deposits" : "Advance Deposits & Payments"}
+                        </span>
+                        <span className="text-slate-500 text-[11px] ml-2">
+                          ({payments.length} receipt{payments.length === 1 ? "" : "s"} • Total Paid: <span className="font-mono font-bold text-emerald-700">{formatCurrency(Number(summary?.total_paid || 0))}</span>)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowReceiveAdvance(true)}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" /> {account.invoice_id ? "Collect Payment" : "Receive Advance"}
+                      </button>
+                      {account.invoice_id && payments.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleDownloadOrPrintConsolidatedReceipt}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded-lg text-[11px] flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Printer className="h-3 w-3 text-slate-500" /> Consolidated Receipt
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                     <table className="w-full text-left">
                       <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
@@ -586,7 +785,7 @@ export function IpdBillingDrawer({
                           <th className="px-3 py-2 text-center">Mode</th>
                           <th className="px-3 py-2">Reference / Notes</th>
                           <th className="px-3 py-2 text-right">Amount</th>
-                          <th className="px-3 py-2 text-center w-20">Print</th>
+                          <th className="px-3 py-2 text-center w-24">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -620,9 +819,9 @@ export function IpdBillingDrawer({
                                     setPrintPayment(pmt);
                                     setTimeout(() => handlePrintReceipt(), 100);
                                   }}
-                                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold flex items-center gap-1 mx-auto"
+                                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold flex items-center gap-1 mx-auto cursor-pointer"
                                 >
-                                  <Printer className="h-3 w-3" /> Slip
+                                  <Printer className="h-3 w-3" /> Receipt
                                 </button>
                               </td>
                             </tr>
@@ -630,13 +829,69 @@ export function IpdBillingDrawer({
                         ) : (
                           <tr>
                             <td colSpan={6} className="py-8 text-center text-slate-400">
-                              No advance payments recorded yet. Click &ldquo;Receive Advance&rdquo; to collect deposits.
+                              No payments recorded yet. Click &ldquo;Receive Advance&rdquo; or &ldquo;Collect Payment&rdquo; to record payment.
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Refunds list if any */}
+                  {refunds.length > 0 && (
+                    <div className="space-y-1.5 pt-2">
+                      <p className="font-bold text-[11px] text-amber-800 uppercase tracking-wider">
+                        Processed Refunds & Adjustments ({refunds.length})
+                      </p>
+                      <div className="border border-amber-200 rounded-lg overflow-hidden bg-amber-50/40 shadow-2xs">
+                        <table className="w-full text-left">
+                          <thead className="bg-amber-100/60 border-b border-amber-200 text-amber-900 font-semibold text-[11px]">
+                            <tr>
+                              <th className="px-3 py-1.5">Voucher #</th>
+                              <th className="px-3 py-1.5">Date</th>
+                              <th className="px-3 py-1.5 text-center">Mode</th>
+                              <th className="px-3 py-1.5">Remarks / Reason</th>
+                              <th className="px-3 py-1.5 text-right">Refund Amount</th>
+                              <th className="px-3 py-1.5 text-center w-24">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100 text-[11px]">
+                            {refunds.map((refItem) => (
+                              <tr key={refItem.id} className="hover:bg-amber-100/30">
+                                <td className="px-3 py-1.5 font-mono font-bold text-amber-950">
+                                  {refItem.payment_number}
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-600 font-mono text-[10px]">
+                                  {formatDateTime(refItem.payment_date)}
+                                </td>
+                                <td className="px-3 py-1.5 text-center uppercase font-bold text-[10px] text-slate-700">
+                                  {refItem.payment_method}
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-600">
+                                  {refItem.notes || "Refund adjustment"}
+                                </td>
+                                <td className="px-3 py-1.5 text-right font-bold text-rose-600 font-mono">
+                                  - {formatCurrency(Number(refItem.amount))}
+                                </td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPrintPayment(refItem);
+                                      setTimeout(() => handlePrintReceipt(), 100);
+                                    }}
+                                    className="px-2 py-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded text-[10px] font-bold flex items-center gap-1 mx-auto cursor-pointer"
+                                  >
+                                    <Printer className="h-3 w-3 text-amber-700" /> Voucher
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -722,6 +977,11 @@ export function IpdBillingDrawer({
           bedNumber={account.bed_number}
           wardName={account.ward_name}
           outstandingBalance={Number(summary?.outstanding_balance || 0)}
+          totalAmount={Number(summary?.net_charges || 0)}
+          paidAmount={Number(summary?.total_paid || 0)}
+          invoiceId={account.invoice_id}
+          invoiceNumber={account.invoice_number}
+          isFinalBill={!!account.invoice_id}
           onSuccess={() => {
             fetchAccount();
             onAdmissionUpdated?.();
@@ -771,8 +1031,23 @@ export function IpdBillingDrawer({
             admissionNumber={account.admission_number}
             bedNumber={account.bed_number}
             wardName={account.ward_name}
+            invoiceNumber={account.invoice_number}
           />
         )}
+        <div ref={invoicePrintRef} className="print-content">
+          {invoiceData && account && (
+            <InvoicePrint
+              invoice={invoiceData}
+              patientName={account.patient_name || "Unknown"}
+              patientMobile={account.patient_mobile || undefined}
+            />
+          )}
+        </div>
+        <div ref={consolidatedReceiptPrintRef} className="print-content">
+          {account?.invoice_id && (
+            <InvoicePaymentReceiptPrint invoiceId={account.invoice_id} />
+          )}
+        </div>
       </div>
     </>
   );

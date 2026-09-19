@@ -9,6 +9,15 @@ export function isPlatformOwner(): boolean {
 }
 
 /**
+ * Check if the current user is an Admin or PlatformOwner
+ */
+export function isAdmin(): boolean {
+  if (typeof window === "undefined") return false;
+  const role = (localStorage.getItem("role") || localStorage.getItem("user_role") || "").toLowerCase();
+  return role === "admin" || role === "platform_owner";
+}
+
+/**
  * Get tenant_id for API calls
  * Only PlatformOwner can specify tenant_id, others should use undefined
  * @param tenantId - Optional tenant ID to use (only if user is PlatformOwner)

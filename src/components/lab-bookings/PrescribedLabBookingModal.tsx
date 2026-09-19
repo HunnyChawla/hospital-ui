@@ -6,7 +6,8 @@ import { PrescribedLabBookingPanel } from "./PrescribedLabBookingPanel";
 interface PrescribedLabBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  visitId: string;
+  visitId?: string;
+  admissionId?: string;
   patientId: string;
   patientName?: string;
   onBookingCreated?: () => void;
@@ -16,6 +17,7 @@ export function PrescribedLabBookingModal({
   isOpen,
   onClose,
   visitId,
+  admissionId,
   patientId,
   patientName,
   onBookingCreated,
@@ -30,6 +32,7 @@ export function PrescribedLabBookingModal({
       <div className="py-2">
         <PrescribedLabBookingPanel
           visitId={visitId}
+          admissionId={admissionId}
           patientId={patientId}
           patientName={patientName}
           onSuccess={() => {

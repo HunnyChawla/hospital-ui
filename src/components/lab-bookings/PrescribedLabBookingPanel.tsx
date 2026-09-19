@@ -6,12 +6,13 @@ import { labTestsApi, PrescriptionField } from "@/services/labTestsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList, Eye, AlertTriangle, Edit2 } from "lucide-react";
+import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList, Eye, AlertTriangle, Edit2, Receipt, Building2 } from "lucide-react";
 import { currency, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 
 export interface PrescribedLabBookingPanelProps {
   visitId?: string;
+  admissionId?: string;
   patientId?: string;
   patientName?: string;
   onSuccess?: () => void;
@@ -19,17 +20,30 @@ export interface PrescribedLabBookingPanelProps {
 
 export function PrescribedLabBookingPanel({
   visitId: propVisitId,
+  admissionId: propAdmissionId,
   patientId: propPatientId,
   patientName: propPatientName,
   onSuccess,
 }: PrescribedLabBookingPanelProps) {
   // Mode selection
-  const isDirectMode = !!propVisitId;
+  const isDirectMode = !!propVisitId || !!propAdmissionId;
 
   // Selected visit/encounter state
   const [selectedVisitId, setSelectedVisitId] = useState<string>(propVisitId || "");
+  const [selectedAdmissionId, setSelectedAdmissionId] = useState<string>(propAdmissionId || "");
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [selectedEncounter, setSelectedEncounter] = useState<PatientWithPendingTests | null>(null);
+
+  // IPD payment option state: "ledger" = Add to IPD Ledger (Post to Bill), "collect_now" = Collect Payment Now (Generate Invoice)
+  const [ipdPaymentOption, setIpdPaymentOption] = useState<"ledger" | "collect_now">("ledger");
+
+  // Determine if active encounter is an IPD encounter
+  const isIpdEncounter = Boolean(
+    propAdmissionId ||
+    selectedAdmissionId ||
+    selectedEncounter?.admission_id ||
+    selectedEncounter?.encounter_type === "ipd"
+  );
 
   // Standalone mode state: Pending patients and date filters
   const [pendingPatients, setPendingPatients] = useState<PatientWithPendingTests[]>([]);
@@ -121,22 +135,30 @@ export function PrescribedLabBookingPanel({
         if (!stillPending) {
           setSelectedEncounter(null);
           setSelectedVisitId("");
+          setSelectedAdmissionId("");
         }
-      } else if (selectedVisitId) {
-        const stillPending = items.some((item) => item.visit_id === selectedVisitId);
+      } else if (selectedVisitId || selectedAdmissionId) {
+        const stillPending = items.some(
+          (item) =>
+            (selectedAdmissionId && item.admission_id === selectedAdmissionId) ||
+            (selectedVisitId && item.visit_id === selectedVisitId)
+        );
         if (!stillPending) {
           setSelectedVisitId("");
+          setSelectedAdmissionId("");
         }
       } else if (items.length > 0) {
         // Auto-select the first pending encounter so the user immediately sees the prescribed tests
         const first = items.find((p) => p.pending_test_count > 0) || items[0];
         setSelectedEncounter(first);
-        if (first.visit_id) {
-          setSelectedVisitId(first.visit_id);
-        }
         if (first.admission_id) {
+          setSelectedAdmissionId(first.admission_id);
+          setSelectedVisitId("");
           fetchAdvisedTests({ admission_id: first.admission_id });
+          setIpdPaymentOption("ledger");
         } else if (first.visit_id) {
+          setSelectedVisitId(first.visit_id);
+          setSelectedAdmissionId("");
           fetchAdvisedTests({ visit_id: first.visit_id });
         }
       }
@@ -146,7 +168,7 @@ export function PrescribedLabBookingPanel({
     } finally {
       setLoadingPatients(false);
     }
-  }, [dateFilter, customStartDate, customEndDate, selectedEncounter, selectedVisitId]);
+  }, [dateFilter, customStartDate, customEndDate, selectedEncounter, selectedVisitId, selectedAdmissionId]);
 
   useEffect(() => {
     if (isDirectMode) return;
@@ -227,10 +249,14 @@ export function PrescribedLabBookingPanel({
   };
 
   useEffect(() => {
-    if (isDirectMode && propVisitId) {
-      fetchAdvisedTests(propVisitId);
+    if (isDirectMode) {
+      if (propAdmissionId) {
+        fetchAdvisedTests({ admission_id: propAdmissionId });
+      } else if (propVisitId) {
+        fetchAdvisedTests({ visit_id: propVisitId });
+      }
     }
-  }, [isDirectMode, propVisitId]);
+  }, [isDirectMode, propVisitId, propAdmissionId]);
 
   // Load active prescription fields for each advised test
   useEffect(() => {
@@ -445,7 +471,7 @@ export function PrescribedLabBookingPanel({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isDirectMode && !selectedEncounter && !selectedVisitId) {
+    if (!isDirectMode && !selectedEncounter && !selectedVisitId && !selectedAdmissionId) {
       toast.error("No active encounter selected");
       return;
     }
@@ -455,8 +481,12 @@ export function PrescribedLabBookingPanel({
       return;
     }
 
-    // Payment validation
+    const isIpd = isIpdEncounter;
+    const shouldCollectPayment = isIpd ? ipdPaymentOption === "collect_now" : true;
+
+    // Payment validation only if collecting payment now
     if (
+      shouldCollectPayment &&
       (paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") &&
       !paymentReference.trim()
     ) {
@@ -487,10 +517,11 @@ export function PrescribedLabBookingPanel({
 
       const bookingReq: BookAdvisedTestsRequest = {
         patient_id: pId,
-        visit_id: isDirectMode ? propVisitId : (selectedEncounter?.visit_id || (selectedVisitId || undefined)),
-        admission_id: selectedEncounter?.admission_id || undefined,
+        visit_id: isDirectMode ? (propVisitId || undefined) : (selectedEncounter?.visit_id || (selectedVisitId || undefined)),
+        admission_id: isDirectMode ? (propAdmissionId || undefined) : (selectedEncounter?.admission_id || (selectedAdmissionId || undefined)),
         scheduled_date: scheduledDate,
         priority,
+        collect_payment: shouldCollectPayment,
         lab_test_ids: selectedTestIds,
         test_items: selectedTestIds.map((id) => {
           const defaultPrice = advisedTests.find((t) => t.lab_test_id === id)?.price;
@@ -500,13 +531,17 @@ export function PrescribedLabBookingPanel({
           };
         }),
         notes: notes.trim() || undefined,
-        payment_method: paymentMethod,
-        payment_reference: paymentReference.trim() || undefined,
+        payment_method: shouldCollectPayment ? paymentMethod : undefined,
+        payment_reference: shouldCollectPayment ? (paymentReference.trim() || undefined) : undefined,
         test_metadata: testMetadata.length > 0 ? testMetadata : undefined,
       };
 
       const result = await labBookingsApi.bookAdvisedTests(bookingReq);
-      toast.success(`Booking ${result.booking_number} created successfully.`);
+      toast.success(
+        shouldCollectPayment
+          ? `Booking ${result.booking_number} created with payment receipt.`
+          : `Booking ${result.booking_number} created & posted to IPD ledger.`
+      );
 
       // Reset local inputs
       setNotes("");
@@ -520,7 +555,7 @@ export function PrescribedLabBookingPanel({
       await Promise.all([
         fetchPendingPatients(),
         isDirectMode
-          ? fetchAdvisedTests(propVisitId!)
+          ? (propAdmissionId ? fetchAdvisedTests({ admission_id: propAdmissionId }) : fetchAdvisedTests(propVisitId!))
           : selectedEncounter?.admission_id
           ? fetchAdvisedTests({ admission_id: selectedEncounter.admission_id })
           : fetchAdvisedTests({ visit_id: selectedEncounter?.visit_id || selectedVisitId }),
@@ -537,17 +572,22 @@ export function PrescribedLabBookingPanel({
 
   // Direct Mode render helper
   if (isDirectMode) {
+    const isIpd = isIpdEncounter;
     return (
       <div className="space-y-4">
         {/* Patient Details */}
         <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 flex justify-between items-center text-sm">
           <div>
             <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Patient</p>
-            <p className="font-semibold text-slate-900 text-base">{propPatientName || "OPD Patient"}</p>
+            <p className="font-semibold text-slate-900 text-base">{propPatientName || (isIpd ? "IPD Patient" : "OPD Patient")}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Visit ID</p>
-            <p className="font-mono text-slate-700 font-semibold">{propVisitId?.substring(0, 8)}...</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">
+              {propAdmissionId ? "Admission ID" : "Visit ID"}
+            </p>
+            <p className="font-mono text-slate-700 font-semibold">
+              {(propAdmissionId || propVisitId)?.substring(0, 8)}...
+            </p>
           </div>
         </div>
 
@@ -560,7 +600,7 @@ export function PrescribedLabBookingPanel({
           <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center bg-slate-50/50">
             <AlertCircle className="mx-auto h-8 w-8 text-slate-400" />
             <h3 className="mt-2 text-sm font-semibold text-slate-900">No Prescribed Tests</h3>
-            <p className="mt-1 text-xs text-slate-500">There are no lab tests prescribed for this visit.</p>
+            <p className="mt-1 text-xs text-slate-500">There are no lab tests prescribed for this encounter.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
@@ -604,8 +644,8 @@ export function PrescribedLabBookingPanel({
                       );
                     })}
                   <div className="border-t border-slate-200 my-1 pt-2 flex justify-between font-bold text-slate-900 text-base">
-                    <span>Total Amount to Collect</span>
-                    <span className="text-sky-600">
+                    <span>{isIpd && ipdPaymentOption === "ledger" ? "Total Charges (IPD Ledger)" : "Total Amount to Collect"}</span>
+                    <span className={isIpd && ipdPaymentOption === "ledger" ? "text-purple-600" : "text-sky-600"}>
                       {currency(
                         advisedTests
                           .filter((t) => selectedTestIds.includes(t.lab_test_id) && !t.already_booked)
@@ -613,6 +653,66 @@ export function PrescribedLabBookingPanel({
                       )}
                     </span>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* IPD Payment Options Selector (Only for IPD encounters) */}
+            {isIpd && (
+              <div className="col-span-2 space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4 text-purple-600" /> IPD Payment & Billing Option
+                  </span>
+                  <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                    Inpatient Encounter
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                      ipdPaymentOption === "ledger"
+                        ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
+                        : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="direct_ipd_payment_mode"
+                      checked={ipdPaymentOption === "ledger"}
+                      onChange={() => setIpdPaymentOption("ledger")}
+                      className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Add to IPD Ledger (Post to Bill)</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Charges will be added to patient's admission bill. No standalone invoice is created now.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                      ipdPaymentOption === "collect_now"
+                        ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
+                        : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="direct_ipd_payment_mode"
+                      checked={ipdPaymentOption === "collect_now"}
+                      onChange={() => setIpdPaymentOption("collect_now")}
+                      className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Collect Payment Now</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Collect payment immediately at lab desk & generate a separate paid invoice receipt.
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
             )}
@@ -646,38 +746,43 @@ export function PrescribedLabBookingPanel({
               </select>
             </div>
 
-            {/* Payment Method */}
-            <div className="col-span-1 space-y-1">
-              <label className="text-xs font-semibold text-slate-600">Payment Method</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
-              >
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="card">Card</option>
-                <option value="cheque">Cheque</option>
-              </select>
-            </div>
+            {/* Payment inputs only if NOT posting to IPD ledger */}
+            {(!isIpd || ipdPaymentOption === "collect_now") && (
+              <>
+                {/* Payment Method */}
+                <div className="col-span-1 space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="card">Card</option>
+                    <option value="cheque">Cheque</option>
+                  </select>
+                </div>
 
-            {/* Payment Reference */}
-            <div className="col-span-1 space-y-1">
-              <label className="text-xs font-semibold text-slate-600">
-                Payment Reference{" "}
-                {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
-                  <span className="text-rose-500">*</span>
-                )}
-              </label>
-              <input
-                type="text"
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                placeholder={paymentMethod === "cash" ? "Optional receipt no." : "Transaction ID / Ref #"}
-                required={paymentMethod !== "cash"}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
-              />
-            </div>
+                {/* Payment Reference */}
+                <div className="col-span-1 space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">
+                    Payment Reference{" "}
+                    {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+                      <span className="text-rose-500">*</span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder={paymentMethod === "cash" ? "Optional receipt no." : "Transaction ID / Ref #"}
+                    required={paymentMethod !== "cash"}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Notes */}
             <div className="col-span-2 space-y-1">
@@ -696,7 +801,11 @@ export function PrescribedLabBookingPanel({
               <button
                 type="submit"
                 disabled={isSubmitting || selectedTestIds.length === 0}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isIpd && ipdPaymentOption === "ledger"
+                    ? "bg-gradient-to-r from-purple-600 to-indigo-600"
+                    : "bg-gradient-to-r from-sky-500 to-teal-500"
+                }`}
               >
                 {isSubmitting ? (
                   <>
@@ -706,7 +815,9 @@ export function PrescribedLabBookingPanel({
                 ) : (
                   <>
                     <Beaker className="h-4 w-4" />
-                    Book Selected Tests ({selectedTestIds.length})
+                    {isIpd && ipdPaymentOption === "ledger"
+                      ? `Book & Post to IPD Ledger (${selectedTestIds.length})`
+                      : `Book Selected Tests (${selectedTestIds.length})`}
                   </>
                 )}
               </button>
@@ -1016,8 +1127,8 @@ export function PrescribedLabBookingPanel({
                           );
                         })}
                       <div className="border-t border-slate-200 my-1 pt-2 flex justify-between font-bold text-slate-900 text-base">
-                        <span>Total Amount to Collect</span>
-                        <span className="text-sky-600">
+                        <span>{isIpdEncounter && ipdPaymentOption === "ledger" ? "Total Charges (IPD Ledger)" : "Total Amount to Collect"}</span>
+                        <span className={isIpdEncounter && ipdPaymentOption === "ledger" ? "text-purple-600" : "text-sky-600"}>
                           {currency(
                             advisedTests
                               .filter((t) => selectedTestIds.includes(t.lab_test_id))
@@ -1028,6 +1139,66 @@ export function PrescribedLabBookingPanel({
                           )}
                         </span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* IPD Payment Options Selector (Only for IPD encounters) */}
+                {isIpdEncounter && (
+                  <div className="col-span-2 space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                        <Receipt className="h-4 w-4 text-purple-600" /> IPD Payment & Billing Option
+                      </span>
+                      <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                        Inpatient Encounter
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <label
+                        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                          ipdPaymentOption === "ledger"
+                            ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
+                            : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="standalone_ipd_payment_mode"
+                          checked={ipdPaymentOption === "ledger"}
+                          onChange={() => setIpdPaymentOption("ledger")}
+                          className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Add to IPD Ledger (Post to Bill)</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Charges will be added to patient's admission bill. No standalone invoice is created now.
+                          </p>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                          ipdPaymentOption === "collect_now"
+                            ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
+                            : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="standalone_ipd_payment_mode"
+                          checked={ipdPaymentOption === "collect_now"}
+                          onChange={() => setIpdPaymentOption("collect_now")}
+                          className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Collect Payment Now</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Collect payment immediately at lab desk & generate a separate paid invoice receipt.
+                          </p>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 )}
@@ -1061,38 +1232,43 @@ export function PrescribedLabBookingPanel({
                   </select>
                 </div>
 
-                {/* Payment Method */}
-                <div className="col-span-1 space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">Payment Method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
-                  >
-                    <option value="cash">Cash</option>
-                    <option value="upi">UPI</option>
-                    <option value="card">Card</option>
-                    <option value="cheque">Cheque</option>
-                  </select>
-                </div>
+                {/* Payment inputs only if NOT posting to IPD ledger */}
+                {(!isIpdEncounter || ipdPaymentOption === "collect_now") && (
+                  <>
+                    {/* Payment Method */}
+                    <div className="col-span-1 space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">Payment Method</label>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="upi">UPI</option>
+                        <option value="card">Card</option>
+                        <option value="cheque">Cheque</option>
+                      </select>
+                    </div>
 
-                {/* Payment Reference */}
-                <div className="col-span-1 space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">
-                    Payment Reference{" "}
-                    {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
-                      <span className="text-rose-500">*</span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    placeholder={paymentMethod === "cash" ? "Optional receipt no." : "Transaction ID / Ref #"}
-                    required={paymentMethod !== "cash"}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
-                  />
-                </div>
+                    {/* Payment Reference */}
+                    <div className="col-span-1 space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">
+                        Payment Reference{" "}
+                        {(paymentMethod === "upi" || paymentMethod === "card" || paymentMethod === "cheque") && (
+                          <span className="text-rose-500">*</span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentReference}
+                        onChange={(e) => setPaymentReference(e.target.value)}
+                        placeholder={paymentMethod === "cash" ? "Optional receipt no." : "Transaction ID / Ref #"}
+                        required={paymentMethod !== "cash"}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/10 transition"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* Notes */}
                 <div className="col-span-2 space-y-1">
@@ -1111,7 +1287,11 @@ export function PrescribedLabBookingPanel({
                   <button
                     type="submit"
                     disabled={isSubmitting || selectedTestIds.length === 0}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isIpdEncounter && ipdPaymentOption === "ledger"
+                        ? "bg-gradient-to-r from-purple-600 to-indigo-600"
+                        : "bg-gradient-to-r from-sky-500 to-teal-500"
+                    }`}
                   >
                     {isSubmitting ? (
                       <>
@@ -1121,7 +1301,9 @@ export function PrescribedLabBookingPanel({
                     ) : (
                       <>
                         <Beaker className="h-4 w-4" />
-                        Book Selected Tests ({selectedTestIds.length})
+                        {isIpdEncounter && ipdPaymentOption === "ledger"
+                          ? `Book & Post to IPD Ledger (${selectedTestIds.length})`
+                          : `Book Selected Tests (${selectedTestIds.length})`}
                       </>
                     )}
                   </button>

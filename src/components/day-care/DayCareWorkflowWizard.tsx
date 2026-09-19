@@ -52,6 +52,7 @@ import {
 import { useReactToPrint } from "react-to-print";
 import { DischargeSummaryPrint } from "./DischargeSummaryPrint";
 import { DischargeSummaryPdfPreviewModal } from "@/components/ipd/DischargeSummaryPdfPreviewModal";
+import { GenericMedicinePrescriber } from "@/components/common/GenericMedicinePrescriber";
 import { ConsentFormPrint } from "./ConsentFormPrint";
 import { mrdApi, MRDDocument, MRDDocumentCategory } from "@/services/mrdApi";
 import { PaymentCollectionModal } from "@/components/payments/PaymentCollectionModal";
@@ -174,13 +175,6 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     spo2: 98
   });
   const [dischargeMeds, setDischargeMeds] = useState<DischargeMedicationItem[]>([]);
-  const [newMed, setNewMed] = useState<DischargeMedicationItem>({
-    name: "",
-    dose: "",
-    frequency: "",
-    duration: "",
-    instructions: ""
-  });
 
   // Print state
   const printRef = React.useRef<HTMLDivElement>(null);
@@ -739,17 +733,6 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   };
   const removeVitalLog = (idx: number) => {
     setRecoveryVitals(recoveryVitals.filter((_, i) => i !== idx));
-  };
-  const addDischargeMed = () => {
-    if (!newMed.name) {
-      toast.error("Medicine name is required");
-      return;
-    }
-    setDischargeMeds([...dischargeMeds, newMed]);
-    setNewMed({ name: "", dose: "", frequency: "", duration: "", instructions: "" });
-  };
-  const removeDischargeMed = (idx: number) => {
-    setDischargeMeds(dischargeMeds.filter((_, i) => i !== idx));
   };
   const addDischargeAdvice = () => {
     if (!newAdvice.trim()) return;
@@ -1683,118 +1666,13 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               )}
             </div>
 
-            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
-              <h3 className="font-bold text-slate-800 text-lg mb-4">Discharge Home Medications</h3>
-              
-              <div className="grid grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-5">
-                <div className="col-span-12 md:col-span-3">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Medicine Name</label>
-                  <Combobox
-                    value={newMed.name}
-                    onChange={(val) => {
-                      const selected = availableMedicines.find(m => m.name === val);
-                      if (selected) {
-                        setNewMed({
-                          ...newMed,
-                          name: val,
-                          dose: selected.default_dosage || newMed.dose,
-                          frequency: selected.default_frequency || newMed.frequency,
-                          duration: selected.default_duration || newMed.duration,
-                          instructions: selected.default_instructions || newMed.instructions,
-                        });
-                      } else {
-                        setNewMed({ ...newMed, name: val });
-                      }
-                    }}
-                    options={Array.from(new Map(availableMedicines.map(m => [m.name, m])).values()).map(m => ({ label: m.name, value: m.name }))}
-                    placeholder="e.g. Tobradex Drops"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-4 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Dose</label>
-                  <Combobox
-                    value={newMed.dose}
-                    onChange={(val) => setNewMed({ ...newMed, dose: val })}
-                    options={DOSAGES.map(d => ({ label: d, value: d }))}
-                    placeholder="1 drop"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-4 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Frequency</label>
-                  <Combobox
-                    value={newMed.frequency}
-                    onChange={(val) => setNewMed({ ...newMed, frequency: val })}
-                    options={FREQUENCIES.map(f => ({ label: f, value: f }))}
-                    placeholder="QID (4x)"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-4 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Duration</label>
-                  <Combobox
-                    value={newMed.duration}
-                    onChange={(val) => setNewMed({ ...newMed, duration: val })}
-                    options={DURATIONS.map(d => ({ label: d, value: d }))}
-                    placeholder="7 days"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-8 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Instructions</label>
-                  <Combobox
-                    value={newMed.instructions || ""}
-                    onChange={(val) => setNewMed({ ...newMed, instructions: val })}
-                    options={MEDICINE_INSTRUCTIONS.map(i => ({ label: i, value: i }))}
-                    placeholder="e.g. After food"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-12 sm:col-span-4 md:col-span-1">
-                  <button type="button" onClick={addDischargeMed} className="w-full px-5 py-2.5 h-[42px] bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold shadow transition-all flex items-center justify-center">
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {dischargeMeds.length === 0 ? (
-                <div className="text-center py-6 bg-white border border-slate-200 border-dashed rounded-xl">
-                  <p className="text-sm text-slate-400">No home medications prescribed.</p>
-                </div>
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto scrollbar-hide shadow-sm">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase text-left">
-                      <tr>
-                        <th className="px-5 py-3 font-bold tracking-wider">Medicine</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Dose</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Frequency</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Duration</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Instructions</th>
-                        <th className="px-5 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {dischargeMeds.map((m, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                          <td className="px-5 py-3 font-bold text-slate-800">{m.name}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.dose}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.frequency}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.duration}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.instructions}</td>
-                          <td className="px-5 py-3 text-right">
-                            <button type="button" onClick={() => removeDischargeMed(i)} className="text-slate-400 hover:text-rose-500 transition-colors">
-                              <Trash2 className="h-4 w-4 inline" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <GenericMedicinePrescriber
+              items={dischargeMeds}
+              onChange={setDischargeMeds}
+              title="Discharge Home Medications"
+              subtitle=""
+              placeholder="Type medicine name to search catalog or add custom medicine..."
+            />
 
             <div className="flex flex-col-reverse md:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
               {visit?.status === "discharged" ? (

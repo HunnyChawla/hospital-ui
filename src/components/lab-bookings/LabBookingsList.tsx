@@ -1300,6 +1300,22 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                   <p className="text-xs text-slate-500">Total Amount</p>
                   <p className="mt-1 text-lg font-bold text-emerald-600">{currency(selectedBooking.total_amount)}</p>
                 </div>
+                <div>
+                  <p className="text-xs text-slate-500">Billing Type</p>
+                  <p className="mt-1">
+                    {selectedBooking.invoice_id ? (
+                      <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                        Paid Invoice
+                      </span>
+                    ) : selectedBooking.admission_id ? (
+                      <span className="inline-flex items-center rounded-md bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800">
+                        IPD Ledger
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-500">Direct</span>
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1416,11 +1432,15 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
               <p className="text-sm font-semibold text-rose-900">
                 Are you sure you want to cancel booking #{cancellingBooking.booking_number}?
               </p>
-              {cancellingBooking.invoice_id && (
+              {cancellingBooking.invoice_id ? (
                 <p className="mt-2 text-xs text-rose-700">
                   Note: Cancelling this booking will automatically issue refunds for any completed payments and cancel the associated invoice.
                 </p>
-              )}
+              ) : cancellingBooking.admission_id ? (
+                <p className="mt-2 text-xs text-rose-700">
+                  Note: Cancelling this booking will automatically cancel the corresponding charges posted in the patient's IPD billing ledger.
+                </p>
+              ) : null}
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
