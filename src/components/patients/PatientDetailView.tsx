@@ -753,9 +753,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         case "abdm_records":
           break;
       }
-      toast.success("Tab refreshed");
+      toast.success("Refreshed");
     } catch {
-      toast.error("Failed to refresh tab");
+      toast.error("Failed to refresh");
     } finally {
       setTimeout(() => setTabRefreshing(false), 400);
     }
@@ -1121,8 +1121,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
           <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6 scrollbar-hide">
             {/* Action Tabs */}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
-              <div className="flex flex-wrap gap-2">
+            <div className="mb-6 flex items-center justify-between gap-3 border-b border-slate-200">
+              <div className="flex flex-1 items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide -mb-px min-w-0">
                 {[
                   { id: "appointment", label: "Appointment", icon: Calendar },
                   { id: "opd", label: "OPD Slip", icon: Stethoscope },
@@ -1137,26 +1137,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                    className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition cursor-pointer ${activeTab === tab.id
+                    className={`flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2 text-sm font-semibold transition cursor-pointer whitespace-nowrap ${activeTab === tab.id
                       ? "border-sky-500 text-sky-700"
-                      : "border-transparent text-slate-600 hover:text-slate-900"
+                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
                       }`}
                   >
-                    <tab.icon className="h-4 w-4" />
-                    {tab.label}
+                    <tab.icon className="h-4 w-4 shrink-0" />
+                    <span>{tab.label}</span>
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={handleActiveTabRefresh}
-                disabled={tabRefreshing}
-                className="mb-1.5 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
-                title="Refresh current tab"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${tabRefreshing ? "animate-spin" : ""}`} />
-                <span>Refresh Tab</span>
-              </button>
+              <div className="flex items-center shrink-0 pb-1.5 pl-2">
+                <button
+                  type="button"
+                  onClick={handleActiveTabRefresh}
+                  disabled={tabRefreshing}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${tabRefreshing ? "animate-spin" : ""}`} />
+                  <span>Refresh</span>
+                </button>
+              </div>
             </div>
 
             {/* Tab Content */}
