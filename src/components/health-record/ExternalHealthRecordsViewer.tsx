@@ -46,6 +46,8 @@ import {
 interface ExternalHealthRecordsViewerProps {
   records: ExternalHealthRecordDto[];
   loading?: boolean;
+  currentHipId?: string | null;
+  currentFacilityName?: string | null;
 }
 
 interface CareContextGroup {
@@ -67,6 +69,8 @@ interface HospitalGroup {
 export function ExternalHealthRecordsViewer({
   records,
   loading,
+  currentHipId,
+  currentFacilityName,
 }: ExternalHealthRecordsViewerProps) {
   const [selectedRecordForPdf, setSelectedRecordForPdf] =
     useState<ExternalHealthRecordDto | null>(null);
@@ -149,10 +153,13 @@ export function ExternalHealthRecordsViewer({
       const totalDocs = careContextGroups.reduce((acc, cc) => acc + cc.records.length, 0);
 
       // Check if this facility matches current local facility
-      const isLocal =
-        hipId === "IN0610090730" ||
-        hipName.toLowerCase().includes("technesian") ||
-        hipName.toLowerCase().includes("city hospital");
+      const cleanCurrentHipId = currentHipId?.trim().toLowerCase();
+      const cleanCurrentFacilityName = currentFacilityName?.trim().toLowerCase();
+
+      const isLocal = Boolean(
+        (cleanCurrentHipId && hipId && hipId.trim().toLowerCase() === cleanCurrentHipId) ||
+        (cleanCurrentFacilityName && hipName && hipName.trim().toLowerCase() === cleanCurrentFacilityName)
+      );
 
       hospitalGroups.push({
         hipId,
@@ -170,7 +177,7 @@ export function ExternalHealthRecordsViewer({
     });
 
     return hospitalGroups;
-  }, [records]);
+  }, [records, currentHipId, currentFacilityName]);
 
   // Current Selected Objects
   const activeHospital = useMemo(() => {

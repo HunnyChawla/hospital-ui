@@ -6,6 +6,8 @@ import {
   ConsentRequestDto,
   ExternalHealthRecordDto,
 } from "@/services/hiuConsentService";
+import { abhaApi, TenantAbdmConfigDto } from "@/services/abhaApi";
+import { useAppSelector } from "@/redux/hooks";
 import { AbdmConsentRequestModal } from "./AbdmConsentRequestModal";
 import { ExternalHealthRecordsViewer } from "./ExternalHealthRecordsViewer";
 import { formatDate } from "@/utils/format";
@@ -49,6 +51,7 @@ export function AbdmHiuConsentPanel({
 }: AbdmHiuConsentPanelProps) {
   const [consentRequests, setConsentRequests] = useState<ConsentRequestDto[]>([]);
   const [records, setRecords] = useState<ExternalHealthRecordDto[]>([]);
+  const [abdmConfig, setAbdmConfig] = useState<TenantAbdmConfigDto | null>(null);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [fetchingDataForId, setFetchingDataForId] = useState<string | null>(null);
@@ -57,6 +60,7 @@ export function AbdmHiuConsentPanel({
   // Default collapsed as requested by user
   const [isConsentsExpanded, setIsConsentsExpanded] = useState(false);
 
+  const currentTenant = useAppSelector((state) => state.tenant.tenant);
   const tenantId =
     typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
 
@@ -67,12 +71,19 @@ export function AbdmHiuConsentPanel({
     setLoadingRecords(true);
 
     try {
-      const [reqs, recs] = await Promise.all([
+      const [reqs, recs, config] = await Promise.all([
         hiuConsentService.listConsentRequests(patientId, patientAbha, tenantId),
         hiuConsentService.getPatientExternalRecords(patientId, tenantId),
+        abhaApi.getConfig(tenantId || undefined).catch((err) => {
+          console.warn("Could not load tenant ABDM config:", err);
+          return null;
+        }),
       ]);
       setConsentRequests(reqs);
       setRecords(recs);
+      if (config) {
+        setAbdmConfig(config);
+      }
     } catch (err: any) {
       console.error("Failed to load HIU data:", err);
     } finally {
@@ -367,7 +378,12 @@ export function AbdmHiuConsentPanel({
       </div>
 
       {/* Section 2: External Health Records Viewer */}
-      <ExternalHealthRecordsViewer records={records} loading={loadingRecords} />
+      <ExternalHealthRecordsViewer
+        records={records}
+        loading={loadingRecords}
+        currentHipId={abdmConfig?.hip_id}
+        currentFacilityName={abdmConfig?.hip_name || currentTenant?.name}
+      />
 
       {/* Consent Request Modal */}
       {isConsentModalOpen && (
