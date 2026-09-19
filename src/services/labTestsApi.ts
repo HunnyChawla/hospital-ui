@@ -8,6 +8,7 @@ export interface LabTest {
   test_name: string;
   description: string | null;
   category: string;
+  test_type?: string;
   price: number;
   is_active: boolean;
   created_at: string;
@@ -19,6 +20,7 @@ export interface CreateLabTestRequest {
   test_name: string;
   description?: string;
   category: string;
+  test_type?: string;
   price: number;
 }
 
@@ -26,6 +28,7 @@ export interface UpdateLabTestRequest {
   test_name?: string;
   description?: string;
   category?: string;
+  test_type?: string;
   price?: number;
   is_active?: boolean;
 }
@@ -34,6 +37,7 @@ export interface LabTestsSearchParams {
   page?: number;
   page_size?: number;
   category?: string;
+  test_type?: string;
   is_active?: boolean;
   search?: string;
   patient_id?: string;
@@ -203,6 +207,7 @@ export const labTestsApi = {
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.category) queryParams.append("category", params.category);
+    if (params?.test_type) queryParams.append("test_type", params.test_type);
     if (params?.is_active !== undefined) queryParams.append("is_active", params.is_active.toString());
     if (params?.search) queryParams.append("search", params.search);
     if (params?.patient_id) queryParams.append("patient_id", params.patient_id);

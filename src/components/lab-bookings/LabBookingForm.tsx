@@ -73,7 +73,7 @@ export function LabBookingForm({
     const fetchTests = async () => {
       setLoadingTests(true);
       try {
-        const response = await labTestsApi.list({ is_active: true, page_size: 100 });
+        const response = await labTestsApi.list({ is_active: true, page_size: 500 });
         setAvailableTests(response.items);
       } catch (error) {
         console.error("Failed to fetch lab tests:", error);

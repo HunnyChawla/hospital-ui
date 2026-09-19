@@ -16,6 +16,7 @@ import {
   Check,
   XCircle,
   FileSpreadsheet,
+  Radio,
 } from "lucide-react";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { labTestsApi, LabTest } from "@/services/labTestsApi";
@@ -42,9 +43,10 @@ interface SelectedInvestigationItem {
   category?: string;
   price?: number;
   lab_test_id?: string | null;
+  test_type?: "lab" | "radiology";
 }
 
-const COMMON_PRESETS = [
+const COMMON_LAB_PRESETS = [
   "Complete Blood Count",
   "Serum Electrolytes",
   "Liver Function Test",
@@ -59,6 +61,19 @@ const COMMON_PRESETS = [
   "Blood Culture & Sensitivity",
 ];
 
+const COMMON_RADIOLOGY_PRESETS = [
+  "Chest X-Ray PA View",
+  "USG Whole Abdomen",
+  "USG Pelvis / KUB",
+  "CT Brain (Plain)",
+  "CT Chest (HRCT)",
+  "CT Abdomen & Pelvis",
+  "MRI Brain",
+  "MRI Lumbar Spine",
+  "X-Ray Knee AP/Lat",
+  "2D Echocardiography",
+];
+
 export function IpdInvestigationsTab({
   patientId,
   admissionId,
@@ -69,6 +84,7 @@ export function IpdInvestigationsTab({
   isDoctor = true,
 }: IpdInvestigationsTabProps) {
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [investigationType, setInvestigationType] = useState<"lab" | "radiology">("lab");
   const [testSearch, setTestSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [availableTests, setAvailableTests] = useState<LabTest[]>([]);
@@ -91,21 +107,21 @@ export function IpdInvestigationsTab({
   const [cancelReason, setCancelReason] = useState("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
 
-  // Load catalog tests for autocomplete
+  // Load catalog tests for autocomplete based on selected investigation type
   useEffect(() => {
     const loadCatalog = async () => {
       setLoadingTests(true);
       try {
-        const res = await labTestsApi.list({ is_active: true, page_size: 200 });
+        const res = await labTestsApi.list({ is_active: true, test_type: investigationType, page_size: 200 });
         setAvailableTests(res.items || []);
       } catch (err) {
-        console.error("Failed to load lab catalog:", err);
+        console.error("Failed to load catalog:", err);
       } finally {
         setLoadingTests(false);
       }
     };
     loadCatalog();
-  }, []);
+  }, [investigationType]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -156,6 +172,7 @@ export function IpdInvestigationsTab({
         category: test.category,
         price: test.price,
         lab_test_id: test.id,
+        test_type: (test.test_type as "lab" | "radiology") || investigationType,
       },
     ]);
     setTestSearch("");
@@ -184,8 +201,9 @@ export function IpdInvestigationsTab({
           {
             id: presetName,
             name: presetName,
-            category: "General",
+            category: investigationType === "radiology" ? "Radiology" : "General",
             lab_test_id: null,
+            test_type: investigationType,
           },
         ]);
         toast.success(`Added ${presetName}`);
@@ -207,8 +225,9 @@ export function IpdInvestigationsTab({
       {
         id: `custom-${Date.now()}`,
         name: trimmed,
-        category: "Custom",
+        category: investigationType === "radiology" ? "Radiology" : "Custom",
         lab_test_id: null,
+        test_type: investigationType,
       },
     ]);
     setTestSearch("");
@@ -223,18 +242,18 @@ export function IpdInvestigationsTab({
   const handleOrderLabsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDoctor) {
-      toast.error("Only attending doctors can order lab investigations.");
+      toast.error("Only attending doctors can order investigations.");
       return;
     }
     if (selectedTests.length === 0) {
-      toast.error("Please select at least one lab test to order");
+      toast.error("Please select at least one investigation to order");
       return;
     }
 
     setSubmitting(true);
     try {
       const ordersPayload = selectedTests.map((t) => ({
-        order_category: "lab",
+        order_category: t.test_type || investigationType || "lab",
         order_title: t.name,
         instructions: instructions.trim() || null,
         priority,
@@ -253,7 +272,7 @@ export function IpdInvestigationsTab({
       toast.success(
         `Successfully ordered ${selectedTests.length} investigation${
           selectedTests.length > 1 ? "s" : ""
-        }. Sent to Lab Bookings.`
+        }. Sent to Bookings.`
       );
       setShowOrderModal(false);
       setSelectedTests([]);
@@ -262,7 +281,7 @@ export function IpdInvestigationsTab({
       setPriority("routine");
       onRefresh();
     } catch (err: any) {
-      toast.error(getErrorMessage(err) || "Failed to order lab investigations");
+      toast.error(getErrorMessage(err) || "Failed to order investigations");
     } finally {
       setSubmitting(false);
     }
@@ -275,7 +294,7 @@ export function IpdInvestigationsTab({
       const res = await labBookingsApi.getResults(bookingId);
       setResultsData(res);
     } catch (err: any) {
-      toast.error("Failed to load lab results");
+      toast.error("Failed to load results");
     } finally {
       setLoadingResults(false);
     }
@@ -284,7 +303,7 @@ export function IpdInvestigationsTab({
   const handleCancelOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDoctor) {
-      toast.error("Only attending doctors can cancel lab orders.");
+      toast.error("Only attending doctors can cancel orders.");
       return;
     }
     if (!cancellingOrder) return;
@@ -296,20 +315,22 @@ export function IpdInvestigationsTab({
     setSubmittingCancel(true);
     try {
       await ipdDoctorApi.discontinueOrder(cancellingOrder.id, cancelReason.trim());
-      toast.success("Lab order cancelled");
+      toast.success("Investigation order cancelled");
       setCancellingOrder(null);
       setCancelReason("");
       onRefresh();
     } catch (err: any) {
-      toast.error(getErrorMessage(err) || "Failed to cancel lab order");
+      toast.error(getErrorMessage(err) || "Failed to cancel investigation order");
     } finally {
       setSubmittingCancel(false);
     }
   };
 
-  // Filter lab orders
-  const labOrders = useMemo(() => {
-    return (orders || []).filter((o) => o.order_category === "lab");
+  // Filter lab & radiology orders
+  const investigationOrders = useMemo(() => {
+    return (orders || []).filter(
+      (o) => o.order_category === "lab" || o.order_category === "radiology"
+    );
   }, [orders]);
 
   const totalEstimatedCost = useMemo(() => {
@@ -329,11 +350,11 @@ export function IpdInvestigationsTab({
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-slate-900 text-sm sm:text-base">Lab & Diagnostic Investigations</h3>
                 <span className="rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5">
-                  {labOrders.length}
+                  {investigationOrders.length}
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-500">
-                Doctor-ordered investigations, lab booking status, and real-time reports
+                Doctor-ordered lab & radiology investigations, booking status, and real-time reports
               </p>
             </div>
           </div>
@@ -349,7 +370,7 @@ export function IpdInvestigationsTab({
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 px-4 py-2 sm:py-2.5 text-xs font-bold text-white shadow-sm transition hover:shadow-md cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
-              <span>Order Lab Investigations</span>
+              <span>Order Investigations</span>
             </button>
           )}
         </div>
@@ -360,31 +381,32 @@ export function IpdInvestigationsTab({
           </div>
         )}
 
-        {/* Section 1: Active Doctor Lab Orders */}
+        {/* Section 1: Active Doctor Investigation Orders */}
         <div className="mt-4 sm:mt-5 space-y-3">
           <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
             <span>Doctor Orders & Prescribed Tests</span>
             <span className="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-[10px] font-semibold">
-              {labOrders.length}
+              {investigationOrders.length}
             </span>
           </h4>
 
-          {labOrders.length === 0 ? (
+          {investigationOrders.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center bg-slate-50/50">
               <FlaskConical className="mx-auto h-6 w-6 text-slate-300 mb-1" />
-              <p className="text-xs font-semibold text-slate-600">No lab tests ordered yet</p>
+              <p className="text-xs font-semibold text-slate-600">No investigations ordered yet</p>
               <p className="text-[11px] text-slate-400 mt-0.5">
                 {isDoctor
-                  ? 'Click "Order Lab Investigations" to order one or multiple tests. They will appear in the Lab Bookings panel.'
-                  : 'No lab tests currently ordered for this patient.'}
+                  ? 'Click "Order Investigations" to order lab or radiology tests. They will appear in the Lab Bookings panel for booking and billing.'
+                  : 'No investigations currently ordered for this patient.'}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
-              {labOrders.map((order) => {
+              {investigationOrders.map((order) => {
                 const isCancelled = order.status === "discontinued" || order.status === "cancelled";
                 const isCompleted = order.booking_status === "completed" || order.has_results;
                 const isBooked = !!order.booking_id;
+                const isRadiology = order.order_category === "radiology";
 
                 return (
                   <div
@@ -398,6 +420,16 @@ export function IpdInvestigationsTab({
                     <div className="flex justify-between items-start gap-2">
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                              isRadiology
+                                ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                : "bg-sky-100 text-sky-800 border border-sky-200"
+                            }`}
+                          >
+                            {isRadiology ? <Radio className="h-2.5 w-2.5" /> : <FlaskConical className="h-2.5 w-2.5" />}
+                            {isRadiology ? "Radiology" : "Lab"}
+                          </span>
                           <span className="text-[10px] font-mono font-bold text-slate-400">
                             #{order.order_number}
                           </span>
@@ -438,7 +470,7 @@ export function IpdInvestigationsTab({
                         ) : isCompleted ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
                             <CheckCircle2 className="h-3 w-3" />
-                            Completed
+                            {isRadiology ? "Results Ready" : "Completed"}
                           </span>
                         ) : isBooked ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 px-2 py-0.5 text-[10px] font-bold">
@@ -448,7 +480,7 @@ export function IpdInvestigationsTab({
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
                             <Clock className="h-3 w-3" />
-                            Pending Booking
+                            {isRadiology ? "Pending Radiology Booking" : "Pending Booking"}
                           </span>
                         )}
                       </div>
@@ -482,7 +514,7 @@ export function IpdInvestigationsTab({
         {labBookings && labBookings.length > 0 && (
           <div className="mt-6 border-t border-slate-100 pt-4 space-y-3">
             <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <span>Linked Lab Bookings & Report Status</span>
+              <span>Linked Bookings & Report Status</span>
               <span className="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-[10px] font-semibold">
                 {labBookings.length}
               </span>
@@ -543,7 +575,7 @@ export function IpdInvestigationsTab({
         )}
       </div>
 
-      {/* Modal: Order Multiple Lab Tests */}
+      {/* Modal: Order Multiple Lab / Radiology Tests */}
       {showOrderModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col">
@@ -554,8 +586,8 @@ export function IpdInvestigationsTab({
                   <FlaskConical className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">Order Lab Investigations</h3>
-                  <p className="text-[11px] text-slate-500">Select multiple tests to advise for this admission</p>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">Order Investigations</h3>
+                  <p className="text-[11px] text-slate-500">Select laboratory or radiology investigations to advise for this admission</p>
                 </div>
               </div>
               <button
@@ -568,13 +600,52 @@ export function IpdInvestigationsTab({
 
             {/* Modal Scrollable Body */}
             <form onSubmit={handleOrderLabsSubmit} className="mt-4 space-y-3.5 sm:space-y-4 text-xs overflow-y-auto flex-1 pr-1">
+              {/* Type Selector: Laboratory vs Radiology */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Investigation Type
+                </label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInvestigationType("lab");
+                      setTestSearch("");
+                    }}
+                    className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      investigationType === "lab"
+                        ? "bg-white text-sky-700 shadow-sm border border-slate-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <FlaskConical className="h-4 w-4" />
+                    <span>Laboratory Tests</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInvestigationType("radiology");
+                      setTestSearch("");
+                    }}
+                    className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      investigationType === "radiology"
+                        ? "bg-white text-purple-700 shadow-sm border border-slate-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Radio className="h-4 w-4" />
+                    <span>Radiology & Imaging</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Quick Presets */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1.5">
-                  Quick Presets (Click to add / remove)
+                  Quick {investigationType === "radiology" ? "Radiology" : "Lab"} Presets (Click to add / remove)
                 </label>
                 <div className="flex flex-wrap gap-1.5">
-                  {COMMON_PRESETS.map((preset) => {
+                  {(investigationType === "radiology" ? COMMON_RADIOLOGY_PRESETS : COMMON_LAB_PRESETS).map((preset) => {
                     const selected = isTestSelected(preset);
                     return (
                       <button
@@ -583,8 +654,10 @@ export function IpdInvestigationsTab({
                         onClick={() => handleTogglePreset(preset)}
                         className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition cursor-pointer flex items-center gap-1 border ${
                           selected
-                            ? "bg-sky-600 text-white border-sky-600 shadow-2xs"
-                            : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200"
+                            ? investigationType === "radiology"
+                              ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                              : "bg-sky-600 text-white border-sky-600 shadow-2xs"
+                            : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
                         }`}
                       >
                         {selected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
@@ -598,13 +671,17 @@ export function IpdInvestigationsTab({
               {/* Searchable Test Catalog */}
               <div ref={searchContainerRef} className="relative">
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Search & Add Catalog Tests
+                  Search & Add {investigationType === "radiology" ? "Radiology" : "Lab"} Catalog Tests
                 </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search test name, code, or category..."
+                    placeholder={
+                      investigationType === "radiology"
+                        ? "Search X-Ray, USG, CT, MRI, Echo..."
+                        : "Search test name, code, or category..."
+                    }
                     value={testSearch}
                     onFocus={() => setIsSearchFocused(true)}
                     onChange={(e) => {
@@ -634,7 +711,7 @@ export function IpdInvestigationsTab({
                   )}
                 </div>
 
-                {/* Autocomplete Dropdown List - ONLY shown when searching and query length > 0 */}
+                {/* Autocomplete Dropdown List */}
                 {isSearchFocused && testSearch.trim().length > 0 && (
                   <div className="absolute top-full left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-100">
                     {filteredCatalog.length > 0 ? (
@@ -656,7 +733,7 @@ export function IpdInvestigationsTab({
                                 )}
                               </div>
                               <p className="text-[10px] text-slate-500 font-mono">
-                                Code: {t.test_code} • {t.category || "General"}
+                                Code: {t.test_code} • {t.category || (investigationType === "radiology" ? "Radiology" : "General")}
                               </p>
                             </div>
                             <span className="font-bold text-slate-700">{currency(t.price || 0)}</span>
@@ -711,7 +788,18 @@ export function IpdInvestigationsTab({
                             {idx + 1}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-slate-900 text-xs truncate">{item.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-slate-900 text-xs truncate">{item.name}</p>
+                              <span
+                                className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded shrink-0 ${
+                                  item.test_type === "radiology"
+                                    ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                    : "bg-sky-100 text-sky-700 border border-sky-200"
+                                }`}
+                              >
+                                {item.test_type === "radiology" ? "Radiology" : "Lab"}
+                              </span>
+                            </div>
                             <p className="text-[10px] text-slate-500 font-mono truncate">
                               {item.code ? `Code: ${item.code} • ` : ""}
                               {item.category || "General"}
@@ -770,11 +858,11 @@ export function IpdInvestigationsTab({
               {/* Instructions */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Clinical Instructions for Lab Technician & Nursing
+                  Clinical Instructions for Nursing & Diagnostics Staff
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Draw fasting sample at 7:00 AM; bedside collection; draw before next IV antibiotic dose..."
+                  placeholder="e.g. Draw fasting sample at 7:00 AM; bedside collection; check with contrast..."
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-sky-500 focus:outline-none resize-none"
@@ -798,7 +886,7 @@ export function IpdInvestigationsTab({
                   {submitting
                     ? "Ordering..."
                     : selectedTests.length > 0
-                    ? `Order ${selectedTests.length} Lab Test${selectedTests.length > 1 ? "s" : ""}`
+                    ? `Order ${selectedTests.length} Investigation${selectedTests.length > 1 ? "s" : ""}`
                     : "Select at least 1 test"}
                 </button>
               </div>
@@ -814,7 +902,7 @@ export function IpdInvestigationsTab({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <FlaskConical className="h-5 w-5 text-sky-600" />
-                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Lab Investigation Results</h3>
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Investigation Results</h3>
               </div>
               <button
                 onClick={() => {
@@ -835,9 +923,9 @@ export function IpdInvestigationsTab({
             ) : !resultsData || !resultsData.results || resultsData.results.length === 0 ? (
               <div className="py-12 text-center text-slate-500">
                 <AlertCircle className="mx-auto h-8 w-8 text-amber-400" />
-                <p className="mt-2 text-xs font-semibold">Results pending from the laboratory</p>
+                <p className="mt-2 text-xs font-semibold">Results pending from the laboratory / radiology</p>
                 <p className="text-[11px] text-slate-400">
-                  The sample has been scheduled or is in process.
+                  The test has been scheduled or is in process.
                 </p>
               </div>
             ) : (
@@ -900,14 +988,14 @@ export function IpdInvestigationsTab({
           </div>
         </div>
       )}
-      {/* Modal: Cancel Lab Order */}
+      {/* Modal: Cancel Investigation Order */}
       {cancellingOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white p-4 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-slate-800">
                 <XCircle className="h-5 w-5 text-rose-600" />
-                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Cancel Lab Investigation</h3>
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Cancel Investigation</h3>
               </div>
               <button
                 onClick={() => setCancellingOrder(null)}

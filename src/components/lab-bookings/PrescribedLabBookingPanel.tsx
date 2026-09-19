@@ -108,11 +108,12 @@ export function PrescribedLabBookingPanel({
         end_date,
       });
 
-      setPendingPatients(res.items || []);
+      const items = res.items || [];
+      setPendingPatients(items);
 
       // If the currently selected encounter is not in the new list, deselect it
       if (selectedEncounter) {
-        const stillPending = (res.items || []).some(
+        const stillPending = items.some(
           (item) =>
             (item.admission_id && item.admission_id === selectedEncounter.admission_id) ||
             (item.visit_id && item.visit_id === selectedEncounter.visit_id)
@@ -122,9 +123,21 @@ export function PrescribedLabBookingPanel({
           setSelectedVisitId("");
         }
       } else if (selectedVisitId) {
-        const stillPending = (res.items || []).some((item) => item.visit_id === selectedVisitId);
+        const stillPending = items.some((item) => item.visit_id === selectedVisitId);
         if (!stillPending) {
           setSelectedVisitId("");
+        }
+      } else if (items.length > 0) {
+        // Auto-select the first pending encounter so the user immediately sees the prescribed tests
+        const first = items.find((p) => p.pending_test_count > 0) || items[0];
+        setSelectedEncounter(first);
+        if (first.visit_id) {
+          setSelectedVisitId(first.visit_id);
+        }
+        if (first.admission_id) {
+          fetchAdvisedTests({ admission_id: first.admission_id });
+        } else if (first.visit_id) {
+          fetchAdvisedTests({ visit_id: first.visit_id });
         }
       }
     } catch (error) {
@@ -387,8 +400,14 @@ export function PrescribedLabBookingPanel({
                 View Report
               </button>
             ) : (
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
-                {test.advice_type}
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+                  test.advice_type === "radiology"
+                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                    : "bg-slate-100 text-slate-600 border-slate-200"
+                }`}
+              >
+                {test.advice_type === "radiology" ? "Radiology" : test.advice_type}
               </span>
             )}
           </div>

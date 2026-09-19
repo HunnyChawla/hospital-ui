@@ -288,3 +288,4 @@ export interface IpdDischargeSummaryResponse {
   created_at: string;
   updated_at: string;
 }
+

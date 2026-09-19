@@ -151,49 +151,47 @@ export function IpdWorkspace() {
     badge?: number;
   }
 
-  const allTabs: WorkspaceTabItem[] = [
-    {
-      id: "medications",
-      label: "Medications",
-      icon: Pill,
-      badge: chart?.active_medications.length,
-    },
-    {
-      id: "mar",
-      label: "MAR (Admin)",
-      icon: Clock,
-      badge: chart?.mar_timeline.length,
-    },
-    {
-      id: "orders",
-      label: "Doctor Orders",
-      icon: ClipboardList,
-      badge: chart?.orders.filter((o) => o.status === "active").length,
-    },
-    {
-      id: "progress_notes",
-      label: "Progress Notes",
-      icon: FileText,
-      badge: chart?.progress_notes.length,
-    },
-    {
-      id: "vitals",
-      label: "Vitals & Trends",
-      icon: Activity,
-      badge: chart?.vitals.length,
-    },
-    {
-      id: "investigations",
-      label: "Investigations",
-      icon: FlaskConical,
-      badge: chart?.lab_bookings.length,
-    },
-  ];
-
-  // Role-based tabs:
-  // Nursing Station: MAR, Vitals & Trends, Progress Notes, Doctor Orders (read-only), Investigations (read-only)
-  // Doctor View: Medications, Doctor Orders, Progress Notes, Vitals & Trends, Investigations, MAR (Admin)
+  // Tab definition
   const tabs: WorkspaceTabItem[] = useMemo(() => {
+    const allTabs: WorkspaceTabItem[] = [
+      {
+        id: "medications",
+        label: "Medications",
+        icon: Pill,
+        badge: chart?.active_medications.length,
+      },
+      {
+        id: "mar",
+        label: "MAR (Admin)",
+        icon: Clock,
+        badge: chart?.mar_timeline.length,
+      },
+      {
+        id: "orders",
+        label: "Doctor Orders",
+        icon: ClipboardList,
+        badge: chart?.orders.filter((o) => o.status === "active").length,
+      },
+      {
+        id: "progress_notes",
+        label: "Progress Notes",
+        icon: FileText,
+        badge: chart?.progress_notes.length,
+      },
+      {
+        id: "vitals",
+        label: "Vitals & Trends",
+        icon: Activity,
+        badge: chart?.vitals.length,
+      },
+      {
+        id: "investigations",
+        label: "Investigations",
+        icon: FlaskConical,
+        badge: chart?.lab_bookings.length,
+      },
+    ];
+
     if (workspaceMode === "nursing") {
       const nursingKeys: TabKey[] = ["mar", "vitals", "progress_notes", "orders", "investigations"];
       return nursingKeys
@@ -205,6 +203,7 @@ export function IpdWorkspace() {
       .map((k) => allTabs.find((t) => t.id === k))
       .filter((t): t is WorkspaceTabItem => Boolean(t));
   }, [workspaceMode, chart]);
+
 
   // Keep activeTab valid within available tabs
   useEffect(() => {
@@ -244,38 +243,36 @@ export function IpdWorkspace() {
 
         {/* View Mode Toggle & Refresh */}
         <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-          {isAdmin && (
-            <div className="flex rounded-xl bg-slate-100 p-1 text-xs">
-              <button
-                onClick={() => {
-                  setWorkspaceMode("doctor");
-                  setActiveTab("medications");
-                }}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
-                  workspaceMode === "doctor"
-                    ? "bg-white text-sky-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Stethoscope className="h-3.5 w-3.5 shrink-0" />
-                <span>Doctor View</span>
-              </button>
-              <button
-                onClick={() => {
-                  setWorkspaceMode("nursing");
-                  setActiveTab("mar");
-                }}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
-                  workspaceMode === "nursing"
-                    ? "bg-white text-teal-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <HeartHandshake className="h-3.5 w-3.5 shrink-0" />
-                <span>Nursing Station</span>
-              </button>
-            </div>
-          )}
+          <div className="flex rounded-xl bg-slate-100 p-1 text-xs">
+            <button
+              onClick={() => {
+                setWorkspaceMode("doctor");
+                setActiveTab("medications");
+              }}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
+                workspaceMode === "doctor"
+                  ? "bg-white text-sky-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Stethoscope className="h-3.5 w-3.5 shrink-0" />
+              <span>Doctor View</span>
+            </button>
+            <button
+              onClick={() => {
+                setWorkspaceMode("nursing");
+                setActiveTab("mar");
+              }}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 font-bold transition ${
+                workspaceMode === "nursing"
+                  ? "bg-white text-teal-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <HeartHandshake className="h-3.5 w-3.5 shrink-0" />
+              <span>Nursing Station</span>
+            </button>
+          </div>
 
           <button
             onClick={() => fetchPatients()}
