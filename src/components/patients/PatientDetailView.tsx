@@ -45,6 +45,7 @@ import { getTenantIdForApi } from "@/utils/auth";
 import { paymentsApi } from "@/services/paymentsApi";
 import { MRDUploadForm } from "@/components/mrd/MRDUploadForm";
 import { MRDDocumentList } from "@/components/mrd/MRDDocumentList";
+import { ScrollableContainer } from "@/components/common/ScrollableContainer";
 import {
   ArrowLeft,
   CreditCard,
@@ -94,50 +95,6 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
     "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation" | "abdm_records" | "documents"
   >("appointment");
 
-  // Tab horizontal scroll controls
-  const tabsContainerRef = useRef<HTMLDivElement>(null);
-  const [showLeftScroll, setShowLeftScroll] = useState(false);
-  const [showRightScroll, setShowRightScroll] = useState(false);
-
-  const checkScrollButtons = useCallback(() => {
-    const container = tabsContainerRef.current;
-    if (container) {
-      const { scrollLeft, scrollWidth, clientWidth } = container;
-      setShowLeftScroll(scrollLeft > 2);
-      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 2);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkScrollButtons();
-    const container = tabsContainerRef.current;
-    if (container) {
-      container.addEventListener("scroll", checkScrollButtons);
-      window.addEventListener("resize", checkScrollButtons);
-    }
-    return () => {
-      if (container) {
-        container.removeEventListener("scroll", checkScrollButtons);
-      }
-      window.removeEventListener("resize", checkScrollButtons);
-    };
-  }, [checkScrollButtons]);
-
-  useEffect(() => {
-    const timer = setTimeout(checkScrollButtons, 100);
-    return () => clearTimeout(timer);
-  }, [activeTab, checkScrollButtons]);
-
-  const scrollTabs = (direction: "left" | "right") => {
-    const container = tabsContainerRef.current;
-    if (container) {
-      const scrollAmount = 240;
-      container.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      });
-    }
-  };
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
@@ -1123,75 +1080,36 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
           <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6 scrollbar-hide">
             {/* Action Tabs with < > Scroll Controls and Refresh */}
-            <div className="mb-6 flex items-center justify-between gap-2 border-b border-slate-200">
-              {/* Left Scroll Button */}
-              <button
-                type="button"
-                onClick={() => scrollTabs("left")}
-                disabled={!showLeftScroll}
-                className={`mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition cursor-pointer shadow-2xs ${
-                  !showLeftScroll
-                    ? "opacity-25 cursor-not-allowed text-slate-300"
-                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
-                }`}
-                title="Scroll tabs left"
-                aria-label="Scroll tabs left"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-
-              {/* Scrollable Tabs */}
-              <div
-                ref={tabsContainerRef}
-                onWheel={(e) => {
-                  if (e.deltaY !== 0 && tabsContainerRef.current) {
-                    tabsContainerRef.current.scrollLeft += e.deltaY;
-                  }
-                }}
-                className="flex flex-1 items-center gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide -mb-px min-w-0"
-              >
-                {[
-                  { id: "appointment", label: "Appointments", tooltip: "Patient appointments", icon: Calendar },
-                  { id: "opd", label: "OPD", tooltip: "Outpatient consultations & slips", icon: Stethoscope },
-                  { id: "admit", label: "Admissions", tooltip: "Inpatient admissions & discharge", icon: BedDouble },
-                  { id: "billing", label: "Billing", tooltip: "Invoices and payments", icon: CreditCard },
-                  { id: "tests", label: "Labs", tooltip: "Lab test bookings and prescriptions", icon: TestTube },
-                  { id: "record", label: "Records", tooltip: "Health record & encounter timeline", icon: FileText },
-                  { id: "abdm_records", label: "ABDM", tooltip: "ABDM external health records (HIU)", icon: ShieldCheck },
-                  { id: "immunisation", label: "Vaccines", tooltip: "Immunisation & vaccine doses", icon: Syringe },
-                  { id: "documents", label: "MRD", tooltip: "Medical records & documents", icon: FolderOpen },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                    title={tab.tooltip}
-                    className={`flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 sm:px-3 py-2 text-sm font-semibold transition cursor-pointer whitespace-nowrap ${activeTab === tab.id
-                      ? "border-sky-500 text-sky-700"
-                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-                      }`}
-                  >
-                    <tab.icon className="h-4 w-4 shrink-0" />
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Right Scroll Button */}
-              <button
-                type="button"
-                onClick={() => scrollTabs("right")}
-                disabled={!showRightScroll}
-                className={`mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition cursor-pointer shadow-2xs ${
-                  !showRightScroll
-                    ? "opacity-25 cursor-not-allowed text-slate-300"
-                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
-                }`}
-                title="Scroll tabs right"
-                aria-label="Scroll tabs right"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+            <ScrollableContainer
+              className="mb-6 flex items-center justify-between gap-2 border-b border-slate-200"
+              contentClassName="flex flex-1 items-center gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide -mb-px min-w-0"
+              buttonClassName="mb-1 h-7 w-7 rounded-lg"
+            >
+              {[
+                { id: "appointment", label: "Appointments", tooltip: "Patient appointments", icon: Calendar },
+                { id: "opd", label: "OPD", tooltip: "Outpatient consultations & slips", icon: Stethoscope },
+                { id: "admit", label: "Admissions", tooltip: "Inpatient admissions & discharge", icon: BedDouble },
+                { id: "billing", label: "Billing", tooltip: "Invoices and payments", icon: CreditCard },
+                { id: "tests", label: "Labs", tooltip: "Lab test bookings and prescriptions", icon: TestTube },
+                { id: "record", label: "Records", tooltip: "Health record & encounter timeline", icon: FileText },
+                { id: "abdm_records", label: "ABDM", tooltip: "ABDM external health records (HIU)", icon: ShieldCheck },
+                { id: "immunisation", label: "Vaccines", tooltip: "Immunisation & vaccine doses", icon: Syringe },
+                { id: "documents", label: "MRD", tooltip: "Medical records & documents", icon: FolderOpen },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  title={tab.tooltip}
+                  className={`flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 sm:px-3 py-2 text-sm font-semibold transition cursor-pointer whitespace-nowrap ${activeTab === tab.id
+                    ? "border-sky-500 text-sky-700"
+                    : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                    }`}
+                >
+                  <tab.icon className="h-4 w-4 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </ScrollableContainer>
 
             {/* Tab Content */}
             <div className="space-y-6">

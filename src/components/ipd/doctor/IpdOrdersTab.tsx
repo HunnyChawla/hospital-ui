@@ -30,6 +30,7 @@ import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
 import { toast } from "sonner";
 import { getErrorMessage, handleError } from "@/utils/errorHandler";
 import { currency, getTodayDateLocal } from "@/utils/format";
+import { ScrollableContainer } from "@/components/common/ScrollableContainer";
 
 interface IpdOrdersTabProps {
   admissionId: string;
@@ -474,7 +475,11 @@ export function IpdOrdersTab({
         )}
 
         {/* Category Pills */}
-        <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+        <ScrollableContainer
+          className="mt-3 flex items-center gap-1 sm:gap-1.5"
+          contentClassName="flex flex-1 items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-hide min-w-0"
+          buttonClassName="h-7 w-7 rounded-lg text-xs"
+        >
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -487,7 +492,7 @@ export function IpdOrdersTab({
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 font-semibold whitespace-nowrap transition cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                   isSelected
                     ? "bg-slate-900 text-white shadow-sm"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -505,7 +510,7 @@ export function IpdOrdersTab({
               </button>
             );
           })}
-        </div>
+        </ScrollableContainer>
 
         {/* Orders List */}
         {filteredOrders.length === 0 ? (

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   SlidersHorizontal,
   ChevronDown,
+  Plus,
 } from "lucide-react";
 import { IpdPatientChart } from "@/types/ipdDoctor";
 import { Admission, admissionsApi } from "@/services/admissionsApi";
@@ -26,6 +27,7 @@ import { UpdatePatientStatusModal } from "../UpdatePatientStatusModal";
 import { UpdateCareStatusModal } from "../UpdateCareStatusModal";
 import { TransferBedFormModal } from "../TransferBedFormModal";
 import { IpdBillingDrawer } from "../billing/IpdBillingDrawer";
+import { AddChargeModal } from "../billing/AddChargeModal";
 
 interface IpdPatientHeaderProps {
   chart: IpdPatientChart;
@@ -56,6 +58,7 @@ export function IpdPatientHeader({
   const [showPatientStatusModal, setShowPatientStatusModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBillingDrawer, setShowBillingDrawer] = useState(false);
+  const [showAddChargeModal, setShowAddChargeModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -201,6 +204,19 @@ export function IpdPatientHeader({
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-emerald-600" : ""}`} />
             </button>
+
+            {/* Quick Add Service Button */}
+            {!isDischarged && (
+              <button
+                type="button"
+                onClick={() => setShowAddChargeModal(true)}
+                className="inline-flex items-center justify-center gap-1.5 h-9 rounded-xl bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700 px-3 text-xs font-bold text-white transition shadow-sm cursor-pointer shrink-0"
+                title="Add service or clinical charge to patient bill"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add Service</span>
+              </button>
+            )}
 
             {/* Billing Drawer */}
             <button
@@ -441,6 +457,19 @@ export function IpdPatientHeader({
           onClose={() => setShowBillingDrawer(false)}
           admissionId={admission.id}
           onAdmissionUpdated={onRefresh}
+        />
+      )}
+
+      {showAddChargeModal && (
+        <AddChargeModal
+          isOpen={showAddChargeModal}
+          onClose={() => setShowAddChargeModal(false)}
+          admissionId={admission.id}
+          onSuccess={() => {
+            setShowAddChargeModal(false);
+            toast.success("Service charge added to patient bill");
+            onRefresh();
+          }}
         />
       )}
     </>

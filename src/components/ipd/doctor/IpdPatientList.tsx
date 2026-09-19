@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { IpdAdmittedPatient } from "@/types/ipdDoctor";
 import { CareStatusBadge, PatientStatusBadge, AdmissionStatusBadge } from "../StatusBadges";
+import { ScrollableContainer } from "@/components/common/ScrollableContainer";
 
 interface IpdPatientListProps {
   patients: IpdAdmittedPatient[];
@@ -160,10 +161,14 @@ export function IpdPatientList({
           </div>
 
           {wards.length > 0 && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] scrollbar-none">
+            <ScrollableContainer
+              className="flex items-center gap-1"
+              contentClassName="flex flex-1 items-center gap-1 overflow-x-auto pb-1 text-[11px] scrollbar-hide min-w-0"
+              buttonClassName="h-6 w-6 rounded-md text-[10px]"
+            >
               <button
                 onClick={() => setSelectedWard("all")}
-                className={`rounded-lg px-2.5 py-1 font-semibold whitespace-nowrap transition cursor-pointer ${
+                className={`rounded-lg px-2.5 py-1 font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                   selectedWard === "all"
                     ? "bg-slate-800 text-white shadow-2xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -175,7 +180,7 @@ export function IpdPatientList({
                 <button
                   key={ward}
                   onClick={() => setSelectedWard(ward)}
-                  className={`rounded-lg px-2.5 py-1 font-semibold whitespace-nowrap transition cursor-pointer ${
+                  className={`rounded-lg px-2.5 py-1 font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                     selectedWard === ward
                       ? "bg-sky-600 text-white shadow-2xs"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -184,7 +189,7 @@ export function IpdPatientList({
                   {ward}
                 </button>
               ))}
-            </div>
+            </ScrollableContainer>
           )}
         </div>
       </div>

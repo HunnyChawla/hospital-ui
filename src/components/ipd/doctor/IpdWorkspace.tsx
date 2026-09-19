@@ -9,13 +9,11 @@ import {
   FileText,
   Activity,
   FlaskConical,
-  Stethoscope,
-  HeartHandshake,
   RefreshCw,
-  UserCheck,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/redux/hooks";
@@ -29,12 +27,14 @@ import { IpdOrdersTab } from "./IpdOrdersTab";
 import { IpdProgressNotesTab } from "./IpdProgressNotesTab";
 import { IpdVitalsTab } from "./IpdVitalsTab";
 import { IpdInvestigationsTab } from "./IpdInvestigationsTab";
+import { IpdServicesTab } from "./IpdServicesTab";
 import { IpdDischargeSummaryModal } from "./IpdDischargeSummaryModal";
+import { ScrollableContainer } from "@/components/common/ScrollableContainer";
 import { toast } from "sonner";
 
 import { usePermissions } from "@/hooks/usePermissions";
 
-type TabKey = "medications" | "mar" | "orders" | "progress_notes" | "vitals" | "investigations";
+type TabKey = "medications" | "mar" | "orders" | "services" | "progress_notes" | "vitals" | "investigations";
 
 export function IpdWorkspace() {
   const searchParams = useSearchParams();
@@ -170,6 +170,11 @@ export function IpdWorkspace() {
         badge: chart?.orders.filter((o) => o.status === "active").length,
       },
       {
+        id: "services",
+        label: "Services & Charges",
+        icon: Sparkles,
+      },
+      {
         id: "progress_notes",
         label: "Progress Notes",
         icon: FileText,
@@ -190,12 +195,12 @@ export function IpdWorkspace() {
     ];
 
     if (workspaceMode === "nursing") {
-      const nursingKeys: TabKey[] = ["mar", "vitals", "progress_notes", "orders", "investigations"];
+      const nursingKeys: TabKey[] = ["mar", "vitals", "services", "progress_notes", "orders", "investigations"];
       return nursingKeys
         .map((k) => allTabs.find((t) => t.id === k))
         .filter((t): t is WorkspaceTabItem => Boolean(t));
     }
-    const doctorKeys: TabKey[] = ["medications", "orders", "progress_notes", "vitals", "investigations", "mar"];
+    const doctorKeys: TabKey[] = ["medications", "orders", "services", "progress_notes", "vitals", "investigations", "mar"];
     return doctorKeys
       .map((k) => allTabs.find((t) => t.id === k))
       .filter((t): t is WorkspaceTabItem => Boolean(t));
@@ -409,8 +414,11 @@ export function IpdWorkspace() {
                 </div>
               )}
 
-              {/* Chart Tabs Navigation */}
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 sm:p-2 shadow-xs text-xs scrollbar-none">
+              {/* Chart Tabs Navigation with < > Scroll Controls */}
+              <ScrollableContainer
+                className="flex items-center gap-1 sm:gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 sm:p-2 shadow-xs text-xs"
+                contentClassName="flex flex-1 items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide min-w-0"
+              >
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -418,7 +426,7 @@ export function IpdWorkspace() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 font-bold whitespace-nowrap transition cursor-pointer ${
+                      className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 font-bold whitespace-nowrap transition cursor-pointer shrink-0 ${
                         isActive
                           ? "bg-slate-900 text-white shadow-sm"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -440,7 +448,7 @@ export function IpdWorkspace() {
                     </button>
                   );
                 })}
-              </div>
+              </ScrollableContainer>
 
               {/* Tab Content Display */}
               <div>
@@ -494,6 +502,16 @@ export function IpdWorkspace() {
                     vitals={chart.vitals}
                     onRefresh={handleRefreshCurrentChart}
                     isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
+                  />
+                )}
+
+                {activeTab === "services" && (
+                  <IpdServicesTab
+                    admissionId={chart.admission.id}
+                    patientId={chart.patient.id}
+                    onRefresh={handleRefreshCurrentChart}
+                    isDischarged={["DISCHARGED", "discharged", "CANCELLED", "cancelled"].includes(chart.admission.status)}
+                    isDoctor={isDoctor}
                   />
                 )}
 
