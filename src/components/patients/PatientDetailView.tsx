@@ -1191,23 +1191,24 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     tabsContainerRef.current.scrollLeft += e.deltaY;
                   }
                 }}
-                className="flex flex-1 items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide -mb-px min-w-0"
+                className="flex flex-1 items-center gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide -mb-px min-w-0"
               >
                 {[
-                  { id: "appointment", label: "Appointment", icon: Calendar },
-                  { id: "opd", label: "OPD Slip", icon: Stethoscope },
-                  { id: "admit", label: "Admit/Discharge", icon: BedDouble },
-                  { id: "billing", label: "Billing", icon: CreditCard },
-                  { id: "tests", label: "Tests", icon: TestTube },
-                  { id: "record", label: "Health Record", icon: FileText },
-                  { id: "immunisation", label: "Immunisation", icon: Syringe },
-                  { id: "documents", label: "MRD Documents", icon: FolderOpen },
-                  { id: "abdm_records", label: "ABDM External Records", icon: ShieldCheck },
+                  { id: "appointment", label: "Appointments", tooltip: "Patient appointments", icon: Calendar },
+                  { id: "opd", label: "OPD", tooltip: "Outpatient consultations & slips", icon: Stethoscope },
+                  { id: "admit", label: "Admissions", tooltip: "Inpatient admissions & discharge", icon: BedDouble },
+                  { id: "billing", label: "Billing", tooltip: "Invoices and payments", icon: CreditCard },
+                  { id: "tests", label: "Labs", tooltip: "Lab test bookings and prescriptions", icon: TestTube },
+                  { id: "record", label: "Records", tooltip: "Health record & encounter timeline", icon: FileText },
+                  { id: "abdm_records", label: "ABDM", tooltip: "ABDM external health records (HIU)", icon: ShieldCheck },
+                  { id: "immunisation", label: "Vaccines", tooltip: "Immunisation & vaccine doses", icon: Syringe },
+                  { id: "documents", label: "MRD", tooltip: "Medical records & documents", icon: FolderOpen },
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                    className={`flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2 text-sm font-semibold transition cursor-pointer whitespace-nowrap ${activeTab === tab.id
+                    title={tab.tooltip}
+                    className={`flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 sm:px-3 py-2 text-sm font-semibold transition cursor-pointer whitespace-nowrap ${activeTab === tab.id
                       ? "border-sky-500 text-sky-700"
                       : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
                       }`}
