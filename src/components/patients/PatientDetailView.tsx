@@ -94,6 +94,51 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [activeTab, setActiveTab] = useState<
     "opd" | "appointment" | "admit" | "billing" | "tests" | "record" | "immunisation" | "abdm_records" | "documents"
   >("appointment");
+
+  // Tab horizontal scroll controls
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(false);
+
+  const checkScrollButtons = useCallback(() => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setShowLeftScroll(scrollLeft > 2);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 2);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScrollButtons();
+    const container = tabsContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScrollButtons);
+      window.addEventListener("resize", checkScrollButtons);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", checkScrollButtons);
+      }
+      window.removeEventListener("resize", checkScrollButtons);
+    };
+  }, [checkScrollButtons]);
+
+  useEffect(() => {
+    const timer = setTimeout(checkScrollButtons, 100);
+    return () => clearTimeout(timer);
+  }, [activeTab, checkScrollButtons]);
+
+  const scrollTabs = (direction: "left" | "right") => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const scrollAmount = 240;
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [showLabBookingModal, setShowLabBookingModal] = useState(false);
@@ -1120,9 +1165,34 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           </div>
 
           <div className="h-[calc(100vh-200px)] min-h-[600px] overflow-y-auto p-6 scrollbar-hide">
-            {/* Action Tabs */}
-            <div className="mb-6 flex items-center justify-between gap-3 border-b border-slate-200">
-              <div className="flex flex-1 items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide -mb-px min-w-0">
+            {/* Action Tabs with < > Scroll Controls and Refresh */}
+            <div className="mb-6 flex items-center justify-between gap-2 border-b border-slate-200">
+              {/* Left Scroll Button */}
+              <button
+                type="button"
+                onClick={() => scrollTabs("left")}
+                disabled={!showLeftScroll}
+                className={`mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition cursor-pointer shadow-2xs ${
+                  !showLeftScroll
+                    ? "opacity-25 cursor-not-allowed text-slate-300"
+                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
+                }`}
+                title="Scroll tabs left"
+                aria-label="Scroll tabs left"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {/* Scrollable Tabs */}
+              <div
+                ref={tabsContainerRef}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0 && tabsContainerRef.current) {
+                    tabsContainerRef.current.scrollLeft += e.deltaY;
+                  }
+                }}
+                className="flex flex-1 items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide -mb-px min-w-0"
+              >
                 {[
                   { id: "appointment", label: "Appointment", icon: Calendar },
                   { id: "opd", label: "OPD Slip", icon: Stethoscope },
@@ -1147,7 +1217,24 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   </button>
                 ))}
               </div>
-              <div className="flex items-center shrink-0 pb-1.5 pl-2">
+
+              {/* Right Controls: Right Scroll Button + Refresh Button */}
+              <div className="flex items-center gap-2 shrink-0 pb-1 pl-1">
+                <button
+                  type="button"
+                  onClick={() => scrollTabs("right")}
+                  disabled={!showRightScroll}
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition cursor-pointer shadow-2xs ${
+                    !showRightScroll
+                      ? "opacity-25 cursor-not-allowed text-slate-300"
+                      : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
+                  }`}
+                  title="Scroll tabs right"
+                  aria-label="Scroll tabs right"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+
                 <button
                   type="button"
                   onClick={handleActiveTabRefresh}
