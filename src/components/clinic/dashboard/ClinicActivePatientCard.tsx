@@ -6,7 +6,6 @@ import { Stethoscope, X, ClipboardList, FileEdit, LayoutGrid, LayoutList, Layout
 import { useExaminationViewPreference } from "@/hooks/useExaminationViewPreference";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinalised";
-import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 import { AdviseAdmissionModal } from "../shared/AdviseAdmissionModal";
 import { ClinicStatusBadge } from "../shared/ClinicStatusBadge";
 import type { ClinicPanelMode } from "@/redux/clinicPanelSlice";
@@ -232,10 +231,6 @@ export function ClinicActivePatientCard({
                   isAdmitted={isAdmitted}
                 />
               </>
-            )}
-
-            {isDoctor && visitId && (
-              <FinaliseVisitAction episodeType="opd_visit" sourceId={visitId} compact />
             )}
 
             <button

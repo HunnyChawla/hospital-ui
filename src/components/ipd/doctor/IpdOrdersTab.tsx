@@ -10,7 +10,6 @@ import {
   Utensils,
   HeartHandshake,
   FileText,
-  AlertCircle,
   CheckCircle2,
   StopCircle,
   XCircle,
@@ -23,6 +22,8 @@ import {
 import { IpdOrder } from "@/types/ipdDoctor";
 import { ipdDoctorApi } from "@/services/ipdDoctorApi";
 import { labTestsApi, LabTest } from "@/services/labTestsApi";
+import { labBookingsApi, LabBooking } from "@/services/labBookingsApi";
+import { PreviousLabReportModal } from "@/components/optometrist/prescriptions/PreviousLabReportModal";
 import { surgeriesApi, SurgeryPrescriptionOption } from "@/services/surgeriesApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
 import { BodyPartPicker } from "@/components/planned-surgeries/BodyPartPicker";
@@ -100,7 +101,88 @@ export function IpdOrdersTab({
   const labSearchRef = useRef<HTMLDivElement>(null);
   const radiologySearchRef = useRef<HTMLDivElement>(null);
 
+  // Lab / Radiology report modal state
+  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
+  const [loadingReportBookingId, setLoadingReportBookingId] = useState<string | null>(null);
+
   const minDate = getTodayDateLocal();
+
+  const handleViewReport = async (order: IpdOrder) => {
+    setLoadingReportBookingId(order.id);
+    try {
+      if (order.booking_id) {
+        try {
+          const fullBooking = await labBookingsApi.getById(order.booking_id);
+          if (fullBooking) {
+            setSelectedReportBooking(fullBooking);
+            return;
+          }
+        } catch {
+          // Fallback if getById has transient issue
+          setSelectedReportBooking({
+            id: order.booking_id,
+            tenant_id: order.tenant_id,
+            patient_id: patientId || order.patient_id,
+            admission_id: admissionId || order.admission_id,
+            booking_number: order.booking_number || order.order_number,
+            scheduled_date: order.ordered_at ? order.ordered_at.slice(0, 10) : getTodayDateLocal(),
+            scheduled_time: null,
+            priority: (order.priority as any) || "routine",
+            status: (order.booking_status as any) || "completed",
+            invoice_id: null,
+            payment_id: null,
+            notes: order.instructions || null,
+            tests: [
+              {
+                id: order.lab_test_id || order.id,
+                lab_test_id: order.lab_test_id || order.id,
+                test_code: order.order_number,
+                test_name: order.order_title,
+                price: 0,
+              },
+            ],
+            total_amount: 0,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+          });
+          return;
+        }
+      }
+
+      // If booking_id is not directly populated on the order, search patient bookings
+      const patientTargetId = patientId || order.patient_id;
+      if (patientTargetId) {
+        const bookingsRes = await labBookingsApi.list({
+          patient_id: patientTargetId,
+          page_size: 50,
+        });
+        const matchedBooking = bookingsRes.items.find((b) => {
+          if (b.ipd_order_id === order.id) return true;
+          if (order.lab_test_id && b.tests?.some((t) => t.lab_test_id === order.lab_test_id)) return true;
+          if (b.tests?.some((t) => t.test_name.toLowerCase().trim() === order.order_title.toLowerCase().trim())) return true;
+          return false;
+        });
+
+        if (matchedBooking) {
+          try {
+            const fullBooking = await labBookingsApi.getById(matchedBooking.id);
+            setSelectedReportBooking(fullBooking || matchedBooking);
+            return;
+          } catch {
+            setSelectedReportBooking(matchedBooking);
+            return;
+          }
+        }
+      }
+
+      toast.error("No linked lab booking found for this order.");
+    } catch (err) {
+      console.error("Failed to load lab report:", err);
+      toast.error("Failed to load lab report");
+    } finally {
+      setLoadingReportBookingId(null);
+    }
+  };
 
   // Load Lab & Radiology Catalog on mount
   useEffect(() => {
@@ -684,10 +766,20 @@ export function IpdOrdersTab({
                         {/* If category is lab or radiology, show booking status badge */}
                         {(order.order_category === "lab" || order.order_category === "radiology") && (
                           order.has_results || order.booking_status === "completed" ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold border border-emerald-200">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Results Ready
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleViewReport(order)}
+                              disabled={loadingReportBookingId === order.id}
+                              className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-2.5 py-0.5 text-[10px] font-bold border border-emerald-200 transition cursor-pointer"
+                              title="Click to view full lab report"
+                            >
+                              {loadingReportBookingId === order.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              )}
+                              <span>Results Ready</span>
+                            </button>
                           ) : order.booking_id && order.booking_status !== "cancelled" ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-800 px-2 py-0.5 text-[10px] font-bold border border-purple-200">
                               <Clock className="h-3 w-3" />
@@ -727,39 +819,68 @@ export function IpdOrdersTab({
                     </div>
                   </div>
 
-                  {isActive && !isDischarged && isDoctor && (
-                    <div className="shrink-0 self-end sm:self-center pt-1 sm:pt-0">
-                      <button
-                        onClick={() => {
-                          const isLab = order.order_category === "lab";
-                          const isRadio = order.order_category === "radiology";
-                          const isProc = order.order_category === "procedure";
-                          setDiscontinuingOrder(order);
-                          setDiscontinueReason(
-                            isLab
-                              ? "Cancelled by doctor"
-                              : isRadio
-                              ? "Radiology order cancelled"
-                              : isProc
-                              ? "Procedure cancelled / postponed"
-                              : "Goal achieved / Completed"
-                          );
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer shadow-2xs"
-                      >
-                        {order.order_category === "lab" || order.order_category === "radiology" || order.order_category === "procedure" ? (
-                          <XCircle className="h-3.5 w-3.5 text-rose-500" />
-                        ) : (
-                          <StopCircle className="h-3.5 w-3.5 text-slate-500" />
-                        )}
-                        <span>
-                          {order.order_category === "lab" || order.order_category === "radiology" || order.order_category === "procedure"
-                            ? "Cancel Order"
-                            : "Discontinue"}
-                        </span>
-                      </button>
-                    </div>
-                  )}
+                  <div className="shrink-0 self-end sm:self-center flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
+                    {(order.order_category === "lab" || order.order_category === "radiology") &&
+                      (order.has_results || order.booking_status === "completed") && (
+                        <button
+                          type="button"
+                          onClick={() => handleViewReport(order)}
+                          disabled={loadingReportBookingId === order.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition cursor-pointer shadow-2xs"
+                        >
+                          {loadingReportBookingId === order.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5 text-emerald-700" />
+                          )}
+                          <span>View Report</span>
+                        </button>
+                      )}
+
+                    {(() => {
+                      const isLabOrRadio = order.order_category === "lab" || order.order_category === "radiology";
+                      const bookingStatusLower = (order.booking_status || "").toLowerCase();
+                      const isSampleCollectedOrBeyond = isLabOrRadio && (
+                        order.has_results ||
+                        ["sample_collected", "in_progress", "completed"].includes(bookingStatusLower)
+                      );
+                      const canCancel = isActive && !isDischarged && isDoctor && !isSampleCollectedOrBeyond;
+
+                      if (!canCancel) return null;
+
+                      return (
+                        <button
+                          onClick={() => {
+                            const isLab = order.order_category === "lab";
+                            const isRadio = order.order_category === "radiology";
+                            const isProc = order.order_category === "procedure";
+                            setDiscontinuingOrder(order);
+                            setDiscontinueReason(
+                              isLab
+                                ? "Cancelled by doctor"
+                                : isRadio
+                                ? "Radiology order cancelled"
+                                : isProc
+                                ? "Procedure cancelled / postponed"
+                                : "Goal achieved / Completed"
+                            );
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer shadow-2xs"
+                        >
+                          {order.order_category === "lab" || order.order_category === "radiology" || order.order_category === "procedure" ? (
+                            <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                          ) : (
+                            <StopCircle className="h-3.5 w-3.5 text-slate-500" />
+                          )}
+                          <span>
+                            {order.order_category === "lab" || order.order_category === "radiology" || order.order_category === "procedure"
+                              ? "Cancel Order"
+                              : "Discontinue"}
+                          </span>
+                        </button>
+                      );
+                    })()}
+                  </div>
                 </div>
               );
             })}
@@ -1399,6 +1520,13 @@ export function IpdOrdersTab({
           </div>
         </div>
       )}
+
+      {/* Lab / Radiology Report Viewer Modal */}
+      <PreviousLabReportModal
+        isOpen={Boolean(selectedReportBooking)}
+        onClose={() => setSelectedReportBooking(null)}
+        booking={selectedReportBooking}
+      />
     </div>
   );
 }

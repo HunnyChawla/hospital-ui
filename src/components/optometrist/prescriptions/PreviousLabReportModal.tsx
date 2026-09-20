@@ -48,22 +48,41 @@ export function PreviousLabReportModal({
     }, [isOpen, booking]);
 
     const fetchResults = async () => {
-        if (!booking) return;
+        if (!booking?.id) return;
         setLoading(true);
         try {
             const data = await labBookingsApi.getResults(booking.id);
-            setResults(data);
+            setResults(Array.isArray(data) ? data : []);
         } catch (error) {
             handleError(error, {
                 defaultMessage: "Failed to load lab results",
                 logError: true,
             });
+            setResults([]);
         } finally {
             setLoading(false);
         }
     };
 
     if (!isOpen || !booking || !mounted) return null;
+
+    const isCompleted = (booking.status || "").toLowerCase() === "completed" || results.length > 0;
+
+    const formatScheduledDate = () => {
+        if (!booking.scheduled_date) return "";
+        try {
+            const d = new Date(booking.scheduled_date);
+            return isNaN(d.getTime())
+                ? booking.scheduled_date
+                : d.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                });
+        } catch {
+            return booking.scheduled_date || "";
+        }
+    };
 
     return createPortal(
         <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -74,22 +93,24 @@ export function PreviousLabReportModal({
                         <div className="flex items-center gap-2">
                             <FlaskConical className="h-5 w-5 text-emerald-600" />
                             <h3 className="font-bold text-slate-800 text-lg">
-                                Lab Report: {booking.booking_number}
+                                Lab Report: {booking.booking_number || "Diagnostic Report"}
                             </h3>
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500 flex-wrap">
-                            <span className="flex items-center gap-1 font-medium text-slate-600">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {new Date(booking.scheduled_date).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                            </span>
-                            <span>•</span>
-                            <span className="capitalize font-semibold text-slate-600">
-                                Priority: {booking.priority}
-                            </span>
+                            {booking.scheduled_date && (
+                                <span className="flex items-center gap-1 font-medium text-slate-600">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {formatScheduledDate()}
+                                </span>
+                            )}
+                            {booking.priority && (
+                                <>
+                                    <span>•</span>
+                                    <span className="capitalize font-semibold text-slate-600">
+                                        Priority: {booking.priority}
+                                    </span>
+                                </>
+                            )}
                             {booking.sample_id && (
                                 <>
                                     <span>•</span>
@@ -115,7 +136,7 @@ export function PreviousLabReportModal({
                             <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
                             <p className="text-sm text-slate-500 font-medium italic">Fetching report parameters...</p>
                         </div>
-                    ) : booking.status !== "completed" ? (
+                    ) : !isCompleted && results.length === 0 ? (
                         <div className="text-center py-10 px-6 bg-amber-50/60 rounded-2xl border border-amber-200/80 my-2">
                             <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-3">
                                 <Lock className="h-6 w-6 text-amber-600" />
@@ -127,7 +148,7 @@ export function PreviousLabReportModal({
                             </p>
                             <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-amber-300 text-xs font-semibold text-amber-900 shadow-sm">
                                 <span>Current Status:</span>
-                                <span className="capitalize font-bold text-amber-700">{booking.status.replace(/_/g, " ")}</span>
+                                <span className="capitalize font-bold text-amber-700">{(booking.status || "in progress").replace(/_/g, " ")}</span>
                             </div>
                         </div>
                     ) : results.length > 0 ? (
@@ -140,7 +161,7 @@ export function PreviousLabReportModal({
                                     </div>
 
                                     <div className="space-y-3 pl-1">
-                                        {testItem.results.map((parameter) => (
+                                        {(testItem.results || []).map((parameter) => (
                                             <div
                                                 key={parameter.id}
                                                 className={`p-4 rounded-xl border transition hover:shadow-md ${
@@ -261,7 +282,7 @@ export function PreviousLabReportModal({
                                     price: 0,
                                     is_prescribed: true,
                                 },
-                                results: r.results.map((p) => ({
+                                results: (r.results || []).map((p) => ({
                                     id: p.id,
                                     booking_item_id: r.booking_item_id,
                                     parameter_id: p.id,

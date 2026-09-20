@@ -12,19 +12,21 @@ import {
   Search,
   Trash2,
   Plus,
-  Tag,
   Check,
   XCircle,
   FileSpreadsheet,
   Radio,
+  FileText,
+  Loader2,
 } from "lucide-react";
-import { labBookingsApi } from "@/services/labBookingsApi";
+import { labBookingsApi, LabBooking } from "@/services/labBookingsApi";
 import { labTestsApi, LabTest } from "@/services/labTestsApi";
 import { ipdDoctorApi } from "@/services/ipdDoctorApi";
 import { IpdOrder } from "@/types/ipdDoctor";
+import { PreviousLabReportModal } from "@/components/optometrist/prescriptions/PreviousLabReportModal";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { currency } from "@/utils/format";
+import { currency, getTodayDateLocal } from "@/utils/format";
 
 interface IpdInvestigationsTabProps {
   patientId: string;
@@ -106,6 +108,10 @@ export function IpdInvestigationsTab({
   const [cancellingOrder, setCancellingOrder] = useState<IpdOrder | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Full Clinical Lab / Radiology Report Viewer Modal state
+  const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
+  const [loadingReportBookingId, setLoadingReportBookingId] = useState<string | null>(null);
 
   // Load catalog tests for autocomplete based on selected investigation type
   useEffect(() => {
@@ -287,17 +293,107 @@ export function IpdInvestigationsTab({
     }
   };
 
-  const handleViewResults = async (bookingId: string) => {
-    setSelectedBookingId(bookingId);
-    setLoadingResults(true);
+  const handleOpenReportForBooking = async (b: any) => {
     try {
-      const res = await labBookingsApi.getResults(bookingId);
-      setResultsData(res);
-    } catch (err: any) {
-      toast.error("Failed to load results");
-    } finally {
-      setLoadingResults(false);
+      const fullBooking = await labBookingsApi.getById(b.id);
+      setSelectedReportBooking(fullBooking || b);
+    } catch {
+      setSelectedReportBooking({
+        id: b.id,
+        tenant_id: b.tenant_id || "",
+        patient_id: patientId,
+        admission_id: admissionId,
+        booking_number: b.booking_number,
+        scheduled_date: b.booking_date || b.scheduled_date || getTodayDateLocal(),
+        scheduled_time: null,
+        priority: b.priority || "routine",
+        status: b.status || "completed",
+        invoice_id: null,
+        payment_id: null,
+        notes: null,
+        tests: [],
+        total_amount: b.total_amount || 0,
+        created_at: "",
+        updated_at: "",
+      });
     }
+  };
+
+  const handleOpenReportForOrder = async (order: IpdOrder) => {
+    setLoadingReportBookingId(order.id);
+    try {
+      if (order.booking_id) {
+        try {
+          const fullBooking = await labBookingsApi.getById(order.booking_id);
+          if (fullBooking) {
+            setSelectedReportBooking(fullBooking);
+            return;
+          }
+        } catch {
+          setSelectedReportBooking({
+            id: order.booking_id,
+            tenant_id: order.tenant_id,
+            patient_id: patientId || order.patient_id,
+            admission_id: admissionId || order.admission_id,
+            booking_number: order.booking_number || order.order_number,
+            scheduled_date: order.ordered_at ? order.ordered_at.slice(0, 10) : getTodayDateLocal(),
+            scheduled_time: null,
+            priority: (order.priority as any) || "routine",
+            status: (order.booking_status as any) || "completed",
+            invoice_id: null,
+            payment_id: null,
+            notes: order.instructions || null,
+            tests: [
+              {
+                id: order.lab_test_id || order.id,
+                lab_test_id: order.lab_test_id || order.id,
+                test_code: order.order_number,
+                test_name: order.order_title,
+                price: 0,
+              },
+            ],
+            total_amount: 0,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+          });
+          return;
+        }
+      }
+
+      // Look up patient bookings
+      const bookingsRes = await labBookingsApi.list({
+        patient_id: patientId || order.patient_id,
+        page_size: 50,
+      });
+      const matched = bookingsRes.items.find((b) => {
+        if (b.ipd_order_id === order.id) return true;
+        if (order.lab_test_id && b.tests?.some((t) => t.lab_test_id === order.lab_test_id)) return true;
+        if (b.tests?.some((t) => t.test_name.toLowerCase().trim() === order.order_title.toLowerCase().trim())) return true;
+        return false;
+      });
+
+      if (matched) {
+        try {
+          const full = await labBookingsApi.getById(matched.id);
+          setSelectedReportBooking(full || matched);
+          return;
+        } catch {
+          setSelectedReportBooking(matched);
+          return;
+        }
+      }
+
+      toast.error("No linked lab booking found for this order.");
+    } catch (err) {
+      console.error("Failed to load lab report:", err);
+      toast.error("Failed to load lab report");
+    } finally {
+      setLoadingReportBookingId(null);
+    }
+  };
+
+  const handleViewResults = async (bookingId: string) => {
+    handleOpenReportForBooking({ id: bookingId });
   };
 
   const handleCancelOrderSubmit = async (e: React.FormEvent) => {
@@ -405,6 +501,9 @@ export function IpdInvestigationsTab({
               {investigationOrders.map((order) => {
                 const isCancelled = order.status === "discontinued" || order.status === "cancelled";
                 const isCompleted = order.booking_status === "completed" || order.has_results;
+                const bookingStatusLower = (order.booking_status || "").toLowerCase();
+                const isSampleCollectedOrBeyond = isCompleted || ["sample_collected", "in_progress"].includes(bookingStatusLower);
+                const canCancel = !isCancelled && !isSampleCollectedOrBeyond && !isDischarged && isDoctor;
                 const isBooked = !!order.booking_id;
                 const isRadiology = order.order_category === "radiology";
 
@@ -468,10 +567,20 @@ export function IpdInvestigationsTab({
                             Cancelled
                           </span>
                         ) : isCompleted ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {isRadiology ? "Results Ready" : "Completed"}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReportForOrder(order)}
+                            disabled={loadingReportBookingId === order.id}
+                            className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-2.5 py-0.5 text-[10px] font-bold border border-emerald-200 transition cursor-pointer"
+                            title="Click to view lab report"
+                          >
+                            {loadingReportBookingId === order.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
+                            ) : (
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            )}
+                            <span>{isRadiology ? "Results Ready" : "Completed"}</span>
+                          </button>
                         ) : isBooked ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 px-2 py-0.5 text-[10px] font-bold">
                             <Clock className="h-3 w-3" />
@@ -490,7 +599,22 @@ export function IpdInvestigationsTab({
                       <span>Ordered by: <strong>{order.doctor_name || "Doctor"}</strong></span>
                       <div className="flex items-center gap-2">
                         <span>⏱️ {new Date(order.ordered_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                        {!isCancelled && !isCompleted && !isDischarged && isDoctor && (
+                        {(isCompleted || order.has_results) && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReportForOrder(order)}
+                            disabled={loadingReportBookingId === order.id}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition cursor-pointer shadow-2xs"
+                          >
+                            {loadingReportBookingId === order.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-emerald-700" />
+                            ) : (
+                              <FileText className="h-3 w-3 text-emerald-700" />
+                            )}
+                            <span>View Report</span>
+                          </button>
+                        )}
+                        {canCancel && (
                           <button
                             onClick={() => {
                               setCancellingOrder(order);
@@ -560,11 +684,19 @@ export function IpdInvestigationsTab({
 
                     <div className="flex items-center gap-2 self-end sm:self-center">
                       <button
-                        onClick={() => handleViewResults(b.id)}
-                        className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 transition shadow-2xs cursor-pointer"
+                        onClick={() => handleOpenReportForBooking(b)}
+                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition shadow-2xs cursor-pointer ${
+                          isCompleted
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                        }`}
                       >
-                        <Eye className="h-3.5 w-3.5 text-sky-600" />
-                        <span>View Results</span>
+                        {isCompleted ? (
+                          <FileText className="h-3.5 w-3.5 text-emerald-700" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5 text-sky-600" />
+                        )}
+                        <span>{isCompleted ? "View Report" : "View Results"}</span>
                       </button>
                     </div>
                   </div>
@@ -1045,6 +1177,13 @@ export function IpdInvestigationsTab({
           </div>
         </div>
       )}
+
+      {/* Full Clinical Lab / Radiology Report Viewer Modal */}
+      <PreviousLabReportModal
+        isOpen={Boolean(selectedReportBooking)}
+        onClose={() => setSelectedReportBooking(null)}
+        booking={selectedReportBooking}
+      />
     </div>
   );
 }
