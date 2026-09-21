@@ -868,12 +868,29 @@ export function AbhaEnrollmentModal({
                       {resultProfile.dob || "N/A"}
                     </p>
                   </div>
-                  <div className="sm:col-span-2">
-                    <span className="text-xs text-slate-400 font-medium block">Email Address</span>
-                    <p className="font-medium text-slate-800 text-base truncate">
-                      {resultProfile.email || "N/A"}
-                    </p>
-                  </div>
+                  {resultProfile.email && (
+                    <div className="sm:col-span-2">
+                      <span className="text-xs text-slate-400 font-medium block">Email Address</span>
+                      <p className="font-medium text-slate-800 text-base truncate">
+                        {resultProfile.email}
+                      </p>
+                    </div>
+                  )}
+                  {(resultProfile.address || resultProfile.district || resultProfile.state || resultProfile.pincode) && (
+                    <div className="sm:col-span-2">
+                      <span className="text-xs text-slate-400 font-medium block">Address</span>
+                      <p className="font-medium text-slate-800 text-sm">
+                        {[
+                          resultProfile.address,
+                          resultProfile.district,
+                          resultProfile.state,
+                          resultProfile.pincode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

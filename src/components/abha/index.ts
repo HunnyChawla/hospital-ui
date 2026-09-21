@@ -1,5 +1,6 @@
 export * from "./AbhaStatusBadge";
 export * from "./AbhaEnrollmentModal";
+export * from "./AbhaSyncModal";
 export * from "./AbhaCardDownloadModal";
 export * from "./AbdmConfigSettings";
 export * from "./FindAbhaModal";

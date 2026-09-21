@@ -18,7 +18,7 @@ import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
 import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
-import { AbhaStatusBadge, AbhaEnrollmentModal, AbhaCardDownloadModal } from "@/components/abha";
+import { AbhaStatusBadge, AbhaEnrollmentModal, AbhaSyncModal, AbhaCardDownloadModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { usePatient } from "@/hooks/queries/usePatients";
@@ -103,6 +103,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
+  const [isAbhaSyncModalOpen, setIsAbhaSyncModalOpen] = useState(false);
   const [isCardDownloadModalOpen, setIsCardDownloadModalOpen] = useState(false);
   const { data: fullPatientData } = usePatient(isAbhaModalOpen ? patientId : null);
   const abhaApiPatientData = fullPatientData as any;
@@ -116,6 +117,8 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       toast.success("ABHA profile attached to patient successfully!");
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+      queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
     } catch (e: any) {
       // getAbhaError, not getErrorMessage: strips the ABHA_DUPLICATE:/ABHA_MISMATCH: machine
       // prefixes the backend uses so they never reach the operator.
@@ -123,6 +126,13 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
         duration: 10000,
       });
     }
+  };
+
+  const handleAbhaSyncSuccess = (profile: any, sessionKey: string) => {
+    dispatch(fetchPatients({}) as any);
+    dispatch(getPatientById({ patientId }) as any);
+    queryClient.invalidateQueries({ queryKey: ["patients"] });
+    queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
   };
 
   const [labBookings, setLabBookings] = useState<LabBooking[]>([]);
@@ -1024,7 +1034,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   )}
                 </div>
 
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <AbhaStatusBadge
                     abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId)}
                     abhaAddress={patient.abhaAddress}
@@ -1033,6 +1043,17 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     onEnrollClick={() => setIsAbhaModalOpen(true)}
                     size="sm"
                   />
+                  {abhaEnabled && (resolveAbhaNumber(patient.abhaNumber, patient.abhaId) || patient.abhaAddress || patient.mobile) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAbhaSyncModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                      title="Fetch latest profile data from ABHA and update database"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Sync ABHA Profile</span>
+                    </button>
+                  )}
                   {resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
                     <button
                       type="button"
@@ -2344,6 +2365,28 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 }
               : undefined
           }
+        />
+      )}
+
+      {/* ABHA Sync Modal */}
+      {patient && (
+        <AbhaSyncModal
+          isOpen={isAbhaSyncModalOpen}
+          onClose={() => setIsAbhaSyncModalOpen(false)}
+          onSuccess={handleAbhaSyncSuccess}
+          patientId={patient.id}
+          patientUhid={patient.healthId || abhaApiPatientData?.uhid}
+          patientName={patient.name}
+          patientMobile={patient.mobile}
+          patientAbhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId)}
+          patientAbhaAddress={patient.abhaAddress}
+          patientGender={patient.gender}
+          patientDob={abhaApiPatientData?.date_of_birth}
+          patientAddress={patient.address}
+          patientCity={patient.city}
+          patientState={patient.state}
+          patientPincode={patient.pincode}
+          patientPhoto={(patient as any).photo_base64 || (patient as any).photoBase64}
         />
       )}
 

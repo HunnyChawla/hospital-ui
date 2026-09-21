@@ -86,6 +86,18 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     if (profile.dob) {
       handleDobChange(profile.dob);
     }
+    if (profile.address) {
+      setValue("address", profile.address, { shouldValidate: true });
+    }
+    if (profile.district) {
+      setValue("city", profile.district, { shouldValidate: true });
+    }
+    if (profile.state) {
+      setValue("state", profile.state, { shouldValidate: true });
+    }
+    if (profile.pincode) {
+      setValue("pincode", profile.pincode, { shouldValidate: true });
+    }
     toast.success("Patient details auto-populated from ABHA profile!");
   };
 

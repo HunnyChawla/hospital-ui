@@ -17,6 +17,10 @@ export interface AbhaProfileDto {
   mobile?: string | null;
   email?: string | null;
   photo_base64?: string | null;
+  address?: string | null;
+  district?: string | null;
+  state?: string | null;
+  pincode?: string | null;
 }
 
 export interface AbhaEnrollmentResult {
@@ -109,6 +113,7 @@ export interface AbhaPatientSyncRequestDto {
   // server no longer accepts or persists it. Aadhaar is still sent for
   // authentication in the enrollment DTOs; only retention is gone.
   override_mismatch?: boolean;
+  sync_demographics?: boolean;
 }
 
 /**
