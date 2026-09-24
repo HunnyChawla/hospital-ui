@@ -60,7 +60,9 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   // Set when the attached ABHA turns out to belong to another patient, so the reason stays on
   // screen next to the ABHA field instead of vanishing with the toast.
   const [abhaLinkError, setAbhaLinkError] = useState<string | null>(null);
-  const isAbhaVerified = abhaProfile ? true : (defaultValues?.abhaVerified || false);
+  const isAbhaVerified = abhaProfile
+    ? true
+    : Boolean(defaultValues?.abhaVerified || apiData?.abha_verified || false);
 
   const handleAbhaSuccess = (profile: any, sessionKey: string, aadhaar?: string) => {
     setAbhaProfile(profile);
@@ -811,7 +813,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
               <span className="text-slate-600">ABHA/Health ID</span>
               <AbhaStatusBadge
                 abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number}
-                abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress}
+                abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address}
                 abhaVerified={isAbhaVerified}
                 showEnrollButton={abhaEnabled}
                 onEnrollClick={() => setIsAbhaModalOpen(true)}
@@ -821,7 +823,13 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             {/* ABHA can only be linked through ABDM verification (see "Link ABHA" above) -
                 it is never a free-text field the user can type into directly. */}
             <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              {abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number || "Not linked"}
+              {abhaProfile?.abha_number ||
+                defaultValues?.abhaNumber ||
+                apiData?.abha_number ||
+                abhaProfile?.abha_address ||
+                defaultValues?.abhaAddress ||
+                apiData?.abha_address ||
+                "Not linked"}
             </div>
             {abhaLinkError ? (
               <span className="block text-xs text-rose-600">{abhaLinkError}</span>
