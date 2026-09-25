@@ -24,13 +24,15 @@ export interface AbhaProfileDto {
 }
 
 export interface AbhaEnrollmentResult {
-  profile: AbhaProfileDto;
+  profile?: AbhaProfileDto | null;
   message?: string | null;
-  is_new_abha: boolean;
+  is_new_abha?: boolean;
   suggested_addresses?: string[];
   auto_selected_address?: string | null;
   session_key?: string | null;
   card_session_key?: string | null;
+  accounts?: AbhaProfileDto[];
+  requires_selection?: boolean;
 }
 
 export interface AbhaPatientProfileResponseDto {
@@ -105,6 +107,11 @@ export interface AbhaLinkOtpRequestDto {
 export interface AbhaLinkVerifyOtpDto {
   session_key: string;
   otp: string;
+}
+
+export interface AbhaLinkSelectAccountDto {
+  session_key: string;
+  abha_number: string;
 }
 
 export interface AbhaPatientSyncRequestDto {
@@ -273,6 +280,13 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<AbhaEnrollmentResult>("/abha/link/verify-otp", req, { params });
+    return response.data;
+  },
+
+  async selectLinkAccount(req: AbhaLinkSelectAccountDto, tenantId?: string): Promise<AbhaEnrollmentResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<AbhaEnrollmentResult>("/abha/link/select-account", req, { params });
     return response.data;
   },
 

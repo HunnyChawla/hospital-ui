@@ -9,6 +9,11 @@ import {
   AlertTriangle,
   Loader2,
   ArrowRight,
+  Users,
+  BadgeCheck,
+  ArrowLeft,
+  Check,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
@@ -69,6 +74,8 @@ export function AbhaSyncModal({
 
   // Result state
   const [fetchedProfile, setFetchedProfile] = useState<AbhaProfileDto | null>(null);
+  const [accountsToSelect, setAccountsToSelect] = useState<AbhaProfileDto[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<AbhaProfileDto | null>(null);
   const [linkConflict, setLinkConflict] = useState<AbhaLinkCheckResponseDto | null>(null);
   const [checkingConflict, setCheckingConflict] = useState(false);
   const [syncDemographics, setSyncDemographics] = useState(true);
@@ -84,6 +91,8 @@ export function AbhaSyncModal({
       setLoading(false);
       setSyncing(false);
       setFetchedProfile(null);
+      setAccountsToSelect([]);
+      setSelectedAccount(null);
       setLinkConflict(null);
       setCheckingConflict(false);
       setSyncDemographics(true);
@@ -132,24 +141,34 @@ export function AbhaSyncModal({
         otp: otp.trim(),
       });
 
-      setFetchedProfile(res.profile);
-      const activeSessionKey = res.session_key || sessionKey;
-      setSessionKey(activeSessionKey);
-      toast.success(res.message || "ABHA profile retrieved successfully from ABDM");
+      if (res.requires_selection && res.accounts && res.accounts.length > 1) {
+        setAccountsToSelect(res.accounts);
+        setSelectedAccount(res.accounts[0] || null);
+        if (res.session_key) setSessionKey(res.session_key);
+        toast.info("Multiple ABHA accounts found for this mobile number. Please select an account.");
+        return;
+      }
 
-      // Check for conflicts / mismatches
-      if (activeSessionKey) {
-        setCheckingConflict(true);
-        try {
-          const conflict = await abhaApi.checkLinkConflict({
-            session_key: activeSessionKey,
-            patient_id: patientId,
-          });
-          setLinkConflict(conflict);
-        } catch (err) {
-          console.warn("ABHA link conflict pre-check error:", err);
-        } finally {
-          setCheckingConflict(false);
+      if (res.profile) {
+        setFetchedProfile(res.profile);
+        const activeSessionKey = res.session_key || sessionKey;
+        setSessionKey(activeSessionKey);
+        toast.success(res.message || "ABHA profile retrieved successfully from ABDM");
+
+        // Check for conflicts / mismatches
+        if (activeSessionKey) {
+          setCheckingConflict(true);
+          try {
+            const conflict = await abhaApi.checkLinkConflict({
+              session_key: activeSessionKey,
+              patient_id: patientId,
+            });
+            setLinkConflict(conflict);
+          } catch (err) {
+            console.warn("ABHA link conflict pre-check error:", err);
+          } finally {
+            setCheckingConflict(false);
+          }
         }
       }
     } catch (error: any) {
@@ -158,6 +177,64 @@ export function AbhaSyncModal({
         setSessionKey(null);
         setOtp("");
         setOtpSent(false);
+        setAccountsToSelect([]);
+        setSelectedAccount(null);
+        toast.error("OTP session expired. Please request a new OTP.");
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectAccount = async (account?: AbhaProfileDto) => {
+    const target = account || selectedAccount;
+    if (!sessionKey || !target) {
+      toast.error("Please select an ABHA account");
+      return;
+    }
+    const identifier = target.abha_number || target.abha_address;
+    if (!identifier) {
+      toast.error("Selected account has no valid ABHA number or address");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await abhaApi.selectLinkAccount({
+        session_key: sessionKey,
+        abha_number: identifier,
+      });
+      setAccountsToSelect([]);
+      if (res.profile) {
+        setFetchedProfile(res.profile);
+        const activeSessionKey = res.session_key || sessionKey;
+        setSessionKey(activeSessionKey);
+        toast.success(res.message || "ABHA profile retrieved successfully from ABDM");
+
+        if (activeSessionKey) {
+          setCheckingConflict(true);
+          try {
+            const conflict = await abhaApi.checkLinkConflict({
+              session_key: activeSessionKey,
+              patient_id: patientId,
+            });
+            setLinkConflict(conflict);
+          } catch (err) {
+            console.warn("ABHA link conflict pre-check error:", err);
+          } finally {
+            setCheckingConflict(false);
+          }
+        }
+      }
+    } catch (error: any) {
+      const { message, code } = getAbhaError(error, "Failed to select ABHA account");
+      if (code === "SESSION_EXPIRED") {
+        setSessionKey(null);
+        setOtp("");
+        setOtpSent(false);
+        setAccountsToSelect([]);
+        setSelectedAccount(null);
         toast.error("OTP session expired. Please request a new OTP.");
       } else {
         toast.error(message);
@@ -250,6 +327,135 @@ export function AbhaSyncModal({
         </div>
 
         {!fetchedProfile ? (
+          accountsToSelect.length > 0 ? (
+            /* Step 1b: Select ABHA Account from Multiple */
+            <div className="space-y-4">
+              <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-emerald-900">
+                <Users className="h-5 w-5 shrink-0 text-emerald-700 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-semibold text-emerald-950">
+                    Multiple ABHA Accounts Found ({accountsToSelect.length})
+                  </h4>
+                  <p className="text-xs text-emerald-800 mt-0.5">
+                    Multiple ABHA profiles are registered with mobile number <strong>{abhaIdentifier}</strong>. Select the account belonging to <strong>{patientName || "this patient"}</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                {accountsToSelect.map((acc, idx) => {
+                  const isSelected = selectedAccount?.abha_number
+                    ? selectedAccount.abha_number === acc.abha_number
+                    : selectedAccount?.abha_address === acc.abha_address || idx === 0;
+                  const key = acc.abha_number || acc.abha_address || `acc-${idx}`;
+
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => setSelectedAccount(acc)}
+                      className={`group relative rounded-xl border p-3.5 transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50/50 shadow-sm ring-2 ring-emerald-500/20"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 font-semibold text-sm border border-slate-200 overflow-hidden">
+                          {acc.photo_base64 ? (
+                            <img
+                              src={
+                                acc.photo_base64.startsWith("data:")
+                                  ? acc.photo_base64
+                                  : `data:image/jpeg;base64,${acc.photo_base64}`
+                              }
+                              alt={acc.name || "Profile"}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : acc.name ? (
+                            acc.name.charAt(0).toUpperCase()
+                          ) : (
+                            <User className="h-5 w-5 text-slate-500" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900 text-sm truncate">
+                              {acc.name || "Unnamed Profile"}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
+                              <BadgeCheck className="h-3 w-3 text-emerald-600" />
+                              Verified
+                            </span>
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                            {acc.abha_number && (
+                              <span className="font-mono text-slate-700 font-medium">
+                                ABHA: {formatAbhaOrMobileInput(acc.abha_number)}
+                              </span>
+                            )}
+                            {acc.abha_address && (
+                              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">
+                                {acc.abha_address}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                            {acc.gender && (
+                              <span>
+                                Gender: {acc.gender === "M" ? "Male" : acc.gender === "F" ? "Female" : acc.gender}
+                              </span>
+                            )}
+                            {acc.gender && acc.dob && <span>•</span>}
+                            {acc.dob && <span>DOB: {acc.dob}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center self-center pl-2">
+                          <div
+                            className={`flex h-5 w-5 items-center justify-center rounded-full border transition-all ${
+                              isSelected
+                                ? "border-emerald-600 bg-emerald-600 text-white"
+                                : "border-slate-300 bg-white group-hover:border-slate-400"
+                            }`}
+                          >
+                            {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountsToSelect([]);
+                    setSelectedAccount(null);
+                  }}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back to OTP</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectAccount()}
+                  disabled={loading || !selectedAccount}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <span>Select & Link ABHA Profile</span>
+                </button>
+              </div>
+            </div>
+          ) : (
           /* Step 1: Request & Verify OTP */
           <div className="space-y-4">
             <div>
@@ -363,6 +569,7 @@ export function AbhaSyncModal({
               </div>
             )}
           </div>
+          )
         ) : (
           /* Step 2: Fetched ABHA Profile Comparison & Confirmation */
           <div className="space-y-4">

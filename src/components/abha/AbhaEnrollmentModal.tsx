@@ -14,6 +14,10 @@ import {
   RefreshCw,
   Download,
   X,
+  Users,
+  BadgeCheck,
+  ArrowLeft,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
@@ -130,6 +134,9 @@ export function AbhaEnrollmentModal({
   const [linkOtp, setLinkOtp] = useState("");
   const [linkOtpSent, setLinkOtpSent] = useState(false);
   const [linkConsentAccepted, setLinkConsentAccepted] = useState(false);
+  const [linkAccounts, setLinkAccounts] = useState<AbhaProfileDto[]>([]);
+  const [showAccountSelection, setShowAccountSelection] = useState(false);
+  const [selectedLinkAccount, setSelectedLinkAccount] = useState<AbhaProfileDto | null>(null);
 
   // Address Suggestions State
   const [suggestedAddresses, setSuggestedAddresses] = useState<string[]>([]);
@@ -179,6 +186,9 @@ export function AbhaEnrollmentModal({
     setLinkOtp("");
     setLinkOtpSent(false);
     setLinkConsentAccepted(false);
+    setLinkAccounts([]);
+    setShowAccountSelection(false);
+    setSelectedLinkAccount(null);
     setSuggestedAddresses([]);
     setSelectedAddress("");
     setShowAddressSelection(false);
@@ -543,15 +553,60 @@ export function AbhaEnrollmentModal({
         session_key: linkSessionKey,
         otp: linkOtp,
       });
+      if (res.requires_selection && res.accounts && res.accounts.length > 1) {
+        setLinkAccounts(res.accounts);
+        setSelectedLinkAccount(res.accounts[0] || null);
+        setShowAccountSelection(true);
+        if (res.session_key) setLinkSessionKey(res.session_key);
+        toast.info("Multiple ABHA accounts found for this mobile number. Please select an account.");
+        return;
+      }
       handleEnrollmentSuccess(res);
     } catch (error: any) {
       if (isSessionExpiredError(error)) {
         setLinkSessionKey(null);
         setLinkOtp("");
         setLinkOtpSent(false);
+        setShowAccountSelection(false);
+        setLinkAccounts([]);
         toast.error("Your OTP session has expired. Please request a new OTP.");
       } else {
         toast.error(getErrorMessage(error) || "Failed to verify link OTP");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectLinkAccount = async (account?: AbhaProfileDto) => {
+    const targetAccount = account || selectedLinkAccount;
+    if (!linkSessionKey || !targetAccount) {
+      toast.error("Please select an ABHA account");
+      return;
+    }
+    const identifier = targetAccount.abha_number || targetAccount.abha_address;
+    if (!identifier) {
+      toast.error("Selected account has no valid ABHA number or address");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await abhaApi.selectLinkAccount({
+        session_key: linkSessionKey,
+        abha_number: identifier,
+      });
+      setShowAccountSelection(false);
+      handleEnrollmentSuccess(res);
+    } catch (error: any) {
+      if (isSessionExpiredError(error)) {
+        setLinkSessionKey(null);
+        setLinkOtp("");
+        setLinkOtpSent(false);
+        setShowAccountSelection(false);
+        setLinkAccounts([]);
+        toast.error("Your session has expired. Please request OTP again.");
+      } else {
+        toast.error(getErrorMessage(error) || "Failed to select ABHA account");
       }
     } finally {
       setLoading(false);
@@ -567,7 +622,7 @@ export function AbhaEnrollmentModal({
 
     // Linking existing ABHA skips address creation since the account already has an address
     if (activeTab === "link_existing") {
-      setResultProfile(res.profile);
+      setResultProfile(res.profile || null);
       setResultSessionKey(effectiveSessionKey);
       toast.success(res.message || "ABHA profile retrieved successfully");
       if (effectiveSessionKey) void runLinkPrecheck(effectiveSessionKey);
@@ -595,7 +650,7 @@ export function AbhaEnrollmentModal({
     setCustomAddress("");
     setShowAddressSelection(true);
     setSessionKey(effectiveSessionKey);
-    setResultProfile(res.profile);
+    setResultProfile(res.profile || null);
     setResultSessionKey(effectiveSessionKey);
   };
 
@@ -627,7 +682,7 @@ export function AbhaEnrollmentModal({
         session_key: sessionKey,
         abha_address: addressToConfirm,
       });
-      setResultProfile(res.profile);
+      setResultProfile(res.profile || null);
       setResultSessionKey(res.session_key || sessionKey);
       setShowAddressSelection(false);
       toast.success("ABHA address confirmed successfully");
@@ -1449,72 +1504,203 @@ export function AbhaEnrollmentModal({
             {/* TAB 3: LINK EXISTING ABHA */}
             {activeTab === "link_existing" && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    14-digit ABHA Number or Registered Mobile <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={linkAbhaNumber}
-                    onChange={(e) => setLinkAbhaNumber(formatAbhaOrMobileInput(e.target.value))}
-                    disabled={linkOtpSent}
-                    placeholder="e.g. 12-3456-7890-1234 or 9876543210"
-                    className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
-                  />
-                </div>
+                {showAccountSelection && linkAccounts.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 p-3.5 text-sky-900">
+                      <Users className="h-5 w-5 shrink-0 text-sky-600 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-semibold text-sky-900">
+                          Multiple ABHA Accounts Found ({linkAccounts.length})
+                        </h4>
+                        <p className="text-xs text-sky-700 mt-0.5">
+                          Multiple ABHA profiles are registered with mobile number <strong>{linkAbhaNumber}</strong>. Please select the account for <strong>{initialName || "this patient"}</strong> to proceed.
+                        </p>
+                      </div>
+                    </div>
 
-                {!linkOtpSent ? (
-                  <>
-                    {/* Linking an ABHA that already exists — nothing is
-                        being created, so the creation-specific declarations
-                        do not apply. */}
-                    <AbhaConsentPanel
-                      variant="aadhaar-authentication"
-                      checked={linkConsentAccepted}
-                      onChange={setLinkConsentAccepted}
-                      disabled={loading}
-                      beneficiaryName={initialName}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRequestLinkOtp}
-                      disabled={loading || !linkAbhaNumber || !linkConsentAccepted}
-                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                    >
-                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                      <span>Request Link OTP</span>
-                    </button>
-                  </>
-                ) : (
-                  <div className="space-y-4 pt-2 border-t border-slate-100">
-                    <ResendableOtpField
-                      value={linkOtp}
-                      onChange={setLinkOtp}
-                      onResend={handleRequestLinkOtp}
-                      disabled={loading}
-                      autoFocus
-                      startCooldownOnMount
-                    />
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {linkAccounts.map((acc, idx) => {
+                        const isSelected = selectedLinkAccount?.abha_number
+                          ? selectedLinkAccount.abha_number === acc.abha_number
+                          : selectedLinkAccount?.abha_address === acc.abha_address || idx === 0;
+                        const key = acc.abha_number || acc.abha_address || `acc-${idx}`;
 
-                    <div className="flex gap-3">
+                        return (
+                          <div
+                            key={key}
+                            onClick={() => setSelectedLinkAccount(acc)}
+                            className={`group relative rounded-xl border p-3.5 transition-all cursor-pointer ${
+                              isSelected
+                                ? "border-sky-500 bg-sky-50/50 shadow-sm ring-2 ring-sky-500/20"
+                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 font-semibold text-sm border border-slate-200 overflow-hidden">
+                                {acc.photo_base64 ? (
+                                  <img
+                                    src={
+                                      acc.photo_base64.startsWith("data:")
+                                        ? acc.photo_base64
+                                        : `data:image/jpeg;base64,${acc.photo_base64}`
+                                    }
+                                    alt={acc.name || "Profile"}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : acc.name ? (
+                                  acc.name.charAt(0).toUpperCase()
+                                ) : (
+                                  <User className="h-5 w-5 text-slate-500" />
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-slate-900 text-sm truncate">
+                                    {acc.name || "Unnamed Profile"}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
+                                    <BadgeCheck className="h-3 w-3 text-emerald-600" />
+                                    Verified
+                                  </span>
+                                </div>
+
+                                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                                  {acc.abha_number && (
+                                    <span className="font-mono text-slate-700 font-medium">
+                                      ABHA: {formatAbhaOrMobileInput(acc.abha_number)}
+                                    </span>
+                                  )}
+                                  {acc.abha_address && (
+                                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">
+                                      {acc.abha_address}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                                  {acc.gender && (
+                                    <span>
+                                      Gender: {acc.gender === "M" ? "Male" : acc.gender === "F" ? "Female" : acc.gender}
+                                    </span>
+                                  )}
+                                  {acc.gender && acc.dob && <span>•</span>}
+                                  {acc.dob && <span>DOB: {acc.dob}</span>}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center self-center pl-2">
+                                <div
+                                  className={`flex h-5 w-5 items-center justify-center rounded-full border transition-all ${
+                                    isSelected
+                                      ? "border-sky-600 bg-sky-600 text-white"
+                                      : "border-slate-300 bg-white group-hover:border-slate-400"
+                                  }`}
+                                >
+                                  {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
                       <button
                         type="button"
-                        onClick={() => setLinkOtpSent(false)}
-                        className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                        onClick={() => {
+                          setShowAccountSelection(false);
+                          setLinkAccounts([]);
+                        }}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        Change ABHA/Mobile Number
+                        <ArrowLeft className="h-4 w-4" />
+                        <span>Back to OTP</span>
                       </button>
+
                       <button
                         type="button"
-                        onClick={handleVerifyLinkOtp}
-                        disabled={loading || !linkOtp}
-                        className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                        onClick={() => handleSelectLinkAccount()}
+                        disabled={loading || !selectedLinkAccount}
+                        className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
                       >
                         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                        <span>Verify & Link ABHA</span>
+                        <span>Link Selected ABHA Profile</span>
                       </button>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        14-digit ABHA Number or Registered Mobile <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={linkAbhaNumber}
+                        onChange={(e) => setLinkAbhaNumber(formatAbhaOrMobileInput(e.target.value))}
+                        disabled={linkOtpSent}
+                        placeholder="e.g. 12-3456-7890-1234 or 9876543210"
+                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
+                      />
+                    </div>
+
+                    {!linkOtpSent ? (
+                      <>
+                        {/* Linking an ABHA that already exists — nothing is
+                            being created, so the creation-specific declarations
+                            do not apply. */}
+                        <AbhaConsentPanel
+                          variant="aadhaar-authentication"
+                          checked={linkConsentAccepted}
+                          onChange={setLinkConsentAccepted}
+                          disabled={loading}
+                          beneficiaryName={initialName}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRequestLinkOtp}
+                          disabled={loading || !linkAbhaNumber || !linkConsentAccepted}
+                          className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                        >
+                          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                          <span>Request Link OTP</span>
+                        </button>
+                      </>
+                    ) : (
+                      <div className="space-y-4 pt-2 border-t border-slate-100">
+                        <ResendableOtpField
+                          value={linkOtp}
+                          onChange={setLinkOtp}
+                          onResend={handleRequestLinkOtp}
+                          disabled={loading}
+                          autoFocus
+                          startCooldownOnMount
+                        />
+
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setLinkOtpSent(false)}
+                            className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                          >
+                            Change ABHA/Mobile Number
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleVerifyLinkOtp}
+                            disabled={loading || !linkOtp}
+                            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          >
+                            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                            <span>Verify & Link ABHA</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
