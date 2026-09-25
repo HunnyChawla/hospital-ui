@@ -30,6 +30,11 @@ export interface ConsentRequestDto {
   fetched_records_count?: number;
   created_at: string;
   updated_at: string;
+  action_at?: string | null;
+  granted_at?: string | null;
+  denied_at?: string | null;
+  revoked_at?: string | null;
+  expired_at?: string | null;
 }
 
 export interface ClinicalMedication {

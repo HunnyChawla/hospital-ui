@@ -10,7 +10,7 @@ import { abhaApi, TenantAbdmConfigDto } from "@/services/abhaApi";
 import { useAppSelector } from "@/redux/hooks";
 import { AbdmConsentRequestModal } from "./AbdmConsentRequestModal";
 import { ExternalHealthRecordsViewer } from "./ExternalHealthRecordsViewer";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatDateTime } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import {
@@ -160,6 +160,7 @@ export function AbdmHiuConsentPanel({
 
   const grantedCount = consentRequests.filter((r) => r.status === "GRANTED").length;
   const pendingCount = consentRequests.filter((r) => r.status === "REQUESTED").length;
+  const expiredCount = consentRequests.filter((r) => r.status === "EXPIRED").length;
 
   return (
     <div className="space-y-4">
@@ -254,6 +255,12 @@ export function AbdmHiuConsentPanel({
               </span>
             )}
 
+            {expiredCount > 0 && (
+              <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 border border-slate-300">
+                {expiredCount} Expired
+              </span>
+            )}
+
             {!isConsentsExpanded && (
               <span className="text-[11px] text-slate-400 font-normal ml-1">
                 (Click to view consent audit table)
@@ -303,7 +310,36 @@ export function AbdmHiuConsentPanel({
                       return (
                         <tr key={req.id} className="hover:bg-slate-50/50 transition">
                           <td className="px-3.5 py-2.5 whitespace-nowrap">
-                            {getStatusBadge(req.status)}
+                            <div className="flex flex-col gap-1 items-start">
+                              {getStatusBadge(req.status)}
+                              <span className="text-[10px] font-medium leading-tight">
+                                {req.status === "GRANTED" && (
+                                  <span className="text-emerald-700">
+                                    Granted: {formatDateTime(req.granted_at || req.action_at || req.updated_at)}
+                                  </span>
+                                )}
+                                {req.status === "EXPIRED" && (
+                                  <span className="text-slate-500">
+                                    Expired: {formatDateTime(req.expired_at || req.action_at || req.expiry_at)}
+                                  </span>
+                                )}
+                                {req.status === "DENIED" && (
+                                  <span className="text-rose-600">
+                                    Denied: {formatDateTime(req.denied_at || req.action_at || req.updated_at)}
+                                  </span>
+                                )}
+                                {req.status === "REVOKED" && (
+                                  <span className="text-slate-600">
+                                    Revoked: {formatDateTime(req.revoked_at || req.action_at || req.updated_at)}
+                                  </span>
+                                )}
+                                {req.status === "REQUESTED" && (
+                                  <span className="text-amber-700">
+                                    Sent: {formatDateTime(req.created_at)}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-3.5 py-2.5">
                             <div className="flex flex-wrap gap-1 max-w-[280px]">
@@ -360,6 +396,19 @@ export function AbdmHiuConsentPanel({
                                   </span>
                                 )}
                               </div>
+                            ) : req.status === "EXPIRED" ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                                <Clock className="h-3 w-3 text-slate-400" />
+                                <span>Expired</span>
+                              </span>
+                            ) : req.status === "DENIED" ? (
+                              <span className="text-[11px] text-rose-500 font-medium">
+                                Denied by Patient
+                              </span>
+                            ) : req.status === "REVOKED" ? (
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                Consent Revoked
+                              </span>
                             ) : (
                               <span className="text-[11px] text-slate-400 font-medium">
                                 {req.status === "REQUESTED" ? "Waiting for Patient" : "Inactive"}
