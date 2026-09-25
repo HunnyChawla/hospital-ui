@@ -67,10 +67,34 @@ export const formatDateTime = (value: string | null | undefined) => {
   }
 };
 
-// Format a "Link Existing ABHA" input as the user types: a 14-digit ABHA
-// number gets grouped as XX-XXXX-XXXX-XXXX, while a 10-digit (or shorter)
-// mobile number is left as plain digits with no dashes.
+// Format a "Link Existing ABHA" input as the user types: supports 14-digit ABHA
+// (XX-XXXX-XXXX-XXXX), 12-digit Aadhaar (XXXX XXXX XXXX), 10-digit mobile (plain digits),
+// or ABHA address (name@abdm / name@sbx).
+export const formatAbhaLinkInput = (value: string): string => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (/[a-zA-Z@]/.test(trimmed)) {
+    return trimmed.replace(/\s+/g, "").toLowerCase();
+  }
+  const digits = trimmed.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 10) {
+    return digits;
+  }
+  if (digits.length <= 12) {
+    return digits.match(/.{1,4}/g)?.join(" ") ?? digits;
+  }
+  return [digits.slice(0, 2), digits.slice(2, 6), digits.slice(6, 10), digits.slice(10, 14)]
+    .filter(Boolean)
+    .join("-");
+};
+
+// Format an ABHA or mobile input: if ABHA address (has letters/@), preserves text;
+// if 14-digit ABHA number, groups as XX-XXXX-XXXX-XXXX; if 10-digit mobile, leaves as plain digits.
 export const formatAbhaOrMobileInput = (value: string): string => {
+  if (!value) return "";
+  if (/[a-zA-Z@]/.test(value)) {
+    return value.trim().replace(/\s+/g, "").toLowerCase();
+  }
   const digits = value.replace(/\D/g, "").slice(0, 14);
   if (digits.length <= 10) {
     return digits;

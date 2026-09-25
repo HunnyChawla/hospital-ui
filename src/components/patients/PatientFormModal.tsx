@@ -4,13 +4,20 @@ import { Modal } from "@/components/common/Modal";
 import { PatientForm } from "./PatientForm";
 import { Patient } from "@/types";
 
+interface InitialAbhaData {
+  profile: any;
+  sessionKey: string;
+  aadhaarNumber?: string;
+}
+
 interface PatientFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultValues?: Patient;
+  initialAbhaData?: InitialAbhaData | null;
 }
 
-export function PatientFormModal({ isOpen, onClose, defaultValues }: PatientFormModalProps) {
+export function PatientFormModal({ isOpen, onClose, defaultValues, initialAbhaData }: PatientFormModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -22,6 +29,7 @@ export function PatientFormModal({ isOpen, onClose, defaultValues }: PatientForm
     >
       <PatientForm
         defaultValues={defaultValues}
+        initialAbhaData={initialAbhaData}
         onSuccess={() => {
           onClose();
         }}

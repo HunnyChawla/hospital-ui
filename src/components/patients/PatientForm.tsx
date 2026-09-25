@@ -6,20 +6,28 @@ import { useCreatePatient, useUpdatePatient, usePatient } from "@/hooks/queries/
 import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
 import { patientCategoriesApi } from "@/services/patientCategoriesApi";
-import { Calendar, Clock, User, CalendarDays, Phone, Mail, MapPin, Hash } from "lucide-react";
-import { AbhaStatusBadge, AbhaEnrollmentModal } from "@/components/abha";
+import { Calendar, Clock, User, CalendarDays, Phone, CheckCircle2, UserPlus, Copy } from "lucide-react";
+import { AbhaEnrollmentModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
+import { resolveAbhaNumber } from "@/utils/abha";
 import { toast } from "sonner";
 
+
+export interface InitialAbhaData {
+  profile: any;
+  sessionKey: string;
+  aadhaarNumber?: string;
+}
 
 interface PatientFormProps {
   defaultValues?: Patient;
   onSuccess?: (patient?: Patient) => void;
+  initialAbhaData?: InitialAbhaData | null;
 }
 
-export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
+export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: PatientFormProps) {
   // React Query mutations - automatic cache invalidation and optimistic updates!
   const createPatient = useCreatePatient();
   const updatePatient = useUpdatePatient();
@@ -54,15 +62,21 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
   // ABHA Integration State (Optional feature behind feature toggle)
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
-  const [abhaProfile, setAbhaProfile] = useState<any>(null);
-  const [abhaSessionKey, setAbhaSessionKey] = useState<string | null>(null);
-  const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(undefined);
+  const [abhaProfile, setAbhaProfile] = useState<any>(initialAbhaData?.profile || null);
+  const [abhaSessionKey, setAbhaSessionKey] = useState<string | null>(initialAbhaData?.sessionKey || null);
+  const [aadhaarNum, setAadhaarNum] = useState<string | undefined>(initialAbhaData?.aadhaarNumber);
   // Set when the attached ABHA turns out to belong to another patient, so the reason stays on
   // screen next to the ABHA field instead of vanishing with the toast.
   const [abhaLinkError, setAbhaLinkError] = useState<string | null>(null);
   const isAbhaVerified = abhaProfile
     ? true
     : Boolean(defaultValues?.abhaVerified || apiData?.abha_verified || false);
+
+  const rawAbhaNum = abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number;
+  const rawLegacyAbhaId = defaultValues?.abhaId || apiData?.abha_id;
+  const resolvedAbhaNum = resolveAbhaNumber(rawAbhaNum, rawLegacyAbhaId) || (rawAbhaNum && typeof rawAbhaNum === "string" && rawAbhaNum.trim() ? rawAbhaNum : null);
+  const resolvedAbhaAddr = abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address || null;
+  const isAbhaLinked = Boolean(resolvedAbhaNum || resolvedAbhaAddr);
 
   const handleAbhaSuccess = (profile: any, sessionKey: string, aadhaar?: string) => {
     setAbhaProfile(profile);
@@ -77,9 +91,15 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       const last = parts.slice(1).join(" ");
       if (first) setValue("first_name", first, { shouldValidate: true });
       if (last) setValue("last_name", last, { shouldValidate: true });
+    } else if (profile.first_name) {
+      setValue("first_name", profile.first_name, { shouldValidate: true });
+      if (profile.last_name) setValue("last_name", profile.last_name, { shouldValidate: true });
     }
     if (profile.mobile) {
       setValue("mobile", profile.mobile, { shouldValidate: true });
+    }
+    if (profile.email) {
+      setValue("email", profile.email, { shouldValidate: true });
     }
     if (profile.gender) {
       const g = profile.gender.toLowerCase().startsWith("f") ? "female" : profile.gender.toLowerCase().startsWith("m") ? "male" : "other";
@@ -91,8 +111,8 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
     if (profile.address) {
       setValue("address", profile.address, { shouldValidate: true });
     }
-    if (profile.district) {
-      setValue("city", profile.district, { shouldValidate: true });
+    if (profile.district || profile.city) {
+      setValue("city", profile.district || profile.city, { shouldValidate: true });
     }
     if (profile.state) {
       setValue("state", profile.state, { shouldValidate: true });
@@ -338,8 +358,68 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         setIsNewborn(false);
         setParentName("");
       }
+    } else if (initialAbhaData?.profile) {
+      // Auto-populate when launched with initial ABHA enrollment result
+      const profile = initialAbhaData.profile;
+      setAbhaProfile(profile);
+      setAbhaSessionKey(initialAbhaData.sessionKey);
+      setAbhaLinkError(null);
+      if (initialAbhaData.aadhaarNumber) setAadhaarNum(initialAbhaData.aadhaarNumber);
+
+      let firstName = "";
+      let lastName = "";
+      if (profile.name) {
+        const parts = profile.name.trim().split(" ");
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ");
+      } else if (profile.first_name) {
+        firstName = profile.first_name || "";
+        lastName = profile.last_name || "";
+      }
+
+      let gender: "male" | "female" | "other" = "male";
+      if (profile.gender) {
+        gender = profile.gender.toLowerCase().startsWith("f") ? "female" : profile.gender.toLowerCase().startsWith("m") ? "male" : "other";
+      }
+
+      const dob = profile.dob || "";
+
+      reset({
+        title: "",
+        first_name: firstName,
+        last_name: lastName,
+        mobile: profile.mobile || "",
+        email: profile.email || "",
+        date_of_birth: dob,
+        gender,
+        address: profile.address || "",
+        city: profile.district || profile.city || "",
+        state: profile.state || "",
+        pincode: profile.pincode || "",
+        category: "General",
+      });
+
+      setDobValue(dob);
+      if (dob) {
+        const age = calculateAgeFromDob(dob);
+        setAgeYears(age.years.toString());
+        setAgeMonths(age.months.toString());
+        setAgeDays(age.days.toString());
+      } else {
+        setAgeYears("");
+        setAgeMonths("");
+        setAgeDays("");
+      }
+      setAgeError("");
+      setIsNewborn(false);
+      setParentName("");
+      toast.success("Patient details auto-populated from ABHA profile!");
     } else if (!defaultValues) {
       // Reset form for new patient
+      setAbhaProfile(null);
+      setAbhaSessionKey(null);
+      setAadhaarNum(undefined);
+      setAbhaLinkError(null);
       reset({
         title: "",
         first_name: "",
@@ -355,8 +435,6 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
         category: "General",
       });
 
-
-
       // Clear age fields
       setDobValue("");
       setAgeYears("");
@@ -366,7 +444,7 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
       setIsNewborn(false);
       setParentName("");
     }
-  }, [fullPatientData, defaultValues, reset]);
+  }, [fullPatientData, defaultValues, initialAbhaData, reset]);
 
   const onSubmit = async (values: CreatePatientRequest) => {
     // Validate that either DOB or age is provided
@@ -808,42 +886,97 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             </select>
           </label>
 
-          <label className="space-y-1">
+          {/* ABHA ID */}
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-slate-600">ABHA/Health ID</span>
-              <AbhaStatusBadge
-                abhaNumber={abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number}
-                abhaAddress={abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address}
-                abhaVerified={isAbhaVerified}
-                showEnrollButton={abhaEnabled}
-                onEnrollClick={() => setIsAbhaModalOpen(true)}
-                size="sm"
-              />
+              <span className="text-slate-600">ABHA ID</span>
+              {!isAbhaLinked && abhaEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setIsAbhaModalOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 transition cursor-pointer"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>+ Link ABHA</span>
+                </button>
+              )}
             </div>
-            {/* ABHA can only be linked through ABDM verification (see "Link ABHA" above) -
-                it is never a free-text field the user can type into directly. */}
-            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              {(() => {
-                const num = abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number;
-                const addr = abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address;
-                if (num && addr && num !== addr) {
-                  return `${num} (${addr})`;
-                }
-                return num || addr || "Not linked";
-              })()}
+            {/* ABHA can only be linked through ABDM verification - read-only field */}
+            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 font-mono flex items-center justify-between min-h-[38px]">
+              <span className="truncate">{resolvedAbhaNum || "Not linked"}</span>
+              {resolvedAbhaNum && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(resolvedAbhaNum);
+                    toast.success("ABHA ID copied to clipboard");
+                  }}
+                  className="text-slate-400 hover:text-slate-600 transition cursor-pointer ml-1.5 shrink-0"
+                  title="Copy ABHA ID"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             {abhaLinkError ? (
               <span className="block text-xs text-rose-600">{abhaLinkError}</span>
-            ) : isAbhaVerified ? (
-              <span className="text-xs text-emerald-600">Verified via ABDM</span>
+            ) : isAbhaVerified && resolvedAbhaNum ? (
+              <span className="text-xs text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                <span>Verified via ABDM</span>
+              </span>
+            ) : !resolvedAbhaNum && abhaEnabled ? (
+              <span className="text-xs text-slate-400">
+                Use &quot;+ Link ABHA&quot; to verify and attach.
+              </span>
+            ) : null}
+          </div>
+
+          {/* ABHA Address */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">ABHA Address</span>
+              {isAbhaLinked && abhaEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setIsAbhaModalOpen(true)}
+                  className="text-xs text-sky-600 hover:text-sky-700 font-medium transition cursor-pointer"
+                >
+                  Change
+                </button>
+              )}
+            </div>
+            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 font-mono flex items-center justify-between min-h-[38px]">
+              <span className="truncate">{resolvedAbhaAddr || "Not linked"}</span>
+              {resolvedAbhaAddr && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(resolvedAbhaAddr);
+                    toast.success("ABHA Address copied to clipboard");
+                  }}
+                  className="text-slate-400 hover:text-slate-600 transition cursor-pointer ml-1.5 shrink-0"
+                  title="Copy ABHA Address"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {resolvedAbhaAddr ? (
+              <span className="text-xs text-slate-500 truncate block font-mono">
+                {resolvedAbhaAddr}
+              </span>
             ) : (
               <span className="text-xs text-slate-400">
-                Use &quot;Link ABHA&quot; above to verify and attach an ABHA ID.
+                PHR handle (@abdm)
               </span>
             )}
-          </label>
+          </div>
 
-          <label className="space-y-1">
+          {/* Address */}
+          <label className="space-y-1 md:col-span-3">
             <span className="text-slate-600">Address</span>
             <input
               {...register("address")}

@@ -19,14 +19,16 @@ import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
 import { AbhaConsentPanel } from "@/components/abha/AbhaConsentPanel";
+import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import {
   abhaApi,
+  type AbdmOtpSystem,
   type AbhaEnrollmentResult,
   type AbhaProfileDto,
   type AbhaLinkCheckResponseDto,
 } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
-import { formatAbhaOrMobileInput, formatDate } from "@/utils/format";
+import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatDate } from "@/utils/format";
 
 export interface AbhaSyncModalProps {
   isOpen: boolean;
@@ -56,6 +58,7 @@ export function AbhaSyncModal({
   patientName,
   patientMobile,
   patientAbhaNumber,
+  patientAbhaAddress,
   patientGender,
   patientDob,
   patientAddress,
@@ -63,8 +66,11 @@ export function AbhaSyncModal({
   patientState,
   patientPincode,
 }: AbhaSyncModalProps) {
-  const initialIdentifier = patientAbhaNumber || patientMobile || "";
+  const initialIdentifier = patientAbhaNumber || patientAbhaAddress || patientMobile || "";
   const [abhaIdentifier, setAbhaIdentifier] = useState(initialIdentifier);
+  const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>(
+    patientAbhaNumber || (!patientAbhaNumber && !patientMobile && patientAbhaAddress) ? "aadhaar" : "abdm"
+  );
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
@@ -83,7 +89,11 @@ export function AbhaSyncModal({
 
   useEffect(() => {
     if (isOpen) {
-      setAbhaIdentifier(patientAbhaNumber || patientMobile || "");
+      const id = patientAbhaNumber || patientAbhaAddress || patientMobile || "";
+      setAbhaIdentifier(id);
+      setOtpSystem(
+        patientAbhaNumber || (!patientAbhaNumber && !patientMobile && patientAbhaAddress) ? "aadhaar" : "abdm"
+      );
       setConsentAccepted(false);
       setSessionKey(null);
       setOtp("");
@@ -98,12 +108,12 @@ export function AbhaSyncModal({
       setSyncDemographics(true);
       setOverrideMismatch(false);
     }
-  }, [isOpen, patientAbhaNumber, patientMobile]);
+  }, [isOpen, patientAbhaNumber, patientAbhaAddress, patientMobile]);
 
   const handleRequestOtp = async () => {
     const cleanIdentifier = abhaIdentifier.trim();
     if (!cleanIdentifier) {
-      toast.error("Please enter an ABHA Number or registered Mobile number");
+      toast.error("Please enter an ABHA Number, Aadhaar Number, registered Mobile, or ABHA Address");
       return;
     }
     if (!consentAccepted) {
@@ -115,6 +125,7 @@ export function AbhaSyncModal({
     try {
       const res = await abhaApi.requestLinkOtp({
         abha_number: cleanIdentifier,
+        otp_system: otpSystem,
         consent_accepted: consentAccepted,
       });
       setSessionKey(res.session_key);
@@ -460,16 +471,29 @@ export function AbhaSyncModal({
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                ABHA Number or Registered Mobile
+                ABHA Number, Aadhaar Number, Registered Mobile, or ABHA Address
               </label>
               <div className="relative">
                 <Smartphone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
                   value={abhaIdentifier}
-                  onChange={(e) => setAbhaIdentifier(formatAbhaOrMobileInput(e.target.value))}
+                  onChange={(e) => {
+                    const formatted = formatAbhaLinkInput(e.target.value);
+                    setAbhaIdentifier(formatted);
+                    const digits = formatted.replace(/\D/g, "");
+                    if (/[a-zA-Z@]/.test(formatted)) {
+                      // ABHA Address
+                    } else if (digits.length === 10) {
+                      setOtpSystem("abdm");
+                    } else if (digits.length === 12) {
+                      setOtpSystem("aadhaar");
+                    } else if (digits.length === 14) {
+                      setOtpSystem("aadhaar");
+                    }
+                  }}
                   disabled={otpSent || loading}
-                  placeholder="Enter 14-digit ABHA (XX-XXXX-XXXX-XXXX) or 10-digit mobile"
+                  placeholder="e.g. 12-3456-7890-1234, 1234 5678 9012, 9876543210, or name@abdm"
                   className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono disabled:bg-slate-100 disabled:text-slate-600"
                 />
               </div>
@@ -477,6 +501,13 @@ export function AbhaSyncModal({
 
             {!otpSent && (
               <>
+                <OtpSystemSelector
+                  value={otpSystem}
+                  onChange={setOtpSystem}
+                  disabled={loading}
+                  size="sm"
+                />
+
                 <AbhaConsentPanel
                   checked={consentAccepted}
                   onChange={setConsentAccepted}

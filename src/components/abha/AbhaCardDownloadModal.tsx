@@ -7,7 +7,8 @@ import { Modal } from "@/components/common/Modal";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
 import { AbhaConsentPanel } from "@/components/abha/AbhaConsentPanel";
 import { AbhaCardPreviewModal } from "@/components/abha/AbhaCardPreviewModal";
-import { abhaApi } from "@/services/abhaApi";
+import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
+import { abhaApi, type AbdmOtpSystem } from "@/services/abhaApi";
 import { getErrorMessage } from "@/utils/errorHandler";
 
 const CARD_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -20,6 +21,7 @@ export interface AbhaCardDownloadModalProps {
 
 export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardDownloadModalProps) {
   const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>("aadhaar");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,7 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
 
   const resetState = () => {
     setSessionKey(null);
+    setOtpSystem("aadhaar");
     setOtp("");
     setOtpSent(false);
     setConsentAccepted(false);
@@ -100,7 +103,11 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
     }
     setLoading(true);
     try {
-      const res = await abhaApi.requestLinkOtp({ abha_number: abhaNumber, consent_accepted: consentAccepted });
+      const res = await abhaApi.requestLinkOtp({
+        abha_number: abhaNumber,
+        otp_system: otpSystem,
+        consent_accepted: consentAccepted,
+      });
       setSessionKey(res.session_key);
       setOtpSent(true);
       toast.success(res.message || "OTP sent to registered mobile");
@@ -169,6 +176,12 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
 
           {!otpSent ? (
             <>
+              <OtpSystemSelector
+                value={otpSystem}
+                onChange={setOtpSystem}
+                disabled={loading}
+                size="sm"
+              />
               <AbhaConsentPanel
                 variant="aadhaar-authentication"
                 checked={consentAccepted}

@@ -169,13 +169,20 @@ export function AbhaConsentPanel({
                     </span>
                 </label>
 
-                <p className="flex items-start gap-2 pl-[1.375rem] text-xs text-slate-600">
+                <label className="flex items-start gap-2 text-xs text-slate-600">
+                    <input
+                        type="checkbox"
+                        checked
+                        disabled
+                        readOnly
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                    />
                     <span>
                         I, <strong className="font-semibold">{beneficiary}</strong>, have been
                         explained about the consent as stated above and hereby provide my
                         consent for the aforementioned purposes.
                     </span>
-                </p>
+                </label>
             </div>
         </div>
     );

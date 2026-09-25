@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ShieldCheck,
@@ -25,15 +25,18 @@ import { Tabs, type TabItem } from "@/components/common/Tabs";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
 import { AbhaConsentPanel } from "@/components/abha/AbhaConsentPanel";
 import { AbhaCardPreviewModal } from "@/components/abha/AbhaCardPreviewModal";
+import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import {
   abhaApi,
+  type AbdmOtpSystem,
   type AbhaEnrollmentResult,
   type AbhaLinkCheckResponseDto,
   type AbhaProfileDto,
 } from "@/services/abhaApi";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getAbhaError } from "@/utils/abhaErrors";
-import { formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
+import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
+import { ABDM_X_CM_ID } from "@/utils/env";
 
 
 export interface AbhaEnrollmentExistingPatientDetails {
@@ -93,6 +96,7 @@ export function AbhaEnrollmentModal({
 
   // Aadhaar OTP State
   const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [aadhaarOtpSystem, setAadhaarOtpSystem] = useState<AbdmOtpSystem>("aadhaar");
   const [aadhaarMobile, setAadhaarMobile] = useState(initialMobile);
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
@@ -103,6 +107,7 @@ export function AbhaEnrollmentModal({
   // mobile, meaning the mobile the operator entered isn't the one linked to the Aadhaar record and
   // has to be OTP-verified on its own before enrollment can continue to address selection.
   const [needsMobileVerification, setNeedsMobileVerification] = useState(false);
+  const [mobileVerifyOtpSystem, setMobileVerifyOtpSystem] = useState<AbdmOtpSystem>("abdm");
   const [mobileOtp, setMobileOtp] = useState("");
   const [mobileOtpSent, setMobileOtpSent] = useState(false);
   const [pendingEnrollmentResult, setPendingEnrollmentResult] =
@@ -112,6 +117,7 @@ export function AbhaEnrollmentModal({
   const [docType, setDocType] = useState("DRIVING_LICENCE");
   const [docId, setDocId] = useState("");
   const [docMobile, setDocMobile] = useState(initialMobile);
+  const [docOtpSystem, setDocOtpSystem] = useState<AbdmOtpSystem>("abdm");
   const [docSessionKey, setDocSessionKey] = useState<string | null>(null);
   const [docOtp, setDocOtp] = useState("");
   const [docOtpSent, setDocOtpSent] = useState(false);
@@ -130,6 +136,7 @@ export function AbhaEnrollmentModal({
 
   // Link Existing State
   const [linkAbhaNumber, setLinkAbhaNumber] = useState("");
+  const [linkOtpSystem, setLinkOtpSystem] = useState<AbdmOtpSystem>("aadhaar");
   const [linkSessionKey, setLinkSessionKey] = useState<string | null>(null);
   const [linkOtp, setLinkOtp] = useState("");
   const [linkOtpSent, setLinkOtpSent] = useState(false);
@@ -139,6 +146,7 @@ export function AbhaEnrollmentModal({
   const [selectedLinkAccount, setSelectedLinkAccount] = useState<AbhaProfileDto | null>(null);
 
   // Address Suggestions State
+  const [cmId, setCmId] = useState<string>(ABDM_X_CM_ID || "sbx");
   const [suggestedAddresses, setSuggestedAddresses] = useState<string[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string>("");
   const [showAddressSelection, setShowAddressSelection] = useState(false);
@@ -173,16 +181,22 @@ export function AbhaEnrollmentModal({
   const identityMismatches = linkConflict?.identity_mismatches ?? [];
 
   const resetState = () => {
+    setActiveTab("aadhaar_otp");
+    setAadhaarNumber("");
     setSessionKey(null);
     setOtp("");
     setOtpSent(false);
+    setAadhaarOtpSystem("aadhaar");
     setAadhaarConsentAccepted(false);
     setAadhaarMobile(initialMobile);
     setNeedsMobileVerification(false);
+    setMobileVerifyOtpSystem("abdm");
     setMobileOtp("");
     setMobileOtpSent(false);
     setPendingEnrollmentResult(null);
+    setLinkAbhaNumber("");
     setLinkSessionKey(null);
+    setLinkOtpSystem("aadhaar");
     setLinkOtp("");
     setLinkOtpSent(false);
     setLinkConsentAccepted(false);
@@ -199,7 +213,10 @@ export function AbhaEnrollmentModal({
     setLinkConflict(null);
     setCheckingLink(false);
     setCardSessionKey(null);
+    setDocType("DRIVING_LICENCE");
+    setDocId("");
     setDocMobile(initialMobile);
+    setDocOtpSystem("abdm");
     setDocSessionKey(null);
     setDocOtp("");
     setDocOtpSent(false);
@@ -215,7 +232,15 @@ export function AbhaEnrollmentModal({
     setDocPinCode("");
     setDocFrontPhoto(null);
     setDocBackPhoto(null);
+    setIsCardPreviewOpen(false);
+    setLoading(false);
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetState();
+    }
+  }, [isOpen]);
 
   const isSessionExpiredError = (error: any) => getAbhaError(error).code === "SESSION_EXPIRED";
 
@@ -256,6 +281,7 @@ export function AbhaEnrollmentModal({
     try {
       const res = await abhaApi.requestAadhaarOtp({
         aadhaar_number: aadhaarNumber,
+        otp_system: aadhaarOtpSystem,
         consent_accepted: aadhaarConsentAccepted,
       });
       setSessionKey(res.session_key);
@@ -325,6 +351,7 @@ export function AbhaEnrollmentModal({
       const res = await abhaApi.requestAadhaarMobileOtp({
         session_key: sessionKey,
         mobile: aadhaarMobile,
+        otp_system: mobileVerifyOtpSystem,
       });
       setMobileOtpSent(true);
       toast.success(res.message || "OTP sent to the provided mobile number");
@@ -383,7 +410,10 @@ export function AbhaEnrollmentModal({
     }
     setLoading(true);
     try {
-      const res = await abhaApi.requestDocumentOtp({ mobile: docMobile });
+      const res = await abhaApi.requestDocumentOtp({
+        mobile: docMobile,
+        otp_system: docOtpSystem,
+      });
       setDocSessionKey(res.session_key);
       setDocOtpSent(true);
       toast.success(res.message || "OTP sent to the provided mobile number");
@@ -519,7 +549,7 @@ export function AbhaEnrollmentModal({
   // --------------------------------------------------------------------------
   const handleRequestLinkOtp = async () => {
     if (!linkAbhaNumber) {
-      toast.error("Please enter existing ABHA Number or registered Mobile");
+      toast.error("Please enter existing ABHA Number, Aadhaar Number, registered Mobile, or ABHA Address");
       return;
     }
     if (!linkConsentAccepted) {
@@ -530,6 +560,7 @@ export function AbhaEnrollmentModal({
     try {
       const res = await abhaApi.requestLinkOtp({
         abha_number: linkAbhaNumber,
+        otp_system: linkOtpSystem,
         consent_accepted: linkConsentAccepted,
       });
       setLinkSessionKey(res.session_key);
@@ -618,7 +649,9 @@ export function AbhaEnrollmentModal({
   // --------------------------------------------------------------------------
   const handleEnrollmentSuccess = (res: AbhaEnrollmentResult) => {
     if (res.card_session_key) setCardSessionKey(res.card_session_key);
+    if (res.cm_id) setCmId(res.cm_id);
     const effectiveSessionKey = res.session_key || sessionKey;
+    const currentCmId = res.cm_id || cmId || ABDM_X_CM_ID || "sbx";
 
     // Linking existing ABHA skips address creation since the account already has an address
     if (activeTab === "link_existing") {
@@ -630,7 +663,7 @@ export function AbhaEnrollmentModal({
     }
 
     // Enrollment flows (Aadhaar OTP / DL): Always proceed to Address Selection step
-    let suggestions = res.suggested_addresses || [];
+    let suggestions = (res.suggested_addresses || []).map((addr) => addr.split("@")[0]);
     if (suggestions.length === 0 && res.profile) {
       const namePart = (res.profile.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
       const numPart = res.profile.mobile ? res.profile.mobile.slice(-4) : "";
@@ -638,13 +671,14 @@ export function AbhaEnrollmentModal({
         suggestions = [
           `${namePart}`,
           `${namePart}${numPart}`,
-          `${namePart}.abdm`,
+          `${namePart}.1`,
         ];
       }
     }
 
     setSuggestedAddresses(suggestions);
-    const defaultAddr = res.auto_selected_address || suggestions[0] || (res.profile?.abha_address ?? "");
+    const rawDefault = res.auto_selected_address || suggestions[0] || (res.profile?.abha_address ?? "");
+    const defaultAddr = rawDefault.split("@")[0];
     setSelectedAddress(defaultAddr);
     setIsCustomAddress(false);
     setCustomAddress("");
@@ -661,11 +695,11 @@ export function AbhaEnrollmentModal({
       return;
     }
 
-    // Clean address format: strip spaces, lowercase
-    const addressToConfirm = rawTarget.toLowerCase().replace(/\s+/g, "");
+    // Clean address format: strip spaces, lowercase, and any pre-existing @suffix
+    const cleanTarget = rawTarget.toLowerCase().replace(/\s+/g, "");
+    const handleOnly = cleanTarget.split("@")[0];
 
     if (isCustomAddress) {
-      const handleOnly = addressToConfirm.replace(/@abdm$/, "").replace(/@sbx$/, "");
       if (handleOnly.length < 4) {
         toast.error("Custom ABHA address must be at least 4 characters long");
         return;
@@ -680,8 +714,9 @@ export function AbhaEnrollmentModal({
     try {
       const res = await abhaApi.confirmAddress({
         session_key: sessionKey,
-        abha_address: addressToConfirm,
+        abha_address: handleOnly,
       });
+      if (res.cm_id) setCmId(res.cm_id);
       setResultProfile(res.profile || null);
       setResultSessionKey(res.session_key || sessionKey);
       setShowAddressSelection(false);
@@ -699,12 +734,21 @@ export function AbhaEnrollmentModal({
     }
   };
 
+  const handleModalClose = () => {
+    resetState();
+    onClose();
+  };
+
   const handleCompleteAndSync = () => {
     if (!resultProfile || !resultSessionKey) return;
     // Hard guard behind the disabled button: attaching a duplicate would create a patient the
     // ABHA can never be linked to.
     if (checkingLink || linkConflict?.can_link === false) return;
-    onSuccess(resultProfile, resultSessionKey, aadhaarNumber || undefined);
+    const profile = resultProfile;
+    const sessionK = resultSessionKey;
+    const aadhaar = aadhaarNumber || undefined;
+    resetState();
+    onSuccess(profile, sessionK, aadhaar);
     onClose();
   };
 
@@ -746,7 +790,7 @@ export function AbhaEnrollmentModal({
 
   return (
     <>
-    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="lg" closeOnOutsideClick={false}>
+    <Modal isOpen={isOpen} onClose={handleModalClose} title={modalTitle} size="lg" closeOnOutsideClick={false}>
       <div className="space-y-6">
         {hipNotConfigured && (
           <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
@@ -785,15 +829,23 @@ export function AbhaEnrollmentModal({
             </div>
 
             {!mobileOtpSent ? (
-              <button
-                type="button"
-                onClick={handleRequestMobileVerifyOtp}
-                disabled={loading || aadhaarMobile.length !== 10}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-              >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>Send OTP</span>
-              </button>
+              <>
+                <OtpSystemSelector
+                  value={mobileVerifyOtpSystem}
+                  onChange={setMobileVerifyOtpSystem}
+                  disabled={loading}
+                  size="sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleRequestMobileVerifyOtp}
+                  disabled={loading || aadhaarMobile.length !== 10}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <span>Send OTP</span>
+                </button>
+              </>
             ) : (
               <div className="space-y-4 pt-2 border-t border-slate-100">
                 <ResendableOtpField
@@ -835,7 +887,7 @@ export function AbhaEnrollmentModal({
                 <span>ABHA Number Created: {resultProfile.abha_number || "Generated"}</span>
               </div>
               <p className="text-xs mt-1 text-emerald-700">
-                Please select or create an ABHA address (@abdm) for this profile. You can choose one of the suggestions or create a custom one below.
+                Please select or create an ABHA address for this profile. You can choose one of the suggestions or create a custom one below.
               </p>
             </div>
 
@@ -846,36 +898,39 @@ export function AbhaEnrollmentModal({
               {/* Suggestions List */}
               {suggestedAddresses.length > 0 && (
                 <div className="space-y-2 max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-3">
-                  {suggestedAddresses.map((addr, idx) => (
-                    <label
-                      key={addr}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        !isCustomAddress && selectedAddress === addr
-                          ? "border-emerald-500 bg-emerald-50/50"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="abha_address_choice"
-                        value={addr}
-                        checked={!isCustomAddress && selectedAddress === addr}
-                        onChange={() => {
-                          setIsCustomAddress(false);
-                          setSelectedAddress(addr);
-                        }}
-                        className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                      />
-                      <span className="font-medium text-slate-900 text-sm">
-                        {addr.includes("@") ? addr : `${addr}@abdm`}
-                      </span>
-                      {idx === 0 && (
-                        <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded-full ml-auto">
-                          Recommended
+                  {suggestedAddresses.map((addr, idx) => {
+                    const handle = addr.split("@")[0];
+                    return (
+                      <label
+                        key={addr}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          !isCustomAddress && selectedAddress === handle
+                            ? "border-emerald-500 bg-emerald-50/50"
+                            : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="abha_address_choice"
+                          value={handle}
+                          checked={!isCustomAddress && selectedAddress === handle}
+                          onChange={() => {
+                            setIsCustomAddress(false);
+                            setSelectedAddress(handle);
+                          }}
+                          className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                        />
+                        <span className="font-medium text-slate-900 text-sm">
+                          {handle}
                         </span>
-                      )}
-                    </label>
-                  ))}
+                        {idx === 0 && (
+                          <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded-full ml-auto">
+                            Recommended
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
 
@@ -920,11 +975,8 @@ export function AbhaEnrollmentModal({
                         placeholder="e.g. rahul.sharma"
                         maxLength={32}
                         autoFocus
-                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2 pr-16 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                       />
-                      <span className="absolute right-3 text-xs font-semibold text-slate-400">
-                        @abdm
-                      </span>
                     </div>
                     <p className="text-xs text-slate-400">
                       Use 4-32 characters: lowercase letters, numbers, dots, or underscores.
@@ -1153,6 +1205,12 @@ export function AbhaEnrollmentModal({
 
                 {!otpSent ? (
                   <>
+                    <OtpSystemSelector
+                      value={aadhaarOtpSystem}
+                      onChange={setAadhaarOtpSystem}
+                      disabled={loading}
+                      size="sm"
+                    />
                     {/* Creating a new ABHA via Aadhaar — the full published
                         consent, all seven declarations. */}
                     <AbhaConsentPanel
@@ -1248,15 +1306,23 @@ export function AbhaEnrollmentModal({
                     </div>
 
                     {!docOtpSent ? (
-                      <button
-                        type="button"
-                        onClick={handleRequestDocumentOtp}
-                        disabled={loading || docMobile.length !== 10}
-                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                      >
-                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                        <span>Send OTP</span>
-                      </button>
+                      <>
+                        <OtpSystemSelector
+                          value={docOtpSystem}
+                          onChange={setDocOtpSystem}
+                          disabled={loading}
+                          size="sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRequestDocumentOtp}
+                          disabled={loading || docMobile.length !== 10}
+                          className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                        >
+                          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                          <span>Send OTP</span>
+                        </button>
+                      </>
                     ) : (
                       <div className="space-y-4 pt-2 border-t border-slate-100">
                         <ResendableOtpField
@@ -1635,20 +1701,39 @@ export function AbhaEnrollmentModal({
                   <>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        14-digit ABHA Number or Registered Mobile <span className="text-red-500">*</span>
+                        ABHA Number, Aadhaar Number, Registered Mobile, or ABHA Address <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         value={linkAbhaNumber}
-                        onChange={(e) => setLinkAbhaNumber(formatAbhaOrMobileInput(e.target.value))}
+                        onChange={(e) => {
+                          const val = formatAbhaLinkInput(e.target.value);
+                          setLinkAbhaNumber(val);
+                          const digits = val.replace(/\D/g, "");
+                          if (/[a-zA-Z@]/.test(val)) {
+                            // ABHA Address: default to abdm (mobile OTP) if not already chosen
+                          } else if (digits.length === 10) {
+                            setLinkOtpSystem("abdm");
+                          } else if (digits.length === 12) {
+                            setLinkOtpSystem("aadhaar");
+                          } else if (digits.length === 14) {
+                            setLinkOtpSystem("aadhaar");
+                          }
+                        }}
                         disabled={linkOtpSent}
-                        placeholder="e.g. 12-3456-7890-1234 or 9876543210"
+                        placeholder="e.g. 12-3456-7890-1234, 1234 5678 9012, 9876543210, or name@abdm"
                         className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
                       />
                     </div>
 
                     {!linkOtpSent ? (
                       <>
+                        <OtpSystemSelector
+                          value={linkOtpSystem}
+                          onChange={setLinkOtpSystem}
+                          disabled={loading}
+                          size="sm"
+                        />
                         {/* Linking an ABHA that already exists — nothing is
                             being created, so the creation-specific declarations
                             do not apply. */}
@@ -1686,7 +1771,7 @@ export function AbhaEnrollmentModal({
                             onClick={() => setLinkOtpSent(false)}
                             className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                           >
-                            Change ABHA/Mobile Number
+                            Change Identifier
                           </button>
                           <button
                             type="button"

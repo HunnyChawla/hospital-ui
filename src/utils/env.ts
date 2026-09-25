@@ -5,6 +5,8 @@ declare global {
         __ENV?: {
             NEXT_PUBLIC_API_BASE_URL?: string;
             NEXT_PUBLIC_DOMAIN_URL?: string;
+            NEXT_PUBLIC_X_CM_ID?: string;
+            NEXT_PUBLIC_ABDM_X_CM_ID?: string;
             [key: string]: string | undefined;
         };
     }
@@ -23,6 +25,12 @@ export const getEnv = (key: string, fallback: string = ""): string => {
     if (key === "NEXT_PUBLIC_DOMAIN_URL") {
         return process.env.NEXT_PUBLIC_DOMAIN_URL || fallback;
     }
+    if (key === "NEXT_PUBLIC_X_CM_ID") {
+        return process.env.NEXT_PUBLIC_X_CM_ID || process.env.NEXT_PUBLIC_ABDM_X_CM_ID || fallback;
+    }
+    if (key === "NEXT_PUBLIC_ABDM_X_CM_ID") {
+        return process.env.NEXT_PUBLIC_ABDM_X_CM_ID || process.env.NEXT_PUBLIC_X_CM_ID || fallback;
+    }
 
     return process.env[key] || fallback;
 };
@@ -32,5 +40,6 @@ export const getEnv = (key: string, fallback: string = ""): string => {
 // Note: If these are used before env-config.js loads, they will fallback to process.env or defaults
 export const API_BASE_URL = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api");
 export const DOMAIN_URL = getEnv("NEXT_PUBLIC_DOMAIN_URL", "");
+export const ABDM_X_CM_ID = getEnv("NEXT_PUBLIC_X_CM_ID", getEnv("NEXT_PUBLIC_ABDM_X_CM_ID", "sbx"));
 
 

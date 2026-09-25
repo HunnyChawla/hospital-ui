@@ -33,6 +33,7 @@ export interface AbhaEnrollmentResult {
   card_session_key?: string | null;
   accounts?: AbhaProfileDto[];
   requires_selection?: boolean;
+  cm_id?: string | null;
 }
 
 export interface AbhaPatientProfileResponseDto {
@@ -44,9 +45,12 @@ export interface AbhaPatientProfileResponseDto {
   is_linked?: boolean;
 }
 
+export type AbdmOtpSystem = "aadhaar" | "abdm";
+
 export interface AbhaOtpRequestDto {
   aadhaar_number: string;
   scope?: string[];
+  otp_system?: AbdmOtpSystem;
   consent_accepted: boolean;
 }
 
@@ -61,6 +65,7 @@ export interface AbhaVerifyOtpDto {
 export interface AbhaAadhaarMobileOtpRequestDto {
   session_key: string;
   mobile: string;
+  otp_system?: AbdmOtpSystem;
 }
 
 export interface AbhaAadhaarMobileVerifyOtpDto {
@@ -70,6 +75,7 @@ export interface AbhaAadhaarMobileVerifyOtpDto {
 
 export interface AbhaDocumentOtpRequestDto {
   mobile: string;
+  otp_system?: AbdmOtpSystem;
 }
 
 export interface AbhaDocumentVerifyOtpDto {
@@ -101,6 +107,7 @@ export interface AbhaConfirmAddressDto {
 
 export interface AbhaLinkOtpRequestDto {
   abha_number: string;
+  otp_system?: AbdmOtpSystem;
   consent_accepted: boolean;
 }
 
@@ -158,6 +165,7 @@ export type FindAbhaBy = "mobile" | "aadhaar";
 export interface FindAbhaRequestOtpDto {
   search_by: FindAbhaBy;
   value: string;
+  otp_system?: AbdmOtpSystem;
 }
 
 export interface FindAbhaRequestOtpResult {

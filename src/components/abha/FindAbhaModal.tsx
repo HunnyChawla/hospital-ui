@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
+import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import {
     abhaApi,
+    type AbdmOtpSystem,
     type FindAbhaBy,
     type FoundAbhaAccount,
 } from "@/services/abhaApi";
@@ -54,6 +56,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
     const [loading, setLoading] = useState(false);
 
     const [searchBy, setSearchBy] = useState<FindAbhaBy>("mobile");
+    const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>("abdm");
     const [value, setValue] = useState("");
     const [otp, setOtp] = useState("");
 
@@ -63,6 +66,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
     const reset = () => {
         setStep("search");
         setLoading(false);
+        setOtpSystem("abdm");
         setValue("");
         setOtp("");
         setSessionKey("");
@@ -82,7 +86,11 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
     const handleSearch = async () => {
         setLoading(true);
         try {
-            const started = await abhaApi.findRequestOtp({ search_by: searchBy, value });
+            const started = await abhaApi.findRequestOtp({
+                search_by: searchBy,
+                value,
+                otp_system: otpSystem,
+            });
             setSessionKey(started.session_key);
             setStep("otp");
             toast.success(started.message || "OTP sent to the patient's phone");
@@ -160,6 +168,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                                     type="button"
                                     onClick={() => {
                                         setSearchBy(option);
+                                        setOtpSystem(option === "mobile" ? "abdm" : "aadhaar");
                                         setValue("");
                                     }}
                                     className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition ${
@@ -195,6 +204,13 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                                 approve the lookup.
                             </p>
                         </div>
+
+                        <OtpSystemSelector
+                            value={otpSystem}
+                            onChange={setOtpSystem}
+                            disabled={loading}
+                            size="sm"
+                        />
 
                         <button
                             type="button"
