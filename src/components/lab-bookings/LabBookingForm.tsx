@@ -327,7 +327,7 @@ export function LabBookingForm({
                     setShowDropdown(true);
                   }
                 }}
-                placeholder="Search patient by name, mobile, or MRN..."
+                placeholder="Search patient by name, mobile, UHID, or ABHA..."
                 className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-20 py-2 outline-none focus:border-sky-400"
               />
               <button
@@ -355,11 +355,18 @@ export function LabBookingForm({
                       onClick={() => handlePatientSelect(patient)}
                       className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-sky-50"
                     >
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-slate-900">{patient.name}</p>
-                        <p className="text-xs text-slate-500">
-                          {patient.mobile || "No Mobile"} • ID: {patient.id.slice(0, 8)}...
-                        </p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                          <span>{patient.mobile || "No Mobile"}</span>
+                          <span>•</span>
+                          <span>{patient.healthId}</span>
+                          {(patient.abhaAddress || patient.abhaNumber) && (
+                            <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
+                              ABHA: {patient.abhaAddress || patient.abhaNumber}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))

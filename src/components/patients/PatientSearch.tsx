@@ -20,7 +20,7 @@ export function PatientSearch() {
         <input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search by mobile, health ID, or name"
+          placeholder="Search by UHID, mobile, name, ABHA number, or ABHA address..."
           className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
         />
       </div>

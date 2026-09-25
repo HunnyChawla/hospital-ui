@@ -218,7 +218,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                 setShowDropdown(false);
               }
             }}
-            placeholder="Search patients..."
+            placeholder="Search patients (UHID, mobile, name, ABHA)..."
             className="flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 min-w-0"
           />
           {hasSearched && !isSearching && searchResults.length === 0 && term.trim().length >= 2 && (
@@ -270,7 +270,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 truncate">{patient.name}</p>
                         <div className="mt-0.5 flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
                             <span>{patient.mobile}</span>
                             <span>•</span>
                             <span className="truncate">{patient.healthId}</span>
@@ -279,6 +279,11 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                                 <span>•</span>
                                 <span>{patient.age} years</span>
                               </>
+                            )}
+                            {(patient.abhaAddress || patient.abhaNumber) && (
+                              <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
+                                ABHA: {patient.abhaAddress || patient.abhaNumber}
+                              </span>
                             )}
                           </div>
                           {(patient.address || patient.city) && (

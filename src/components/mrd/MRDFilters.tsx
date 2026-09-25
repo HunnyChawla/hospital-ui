@@ -232,7 +232,7 @@ export function MRDFilters({
                   setShowDropdown(true);
                 }
               }}
-              placeholder="Search patient..."
+              placeholder="Search patient (UHID, mobile, name, ABHA)..."
               className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-8 py-1.5 text-xs outline-none focus:border-sky-400"
               disabled={!!defaultPatientId}
             />
@@ -265,12 +265,17 @@ export function MRDFilters({
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                           <User className="h-3 w-3" />
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-slate-900">{patient.name}</p>
-                          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-500">
                             <span>{patient.mobile}</span>
                             <span>•</span>
                             <span>{patient.healthId || "No Health ID"}</span>
+                            {(patient.abhaAddress || patient.abhaNumber) && (
+                              <span className="rounded bg-teal-50 px-1 py-0.2 text-[11px] font-medium text-teal-700 border border-teal-200">
+                                ABHA: {patient.abhaAddress || patient.abhaNumber}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

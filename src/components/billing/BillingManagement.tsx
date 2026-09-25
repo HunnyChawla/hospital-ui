@@ -617,8 +617,8 @@ export function BillingManagement({
               handleClearPatient();
             }
           }}
-          placeholder="Search patient..."
-          className="w-56 bg-transparent text-sm outline-none placeholder:text-slate-400"
+          placeholder="Search (UHID, mobile, name, ABHA)..."
+          className="w-64 bg-transparent text-sm outline-none placeholder:text-slate-400"
         />
         {selectedPatientId && (
           <button
@@ -645,12 +645,17 @@ export function BillingManagement({
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                     <User className="h-4 w-4" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900">{patient.name}</p>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
                       <span>{patient.mobile}</span>
                       <span>•</span>
                       <span>{patient.healthId}</span>
+                      {(patient.abhaAddress || patient.abhaNumber) && (
+                        <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
+                          ABHA: {patient.abhaAddress || patient.abhaNumber}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -484,7 +484,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                       setShowDropdown(true);
                     }
                   }}
-                  placeholder="Search by name, mobile number, or Health ID..."
+                  placeholder="Search by name, mobile, UHID, or ABHA..."
                   className="w-full rounded-lg border border-slate-200 bg-white pl-11 pr-12 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
                 <button
@@ -530,6 +530,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                                 <span>{patient.healthId}</span>
                                 <span className="text-slate-300">•</span>
                                 <span>{patient.age}y, {patient.gender}</span>
+                                {(patient.abhaAddress || patient.abhaNumber) && (
+                                  <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
+                                    ABHA: {patient.abhaAddress || patient.abhaNumber}
+                                  </span>
+                                )}
                               </div>
                               {(patient.address || patient.city) && (
                                 <div className="text-xs text-slate-400 truncate">

@@ -166,20 +166,22 @@ export function useUpdatePatient() {
 }
 
 /**
- * Global search patients across all fields
+ * Global search patients across all fields (mobile, UHID, name, ABHA number, ABHA address)
  */
-export function useSearchPatients(searchTerm: string) {
+export function useSearchPatients(searchTerm: string, page: number = 1, pageSize: number = 20) {
   const { tenantId, isPlatformOwner } = useTenantContext();
 
   return useQuery({
-    queryKey: [...patientKeys.lists(), 'global-search', searchTerm],
+    queryKey: [...patientKeys.lists(), 'global-search', searchTerm, page, pageSize],
     queryFn: async () => {
       if (!searchTerm || searchTerm.trim().length === 0) {
-        return { patients: [], pagination: { total: 0, page: 1, page_size: 20, total_pages: 0 } };
+        return { patients: [], pagination: { total: 0, page: 1, page_size: pageSize, total_pages: 0 } };
       }
 
       const response = await patientsApi.searchGlobal({
         q: searchTerm,
+        page,
+        page_size: pageSize,
         tenant_id: isPlatformOwner ? tenantId ?? undefined : undefined,
       });
 

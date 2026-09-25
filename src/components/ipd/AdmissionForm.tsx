@@ -419,7 +419,7 @@ export function AdmissionForm({
                     setShowDropdown(true);
                   }
                 }}
-                placeholder="Search patient by name, mobile, or health ID"
+                placeholder="Search patient by name, mobile, UHID, or ABHA"
                 className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 outline-none focus:border-sky-400"
               />
               {shouldShowDropdown && (
@@ -435,9 +435,18 @@ export function AdmissionForm({
                         className="flex w-full items-center gap-2 p-3 text-left text-sm text-slate-700 hover:bg-slate-50"
                       >
                         <User className="h-4 w-4 shrink-0 text-slate-400" />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="font-semibold">{p.name}</p>
-                          <p className="text-xs text-slate-500">{p.mobile} • {p.healthId}</p>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                            <span>{p.mobile}</span>
+                            <span>•</span>
+                            <span>{p.healthId}</span>
+                            {(p.abhaAddress || p.abhaNumber) && (
+                              <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
+                                ABHA: {p.abhaAddress || p.abhaNumber}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                     ))

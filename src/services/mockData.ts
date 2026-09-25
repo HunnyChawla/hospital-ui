@@ -114,7 +114,9 @@ export const mockPatientApi = {
       (p) =>
         p.name.toLowerCase().includes(lower) ||
         p.mobile.includes(term) ||
-        p.healthId.toLowerCase().includes(lower)
+        p.healthId.toLowerCase().includes(lower) ||
+        (p.abhaNumber && p.abhaNumber.toLowerCase().includes(lower)) ||
+        (p.abhaAddress && p.abhaAddress.toLowerCase().includes(lower))
     );
     return mockCall("/patients/search", data);
   },

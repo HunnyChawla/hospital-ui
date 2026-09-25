@@ -7,6 +7,8 @@ export interface PatientSearchParams {
   name?: string;
   uhid?: string;
   date_of_birth?: string;
+  abha_number?: string;
+  abha_address?: string;
   page?: number;
   page_size?: number;
   tenant_id?: string; // PlatformOwner only
@@ -171,6 +173,8 @@ export const patientsApi = {
     if (params.name) queryParams.append("name", params.name);
     if (params.uhid) queryParams.append("uhid", params.uhid);
     if (params.date_of_birth) queryParams.append("date_of_birth", params.date_of_birth);
+    if (params.abha_number) queryParams.append("abha_number", params.abha_number);
+    if (params.abha_address) queryParams.append("abha_address", params.abha_address);
     if (params.page) queryParams.append("page", params.page.toString());
     if (params.page_size) queryParams.append("page_size", params.page_size.toString());
     const apiTenantId = getTenantIdForApi(params.tenant_id);

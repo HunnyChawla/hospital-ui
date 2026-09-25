@@ -547,7 +547,7 @@ export function PlannedSurgeryFormModal({
                                                 value={patientSearch}
                                                 onChange={(e) => setPatientSearch(e.target.value)}
                                                 onFocus={() => patientResults.length > 0 && setShowPatientDropdown(true)}
-                                                placeholder="Search patient by name or mobile..."
+                                                placeholder="Search patient by name, mobile, UHID, or ABHA..."
                                                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                             />
                                             {searchingPatients && (
@@ -562,12 +562,24 @@ export function PlannedSurgeryFormModal({
                                                             onClick={() => handlePatientSelect(patient)}
                                                             className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
                                                         >
-                                                            <span className="font-medium text-slate-900">
-                                                                {patient.first_name} {patient.last_name}
-                                                            </span>
-                                                            <span className="ml-2 text-slate-500">
-                                                                {patient.mobile}
-                                                            </span>
+                                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                                                <span className="font-medium text-slate-900">
+                                                                    {patient.first_name} {patient.last_name}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500">
+                                                                    {patient.mobile}
+                                                                </span>
+                                                                {patient.uhid && (
+                                                                    <span className="text-xs text-slate-400">
+                                                                        • {patient.uhid}
+                                                                    </span>
+                                                                )}
+                                                                {(patient.abha_address || patient.abha_number) && (
+                                                                    <span className="rounded bg-teal-50 px-1.5 py-0.5 text-xs font-medium text-teal-700 border border-teal-200">
+                                                                        ABHA: {patient.abha_address || patient.abha_number}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </button>
                                                     ))}
                                                 </div>

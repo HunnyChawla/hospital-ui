@@ -337,10 +337,10 @@ Create a new patient.
 ```
 
 ### GET /patients/search/global
-Global patient search across mobile, UHID, and name.
+Global patient search across mobile, UHID, name, ABHA number, and ABHA address.
 
 **Query Parameters:**
-- `q` (string, required): Search query
+- `q` (string, required): Search query (mobile, UHID, name, ABHA number, or ABHA address)
 - `page` (int, default: 1)
 - `page_size` (int, default: 10)
 - `tenant_id` (string, optional): **PlatformOwner only**
@@ -358,6 +358,8 @@ Advanced patient search with filters.
 - `name` (string, optional)
 - `uhid` (string, optional)
 - `date_of_birth` (date, optional, format: YYYY-MM-DD)
+- `abha_number` (string, optional)
+- `abha_address` (string, optional)
 - `page` (int, default: 1)
 - `page_size` (int, default: 10)
 
