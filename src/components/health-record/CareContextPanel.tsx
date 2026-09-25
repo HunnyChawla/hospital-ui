@@ -184,7 +184,37 @@ function CareContextCard({ episode }: { episode: Episode }) {
     const AbdmIcon = config.icon;
 
     const isLinking = linkCareContext.isPending && linkCareContext.variables === episode.id;
-    const canLink = abdmStatus === "failed" || abdmStatus === "unlinked";
+    const canLink =
+        abdmStatus === "failed" ||
+        abdmStatus === "unlinked" ||
+        abdmStatus === "no_abha" ||
+        abdmStatus === "sms_sent";
+
+    const getActionLabel = () => {
+        switch (abdmStatus) {
+            case "failed":
+                return "Retry";
+            case "sms_sent":
+                return "Resend SMS";
+            case "no_abha":
+                return "Send SMS Invite";
+            default:
+                return "Link to ABDM";
+        }
+    };
+
+    const getActionTitle = () => {
+        switch (abdmStatus) {
+            case "failed":
+                return "Retry ABDM linking";
+            case "sms_sent":
+                return "Resend deep-link SMS invitation via ABDM sms/notify2";
+            case "no_abha":
+                return "Send deep-link SMS invitation to patient's registered mobile";
+            default:
+                return "Link this care context to the patient's ABHA app";
+        }
+    };
 
     return (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -274,21 +304,19 @@ function CareContextCard({ episode }: { episode: Episode }) {
                             id={`care-context-link-${episode.id}`}
                             onClick={() => linkCareContext.mutate(episode.id)}
                             disabled={isLinking}
-                            title={
-                                abdmStatus === "failed"
-                                    ? "Retry ABDM linking"
-                                    : "Link this care context to the patient's ABHA app"
-                            }
+                            title={getActionTitle()}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
                         >
                             {isLinking ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : abdmStatus === "failed" ? (
                                 <RefreshCw className="h-3.5 w-3.5" />
+                            ) : abdmStatus === "sms_sent" || abdmStatus === "no_abha" ? (
+                                <MessageSquare className="h-3.5 w-3.5" />
                             ) : (
                                 <Link2 className="h-3.5 w-3.5" />
                             )}
-                            {abdmStatus === "failed" ? "Retry" : "Link to ABDM"}
+                            {getActionLabel()}
                         </button>
                     )}
 

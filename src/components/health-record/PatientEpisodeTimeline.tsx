@@ -211,8 +211,38 @@ function EpisodeRow({
     const finalised = episode.status === "finalised";
 
     const isLinking = linkCareContext.isPending && linkCareContext.variables === episode.id;
+    const abdmStatus = episode.abdm_link_status ?? "unlinked";
     const canRetryLink =
-        episode.abdm_link_status === "failed" || episode.abdm_link_status === "unlinked";
+        abdmStatus === "failed" ||
+        abdmStatus === "unlinked" ||
+        abdmStatus === "no_abha" ||
+        abdmStatus === "sms_sent";
+
+    const getActionLabel = () => {
+        switch (abdmStatus) {
+            case "failed":
+                return "Retry ABDM";
+            case "sms_sent":
+                return "Resend SMS";
+            case "no_abha":
+                return "Send SMS Invite";
+            default:
+                return "Link to ABDM";
+        }
+    };
+
+    const getActionTitle = () => {
+        switch (abdmStatus) {
+            case "failed":
+                return "Retry ABDM linking for this care context";
+            case "sms_sent":
+                return "Resend deep-link SMS invitation via ABDM sms/notify2";
+            case "no_abha":
+                return "Send deep-link SMS invitation to patient's registered mobile";
+            default:
+                return "Link this care context to ABDM";
+        }
+    };
 
     return (
         <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
@@ -294,21 +324,19 @@ function EpisodeRow({
                             id={`link-abdm-${episode.id}`}
                             onClick={() => linkCareContext.mutate(episode.id)}
                             disabled={isLinking}
-                            title={
-                                episode.abdm_link_status === "failed"
-                                    ? "Retry ABDM linking for this care context"
-                                    : "Link this care context to ABDM"
-                            }
+                            title={getActionTitle()}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
                         >
                             {isLinking ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : episode.abdm_link_status === "failed" ? (
+                            ) : abdmStatus === "failed" ? (
                                 <RefreshCw className="h-3.5 w-3.5" />
+                            ) : abdmStatus === "sms_sent" || abdmStatus === "no_abha" ? (
+                                <MessageSquare className="h-3.5 w-3.5" />
                             ) : (
                                 <Link2 className="h-3.5 w-3.5" />
                             )}
-                            {episode.abdm_link_status === "failed" ? "Retry ABDM" : "Link to ABDM"}
+                            {getActionLabel()}
                         </button>
                     )}
 

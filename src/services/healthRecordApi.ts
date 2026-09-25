@@ -283,6 +283,18 @@ export const episodesApi = {
     },
 
     /**
+     * Trigger deep-link SMS invitation via sms/notify2 for a mobile-only patient.
+     */
+    async sendDeepLinkSms(episodeId: string, tenantId?: string): Promise<Episode> {
+        const response = await apiClient.post<Episode>(
+            `/episodes/${episodeId}/send-deep-link-sms`,
+            {},
+            tenantParams(tenantId)
+        );
+        return response.data;
+    },
+
+    /**
      * Record vitals & wellness independently, creating a standalone Care Context linked to ABDM.
      */
     async recordWellness(

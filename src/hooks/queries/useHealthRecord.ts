@@ -213,6 +213,24 @@ export function useManualLinkCareContext() {
 }
 
 /**
+ * Trigger deep-link SMS invitation for unlinked care contexts with mobile-only patients.
+ */
+export function useSendDeepLinkSms() {
+    const queryClient = useQueryClient();
+    const tenant = useTenant();
+
+    return useMutation<Episode, Error, string>({
+        mutationFn: (episodeId: string) => episodesApi.sendDeepLinkSms(episodeId, tenant),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: healthRecordKeys.all });
+            toast.success("Deep-link SMS request queued — patient will receive SMS notification on mobile");
+        },
+        onError: (error) =>
+            toast.error(getErrorMessage(error) || "Could not queue deep-link SMS for this episode"),
+    });
+}
+
+/**
  * Record vitals & wellness, creating a standalone Care Context linked to ABDM.
  */
 export function useRecordWellness(patientId: string) {

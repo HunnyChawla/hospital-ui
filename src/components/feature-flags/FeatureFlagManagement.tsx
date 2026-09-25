@@ -13,6 +13,7 @@ import {
     Shield,
     Layers,
     ArrowRight,
+    MessageSquare,
 } from "lucide-react";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { tenantsApi, type Tenant } from "@/services/tenantsApi";
@@ -47,6 +48,7 @@ export function FeatureFlagManagement() {
     });
 
     const [abdmMilestone, setAbdmMilestone] = useState<AbdmMilestoneLevel>("none");
+    const [autoInviteUnlinked, setAutoInviteUnlinked] = useState<boolean>(false);
 
     const [clinicPanelFlags, setClinicPanelFlags] = useState({
         enabled: false,
@@ -102,6 +104,11 @@ export function FeatureFlagManagement() {
         } else {
             setAbdmMilestone("none");
         }
+        if (allFlags?.abdm?.m2_auto_invite_unlinked !== undefined) {
+            setAutoInviteUnlinked(Boolean(allFlags.abdm.m2_auto_invite_unlinked));
+        } else {
+            setAutoInviteUnlinked(false);
+        }
         if (allFlags?.clinic_panel) {
             setClinicPanelFlags({
                 enabled: allFlags.clinic_panel.enabled as boolean,
@@ -121,7 +128,10 @@ export function FeatureFlagManagement() {
         // Save milestone level in abdm and sync with legacy abha feature flag
         updateFlags({
             feature: 'abdm',
-            flags: { milestone: abdmMilestone }
+            flags: {
+                milestone: abdmMilestone,
+                m2_auto_invite_unlinked: autoInviteUnlinked,
+            }
         });
         updateFlags({
             feature: 'abha',
@@ -528,6 +538,48 @@ export function FeatureFlagManagement() {
                                     <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
                                         Health Information User (HIU) capabilities: Doctors can create consent requests to fetch and review patients&#39; external longitudinal health records from hospitals across India.
                                     </p>
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Auto-Invite Unlinked Patients via SMS (M2 Requirement 7) */}
+                        <div className={`rounded-xl border p-4.5 transition-all ${
+                            autoInviteUnlinked
+                                ? "border-indigo-300 bg-indigo-50/40 shadow-xs"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}>
+                            <label className="flex items-start gap-4 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={autoInviteUnlinked}
+                                    onChange={(e) => setAutoInviteUnlinked(e.target.checked)}
+                                    disabled={!isM2Active}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-1.5 rounded-md ${autoInviteUnlinked ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
+                                            <MessageSquare className="h-4 w-4" />
+                                        </div>
+                                        <span className="font-semibold text-slate-900">
+                                            Auto-Invite Unlinked Patients via SMS (Deep-Link SMS)
+                                        </span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-md font-medium ml-auto border ${
+                                            autoInviteUnlinked
+                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                : "bg-slate-100 text-slate-600 border-slate-200"
+                                        }`}>
+                                            {autoInviteUnlinked ? "Active (Auto-Send)" : "Default: Manual On-Demand"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                                        When enabled, new health records for patients with a registered mobile number but no ABHA address will automatically queue an ABDM deep-link SMS (<code className="text-indigo-800 bg-indigo-100/60 px-1 py-0.5 rounded font-mono text-[11px]">sms/notify2</code>). When disabled (recommended default for privacy), staff can still send SMS invitations on demand from the Care Context panel.
+                                    </p>
+                                    {!isM2Active && (
+                                        <p className="text-xs text-amber-600 mt-1 font-medium">
+                                            Requires ABDM Milestone 2 (M2) or higher to be active.
+                                        </p>
+                                    )}
                                 </div>
                             </label>
                         </div>
