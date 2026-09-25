@@ -1043,7 +1043,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     onEnrollClick={() => setIsAbhaModalOpen(true)}
                     size="sm"
                   />
-                  {abhaEnabled && (resolveAbhaNumber(patient.abhaNumber, patient.abhaId) || patient.abhaAddress || patient.mobile) && (
+                  {abhaEnabled && Boolean(resolveAbhaNumber(patient.abhaNumber, patient.abhaId) || patient.abhaAddress) && (
                     <button
                       type="button"
                       onClick={() => setIsAbhaSyncModalOpen(true)}

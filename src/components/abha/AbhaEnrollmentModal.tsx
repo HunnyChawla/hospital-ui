@@ -646,7 +646,7 @@ export function AbhaEnrollmentModal({
           Ayushman Bharat Health Account (ABHA)
         </h2>
         <p className="text-xs text-slate-500">
-          Enroll new patient or link existing ABHA profile (Optional)
+          Enroll new patient or link existing ABHA profile
         </p>
       </div>
     </div>

@@ -84,18 +84,15 @@ export function AbhaStatusBadge({
   }
 
   return (
-    <div className="inline-flex items-center gap-2">
-      <button
-        type="button"
-        onClick={onEnrollClick}
-        className={`inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 font-medium text-sky-700 hover:bg-sky-100 transition-colors ${
-          size === "sm" ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"
-        }`}
-      >
-        <UserPlus className="h-3.5 w-3.5" />
-        <span>+ Enroll / Link ABHA</span>
-      </button>
-      <span className="text-xs text-slate-400 italic">(Optional)</span>
-    </div>
+    <button
+      type="button"
+      onClick={onEnrollClick}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 font-medium text-sky-700 hover:bg-sky-100 transition-colors ${
+        size === "sm" ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"
+      }`}
+    >
+      <UserPlus className="h-3.5 w-3.5" />
+      <span>+ Enroll / Link ABHA</span>
+    </button>
   );
 }
