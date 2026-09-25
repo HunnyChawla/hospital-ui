@@ -823,13 +823,14 @@ export function PatientForm({ defaultValues, onSuccess }: PatientFormProps) {
             {/* ABHA can only be linked through ABDM verification (see "Link ABHA" above) -
                 it is never a free-text field the user can type into directly. */}
             <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              {abhaProfile?.abha_number ||
-                defaultValues?.abhaNumber ||
-                apiData?.abha_number ||
-                abhaProfile?.abha_address ||
-                defaultValues?.abhaAddress ||
-                apiData?.abha_address ||
-                "Not linked"}
+              {(() => {
+                const num = abhaProfile?.abha_number || defaultValues?.abhaNumber || apiData?.abha_number;
+                const addr = abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address;
+                if (num && addr && num !== addr) {
+                  return `${num} (${addr})`;
+                }
+                return num || addr || "Not linked";
+              })()}
             </div>
             {abhaLinkError ? (
               <span className="block text-xs text-rose-600">{abhaLinkError}</span>
