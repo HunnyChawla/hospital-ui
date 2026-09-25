@@ -48,6 +48,7 @@ export interface TenantsSearchParams {
   page?: number;
   page_size?: number;
   status?: TenantStatus;
+  search?: string;
 }
 
 export interface TenantsSearchResponse {
@@ -86,6 +87,7 @@ export const tenantsApi = {
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.status) queryParams.append("status", params.status);
+    if (params?.search && params.search.trim()) queryParams.append("search", params.search.trim());
 
     const queryString = queryParams.toString();
     const url = `/tenants${queryString ? `?${queryString}` : ""}`;

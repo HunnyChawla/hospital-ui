@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     Settings,
     Save,
@@ -14,6 +14,10 @@ import {
     Layers,
     ArrowRight,
     MessageSquare,
+    Search,
+    ChevronDown,
+    X,
+    Check,
 } from "lucide-react";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { tenantsApi, type Tenant } from "@/services/tenantsApi";
@@ -33,7 +37,18 @@ export function FeatureFlagManagement() {
         return '';
     });
     const [tenants, setTenants] = useState<Tenant[]>([]);
+    const [page, setPage] = useState(1);
+    const [totalTenants, setTotalTenants] = useState(0);
     const [loadingTenants, setLoadingTenants] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [activeTenantOverride, setActiveTenantOverride] = useState<Tenant | null>(null);
+
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const isFirstSearchRun = useRef(true);
 
     const { allFlags, isLoading, updateFlags, isUpdating, refetch } = useFeatureFlags();
 
@@ -54,30 +69,154 @@ export function FeatureFlagManagement() {
         enabled: false,
     });
 
-    // Fetch tenants for platform owners
+    // Close dropdown on click outside
     useEffect(() => {
-        if (isPlatformOwner) {
-            const fetchTenants = async () => {
-                setLoadingTenants(true);
-                try {
-                    const response = await tenantsApi.list({ status: "active" });
-                    setTenants(response.items);
-                    // Only auto-select first tenant if no tenant is selected
-                    const currentTenantId = localStorage.getItem('tenant_id');
-                    if (response.items.length > 0 && !currentTenantId) {
-                        const firstTenantId = response.items[0].id;
-                        setSelectedTenantId(firstTenantId);
-                        localStorage.setItem('tenant_id', firstTenantId);
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch tenants:", error);
-                } finally {
-                    setLoadingTenants(false);
-                }
-            };
-            fetchTenants();
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // Focus search input when dropdown opens
+    useEffect(() => {
+        if (isDropdownOpen) {
+            setTimeout(() => searchInputRef.current?.focus(), 50);
         }
+    }, [isDropdownOpen]);
+
+    // Fetch initial batch of 50 tenants for platform owners
+    useEffect(() => {
+        if (!isPlatformOwner) return;
+
+        let isMounted = true;
+        const fetchInitialTenants = async () => {
+            setLoadingTenants(true);
+            try {
+                const response = await tenantsApi.list({ status: "active", page: 1, page_size: 50 });
+                if (!isMounted) return;
+
+                let loadedTenants = response.items;
+                setTotalTenants(response.total);
+                setPage(1);
+
+                // Only auto-select first tenant if no tenant is selected
+                const currentTenantId = localStorage.getItem('tenant_id');
+                if (loadedTenants.length > 0 && !currentTenantId) {
+                    const firstTenantId = loadedTenants[0].id;
+                    setSelectedTenantId(firstTenantId);
+                    localStorage.setItem('tenant_id', firstTenantId);
+                } else if (currentTenantId) {
+                    const exists = loadedTenants.some(t => t.id === currentTenantId);
+                    if (!exists) {
+                        try {
+                            const specificTenant = await tenantsApi.getById(currentTenantId);
+                            if (isMounted && specificTenant) {
+                                setActiveTenantOverride(specificTenant);
+                                loadedTenants = [specificTenant, ...loadedTenants];
+                            }
+                        } catch {
+                            // Ignore if individual tenant fetch fails
+                        }
+                    }
+                }
+                setTenants(loadedTenants);
+            } catch (error) {
+                console.error("Failed to fetch initial tenants:", error);
+            } finally {
+                if (isMounted) setLoadingTenants(false);
+            }
+        };
+        fetchInitialTenants();
+
+        return () => {
+            isMounted = false;
+        };
     }, [isPlatformOwner]);
+
+    // Debounce search query
+    useEffect(() => {
+        if (!isPlatformOwner) return;
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, isPlatformOwner]);
+
+    // Execute search when debounced query changes
+    useEffect(() => {
+        if (!isPlatformOwner) return;
+        if (isFirstSearchRun.current) {
+            isFirstSearchRun.current = false;
+            return;
+        }
+
+        let isMounted = true;
+        const executeSearch = async () => {
+            setLoadingTenants(true);
+            try {
+                const response = await tenantsApi.list({
+                    status: "active",
+                    search: debouncedSearchQuery.trim() || undefined,
+                    page: 1,
+                    page_size: 50,
+                });
+                if (!isMounted) return;
+
+                let loadedTenants = response.items;
+                if (!debouncedSearchQuery.trim() && selectedTenantId) {
+                    const exists = loadedTenants.some(t => t.id === selectedTenantId);
+                    if (!exists && activeTenantOverride) {
+                        loadedTenants = [activeTenantOverride, ...loadedTenants];
+                    }
+                }
+                setTenants(loadedTenants);
+                setTotalTenants(response.total);
+                setPage(1);
+            } catch (error) {
+                console.error("Failed to search tenants:", error);
+            } finally {
+                if (isMounted) setLoadingTenants(false);
+            }
+        };
+
+        executeSearch();
+        return () => {
+            isMounted = false;
+        };
+    }, [debouncedSearchQuery, isPlatformOwner, selectedTenantId, activeTenantOverride]);
+
+    // Infinite scroll handler: load next 50 on reaching bottom of dropdown list
+    const handleDropdownScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+        if (scrollHeight - scrollTop - clientHeight < 40) {
+            if (tenants.length < totalTenants && !loadingMore && !loadingTenants) {
+                setLoadingMore(true);
+                const nextPage = page + 1;
+                try {
+                    const response = await tenantsApi.list({
+                        status: "active",
+                        search: debouncedSearchQuery.trim() || undefined,
+                        page: nextPage,
+                        page_size: 50,
+                    });
+                    setTenants(prev => {
+                        const existingIds = new Set(prev.map(t => t.id));
+                        const uniqueNew = response.items.filter(t => !existingIds.has(t.id));
+                        return [...prev, ...uniqueNew];
+                    });
+                    setPage(nextPage);
+                    setTotalTenants(response.total);
+                } catch (error) {
+                    console.error("Failed to fetch more tenants on scroll:", error);
+                } finally {
+                    setLoadingMore(false);
+                }
+            }
+        }
+    };
 
     // Update local state when flags are loaded
     useEffect(() => {
@@ -143,8 +282,13 @@ export function FeatureFlagManagement() {
         updateFlags({ feature: 'clinic_panel', flags: clinicPanelFlags });
     };
 
+    const selectedTenant = tenants.find(t => t.id === selectedTenantId) || activeTenantOverride;
+
     const handleTenantChange = async (newTenantId: string) => {
         setSelectedTenantId(newTenantId);
+        setIsDropdownOpen(false);
+        const match = tenants.find(t => t.id === newTenantId);
+        if (match) setActiveTenantOverride(match);
         // Store in localStorage so API calls use this tenant
         localStorage.setItem('tenant_id', newTenantId);
         // Refetch flags for the new tenant
@@ -211,28 +355,156 @@ export function FeatureFlagManagement() {
             </div>
 
             {/* Tenant Selector for Platform Owners */}
-            {isPlatformOwner && tenants.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
-                    <label className="block">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Building2 className="h-4 w-4 text-slate-600" />
-                            <span className="text-sm font-medium text-slate-700">Select Tenant</span>
+            {isPlatformOwner && (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6 relative">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+                                <Building2 className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-800">Target Organization</h3>
+                                <p className="text-xs text-slate-500">Select the hospital to view and configure its feature flags</p>
+                            </div>
                         </div>
-                        <select
-                            value={selectedTenantId}
-                            onChange={(e) => handleTenantChange(e.target.value)}
-                            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        {selectedTenant && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Active
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Combobox Trigger */}
+                    <div ref={dropdownRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsDropdownOpen(prev => !prev)}
+                            className="w-full flex items-center justify-between gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 text-left transition-all hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 shadow-sm"
                         >
-                            {tenants.map((tenant) => (
-                                <option key={tenant.id} value={tenant.id}>
-                                    {tenant.name} ({tenant.subdomain})
-                                </option>
-                            ))}
-                        </select>
-                        <p className="mt-2 text-xs text-slate-500">
-                            Configure feature flags for the selected tenant
-                        </p>
-                    </label>
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                                    <Building2 className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold text-slate-900 truncate">
+                                            {selectedTenant ? selectedTenant.name : (loadingTenants ? "Loading hospitals..." : "Select a Hospital...")}
+                                        </p>
+                                        {selectedTenant?.subdomain && (
+                                            <span className="shrink-0 text-xs px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-mono font-medium">
+                                                {selectedTenant.subdomain}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-slate-500 truncate mt-0.5">
+                                        {selectedTenant ? (
+                                            [selectedTenant.city, selectedTenant.state].filter(Boolean).join(", ") || `ID: ${selectedTenant.id}`
+                                        ) : "Click to choose or search another hospital"}
+                                    </p>
+                                </div>
+                            </div>
+                            <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isDropdownOpen ? "rotate-180 text-sky-600" : ""}`} />
+                        </button>
+
+                        {/* Dropdown Popover */}
+                        {isDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                                {/* Search Bar */}
+                                <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                        <input
+                                            ref={searchInputRef}
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Search by name, subdomain, email, or phone..."
+                                            className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-9 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                        />
+                                        {loadingTenants ? (
+                                            <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-sky-600" />
+                                        ) : searchQuery ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearchQuery("")}
+                                                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
+
+                                {/* Options List with Infinite Scroll */}
+                                <div
+                                    onScroll={handleDropdownScroll}
+                                    className="max-h-72 overflow-y-auto divide-y divide-slate-100"
+                                >
+                                    {tenants.length === 0 && !loadingTenants ? (
+                                        <div className="py-8 text-center px-4">
+                                            <Building2 className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                                            <p className="text-sm font-medium text-slate-700">No hospitals found</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {searchQuery ? `No results matching "${searchQuery}"` : "No active tenants available"}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        tenants.map((tenant) => {
+                                            const isSelected = tenant.id === selectedTenantId;
+                                            return (
+                                                <button
+                                                    key={tenant.id}
+                                                    type="button"
+                                                    onClick={() => handleTenantChange(tenant.id)}
+                                                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
+                                                        isSelected
+                                                            ? "bg-sky-50/70 text-sky-900 font-semibold border-l-4 border-sky-600"
+                                                            : "hover:bg-slate-50 text-slate-800"
+                                                    }`}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm truncate">{tenant.name}</span>
+                                                            <span className="shrink-0 text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono">
+                                                                {tenant.subdomain}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                                                            {tenant.city && <span>{tenant.city}</span>}
+                                                            {tenant.state && <span>• {tenant.state}</span>}
+                                                            {tenant.phone_no && <span>• {tenant.phone_no}</span>}
+                                                        </div>
+                                                    </div>
+                                                    {isSelected && (
+                                                        <Check className="h-4 w-4 text-sky-600 shrink-0" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })
+                                    )}
+
+                                    {/* Infinite Scroll Loading Spinner */}
+                                    {loadingMore && (
+                                        <div className="flex items-center justify-center gap-2 py-3 bg-slate-50/50 text-xs text-slate-500">
+                                            <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                                            <span>Loading more hospitals...</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Status Bar */}
+                                <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+                                    <span>
+                                        Showing <strong className="text-slate-700">{tenants.length}</strong> of <strong className="text-slate-700">{totalTenants}</strong> hospitals
+                                    </span>
+                                    <span>
+                                        {tenants.length < totalTenants ? "Scroll down for more" : "All hospitals loaded"}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
