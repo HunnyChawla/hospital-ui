@@ -43,6 +43,7 @@ export interface PatientApiResponse {
   abha_linked_at?: string | null;
   abha_verified?: boolean;
   aadhaar_number?: string | null;
+  photo_base64?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -135,6 +136,7 @@ const mapApiPatientToPatient = (apiPatient: PatientApiResponse): Patient => {
     abhaAddress: apiPatient.abha_address || undefined,
     abhaVerified: apiPatient.abha_verified || false,
     abhaLinkedAt: apiPatient.abha_linked_at || undefined,
+    photo_base64: apiPatient.photo_base64 || undefined,
   };
 };
 

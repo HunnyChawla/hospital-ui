@@ -23,6 +23,8 @@ export type Patient = {
   abhaAddress?: string | null;
   abhaVerified?: boolean;
   abhaLinkedAt?: string | null;
+  photo_base64?: string | null;
+  photoBase64?: string | null;
 };
 
 
