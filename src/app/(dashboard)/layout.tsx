@@ -136,7 +136,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
-  const { isAuthenticated, userDetails } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, userDetails, consentRequired } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
   const doctors = useAppSelector((s) => s.doctors);
   const wards = useAppSelector((s) => s.wards);
@@ -194,7 +194,13 @@ export default function DashboardLayout({
   }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userPermissions, allowedScreens, router]);
 
   useEffect(() => {
-    // Domain data fetching on mount
+    // If consent is required, do NOT fetch domain data yet
+    if (consentRequired) {
+      setIsCheckingAuth(false);
+      return;
+    }
+
+    // Domain data fetching on mount or once consent is accepted
     const fetchData = async () => {
       // Fetch user details only if not already loaded
       if (typeof window !== "undefined" && !userDetails) {
@@ -222,9 +228,8 @@ export default function DashboardLayout({
       setIsCheckingAuth(false);
     };
     fetchData();
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Re-run when consentRequired transitions to false so domain data is fetched
+  }, [consentRequired, dispatch]);
 
   // Listen for user changes (create/update) to refresh doctors cache
   useEffect(() => {
@@ -247,7 +252,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // Fetch tenant data if not already loaded and not already attempted
-    if (isAuthenticated && typeof window !== "undefined") {
+    if (isAuthenticated && !consentRequired && typeof window !== "undefined") {
       const tenantId = localStorage.getItem("tenant_id");
       if (
         tenantId &&
@@ -261,6 +266,7 @@ export default function DashboardLayout({
     }
   }, [
     isAuthenticated,
+    consentRequired,
     dispatch,
     tenant.tenant,
     tenant.loading,
@@ -271,6 +277,23 @@ export default function DashboardLayout({
   // Show nothing while checking auth or if not authenticated
   if (isCheckingAuth || !isAuthenticated) {
     return null;
+  }
+
+  // If consent is required, do not render dashboard or its children
+  // (which would fire unauthorized API requests). The ForceAcceptTermsModal
+  // in providers.tsx is active and visible.
+  if (consentRequired) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center justify-center p-8 text-center max-w-md">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-600 mb-4"></div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">Consent Verification</h2>
+          <p className="text-sm text-slate-500">
+            Please review and accept the latest Terms &amp; Conditions and Privacy Notice in the dialog to continue.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (

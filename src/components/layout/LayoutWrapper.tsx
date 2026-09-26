@@ -19,7 +19,7 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const permissions = useAppSelector((s) => s.permissions);
-  const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, consentRequired } = useAppSelector((s) => s.auth);
 
   useEffect(() => {
     const init = async () => {
@@ -46,12 +46,17 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
     init();
   }, [dispatch, queryClient]);
 
-  // Handle permission fetching if hydration failed and we are authenticated
+  // Handle permission fetching if hydration failed, we are authenticated, and consent is not required
   useEffect(() => {
-    if (isAuthenticated && !store.getState().permissions.initialized && !permissions.loading) {
+    if (
+      isAuthenticated &&
+      !consentRequired &&
+      !store.getState().permissions.initialized &&
+      !permissions.loading
+    ) {
       dispatch(fetchMyPermissions());
     }
-  }, [isAuthenticated, permissions.loading, dispatch]);
+  }, [isAuthenticated, consentRequired, permissions.loading, dispatch]);
 
   // Dynamic padding based on sidebar state
   const mainPadding = useMemo(() => {

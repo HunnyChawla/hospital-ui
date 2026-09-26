@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAppDispatch } from "@/redux/hooks";
-import { clearConsentRequired, updateToken } from "@/redux/authSlice";
+import { clearConsentRequired, postConsentBootstrap, updateToken } from "@/redux/authSlice";
 import { legalApi, ActiveDocumentsResponse, PendingConsentsResponse } from "@/services/legalApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -118,6 +118,7 @@ export function ForceAcceptTermsModal({ isOpen }: ForceAcceptTermsModalProps) {
       }
 
       dispatch(clearConsentRequired());
+      await dispatch(postConsentBootstrap());
       toast.success("Terms & Conditions and Privacy Notice accepted. You may now continue.");
     } catch (err: any) {
       const msg = getErrorMessage(err);

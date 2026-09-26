@@ -14,12 +14,29 @@ const getApiClient = () => {
       },
     });
 
-    // Add auth token to requests
+    // Add auth token to requests and guard against unconsented API calls
     _apiClient.interceptors.request.use((config) => {
       if (typeof window !== "undefined") {
         const token = localStorage.getItem("auth_token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        // If user consent is pending, abort requests to protected endpoints
+        // before they hit the network, preventing 403 Console AxiosErrors.
+        const consentRequired = localStorage.getItem("consent_required") === "true";
+        if (consentRequired) {
+          const url = config.url || "";
+          const isExempt =
+            url.includes("/legal/") ||
+            url.includes("/auth/logout") ||
+            url.includes("/auth/change-password");
+
+          if (!isExempt) {
+            const controller = new AbortController();
+            config.signal = controller.signal;
+            controller.abort("Blocked: Pending mandatory Terms & Conditions and Privacy Notice consent.");
+          }
         }
       }
       return config;
@@ -30,6 +47,10 @@ const getApiClient = () => {
     _apiClient.interceptors.response.use(
       (response) => response,
       (error) => {
+        if (axios.isCancel(error)) {
+          return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
           if (typeof window !== "undefined" && !isRedirectingToLogin) {
             isRedirectingToLogin = true;

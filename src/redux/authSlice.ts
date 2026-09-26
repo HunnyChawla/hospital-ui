@@ -72,31 +72,58 @@ export const login = createAsyncThunk(
           localStorage.removeItem("consent_required");
         }
 
-        // Fetch tenant data and user details (fire and forget - not critical for navigation)
-        dispatch(fetchTenant(tenantId));
-        dispatch(fetchUserDetails(response.user_id));
+        // Only fetch post-login domain data if consent is NOT required.
+        // If consent is required, making protected API calls will trigger 403 Forbidden.
+        if (!response.consent_required) {
+          // Fetch tenant data and user details (fire and forget - not critical for navigation)
+          dispatch(fetchTenant(tenantId));
+          dispatch(fetchUserDetails(response.user_id));
 
-        // Fetch feature flags on login and save to localStorage
-        try {
-          const featureFlags = await getAllFeatureFlags();
-          localStorage.setItem("feature_flags", JSON.stringify(featureFlags));
-        } catch (err) {
-          console.error("Failed to pre-fetch feature flags on login:", err);
+          // Fetch feature flags on login and save to localStorage
+          try {
+            const featureFlags = await getAllFeatureFlags();
+            localStorage.setItem("feature_flags", JSON.stringify(featureFlags));
+          } catch (err) {
+            console.error("Failed to pre-fetch feature flags on login:", err);
+          }
+
+          // Await permissions fetch - needed to determine where to navigate after login
+          const permissionsResult = await dispatch(fetchMyPermissions());
+
+          return {
+            ...response,
+            permissions: permissionsResult.payload as UserPermissions | undefined,
+          };
         }
 
-        // Await permissions fetch - needed to determine where to navigate after login
-        const permissionsResult = await dispatch(fetchMyPermissions());
-
-        return {
-          ...response,
-          permissions: permissionsResult.payload as UserPermissions | undefined,
-        };
+        return { ...response, permissions: undefined };
       }
       return { ...response, permissions: undefined };
     } catch (error: any) {
       // Preserve the error structure for proper error handling
       return rejectWithValue(error);
     }
+  }
+);
+
+export const postConsentBootstrap = createAsyncThunk(
+  "auth/postConsentBootstrap",
+  async (_, { dispatch }) => {
+    if (typeof window === "undefined") return;
+    const tenantId = localStorage.getItem("tenant_id") || "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1";
+    const userId = localStorage.getItem("user_id");
+
+    dispatch(fetchTenant(tenantId));
+    if (userId) {
+      dispatch(fetchUserDetails(userId));
+    }
+    try {
+      const featureFlags = await getAllFeatureFlags();
+      localStorage.setItem("feature_flags", JSON.stringify(featureFlags));
+    } catch (err) {
+      console.error("Failed to fetch feature flags after consent:", err);
+    }
+    await dispatch(fetchMyPermissions());
   }
 );
 

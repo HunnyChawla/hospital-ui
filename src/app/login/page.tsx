@@ -33,8 +33,10 @@ function LoginForm() {
 
     // Fetch tenant data if not already loaded and not already attempted
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+    const consentRequired = typeof window !== "undefined" ? localStorage.getItem("consent_required") === "true" : false;
     if (
       tenantId &&
+      !consentRequired &&
       !tenant.tenant &&
       !tenant.loading &&
       !tenant.error &&
