@@ -426,13 +426,27 @@ export function AbhaEnrollmentModal({
         otp,
         mobile: aadhaarMobile,
       });
-      // A null mobile on the response means ABDM couldn't bind the entered number (it isn't the
-      // Aadhaar-linked one) - verify it separately before moving on to address selection.
-      if (!res.profile?.mobile) {
+
+      const enteredMobileClean = aadhaarMobile.replace(/\D/g, "").slice(-10);
+      const resMobileClean = (res.profile?.mobile || "").replace(/\D/g, "");
+      const isMasked = resMobileClean.length < 10;
+      const isDifferentMobile = Boolean(
+        resMobileClean &&
+          (isMasked
+            ? !enteredMobileClean.endsWith(resMobileClean)
+            : enteredMobileClean !== resMobileClean.slice(-10))
+      );
+
+      // If ABDM returned no mobile (Aadhaar unlinked) OR the account exists with a different mobile:
+      if (!res.profile?.mobile || isDifferentMobile) {
         setPendingEnrollmentResult(res);
         if (res.session_key) setSessionKey(res.session_key);
         setNeedsMobileVerification(true);
-        toast.info("Please verify the mobile number to continue enrollment");
+        if (isDifferentMobile && res.profile?.mobile) {
+          toast.info("ABHA account exists with a different mobile number. Please verify to update.");
+        } else {
+          toast.info("Please verify the mobile number to continue enrollment");
+        }
         return;
       }
       handleEnrollmentSuccess(res);
@@ -494,7 +508,11 @@ export function AbhaEnrollmentModal({
       const merged: AbhaEnrollmentResult = pendingEnrollmentResult
         ? {
             ...pendingEnrollmentResult,
-            profile: { ...pendingEnrollmentResult.profile, ...res.profile },
+            profile: {
+              ...pendingEnrollmentResult.profile,
+              ...res.profile,
+              mobile: res.profile?.mobile || aadhaarMobile,
+            },
           }
         : res;
       setNeedsMobileVerification(false);
@@ -769,10 +787,11 @@ export function AbhaEnrollmentModal({
     const effectiveSessionKey = res.session_key || sessionKey;
     const currentCmId = res.cm_id || cmId || ABDM_X_CM_ID || "sbx";
 
-    // Linking existing ABHA skips address creation since the account already has an address
-    if (activeTab === "link_existing") {
+    // Linking existing ABHA or existing account with pre-set address skips address creation
+    if (activeTab === "link_existing" || (!res.is_new_abha && res.profile?.abha_address)) {
       setResultProfile(res.profile || null);
       setResultSessionKey(effectiveSessionKey);
+      setShowAddressSelection(false);
       toast.success(res.message || "ABHA profile retrieved successfully");
       if (effectiveSessionKey) void runLinkPrecheck(effectiveSessionKey, res.profile || null);
       return;
@@ -1024,20 +1043,50 @@ export function AbhaEnrollmentModal({
           </div>
         )}
 
-        {/* STEP: Verify Mobile - ABDM returned no mobile on the enrolled profile */}
+        {/* STEP: Verify Mobile - ABDM returned no mobile or a different mobile on the enrolled profile */}
         {needsMobileVerification ? (
           <div className="space-y-4">
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <p className="text-xs">
-                This mobile number isn&apos;t the one registered with the Aadhaar record, so it
-                couldn&apos;t be linked automatically. Verify it with an OTP to finish enrollment.
-              </p>
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+              <div className="text-xs space-y-1">
+                {pendingEnrollmentResult?.profile?.mobile ? (
+                  <>
+                    <p className="font-semibold text-amber-900">
+                      Account already exists with a different mobile number
+                    </p>
+                    <p>
+                      ABHA registered mobile:{" "}
+                      <span className="font-mono font-semibold text-amber-950">
+                        {pendingEnrollmentResult.profile.mobile}
+                      </span>
+                    </p>
+                    <p>
+                      Entered mobile:{" "}
+                      <span className="font-mono font-semibold text-amber-950">
+                        {aadhaarMobile}
+                      </span>
+                    </p>
+                    <p className="text-amber-700">
+                      To update your ABHA profile mobile number to{" "}
+                      <span className="font-mono font-semibold">{aadhaarMobile}</span>, verify it with an
+                      OTP below, or continue with the currently registered mobile.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    This mobile number isn&apos;t the one registered with the Aadhaar record, so it
+                    couldn&apos;t be linked automatically. Verify it with an OTP to finish enrollment.
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Mobile Number <span className="text-red-500">*</span>
+                {pendingEnrollmentResult?.profile?.mobile
+                  ? "Mobile Number to Update in ABHA"
+                  : "Mobile Number"}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -1058,15 +1107,34 @@ export function AbhaEnrollmentModal({
                   disabled={loading}
                   size="sm"
                 />
-                <button
-                  type="button"
-                  onClick={handleRequestMobileVerifyOtp}
-                  disabled={loading || aadhaarMobile.length !== 10}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span>Send OTP</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  {pendingEnrollmentResult?.profile?.mobile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prevResult = pendingEnrollmentResult;
+                        setNeedsMobileVerification(false);
+                        setMobileOtp("");
+                        setMobileOtpSent(false);
+                        setPendingEnrollmentResult(null);
+                        handleEnrollmentSuccess(prevResult);
+                      }}
+                      disabled={loading}
+                      className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      Keep Registered Mobile ({pendingEnrollmentResult.profile.mobile})
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleRequestMobileVerifyOtp}
+                    disabled={loading || aadhaarMobile.length !== 10}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <span>Send OTP</span>
+                  </button>
+                </div>
               </>
             ) : (
               <div className="space-y-4 pt-2 border-t border-slate-100">
@@ -1094,7 +1162,11 @@ export function AbhaEnrollmentModal({
                     className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
                     {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <span>Verify &amp; Continue</span>
+                    <span>
+                      {pendingEnrollmentResult?.profile?.mobile
+                        ? "Verify & Update Mobile"
+                        : "Verify & Continue"}
+                    </span>
                   </button>
                 </div>
               </div>
