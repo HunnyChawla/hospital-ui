@@ -313,31 +313,58 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
     }
   };
 
-  // Populate form when full patient data is loaded
+  // Sync initialAbhaData if it changes
   useEffect(() => {
-    if (fullPatientData && defaultValues?.id) {
-      // React Query fetched the full data - no manual API call needed!
-      // fullPatientData is now PatientApiResponse with all fields preserved
-      const apiData = fullPatientData as any;
-      const dob = apiData.date_of_birth || "";
+    if (initialAbhaData?.profile) {
+      setAbhaProfile(initialAbhaData.profile);
+      setAbhaSessionKey(initialAbhaData.sessionKey || null);
+      if (initialAbhaData.aadhaarNumber) {
+        setAadhaarNum(initialAbhaData.aadhaarNumber);
+      }
+      setAbhaLinkError(null);
+    }
+  }, [initialAbhaData]);
+
+  // Populate form when full patient data is loaded or defaultValues/initialAbhaData change
+  useEffect(() => {
+    if (defaultValues?.id) {
+      const apiData = (fullPatientData as any) || defaultValues;
+      const dob = apiData.date_of_birth || (defaultValues.age ? calculateDobFromAge(defaultValues.age, 0, 0) : "") || initialAbhaData?.profile?.dob || "";
       const isBabyOf = apiData.title === "Baby of";
 
+      let firstName = apiData.first_name || "";
+      let lastName = apiData.last_name || "";
+      if (!firstName && defaultValues.name) {
+        const parts = defaultValues.name.trim().split(" ");
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ");
+      }
+      if (!firstName && initialAbhaData?.profile) {
+        const prof = initialAbhaData.profile;
+        if (prof.name) {
+          const parts = prof.name.trim().split(" ");
+          firstName = parts[0] || "";
+          lastName = parts.slice(1).join(" ");
+        } else if (prof.first_name) {
+          firstName = prof.first_name || "";
+          lastName = prof.last_name || "";
+        }
+      }
+
       reset({
-        title: apiData.title || "",
-        first_name: apiData.first_name || "",
-        last_name: apiData.last_name || "",
-        mobile: apiData.mobile || "",
-        email: apiData.email || "",
+        title: apiData.title || defaultValues.title || "",
+        first_name: firstName,
+        last_name: lastName,
+        mobile: apiData.mobile || defaultValues.mobile || initialAbhaData?.profile?.mobile || "",
+        email: apiData.email || initialAbhaData?.profile?.email || "",
         date_of_birth: dob,
-        gender: apiData.gender?.toLowerCase() as "male" | "female" | "other",
-        address: apiData.address || "",
-        city: apiData.city || "",
-        state: apiData.state || "",
-        pincode: apiData.pincode || "",
-        category: apiData.category || "General",
+        gender: (apiData.gender?.toLowerCase() || defaultValues.gender?.toLowerCase() || (initialAbhaData?.profile?.gender?.toLowerCase().startsWith("f") ? "female" : initialAbhaData?.profile?.gender?.toLowerCase().startsWith("m") ? "male" : "other")) as "male" | "female" | "other",
+        address: apiData.address || defaultValues.address || initialAbhaData?.profile?.address || "",
+        city: apiData.city || defaultValues.city || initialAbhaData?.profile?.district || initialAbhaData?.profile?.city || "",
+        state: apiData.state || defaultValues.state || initialAbhaData?.profile?.state || "",
+        pincode: apiData.pincode || defaultValues.pincode || initialAbhaData?.profile?.pincode || "",
+        category: apiData.category || defaultValues.category || "General",
       });
-
-
 
       // Populate age fields from DOB
       setDobValue(dob);
@@ -346,13 +373,21 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
         setAgeYears(age.years.toString());
         setAgeMonths(age.months.toString());
         setAgeDays(age.days.toString());
+      } else if (defaultValues.age) {
+        setAgeYears(defaultValues.age.toString());
+        setAgeMonths("0");
+        setAgeDays("0");
+      } else {
+        setAgeYears("");
+        setAgeMonths("");
+        setAgeDays("");
       }
 
       if (isBabyOf) {
         setIsNewborn(true);
-        const namePart = apiData.first_name?.startsWith("Baby of ") 
-          ? apiData.first_name.substring(8) 
-          : apiData.first_name || "";
+        const namePart = (apiData.first_name || defaultValues.name || "").startsWith("Baby of ") 
+          ? (apiData.first_name || defaultValues.name || "").substring(8) 
+          : (apiData.first_name || defaultValues.name || "");
         setParentName(namePart);
       } else {
         setIsNewborn(false);

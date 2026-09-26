@@ -58,10 +58,19 @@ export default function PatientsPage() {
     setIsAbhaEnrollModalOpen(true);
   };
 
-  const handleAbhaEnrollSuccess = (profile: any, sessionKey: string, aadhaarNumber?: string) => {
+  const handleAbhaEnrollSuccess = (
+    profile: any,
+    sessionKey: string,
+    aadhaarNumber?: string,
+    existingPatient?: Patient | null
+  ) => {
     setAbhaEnrollData({ profile, sessionKey, aadhaarNumber });
     setIsAbhaEnrollModalOpen(false);
-    setEditingPatient(null);
+    if (existingPatient) {
+      setEditingPatient(existingPatient);
+    } else {
+      setEditingPatient(null);
+    }
     setShowModal(true);
   };
 

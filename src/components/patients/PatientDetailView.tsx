@@ -110,18 +110,18 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
   const handleAbhaSuccessInDetail = async (profile: any, sessionKey: string, aadhaar?: string) => {
     try {
-      // No aadhaar_number: ABDM forbids storing it, so the server no longer
-      // accepts one. The Aadhaar still authenticates the enrollment; it is
-      // simply not retained afterwards.
-      await abhaApi.syncToPatient(patientId, { session_key: sessionKey });
-      toast.success("ABHA profile attached to patient successfully!");
+      if (sessionKey) {
+        try {
+          await abhaApi.syncToPatient(patientId, { session_key: sessionKey });
+        } catch {
+          // May have already been synced and session consumed directly inside AbhaEnrollmentModal
+        }
+      }
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);
       queryClient.invalidateQueries({ queryKey: ["patients"] });
       queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
     } catch (e: any) {
-      // getAbhaError, not getErrorMessage: strips the ABHA_DUPLICATE:/ABHA_MISMATCH: machine
-      // prefixes the backend uses so they never reach the operator.
       toast.error(getAbhaError(e, "Failed to attach ABHA profile to patient").message, {
         duration: 10000,
       });

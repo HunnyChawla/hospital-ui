@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck,
   Smartphone,
@@ -33,6 +33,9 @@ import {
   type AbhaLinkCheckResponseDto,
   type AbhaProfileDto,
 } from "@/services/abhaApi";
+import { patientsApi, type CreatePatientRequest } from "@/services/patientsApi";
+import { patientKeys } from "@/hooks/queries/usePatients";
+import { Patient } from "@/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getAbhaError } from "@/utils/abhaErrors";
 import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
@@ -54,7 +57,12 @@ export interface AbhaEnrollmentExistingPatientDetails {
 export interface AbhaEnrollmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (profile: AbhaProfileDto, sessionKey: string, aadhaarNumber?: string) => void;
+  onSuccess: (
+    profile: AbhaProfileDto,
+    sessionKey: string,
+    aadhaarNumber?: string,
+    existingPatient?: Patient | null
+  ) => void;
   patientId?: string;
   initialMobile?: string;
   initialName?: string;
@@ -68,6 +76,38 @@ const genderToCode = (gender?: string | null): string | null => {
   if (!gender) return null;
   const letter = gender.trim().charAt(0).toUpperCase();
   return letter === "M" || letter === "F" || letter === "O" ? letter : null;
+};
+
+const normalizeGender = (gender?: string | null): "male" | "female" | "other" => {
+  if (!gender) return "male";
+  const g = gender.trim().toLowerCase();
+  if (g.startsWith("f")) return "female";
+  if (g.startsWith("m")) return "male";
+  return "other";
+};
+
+const formatDobToIso = (dob?: string | null): string => {
+  if (!dob) {
+    return new Date().toISOString().split("T")[0];
+  }
+  const clean = dob.trim().replace(/\//g, "-");
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      const y = parts[0];
+      const m = parts[1].padStart(2, "0");
+      const d = parts[2].padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    } else if (parts[2].length === 4) {
+      const d = parts[0].padStart(2, "0");
+      const m = parts[1].padStart(2, "0");
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+  } else if (parts.length === 1 && parts[0].length === 4) {
+    return `${parts[0]}-01-01`;
+  }
+  return dob;
 };
 
 const ALLOWED_DOC_PHOTO_TYPES = ["image/jpeg", "image/jpg", "image/png"];
@@ -167,6 +207,10 @@ export function AbhaEnrollmentModal({
   // patient record - rather than after the patient already exists.
   const [linkConflict, setLinkConflict] = useState<AbhaLinkCheckResponseDto | null>(null);
   const [checkingLink, setCheckingLink] = useState(false);
+  const [existingPatient, setExistingPatient] = useState<Patient | null>(null);
+  const [loadingExistingPatient, setLoadingExistingPatient] = useState(false);
+  const [savingToDb, setSavingToDb] = useState(false);
+  const queryClient = useQueryClient();
 
   // Tenant HIP configuration - warn instead of letting enrollment silently fail
   const { data: abdmConfig } = useQuery({
@@ -212,6 +256,9 @@ export function AbhaEnrollmentModal({
     setResultSessionKey(null);
     setLinkConflict(null);
     setCheckingLink(false);
+    setExistingPatient(null);
+    setLoadingExistingPatient(false);
+    setSavingToDb(false);
     setCardSessionKey(null);
     setDocType("DRIVING_LICENCE");
     setDocId("");
@@ -249,19 +296,81 @@ export function AbhaEnrollmentModal({
    * pre-check outage must never block a legitimate enrollment, and the sync endpoint plus the
    * DB unique index remain the real authority.
    */
-  const runLinkPrecheck = async (sessionKey: string) => {
+  const runLinkPrecheck = async (sessionKey: string, currentProfile?: AbhaProfileDto | null) => {
     setCheckingLink(true);
+    setLoadingExistingPatient(true);
     try {
       const result = await abhaApi.checkLinkConflict({
         session_key: sessionKey,
         patient_id: patientId ?? null,
       });
       setLinkConflict(result);
+
+      let foundPatient: Patient | null = null;
+      if (result.conflict_patient_id) {
+        try {
+          const apiPatient = await patientsApi.getById(result.conflict_patient_id);
+          foundPatient = patientsApi.mapToPatients([apiPatient])[0] || null;
+        } catch (err) {
+          console.warn("Failed to fetch conflict patient by ID:", err);
+        }
+      } else if (result.conflict_patient_uhid) {
+        try {
+          const apiPatient = await patientsApi.getByUhid(result.conflict_patient_uhid);
+          foundPatient = patientsApi.mapToPatients([apiPatient])[0] || null;
+        } catch (err) {
+          console.warn("Failed to fetch conflict patient by UHID:", err);
+        }
+      }
+
+      // If no conflict_patient_id was returned, but we started from add-patient (patientId is omitted):
+      // check whether a matching patient already exists in the hospital
+      if (!foundPatient && !patientId) {
+        const prof = currentProfile || resultProfile;
+        if (prof) {
+          try {
+            if (prof.abha_number) {
+              const res = await patientsApi.search({ abha_number: prof.abha_number, page_size: 1 });
+              if (res.items && res.items.length > 0) {
+                foundPatient = patientsApi.mapToPatients(res.items)[0];
+              }
+            }
+            if (!foundPatient && prof.abha_address) {
+              const res = await patientsApi.search({ abha_address: prof.abha_address, page_size: 1 });
+              if (res.items && res.items.length > 0) {
+                foundPatient = patientsApi.mapToPatients(res.items)[0];
+              }
+            }
+            if (!foundPatient && prof.mobile && prof.mobile.length === 10) {
+              const res = await patientsApi.search({ mobile: prof.mobile, page_size: 5 });
+              if (res.items && res.items.length > 0) {
+                if (res.items.length === 1) {
+                  foundPatient = patientsApi.mapToPatients(res.items)[0];
+                } else if (prof.name) {
+                  const profNameClean = prof.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+                  const matched = res.items.find((item) => {
+                    const fullName = `${item.first_name || ""} ${item.last_name || ""}`.toLowerCase().replace(/[^a-z0-9]/g, "");
+                    return fullName && profNameClean && (fullName.includes(profNameClean) || profNameClean.includes(fullName));
+                  });
+                  foundPatient = matched ? patientsApi.mapToPatients([matched])[0] : patientsApi.mapToPatients(res.items)[0];
+                } else {
+                  foundPatient = patientsApi.mapToPatients(res.items)[0];
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("Patient lookup by ABHA/mobile failed:", err);
+          }
+        }
+      }
+
+      setExistingPatient(foundPatient);
     } catch (error) {
       console.warn("ABHA link pre-check failed; deferring to the sync call", error);
       setLinkConflict(null);
     } finally {
       setCheckingLink(false);
+      setLoadingExistingPatient(false);
     }
   };
 
@@ -658,7 +767,7 @@ export function AbhaEnrollmentModal({
       setResultProfile(res.profile || null);
       setResultSessionKey(effectiveSessionKey);
       toast.success(res.message || "ABHA profile retrieved successfully");
-      if (effectiveSessionKey) void runLinkPrecheck(effectiveSessionKey);
+      if (effectiveSessionKey) void runLinkPrecheck(effectiveSessionKey, res.profile || null);
       return;
     }
 
@@ -721,7 +830,7 @@ export function AbhaEnrollmentModal({
       setResultSessionKey(res.session_key || sessionKey);
       setShowAddressSelection(false);
       toast.success("ABHA address confirmed successfully");
-      void runLinkPrecheck(res.session_key || sessionKey);
+      void runLinkPrecheck(res.session_key || sessionKey, res.profile || null);
     } catch (error: any) {
       if (isSessionExpiredError(error)) {
         resetState();
@@ -739,17 +848,126 @@ export function AbhaEnrollmentModal({
     onClose();
   };
 
-  const handleCompleteAndSync = () => {
+  const handleCompleteAndSync = async () => {
     if (!resultProfile || !resultSessionKey) return;
-    // Hard guard behind the disabled button: attaching a duplicate would create a patient the
-    // ABHA can never be linked to.
-    if (checkingLink || linkConflict?.can_link === false) return;
-    const profile = resultProfile;
-    const sessionK = resultSessionKey;
-    const aadhaar = aadhaarNumber || undefined;
-    resetState();
-    onSuccess(profile, sessionK, aadhaar);
-    onClose();
+    if (checkingLink || loadingExistingPatient || savingToDb) return;
+    if (!existingPatient && !patientId && linkConflict?.can_link === false) return;
+
+    setSavingToDb(true);
+    try {
+      let targetPatient: Patient | null = null;
+      const targetId = existingPatient?.id || patientId;
+
+      if (targetId) {
+        // CASE 1: EXISTING PATIENT -> Sync ABHA details directly into database
+        await abhaApi.syncToPatient(targetId, {
+          session_key: resultSessionKey,
+          sync_demographics: true,
+          override_mismatch: true,
+        });
+
+        if (resultProfile.photo_base64) {
+          try {
+            await patientsApi.update(targetId, {
+              photo_base64: resultProfile.photo_base64,
+            });
+          } catch (e) {
+            console.warn("Failed to update patient photo:", e);
+          }
+        }
+
+        const updatedApiPatient = await patientsApi.getById(targetId);
+        targetPatient = patientsApi.mapToPatients([updatedApiPatient])[0] || null;
+
+        queryClient.invalidateQueries({ queryKey: patientKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: patientKeys.detail(targetId) });
+        queryClient.invalidateQueries({ queryKey: ["patients"] });
+        queryClient.invalidateQueries({ queryKey: ["patient", targetId] });
+
+        toast.success("ABHA details successfully attached and saved to patient record!");
+      } else {
+        // CASE 2: NEW PATIENT -> Create patient directly in database and sync ABHA
+        let firstName = "Patient";
+        let lastName: string | null = null;
+        if (resultProfile.name) {
+          const parts = resultProfile.name.trim().split(/\s+/);
+          firstName = parts[0] || "Patient";
+          if (parts.length > 1) {
+            lastName = parts.slice(1).join(" ");
+          }
+        }
+
+        const normalizedDob = formatDobToIso(resultProfile.dob);
+        const normalizedGender = normalizeGender(resultProfile.gender);
+        const extractedMobile = (
+          resultProfile.mobile ||
+          aadhaarMobile ||
+          docMobile ||
+          (linkAbhaNumber.replace(/\D/g, "").length === 10 ? linkAbhaNumber.replace(/\D/g, "") : "") ||
+          "9999999999"
+        ).replace(/\D/g, "").slice(-10);
+
+        const newPatientData: CreatePatientRequest = {
+          first_name: firstName,
+          last_name: lastName,
+          mobile: extractedMobile,
+          email: resultProfile.email?.trim() || null,
+          date_of_birth: normalizedDob,
+          gender: normalizedGender,
+          address: resultProfile.address?.trim() || null,
+          city: resultProfile.district?.trim() || null,
+          state: resultProfile.state?.trim() || null,
+          pincode: resultProfile.pincode?.trim() || null,
+          category: "General",
+          photo_base64: resultProfile.photo_base64 || null,
+        };
+
+        const createdApiPatient = await patientsApi.create(newPatientData);
+
+        try {
+          await abhaApi.syncToPatient(createdApiPatient.id, {
+            session_key: resultSessionKey,
+            sync_demographics: true,
+            override_mismatch: true,
+          });
+        } catch (syncErr: any) {
+          console.warn("ABHA sync to newly created patient warning:", syncErr);
+        }
+
+        const fullSavedPatient = await patientsApi.getById(createdApiPatient.id);
+        targetPatient = patientsApi.mapToPatients([fullSavedPatient])[0];
+
+        queryClient.invalidateQueries({ queryKey: patientKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: ["patients"] });
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("patient:created", {
+              detail: {
+                patientId: targetPatient.id,
+                patient: targetPatient,
+              },
+            })
+          );
+        }
+
+        toast.success("Patient created and ABHA attached successfully!");
+      }
+
+      const profile = resultProfile;
+      const sessionK = resultSessionKey;
+      const aadhaar = aadhaarNumber || undefined;
+      const finalPatient = targetPatient;
+
+      resetState();
+      onSuccess(profile, sessionK, aadhaar, finalPatient || undefined);
+      onClose();
+    } catch (err: any) {
+      const { message } = getAbhaError(err, "Failed to attach ABHA to patient");
+      toast.error(message, { duration: 8000 });
+    } finally {
+      setSavingToDb(false);
+    }
   };
 
   const handleDownloadCard = async () => {
@@ -1101,10 +1319,26 @@ export function AbhaEnrollmentModal({
               </div>
             </div>
 
-            {/* Blocking: this ABHA already belongs to another patient in this hospital. Shown
-                as a persistent banner rather than a toast - it's a decision the operator has to
-                act on, sitting next to the button it disables. */}
-            {linkConflict?.can_link === false && (
+            {/* Existing patient found: show info banner that they can attach to this patient */}
+            {existingPatient && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-900">
+                <Users className="h-5 w-5 shrink-0 mt-0.5 text-sky-600" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">Existing Patient Found in Records</p>
+                  <p className="text-xs text-sky-800">
+                    Patient <strong>{existingPatient.name}</strong> (UHID:{" "}
+                    <span className="font-mono font-semibold">{existingPatient.healthId || linkConflict?.conflict_patient_uhid}</span>
+                    {existingPatient.mobile ? `, Mobile: ${existingPatient.mobile}` : ""}) already exists in hospital records.
+                  </p>
+                  <p className="text-xs text-sky-700">
+                    Click <strong>&ldquo;Attach ABHA to Patient&rdquo;</strong> below to save and attach this ABHA profile directly to their record.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Blocking: this ABHA already belongs to another patient in this hospital (and could not load patient object). */}
+            {!existingPatient && !patientId && linkConflict?.can_link === false && (
               <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
                 <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
                 <div className="space-y-1">
@@ -1124,7 +1358,7 @@ export function AbhaEnrollmentModal({
 
             {/* Non-blocking advisories: an unverified legacy record carries the same ABHA, or
                 the profile's DOB/gender differ from the patient this is being attached to. */}
-            {linkConflict?.can_link !== false && linkConflict?.warning && (
+            {!existingPatient && linkConflict?.can_link !== false && linkConflict?.warning && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <p className="text-xs">{linkConflict.warning}</p>
@@ -1171,12 +1405,18 @@ export function AbhaEnrollmentModal({
               <button
                 type="button"
                 onClick={handleCompleteAndSync}
-                disabled={checkingLink || linkConflict?.can_link === false}
+                disabled={checkingLink || loadingExistingPatient || savingToDb || (!existingPatient && !patientId && linkConflict?.can_link === false)}
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {checkingLink && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>{checkingLink ? "Checking…" : "Attach ABHA to Patient"}</span>
-                {!checkingLink && <ArrowRight className="h-4 w-4" />}
+                {(checkingLink || loadingExistingPatient || savingToDb) && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>
+                  {savingToDb
+                    ? "Attaching & Saving…"
+                    : checkingLink || loadingExistingPatient
+                    ? "Checking…"
+                    : "Attach ABHA to Patient"}
+                </span>
+                {!checkingLink && !loadingExistingPatient && !savingToDb && <ArrowRight className="h-4 w-4" />}
               </button>
             </div>
           </div>
