@@ -28,6 +28,7 @@ import {
   LayoutTemplate,
   Settings,
   IdCard,
+  Scale,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -145,7 +146,13 @@ export function Sidebar() {
     }
 
     // Platform Owner only screens
-    const platformOwnerScreens = ["/screens", "/tenants", "/platform-billing"];
+    const platformOwnerScreens = [
+      "/screens",
+      "/tenants",
+      "/feature-flags",
+      "/platform-billing",
+      "/terms-conditions",
+    ];
 
     if (userRole !== "platform_owner") {
       items = items.filter((i) => !platformOwnerScreens.includes(i.href));
@@ -164,6 +171,9 @@ export function Sidebar() {
       }
       if (!items.find((i) => i.href === "/platform-billing")) {
         items.push({ label: "Platform Billing", href: "/platform-billing", icon: FileText });
+      }
+      if (!items.find((i) => i.href === "/terms-conditions")) {
+        items.push({ label: "Terms & Privacy", href: "/terms-conditions", icon: Scale });
       }
     }
 

@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { authApi, LoginRequest, LoginResponse } from "@/services/authApi";
 import { usersApi } from "@/services/usersApi";
 import { fetchTenant, clearTenant } from "./tenantSlice";
@@ -17,6 +17,8 @@ type AuthState = {
   error: string | null;
   isAuthenticated: boolean;
   mustChangePassword: boolean;
+  consentRequired: boolean;
+  pendingConsents: any[];
 };
 
 const initialState: AuthState = {
@@ -27,6 +29,8 @@ const initialState: AuthState = {
   error: null,
   isAuthenticated: false,
   mustChangePassword: false,
+  consentRequired: false,
+  pendingConsents: [],
 };
 
 // Fetch user details (full name, email, etc.)
@@ -59,6 +63,13 @@ export const login = createAsyncThunk(
           localStorage.setItem("must_change_password", "true");
         } else {
           localStorage.removeItem("must_change_password");
+        }
+
+        // Store consent_required flag if set
+        if (response.consent_required) {
+          localStorage.setItem("consent_required", "true");
+        } else {
+          localStorage.removeItem("consent_required");
         }
 
         // Fetch tenant data and user details (fire and forget - not critical for navigation)
@@ -100,6 +111,7 @@ export const logout = createAsyncThunk("auth/logout", async (_, { dispatch }) =>
     localStorage.removeItem("tenant_id");
     localStorage.removeItem("role");
     localStorage.removeItem("must_change_password");
+    localStorage.removeItem("consent_required");
     localStorage.removeItem("feature_flags");
   }
 
@@ -117,9 +129,37 @@ const authSlice = createSlice({
     },
     clearMustChangePassword(state) {
       state.mustChangePassword = false;
-      // Also clear from localStorage
       if (typeof window !== "undefined") {
         localStorage.removeItem("must_change_password");
+      }
+    },
+    setConsentRequired(state, action: PayloadAction<boolean>) {
+      state.consentRequired = action.payload;
+      if (typeof window !== "undefined") {
+        if (action.payload) {
+          localStorage.setItem("consent_required", "true");
+        } else {
+          localStorage.removeItem("consent_required");
+        }
+      }
+    },
+    clearConsentRequired(state) {
+      state.consentRequired = false;
+      state.pendingConsents = [];
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("consent_required");
+      }
+    },
+    updateToken(state, action: PayloadAction<string>) {
+      state.token = action.payload;
+      if (state.user) {
+        state.user.token = {
+          access_token: action.payload,
+          token_type: "bearer",
+        };
+      }
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", action.payload);
       }
     },
     // Note: restoreSession doesn't fetch user details - that's done by a separate effect
@@ -130,11 +170,13 @@ const authSlice = createSlice({
         const tenant_id = localStorage.getItem("tenant_id");
         const role = localStorage.getItem("role");
         const mustChangePassword = localStorage.getItem("must_change_password") === "true";
+        const consentRequired = localStorage.getItem("consent_required") === "true";
 
         if (token && user_id && tenant_id && role) {
           state.token = token;
           state.isAuthenticated = true;
           state.mustChangePassword = mustChangePassword;
+          state.consentRequired = consentRequired;
           state.user = {
             token: { access_token: token, token_type: "bearer" },
             user_id,
@@ -158,14 +200,12 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.error = null;
         state.mustChangePassword = action.payload.must_change_password || false;
+        state.consentRequired = action.payload.consent_required || false;
+        state.pendingConsents = action.payload.pending_consents || [];
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        // When using rejectWithValue, the error is in action.payload
-        // Otherwise, use action.error.message
         if (action.payload) {
-          // The payload contains the error object, but we'll let the component handle parsing
-          // For now, set a generic message - the component will use getErrorMessage to parse it
           state.error = "Login failed";
         } else {
           state.error = action.error.message || "Login failed";
@@ -182,10 +222,19 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.error = null;
         state.mustChangePassword = false;
+        state.consentRequired = false;
+        state.pendingConsents = [];
       });
   },
 });
 
-export const { clearError, restoreSession, clearMustChangePassword } = authSlice.actions;
+export const {
+  clearError,
+  restoreSession,
+  clearMustChangePassword,
+  setConsentRequired,
+  clearConsentRequired,
+  updateToken,
+} = authSlice.actions;
 export default authSlice.reducer;
 

@@ -18,6 +18,8 @@ export interface LoginResponse {
   tenant_id: string;
   role: string;
   must_change_password?: boolean;
+  consent_required?: boolean;
+  pending_consents?: any[];
 }
 
 export const authApi = {

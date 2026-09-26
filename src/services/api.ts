@@ -25,7 +25,7 @@ const getApiClient = () => {
       return config;
     });
 
-    // Handle 401 errors - redirect to login once
+    // Handle 401 (logout) and 403 consent_required errors
     let isRedirectingToLogin = false;
     _apiClient.interceptors.response.use(
       (response) => response,
@@ -37,8 +37,18 @@ const getApiClient = () => {
             localStorage.removeItem("user_id");
             localStorage.removeItem("tenant_id");
             localStorage.removeItem("role");
+            localStorage.removeItem("consent_required");
             const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
             window.location.href = `${basePath}/login`;
+          }
+        } else if (error.response?.status === 403) {
+          const detail = error.response.data?.detail;
+          const isConsentRequired =
+            Array.isArray(detail) &&
+            detail.some((d: any) => d.type === "consent_required");
+          if (isConsentRequired && typeof window !== "undefined") {
+            localStorage.setItem("consent_required", "true");
+            window.dispatchEvent(new CustomEvent("legal:consent_required"));
           }
         }
         return Promise.reject(error);

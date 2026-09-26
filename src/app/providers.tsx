@@ -15,8 +15,10 @@ import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { isPlatformOwner } from "@/utils/auth";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { setConsentRequired } from "@/redux/authSlice";
 import { ForceChangePasswordModal } from "@/components/password/ForceChangePasswordModal";
+import { ForceAcceptTermsModal } from "@/components/legal/ForceAcceptTermsModal";
 
 /**
  * Global Password Change Modal
@@ -34,6 +36,34 @@ function GlobalPasswordChangeModal() {
   }
 
   return <ForceChangePasswordModal isOpen={true} />;
+}
+
+/**
+ * Global Legal Terms & Privacy Consent Modal
+ * Renders at the provider level immediately after auth or mid-session when new terms are published
+ */
+function GlobalLegalConsentModal() {
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, consentRequired, mustChangePassword } = useAppSelector((s) => s.auth);
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
+
+  useEffect(() => {
+    const handleConsentRequired = () => {
+      dispatch(setConsentRequired(true));
+    };
+    window.addEventListener("legal:consent_required", handleConsentRequired);
+    return () => {
+      window.removeEventListener("legal:consent_required", handleConsentRequired);
+    };
+  }, [dispatch]);
+
+  // Only show if user is authenticated, consent is required, not changing password first, and not on login page
+  if (!isAuthenticated || !consentRequired || mustChangePassword || isLoginPage) {
+    return null;
+  }
+
+  return <ForceAcceptTermsModal isOpen={true} />;
 }
 
 export default function Providers({
@@ -88,6 +118,8 @@ export default function Providers({
               )}
               {/* Global Force Change Password Modal - renders immediately after auth */}
               <GlobalPasswordChangeModal />
+              {/* Global Legal Consent Modal - renders immediately after auth or when terms update */}
+              <GlobalLegalConsentModal />
             </div>
           </SidebarProvider>
         </QueryClientProvider>
