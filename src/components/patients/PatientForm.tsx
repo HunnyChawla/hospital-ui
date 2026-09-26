@@ -78,11 +78,24 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
   const resolvedAbhaAddr = abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address || null;
   const isAbhaLinked = Boolean(resolvedAbhaNum || resolvedAbhaAddr);
 
-  const handleAbhaSuccess = (profile: any, sessionKey: string, aadhaar?: string) => {
+  const handleAbhaSuccess = (
+    profile: any,
+    sessionKey: string,
+    aadhaar?: string,
+    createdPatient?: Patient | null
+  ) => {
     setAbhaProfile(profile);
-    setAbhaSessionKey(sessionKey);
+    // AbhaEnrollmentModal already synced/created the patient and consumed the ephemeral session key in the backend.
+    // Clearing abhaSessionKey ensures onSubmit does not attempt a duplicate sync.
+    setAbhaSessionKey(null);
     setAbhaLinkError(null);
     if (aadhaar) setAadhaarNum(aadhaar);
+
+    // If AbhaEnrollmentModal directly created a new patient in the DB, close the add form cleanly
+    if (createdPatient) {
+      onSuccess?.();
+      return;
+    }
 
     // Auto-populate form fields from ABHA profile
     if (profile.name) {

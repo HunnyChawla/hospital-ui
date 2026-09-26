@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
+import { ResendableOtpField } from "@/components/common/ResendableOtpField";
 import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import {
     abhaApi,
@@ -235,22 +236,13 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                             <span>Ask the patient to read out the OTP they just received.</span>
                         </div>
 
-                        <div>
-                            <label
-                                htmlFor="find-abha-otp"
-                                className="block text-xs font-semibold text-slate-700"
-                            >
-                                OTP
-                            </label>
-                            <input
-                                id="find-abha-otp"
-                                inputMode="numeric"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                                placeholder="6-digit OTP"
-                                className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm tracking-widest focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                            />
-                        </div>
+                        <ResendableOtpField
+                            value={otp}
+                            onChange={setOtp}
+                            onResend={handleSearch}
+                            disabled={loading}
+                            autoFocus
+                        />
 
                         <div className="flex gap-2">
                             <button

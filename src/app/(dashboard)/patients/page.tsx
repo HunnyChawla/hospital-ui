@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { PatientTable } from "@/components/patients/PatientTable";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
@@ -21,6 +22,7 @@ import { Activity, ShieldCheck } from "lucide-react";
  */
 export default function PatientsPage() {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { enabled: abhaEnabled } = useAbhaFlags();
   const [showModal, setShowModal] = useState(false);
   const [isAbhaEnrollModalOpen, setIsAbhaEnrollModalOpen] = useState(false);
@@ -59,19 +61,17 @@ export default function PatientsPage() {
   };
 
   const handleAbhaEnrollSuccess = (
-    profile: any,
-    sessionKey: string,
-    aadhaarNumber?: string,
+    _profile: any,
+    _sessionKey: string,
+    _aadhaarNumber?: string,
     existingPatient?: Patient | null
   ) => {
-    setAbhaEnrollData({ profile, sessionKey, aadhaarNumber });
     setIsAbhaEnrollModalOpen(false);
+    setAbhaEnrollData(null);
+    queryClient.invalidateQueries({ queryKey: ["patients"] });
     if (existingPatient) {
-      setEditingPatient(existingPatient);
-    } else {
-      setEditingPatient(null);
+      setSelectedPatientId(existingPatient.id);
     }
-    setShowModal(true);
   };
 
   const handleEditPatient = (patient: Patient) => {

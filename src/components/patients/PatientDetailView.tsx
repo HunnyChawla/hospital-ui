@@ -109,21 +109,15 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const { data: fullPatientData } = usePatient(patientId);
   const abhaApiPatientData = fullPatientData as any;
 
-  const handleAbhaSuccessInDetail = async (profile: any, sessionKey: string, aadhaar?: string) => {
+  const handleAbhaSuccessInDetail = async (_profile: any, _sessionKey: string, _aadhaar?: string) => {
     try {
-      if (sessionKey) {
-        try {
-          await abhaApi.syncToPatient(patientId, { session_key: sessionKey });
-        } catch {
-          // May have already been synced and session consumed directly inside AbhaEnrollmentModal
-        }
-      }
+      // AbhaEnrollmentModal directly handles syncing to the patient in the database.
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);
       queryClient.invalidateQueries({ queryKey: ["patients"] });
       queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
     } catch (e: any) {
-      toast.error(getAbhaError(e, "Failed to attach ABHA profile to patient").message, {
+      toast.error(getAbhaError(e, "Failed to refresh patient profile").message, {
         duration: 10000,
       });
     }
