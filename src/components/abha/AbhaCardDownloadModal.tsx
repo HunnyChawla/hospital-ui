@@ -5,7 +5,6 @@ import { Download, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
-import { AbhaConsentPanel } from "@/components/abha/AbhaConsentPanel";
 import { AbhaCardPreviewModal } from "@/components/abha/AbhaCardPreviewModal";
 import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import { abhaApi, type AbdmOtpSystem } from "@/services/abhaApi";
@@ -26,7 +25,6 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
   const [otpSent, setOtpSent] = useState(false);
   const [otpMessage, setOtpMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [consentAccepted, setConsentAccepted] = useState(false);
 
   // Cached card session — kept alive across modal closes so a retry within
   // the backend's 10-minute Redis window doesn't require a new OTP.
@@ -42,7 +40,6 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
     setOtp("");
     setOtpSent(false);
     setOtpMessage(null);
-    setConsentAccepted(false);
   };
 
   const resetCardCache = () => {
@@ -99,16 +96,12 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
   };
 
   const handleRequestOtp = async () => {
-    if (!consentAccepted) {
-      toast.error("Please read and accept the consent to proceed");
-      return;
-    }
     setLoading(true);
     try {
       const res = await abhaApi.requestLinkOtp({
         abha_number: abhaNumber,
         otp_system: otpSystem,
-        consent_accepted: consentAccepted,
+        consent_accepted: true,
       });
       setSessionKey(res.session_key);
       setOtpSent(true);
@@ -186,16 +179,10 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
                 disabled={loading}
                 size="sm"
               />
-              <AbhaConsentPanel
-                variant="aadhaar-authentication"
-                checked={consentAccepted}
-                onChange={setConsentAccepted}
-                disabled={loading}
-              />
               <button
                 type="button"
                 onClick={handleRequestOtp}
-                disabled={loading || !consentAccepted}
+                disabled={loading}
                 className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
