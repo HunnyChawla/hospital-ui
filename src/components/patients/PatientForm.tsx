@@ -3,11 +3,13 @@
 import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { useCreatePatient, useUpdatePatient, usePatient } from "@/hooks/queries/usePatients";
+import { useQueryClient } from "@tanstack/react-query";
 import { Patient } from "@/types";
 import { CreatePatientRequest, patientsApi } from "@/services/patientsApi";
 import { patientCategoriesApi } from "@/services/patientCategoriesApi";
-import { Calendar, Clock, User, CalendarDays, Phone, CheckCircle2, UserPlus, Copy } from "lucide-react";
-import { AbhaEnrollmentModal } from "@/components/abha";
+import { Calendar, Clock, User, CalendarDays, Phone, CheckCircle2, UserPlus, Copy, Smartphone, ShieldCheck } from "lucide-react";
+import { AbhaEnrollmentModal, AbhaUpdateMobileModal } from "@/components/abha";
+import { Modal } from "@/components/common/Modal";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
@@ -31,6 +33,8 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
   // React Query mutations - automatic cache invalidation and optimistic updates!
   const createPatient = useCreatePatient();
   const updatePatient = useUpdatePatient();
+  const queryClient = useQueryClient();
+
 
   // Fetch full patient details when editing (React Query auto-deduplicates this!)
   const { data: fullPatientData } = usePatient(defaultValues?.id || null);
@@ -77,6 +81,13 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
   const resolvedAbhaNum = resolveAbhaNumber(rawAbhaNum, rawLegacyAbhaId) || (rawAbhaNum && typeof rawAbhaNum === "string" && rawAbhaNum.trim() ? rawAbhaNum : null);
   const resolvedAbhaAddr = abhaProfile?.abha_address || defaultValues?.abhaAddress || apiData?.abha_address || null;
   const isAbhaLinked = Boolean(resolvedAbhaNum || resolvedAbhaAddr);
+
+  // ABHA Mobile Update State
+  const [isUpdateMobileModalOpen, setIsUpdateMobileModalOpen] = useState(false);
+  const [mobileUpdatedWithAbha, setMobileUpdatedWithAbha] = useState(false);
+  const [showMobileUpdatePrompt, setShowMobileUpdatePrompt] = useState(false);
+  const [pendingValues, setPendingValues] = useState<CreatePatientRequest | null>(null);
+
 
   const handleAbhaSuccess = (
     profile: any,
@@ -156,6 +167,19 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
       category: "General",
     }
   });
+
+  const originalMobile = (defaultValues?.mobile || apiData?.mobile || "").trim();
+  const currentMobileInput = (watch("mobile") || "").trim();
+  const cleanOriginalMobile = originalMobile.replace(/\D/g, "").slice(-10);
+  const cleanCurrentMobile = currentMobileInput.replace(/\D/g, "").slice(-10);
+  const isMobileValid = /^[6-9]\d{9}$/.test(cleanCurrentMobile);
+  const isMobileChanged = Boolean(
+    defaultValues?.id &&
+    cleanOriginalMobile &&
+    isMobileValid &&
+    cleanOriginalMobile !== cleanCurrentMobile
+  );
+
 
 
 
@@ -494,7 +518,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
     }
   }, [fullPatientData, defaultValues, initialAbhaData, reset]);
 
-  const onSubmit = async (values: CreatePatientRequest) => {
+  const executeSave = async (values: CreatePatientRequest) => {
     // Validate that either DOB or age is provided
     if (!dobValue || dobValue.trim() === "") {
       setAgeError("Please enter either Date of Birth or Age");
@@ -640,6 +664,17 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
     }
   };
 
+  const onSubmit = async (values: CreatePatientRequest) => {
+    // If mobile number changed on an ABHA-linked patient and hasn't been updated with ABHA yet, prompt staff with the option
+    if (defaultValues?.id && isAbhaLinked && isMobileChanged && !mobileUpdatedWithAbha) {
+      setPendingValues(values);
+      setShowMobileUpdatePrompt(true);
+      return;
+    }
+    await executeSave(values);
+  };
+
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -743,9 +778,12 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           </label>
         )}
 
-        <label className="space-y-1">
-          <span className="text-slate-600">Mobile Number <span className="text-rose-500">*</span></span>
+        <div className="space-y-1">
+          <label htmlFor="patient-mobile-input" className="block text-slate-600">
+            Mobile Number <span className="text-rose-500">*</span>
+          </label>
           <input
+            id="patient-mobile-input"
             type="tel"
             {...register("mobile", {
               required: "Mobile is required",
@@ -762,7 +800,39 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           {errors.mobile && (
             <p className="text-xs text-rose-500">{errors.mobile.message}</p>
           )}
-        </label>
+
+          {/* Inline Option to update mobile number with ABHA */}
+          {isAbhaLinked && isMobileChanged && !mobileUpdatedWithAbha && (
+            <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50/90 p-2.5 flex items-center justify-between gap-2 shadow-xs">
+              <div className="flex items-start gap-2">
+                <div className="p-1 rounded-md bg-sky-100 text-sky-700 shrink-0 mt-0.5">
+                  <Smartphone className="h-3.5 w-3.5" />
+                </div>
+                <div className="text-[11px] leading-snug">
+                  <span className="font-semibold text-sky-950">ABHA Linked: </span>
+                  <span className="text-sky-800">
+                    Update new mobile ({cleanCurrentMobile}) with ABHA as well?
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUpdateMobileModalOpen(true)}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-semibold shadow-xs transition cursor-pointer flex items-center gap-1"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                <span>Update in ABHA</span>
+              </button>
+            </div>
+          )}
+
+          {isAbhaLinked && mobileUpdatedWithAbha && (
+            <div className="mt-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] text-emerald-800">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span>Mobile number successfully updated in ABHA!</span>
+            </div>
+          )}
+        </div>
 
         <label className="space-y-1">
           <span className="text-slate-600">Email Address <span className="text-slate-400 text-xs">(Optional)</span></span>
@@ -1115,6 +1185,96 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             : undefined
         }
       />
+
+      {/* ABHA Mobile Update Modal */}
+      {defaultValues?.id && (
+        <AbhaUpdateMobileModal
+          isOpen={isUpdateMobileModalOpen}
+          onClose={() => {
+            setIsUpdateMobileModalOpen(false);
+          }}
+          onSuccess={(updatedMobile) => {
+            setValue("mobile", updatedMobile, { shouldValidate: true });
+            setMobileUpdatedWithAbha(true);
+            queryClient.invalidateQueries({ queryKey: ["patients"] });
+            queryClient.invalidateQueries({ queryKey: ["patient", defaultValues.id] });
+            if (pendingValues) {
+              executeSave({ ...pendingValues, mobile: updatedMobile });
+              setPendingValues(null);
+            }
+          }}
+          patientId={defaultValues.id}
+          patientName={`${watch("first_name") || apiData?.first_name || ""} ${watch("last_name") || apiData?.last_name || ""}`.trim() || defaultValues?.name || ""}
+          patientUhid={apiData?.uhid || (defaultValues as any)?.uhid || ""}
+          currentMobile={cleanOriginalMobile}
+          newMobile={cleanCurrentMobile}
+          abhaNumber={resolvedAbhaNum}
+          abhaAddress={resolvedAbhaAddr}
+        />
+      )}
+
+      {/* Pre-submit Prompt Modal */}
+      <Modal
+        isOpen={showMobileUpdatePrompt}
+        onClose={() => setShowMobileUpdatePrompt(false)}
+        title="Update Mobile with ABHA?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-sky-100 text-sky-600 shrink-0 mt-0.5">
+              <Smartphone className="h-5 w-5" />
+            </div>
+            <div className="text-xs text-slate-600 space-y-1.5">
+              <p className="font-semibold text-slate-800 text-sm">
+                Mobile number changed for ABHA-linked patient
+              </p>
+              <p>
+                The mobile number is being updated from{" "}
+                <span className="font-mono font-medium text-slate-900">{cleanOriginalMobile}</span> to{" "}
+                <span className="font-mono font-bold text-sky-700">{cleanCurrentMobile}</span>.
+              </p>
+              <p>
+                Would you also like to update this mobile number in the patient&apos;s registered ABHA profile?
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowMobileUpdatePrompt(false)}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMobileUpdatePrompt(false);
+                if (pendingValues) {
+                  executeSave(pendingValues);
+                  setPendingValues(null);
+                }
+              }}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+            >
+              Save in HMS Only
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMobileUpdatePrompt(false);
+                setIsUpdateMobileModalOpen(true);
+              }}
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md transition flex items-center justify-center gap-1.5"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Update with ABHA</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </form>
   );
 }

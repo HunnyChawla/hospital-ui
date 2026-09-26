@@ -60,6 +60,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
     const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>("abdm");
     const [value, setValue] = useState("");
     const [otp, setOtp] = useState("");
+    const [otpMessage, setOtpMessage] = useState<string | null>(null);
 
     const [sessionKey, setSessionKey] = useState("");
     const [accounts, setAccounts] = useState<FoundAbhaAccount[]>([]);
@@ -70,6 +71,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
         setOtpSystem("abdm");
         setValue("");
         setOtp("");
+        setOtpMessage(null);
         setSessionKey("");
         setAccounts([]);
     };
@@ -94,7 +96,17 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
             });
             setSessionKey(started.session_key);
             setStep("otp");
-            toast.success(started.message || "OTP sent to the patient's phone");
+            const isMobile = searchBy === "mobile";
+            const defaultMsg = isMobile
+                ? `OTP sent to mobile number ${value}`
+                : "OTP sent to Aadhaar registered mobile number";
+            const displayMsg =
+                started.message && /\d/.test(started.message)
+                    ? started.message
+                    : isMobile
+                      ? (started.message ? `${started.message} (${value})` : defaultMsg)
+                      : (started.message || defaultMsg);
+            setOtpMessage(displayMsg);
         } catch (e) {
             const { message } = getAbhaError(e, "Could not start the ABHA lookup");
             toast.error(message);
@@ -242,12 +254,17 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                             onResend={handleSearch}
                             disabled={loading}
                             autoFocus
+                            otpSentMessage={otpMessage}
                         />
 
                         <div className="flex gap-2">
                             <button
                                 type="button"
-                                onClick={() => setStep("search")}
+                                onClick={() => {
+                                    setStep("search");
+                                    setOtp("");
+                                    setOtpMessage(null);
+                                }}
                                 disabled={loading}
                                 className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                             >

@@ -203,6 +203,38 @@ export interface FindAbhaSelectDto {
   abha_number: string;
 }
 
+// ---------------------------------------------------------------------------
+// Update Mobile with ABHA
+// ---------------------------------------------------------------------------
+
+export interface AbhaUpdateMobileAuthRequestDto {
+  patient_id: string;
+  otp_system?: AbdmOtpSystem;
+  consent_accepted?: boolean;
+}
+
+export interface AbhaUpdateMobileAuthVerifyDto {
+  session_key: string;
+  otp: string;
+  new_mobile?: string;
+}
+
+export interface AbhaUpdateMobileRequestOtpDto {
+  session_key: string;
+  new_mobile: string;
+}
+
+export interface AbhaUpdateMobileVerifyOtpDto {
+  session_key: string;
+  otp: string;
+  patient_id?: string | null;
+}
+
+export interface AbhaUpdateMobileResendOtpDto {
+  session_key: string;
+  new_mobile: string;
+}
+
 export const abhaApi = {
   // Tenant Config
   async getConfig(tenantId?: string): Promise<TenantAbdmConfigDto> {
@@ -367,6 +399,77 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.post<FindAbhaResult>("/abha/find/select", req, { params });
+    return response.data;
+  },
+
+  // Update Mobile with ABHA ---------------------------------------------
+  async requestMobileUpdateAuthOtp(
+    req: AbhaUpdateMobileAuthRequestDto,
+    tenantId?: string
+  ): Promise<{ session_key: string; message: string; otp_system?: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<{ session_key: string; message: string; otp_system?: string }>(
+      "/abha/profile/mobile/auth/request-otp",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
+  async verifyMobileUpdateAuthOtp(
+    req: AbhaUpdateMobileAuthVerifyDto,
+    tenantId?: string
+  ): Promise<{ session_key: string; message: string; verified?: boolean }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<{ session_key: string; message: string; verified?: boolean }>(
+      "/abha/profile/mobile/auth/verify-otp",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
+  async requestMobileUpdateNewOtp(
+    req: AbhaUpdateMobileRequestOtpDto,
+    tenantId?: string
+  ): Promise<{ session_key: string; message: string; new_mobile: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<{ session_key: string; message: string; new_mobile: string }>(
+      "/abha/profile/mobile/request-otp",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
+  async verifyMobileUpdateOtp(
+    req: AbhaUpdateMobileVerifyOtpDto,
+    tenantId?: string
+  ): Promise<AbhaEnrollmentResult> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<AbhaEnrollmentResult>(
+      "/abha/profile/mobile/verify-otp",
+      req,
+      { params }
+    );
+    return response.data;
+  },
+
+  async resendMobileUpdateOtp(
+    req: AbhaUpdateMobileResendOtpDto,
+    tenantId?: string
+  ): Promise<{ session_key: string; message: string; new_mobile: string }> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.post<{ session_key: string; message: string; new_mobile: string }>(
+      "/abha/profile/mobile/resend-otp",
+      req,
+      { params }
+    );
     return response.data;
   },
 };

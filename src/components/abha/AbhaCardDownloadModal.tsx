@@ -24,6 +24,7 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
   const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>("aadhaar");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
 
@@ -40,6 +41,7 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
     setOtpSystem("aadhaar");
     setOtp("");
     setOtpSent(false);
+    setOtpMessage(null);
     setConsentAccepted(false);
   };
 
@@ -110,7 +112,7 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
       });
       setSessionKey(res.session_key);
       setOtpSent(true);
-      toast.success(res.message || "OTP sent to registered mobile");
+      setOtpMessage(res.message || "OTP sent to registered mobile");
     } catch (error: any) {
       toast.error(getErrorMessage(error) || "Failed to send OTP");
     } finally {
@@ -132,12 +134,14 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
       }
       setCardSessionKey(res.card_session_key);
       setCardExpiresAt(Date.now() + CARD_CACHE_TTL_MS);
+      setOtpMessage(null);
       await fetchAndPreviewCard(res.card_session_key);
     } catch (error: any) {
       if (isSessionExpiredError(error)) {
         setSessionKey(null);
         setOtp("");
         setOtpSent(false);
+        setOtpMessage(null);
         toast.error("Your OTP session has expired. Please request a new OTP.");
       } else {
         toast.error(getErrorMessage(error) || "Failed to verify OTP and download ABHA card");
@@ -207,12 +211,17 @@ export function AbhaCardDownloadModal({ isOpen, onClose, abhaNumber }: AbhaCardD
                 disabled={loading}
                 autoFocus
                 startCooldownOnMount
+                otpSentMessage={otpMessage}
               />
 
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setOtpSent(false)}
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtp("");
+                    setOtpMessage(null);
+                  }}
                   className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel

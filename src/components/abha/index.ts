@@ -7,3 +7,5 @@ export * from "./FindAbhaModal";
 export * from "./CounterManagement";
 export * from "./CounterQrModal";
 export * from "./OtpSystemSelector";
+export * from "./AbhaUpdateMobileModal";
+

@@ -75,6 +75,7 @@ export function AbhaSyncModal({
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -98,6 +99,7 @@ export function AbhaSyncModal({
       setSessionKey(null);
       setOtp("");
       setOtpSent(false);
+      setOtpMessage(null);
       setLoading(false);
       setSyncing(false);
       setFetchedProfile(null);
@@ -130,7 +132,17 @@ export function AbhaSyncModal({
       });
       setSessionKey(res.session_key);
       setOtpSent(true);
-      toast.success(res.message || "OTP sent to registered mobile number");
+      const isMobile = cleanIdentifier.length === 10 && /^\d+$/.test(cleanIdentifier);
+      const defaultMsg = isMobile
+        ? `OTP sent to mobile number ${cleanIdentifier}`
+        : "OTP sent to registered mobile number";
+      const displayMsg =
+        res.message && /\d/.test(res.message)
+          ? res.message
+          : isMobile
+            ? (res.message ? `${res.message} (${cleanIdentifier})` : defaultMsg)
+            : (res.message || defaultMsg);
+      setOtpMessage(displayMsg);
     } catch (error: any) {
       const { message } = getAbhaError(error, "Failed to request OTP from ABDM");
       toast.error(message);
@@ -188,6 +200,7 @@ export function AbhaSyncModal({
         setSessionKey(null);
         setOtp("");
         setOtpSent(false);
+        setOtpMessage(null);
         setAccountsToSelect([]);
         setSelectedAccount(null);
         toast.error("OTP session expired. Please request a new OTP.");
@@ -244,6 +257,7 @@ export function AbhaSyncModal({
         setSessionKey(null);
         setOtp("");
         setOtpSent(false);
+        setOtpMessage(null);
         setAccountsToSelect([]);
         setSelectedAccount(null);
         toast.error("OTP session expired. Please request a new OTP.");
@@ -553,6 +567,7 @@ export function AbhaSyncModal({
                   onChange={setOtp}
                   onResend={handleRequestOtp}
                   disabled={loading}
+                  otpSentMessage={otpMessage}
                 />
 
                 <div className="flex justify-between items-center pt-2">
@@ -562,6 +577,7 @@ export function AbhaSyncModal({
                       setOtpSent(false);
                       setOtp("");
                       setSessionKey(null);
+                      setOtpMessage(null);
                     }}
                     disabled={loading}
                     className="text-xs text-slate-500 hover:text-slate-800 underline"

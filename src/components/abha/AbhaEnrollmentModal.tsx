@@ -144,6 +144,7 @@ export function AbhaEnrollmentModal({
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [aadhaarOtpMessage, setAadhaarOtpMessage] = useState<string | null>(null);
   const [aadhaarConsentAccepted, setAadhaarConsentAccepted] = useState(false);
 
   // Aadhaar mobile-verification sub-step: entered when enrol/byAadhaar returns a profile with no
@@ -153,6 +154,7 @@ export function AbhaEnrollmentModal({
   const [mobileVerifyOtpSystem, setMobileVerifyOtpSystem] = useState<AbdmOtpSystem>("abdm");
   const [mobileOtp, setMobileOtp] = useState("");
   const [mobileOtpSent, setMobileOtpSent] = useState(false);
+  const [mobileVerifyOtpMessage, setMobileVerifyOtpMessage] = useState<string | null>(null);
   const [pendingEnrollmentResult, setPendingEnrollmentResult] =
     useState<AbhaEnrollmentResult | null>(null);
 
@@ -164,6 +166,7 @@ export function AbhaEnrollmentModal({
   const [docSessionKey, setDocSessionKey] = useState<string | null>(null);
   const [docOtp, setDocOtp] = useState("");
   const [docOtpSent, setDocOtpSent] = useState(false);
+  const [docOtpMessage, setDocOtpMessage] = useState<string | null>(null);
   const [docOtpVerified, setDocOtpVerified] = useState(false);
   const [docFirstName, setDocFirstName] = useState("");
   const [docMiddleName, setDocMiddleName] = useState("");
@@ -183,6 +186,7 @@ export function AbhaEnrollmentModal({
   const [linkSessionKey, setLinkSessionKey] = useState<string | null>(null);
   const [linkOtp, setLinkOtp] = useState("");
   const [linkOtpSent, setLinkOtpSent] = useState(false);
+  const [linkOtpMessage, setLinkOtpMessage] = useState<string | null>(null);
   const [linkConsentAccepted, setLinkConsentAccepted] = useState(false);
   const [linkAccounts, setLinkAccounts] = useState<AbhaProfileDto[]>([]);
   const [showAccountSelection, setShowAccountSelection] = useState(false);
@@ -237,6 +241,7 @@ export function AbhaEnrollmentModal({
     setSessionKey(null);
     setOtp("");
     setOtpSent(false);
+    setAadhaarOtpMessage(null);
     setAadhaarOtpSystem("aadhaar");
     setAadhaarConsentAccepted(false);
     setAadhaarMobile(initialMobile);
@@ -244,12 +249,14 @@ export function AbhaEnrollmentModal({
     setMobileVerifyOtpSystem("abdm");
     setMobileOtp("");
     setMobileOtpSent(false);
+    setMobileVerifyOtpMessage(null);
     setPendingEnrollmentResult(null);
     setLinkAbhaNumber("");
     setLinkSessionKey(null);
     setLinkOtpSystem("aadhaar");
     setLinkOtp("");
     setLinkOtpSent(false);
+    setLinkOtpMessage(null);
     setLinkConsentAccepted(false);
     setLinkAccounts([]);
     setShowAccountSelection(false);
@@ -274,6 +281,7 @@ export function AbhaEnrollmentModal({
     setDocSessionKey(null);
     setDocOtp("");
     setDocOtpSent(false);
+    setDocOtpMessage(null);
     setDocOtpVerified(false);
     setDocFirstName("");
     setDocMiddleName("");
@@ -402,7 +410,7 @@ export function AbhaEnrollmentModal({
       });
       setSessionKey(res.session_key);
       setOtpSent(true);
-      toast.success(res.message || "OTP sent to Aadhaar registered mobile");
+      setAadhaarOtpMessage(res.message || "OTP sent to Aadhaar registered mobile");
     } catch (error: any) {
       toast.error(getErrorMessage(error) || "Failed to send Aadhaar OTP");
     } finally {
@@ -455,6 +463,7 @@ export function AbhaEnrollmentModal({
         setSessionKey(null);
         setOtp("");
         setOtpSent(false);
+        setAadhaarOtpMessage(null);
         toast.error("Your OTP session has expired. Please request a new OTP.");
       } else {
         toast.error(getErrorMessage(error) || "OTP verification failed");
@@ -484,7 +493,12 @@ export function AbhaEnrollmentModal({
         otp_system: mobileVerifyOtpSystem,
       });
       setMobileOtpSent(true);
-      toast.success(res.message || "OTP sent to the provided mobile number");
+      const defaultMsg = `OTP sent to mobile number ${aadhaarMobile}`;
+      const displayMsg =
+        res.message && /\d/.test(res.message)
+          ? res.message
+          : (res.message ? `${res.message} (${aadhaarMobile})` : defaultMsg);
+      setMobileVerifyOtpMessage(displayMsg);
     } catch (error: any) {
       toast.error(getErrorMessage(error) || "Failed to send OTP");
     } finally {
@@ -518,6 +532,7 @@ export function AbhaEnrollmentModal({
       setNeedsMobileVerification(false);
       setMobileOtp("");
       setMobileOtpSent(false);
+      setMobileVerifyOtpMessage(null);
       setPendingEnrollmentResult(null);
       toast.success(res.message || "Mobile number verified successfully");
       handleEnrollmentSuccess(merged);
@@ -525,6 +540,7 @@ export function AbhaEnrollmentModal({
       if (isSessionExpiredError(error)) {
         setMobileOtp("");
         setMobileOtpSent(false);
+        setMobileVerifyOtpMessage(null);
         toast.error("Your OTP session has expired. Please request a new OTP.");
       } else {
         toast.error(getErrorMessage(error) || "Mobile verification failed");
@@ -550,7 +566,12 @@ export function AbhaEnrollmentModal({
       });
       setDocSessionKey(res.session_key);
       setDocOtpSent(true);
-      toast.success(res.message || "OTP sent to the provided mobile number");
+      const defaultMsg = `OTP sent to mobile number ${docMobile}`;
+      const displayMsg =
+        res.message && /\d/.test(res.message)
+          ? res.message
+          : (res.message ? `${res.message} (${docMobile})` : defaultMsg);
+      setDocOtpMessage(displayMsg);
     } catch (error: any) {
       toast.error(getErrorMessage(error) || "Failed to send OTP");
     } finally {
@@ -587,6 +608,7 @@ export function AbhaEnrollmentModal({
       const res = await abhaApi.verifyDocumentOtp({ session_key: docSessionKey, otp: docOtp });
       setDocSessionKey(res.session_key);
       setDocOtpVerified(true);
+      setDocOtpMessage(null);
       prefillDocumentFieldsFromExistingPatient();
       toast.success(res.message || "Mobile number verified successfully");
     } catch (error: any) {
@@ -594,6 +616,7 @@ export function AbhaEnrollmentModal({
         setDocSessionKey(null);
         setDocOtp("");
         setDocOtpSent(false);
+        setDocOtpMessage(null);
         toast.error("Your OTP session has expired. Please request a new OTP.");
       } else {
         toast.error(getErrorMessage(error) || "OTP verification failed");
@@ -699,7 +722,18 @@ export function AbhaEnrollmentModal({
       });
       setLinkSessionKey(res.session_key);
       setLinkOtpSent(true);
-      toast.success(res.message || "OTP sent to registered mobile");
+      const cleanMob = linkAbhaNumber.replace(/\D/g, "");
+      const isMobile = cleanMob.length === 10;
+      const defaultMsg = isMobile
+        ? `OTP sent to mobile number ${cleanMob}`
+        : "OTP sent to registered mobile number";
+      const displayMsg =
+        res.message && /\d/.test(res.message)
+          ? res.message
+          : isMobile
+            ? (res.message ? `${res.message} (${cleanMob})` : defaultMsg)
+            : (res.message || defaultMsg);
+      setLinkOtpMessage(displayMsg);
     } catch (error: any) {
       toast.error(getErrorMessage(error) || "Failed to request link OTP");
     } finally {
@@ -726,12 +760,14 @@ export function AbhaEnrollmentModal({
         toast.info("Multiple ABHA accounts found for this mobile number. Please select an account.");
         return;
       }
+      setLinkOtpMessage(null);
       handleEnrollmentSuccess(res);
     } catch (error: any) {
       if (isSessionExpiredError(error)) {
         setLinkSessionKey(null);
         setLinkOtp("");
         setLinkOtpSent(false);
+        setLinkOtpMessage(null);
         setShowAccountSelection(false);
         setLinkAccounts([]);
         toast.error("Your OTP session has expired. Please request a new OTP.");
@@ -1145,12 +1181,17 @@ export function AbhaEnrollmentModal({
                   disabled={loading}
                   autoFocus
                   startCooldownOnMount
+                  otpSentMessage={mobileVerifyOtpMessage}
                 />
 
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setMobileOtpSent(false)}
+                    onClick={() => {
+                      setMobileOtpSent(false);
+                      setMobileOtp("");
+                      setMobileVerifyOtpMessage(null);
+                    }}
                     className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                   >
                     Change Mobile Number
@@ -1720,6 +1761,7 @@ export function AbhaEnrollmentModal({
                       disabled={loading}
                       autoFocus
                       startCooldownOnMount
+                      otpSentMessage={aadhaarOtpMessage}
                     />
 
                     <div>
@@ -1743,7 +1785,11 @@ export function AbhaEnrollmentModal({
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={() => setOtpSent(false)}
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtp("");
+                          setAadhaarOtpMessage(null);
+                        }}
                         className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                       >
                         Change Aadhaar
@@ -1813,12 +1859,17 @@ export function AbhaEnrollmentModal({
                           disabled={loading}
                           autoFocus
                           startCooldownOnMount
+                          otpSentMessage={docOtpMessage}
                         />
 
                         <div className="flex gap-3">
                           <button
                             type="button"
-                            onClick={() => setDocOtpSent(false)}
+                            onClick={() => {
+                              setDocOtpSent(false);
+                              setDocOtp("");
+                              setDocOtpMessage(null);
+                            }}
                             className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                           >
                             Change Mobile Number
@@ -2244,12 +2295,17 @@ export function AbhaEnrollmentModal({
                           disabled={loading}
                           autoFocus
                           startCooldownOnMount
+                          otpSentMessage={linkOtpMessage}
                         />
 
                         <div className="flex gap-3">
                           <button
                             type="button"
-                            onClick={() => setLinkOtpSent(false)}
+                            onClick={() => {
+                              setLinkOtpSent(false);
+                              setLinkOtp("");
+                              setLinkOtpMessage(null);
+                            }}
                             className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                           >
                             Change Identifier

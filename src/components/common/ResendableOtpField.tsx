@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Smartphone } from "lucide-react";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 
 interface ResendableOtpFieldProps {
@@ -16,6 +17,8 @@ interface ResendableOtpFieldProps {
   autoFocus?: boolean;
   /** Start the cooldown immediately on mount (the initial OTP was just sent by the parent). Defaults to true. */
   startCooldownOnMount?: boolean;
+  /** In-modal alert message indicating where the OTP was sent (e.g. mobile number) */
+  otpSentMessage?: string | null;
 }
 
 /**
@@ -35,6 +38,7 @@ export function ResendableOtpField({
   disabled = false,
   autoFocus = false,
   startCooldownOnMount = true,
+  otpSentMessage,
 }: ResendableOtpFieldProps) {
   const [isResending, setIsResending] = useState(false);
   const cooldown = useResendCooldown(cooldownSeconds, maxResends);
@@ -61,11 +65,25 @@ export function ResendableOtpField({
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        {label} <span className="text-red-500">*</span>
-      </label>
-      <input
+    <div className="space-y-3">
+      {otpSentMessage && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/90 p-3 text-xs text-emerald-900 shadow-sm"
+        >
+          <Smartphone className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0 font-medium text-emerald-900 leading-relaxed">
+            {otpSentMessage}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          {label} <span className="text-red-500">*</span>
+        </label>
+        <input
         type="text"
         maxLength={length}
         value={value}
@@ -107,6 +125,7 @@ export function ResendableOtpField({
         )}
       </div>
     </div>
+  </div>
   );
 }
 
