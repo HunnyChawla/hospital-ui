@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck,
@@ -18,6 +18,8 @@ import {
   BadgeCheck,
   ArrowLeft,
   Check,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
@@ -40,6 +42,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { getAbhaError } from "@/utils/abhaErrors";
 import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
 import { ABDM_X_CM_ID } from "@/utils/env";
+import { validateAbhaAddress } from "@/utils/abha";
 
 
 export interface AbhaEnrollmentExistingPatientDetails {
@@ -192,6 +195,10 @@ export function AbhaEnrollmentModal({
   const [showAddressSelection, setShowAddressSelection] = useState(false);
   const [isCustomAddress, setIsCustomAddress] = useState(false);
   const [customAddress, setCustomAddress] = useState("");
+  const customAddressValidation = useMemo(
+    () => validateAbhaAddress(customAddress),
+    [customAddress]
+  );
 
   // Loading & Result
   const [loading, setLoading] = useState(false);
@@ -809,12 +816,9 @@ export function AbhaEnrollmentModal({
     const handleOnly = cleanTarget.split("@")[0];
 
     if (isCustomAddress) {
-      if (handleOnly.length < 4) {
-        toast.error("Custom ABHA address must be at least 4 characters long");
-        return;
-      }
-      if (!/^[a-z0-9._]+$/.test(handleOnly)) {
-        toast.error("ABHA address can only contain letters, numbers, dots, and underscores");
+      const validation = validateAbhaAddress(handleOnly);
+      if (!validation.isValid) {
+        toast.error(validation.error || "Please enter a valid custom ABHA address");
         return;
       }
     }
@@ -1169,7 +1173,12 @@ export function AbhaEnrollmentModal({
                     onChange={() => {
                       setIsCustomAddress(true);
                       if (!customAddress && suggestedAddresses[0]) {
-                        setCustomAddress(suggestedAddresses[0].split("@")[0]);
+                        const initHandle = suggestedAddresses[0]
+                          .split("@")[0]
+                          .toLowerCase()
+                          .replace(/[^a-z0-9._]/g, "")
+                          .slice(0, 18);
+                        setCustomAddress(initHandle);
                       }
                     }}
                     className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
@@ -1180,25 +1189,182 @@ export function AbhaEnrollmentModal({
                 </label>
 
                 {isCustomAddress && (
-                  <div className="mt-3 pl-7 space-y-1.5">
-                    <div className="relative flex items-center">
-                      <input
-                        type="text"
-                        value={customAddress}
-                        onChange={(e) =>
-                          setCustomAddress(
-                            e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, "")
-                          )
-                        }
-                        placeholder="e.g. rahul.sharma"
-                        maxLength={32}
-                        autoFocus
-                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                      />
+                  <div className="mt-3 pl-7 space-y-3">
+                    {/* Custom Address Input with Suffix */}
+                    <div>
+                      <div className="flex rounded-lg shadow-sm">
+                        <input
+                          type="text"
+                          value={customAddress}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                              .split("@")[0]
+                              .toLowerCase()
+                              .replace(/[^a-z0-9._]/g, "")
+                              .slice(0, 18);
+                            setCustomAddress(raw);
+                          }}
+                          placeholder="e.g. rahul.sharma"
+                          maxLength={18}
+                          autoFocus
+                          className={`block w-full min-w-0 rounded-l-lg border px-3.5 py-2 text-sm transition-colors focus:outline-none focus:ring-1 ${
+                            customAddress && !customAddressValidation.isValid
+                              ? "border-amber-300 bg-amber-50/20 text-slate-900 focus:border-amber-500 focus:ring-amber-500"
+                              : customAddress && customAddressValidation.isValid
+                              ? "border-emerald-500 bg-emerald-50/20 text-slate-900 focus:border-emerald-500 focus:ring-emerald-500"
+                              : "border-slate-300 bg-white text-slate-900 focus:border-emerald-500 focus:ring-emerald-500"
+                          }`}
+                        />
+                        <span className="inline-flex items-center rounded-r-lg border border-l-0 border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-600 select-none">
+                          @{cmId || "sbx"}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-400">
-                      Use 4-32 characters: lowercase letters, numbers, dots, or underscores.
-                    </p>
+
+                    {/* ABHA Address Policy & Validation Rules Box (ABDM CRT_ABHA_112) */}
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs pb-1.5 border-b border-slate-200">
+                        <span className="font-semibold text-slate-700">
+                          ABHA Address Policy & Validation Rules
+                        </span>
+                        <span
+                          className={`font-mono px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
+                            customAddress.length === 0
+                              ? "bg-slate-200 text-slate-600"
+                              : customAddressValidation.isValid
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {customAddress.length} / 18 chars
+                        </span>
+                      </div>
+
+                      <ul className="space-y-1.5 text-xs text-slate-600">
+                        {/* Rule 1: Min 8 chars */}
+                        <li className="flex items-center gap-2">
+                          {customAddress.length === 0 ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0 ml-1 mr-0.5" />
+                          ) : customAddressValidation.ruleStatuses.minLength ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          ) : (
+                            <X className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          )}
+                          <span
+                            className={
+                              customAddress.length > 0 && customAddressValidation.ruleStatuses.minLength
+                                ? "text-emerald-700 font-medium"
+                                : customAddress.length > 0 && !customAddressValidation.ruleStatuses.minLength
+                                ? "text-amber-700 font-medium"
+                                : ""
+                            }
+                          >
+                            1. Minimum length: <strong>8 characters</strong>
+                          </span>
+                        </li>
+
+                        {/* Rule 2: Max 18 chars */}
+                        <li className="flex items-center gap-2">
+                          {customAddress.length === 0 ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0 ml-1 mr-0.5" />
+                          ) : customAddressValidation.ruleStatuses.maxLength ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          ) : (
+                            <X className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                          )}
+                          <span
+                            className={
+                              customAddress.length > 0 && customAddressValidation.ruleStatuses.maxLength
+                                ? "text-emerald-700 font-medium"
+                                : ""
+                            }
+                          >
+                            2. Maximum length: <strong>18 characters</strong>
+                          </span>
+                        </li>
+
+                        {/* Rule 3: Special characters allowed - 1 dot (.) and/or 1 underscore (_) */}
+                        <li className="flex items-center gap-2">
+                          {customAddress.length === 0 ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0 ml-1 mr-0.5" />
+                          ) : customAddressValidation.ruleStatuses.specialCharCount ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          ) : (
+                            <X className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                          )}
+                          <span
+                            className={
+                              customAddress.length > 0 && customAddressValidation.ruleStatuses.specialCharCount
+                                ? "text-emerald-700 font-medium"
+                                : customAddress.length > 0 && !customAddressValidation.ruleStatuses.specialCharCount
+                                ? "text-rose-600 font-medium"
+                                : ""
+                            }
+                          >
+                            3. Special characters allowed: <strong>at most 1 dot (.) and/or 1 underscore (_)</strong>
+                          </span>
+                        </li>
+
+                        {/* Rule 4: Dot and underscore in between */}
+                        <li className="flex items-center gap-2">
+                          {customAddress.length === 0 ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0 ml-1 mr-0.5" />
+                          ) : customAddressValidation.ruleStatuses.inBetween ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          ) : (
+                            <X className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                          )}
+                          <span
+                            className={
+                              customAddress.length > 0 && customAddressValidation.ruleStatuses.inBetween
+                                ? "text-emerald-700 font-medium"
+                                : customAddress.length > 0 && !customAddressValidation.ruleStatuses.inBetween
+                                ? "text-rose-600 font-medium"
+                                : ""
+                            }
+                          >
+                            4. Dot and underscore must be <strong>in between</strong> (cannot be at the beginning or end)
+                          </span>
+                        </li>
+
+                        {/* Rule 5: Alphanumeric */}
+                        <li className="flex items-center gap-2">
+                          {customAddress.length === 0 ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0 ml-1 mr-0.5" />
+                          ) : customAddressValidation.ruleStatuses.alphanumeric ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          ) : (
+                            <X className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                          )}
+                          <span
+                            className={
+                              customAddress.length > 0 && customAddressValidation.ruleStatuses.alphanumeric
+                                ? "text-emerald-700 font-medium"
+                                : ""
+                            }
+                          >
+                            5. Alphanumeric: <strong>only numbers, only letters, or any combination allowed</strong>
+                          </span>
+                        </li>
+                      </ul>
+
+                      {/* Live Feedback Messages */}
+                      {customAddress.length > 0 && !customAddressValidation.isValid && customAddressValidation.error && (
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200 text-amber-700 text-xs font-medium">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                          <span>{customAddressValidation.error}</span>
+                        </div>
+                      )}
+
+                      {customAddress.length > 0 && customAddressValidation.isValid && (
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200 text-emerald-700 text-xs font-semibold">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                          <span>
+                            Valid ABHA Address: <span className="font-mono">{customAddress}@{cmId || "sbx"}</span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1215,7 +1381,10 @@ export function AbhaEnrollmentModal({
               <button
                 type="button"
                 onClick={handleConfirmAddress}
-                disabled={loading || (isCustomAddress ? !customAddress.trim() : !selectedAddress)}
+                disabled={
+                  loading ||
+                  (isCustomAddress ? !customAddressValidation.isValid : !selectedAddress)
+                }
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
