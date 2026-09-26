@@ -512,6 +512,7 @@ export function AbhaSyncModal({
                   checked={consentAccepted}
                   onChange={setConsentAccepted}
                   disabled={loading}
+                  beneficiaryName={patientName}
                 />
 
                 <div className="flex justify-end gap-3 pt-2">
