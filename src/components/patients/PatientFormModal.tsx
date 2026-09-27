@@ -15,9 +15,10 @@ interface PatientFormModalProps {
   onClose: () => void;
   defaultValues?: Patient;
   initialAbhaData?: InitialAbhaData | null;
+  onSuccess?: (patient?: Patient) => void;
 }
 
-export function PatientFormModal({ isOpen, onClose, defaultValues, initialAbhaData }: PatientFormModalProps) {
+export function PatientFormModal({ isOpen, onClose, defaultValues, initialAbhaData, onSuccess }: PatientFormModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -30,7 +31,8 @@ export function PatientFormModal({ isOpen, onClose, defaultValues, initialAbhaDa
       <PatientForm
         defaultValues={defaultValues}
         initialAbhaData={initialAbhaData}
-        onSuccess={() => {
+        onSuccess={(patient) => {
+          onSuccess?.(patient);
           onClose();
         }}
       />
