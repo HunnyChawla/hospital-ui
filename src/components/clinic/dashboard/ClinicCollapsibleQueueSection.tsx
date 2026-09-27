@@ -504,7 +504,7 @@ export function ClinicCollapsibleQueueSection({
                             <>
                               <span>·</span>
                               <span className="font-medium text-slate-500 whitespace-nowrap">
-                                Dr: {patient.picked_by_doctor_name}
+                                {patient.picked_by_doctor_name}
                               </span>
                             </>
                           )}

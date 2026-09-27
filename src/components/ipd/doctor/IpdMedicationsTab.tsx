@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Pill,
   PlusCircle,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
+  Loader2,
 } from "lucide-react";
 import { IpdMedicationOrder } from "@/types/ipdDoctor";
 import { ipdDoctorApi } from "@/services/ipdDoctorApi";
@@ -154,7 +155,10 @@ export function IpdMedicationsTab({
   // Add Medication form state
   const [medicineSearch, setMedicineSearch] = useState("");
   const [medicineSearchResults, setMedicineSearchResults] = useState<Medicine[]>([]);
+  const [isSearchingMedicines, setIsSearchingMedicines] = useState(false);
+  const [showMedicineDropdown, setShowMedicineDropdown] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  const medicineSearchContainerRef = useRef<HTMLDivElement>(null);
   const [medicineName, setMedicineName] = useState("");
   const [dose, setDose] = useState("");
   const [route, setRoute] = useState("IV");
@@ -175,19 +179,62 @@ export function IpdMedicationsTab({
   const [stopReason, setStopReason] = useState("Changed antibiotic");
   const [submittingStop, setSubmittingStop] = useState(false);
 
-  // Handle medicine search
-  const handleMedicineSearch = async (term: string) => {
-    setMedicineSearch(term);
-    setMedicineName(term);
+  // Debounced search for medicines
+  useEffect(() => {
+    if (!showAddModal) {
+      setMedicineSearchResults([]);
+      setShowMedicineDropdown(false);
+      setIsSearchingMedicines(false);
+      return;
+    }
+
+    const term = medicineSearch.trim();
     if (term.length >= 2) {
-      try {
-        const results = await medicinesApi.list({ q: term, page_size: 8 });
-        setMedicineSearchResults(results.items || []);
-      } catch (err) {
-        console.error("Failed to search medicines", err);
-      }
+      const timeoutId = setTimeout(async () => {
+        setIsSearchingMedicines(true);
+        try {
+          const results = await medicinesApi.search({
+            q: term,
+            page_size: 15,
+            is_active: true,
+          });
+          setMedicineSearchResults(results.items || []);
+          setShowMedicineDropdown(true);
+        } catch (err) {
+          console.error("Failed to search medicines", err);
+          setMedicineSearchResults([]);
+        } finally {
+          setIsSearchingMedicines(false);
+        }
+      }, 250);
+
+      return () => clearTimeout(timeoutId);
     } else {
       setMedicineSearchResults([]);
+      setShowMedicineDropdown(false);
+      setIsSearchingMedicines(false);
+    }
+  }, [medicineSearch, showAddModal]);
+
+  // Click outside to close medicine search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        medicineSearchContainerRef.current &&
+        !medicineSearchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowMedicineDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleMedicineInputChange = (val: string) => {
+    setMedicineSearch(val);
+    setMedicineName(val);
+    if (selectedMedicine && selectedMedicine.name !== val) {
+      setSelectedMedicine(null);
     }
   };
 
@@ -196,6 +243,7 @@ export function IpdMedicationsTab({
     setMedicineName(med.name);
     setMedicineSearch(med.name);
     setMedicineSearchResults([]);
+    setShowMedicineDropdown(false);
 
     // Autopopulate dose from strength, default dosage, name extraction, or form unit
     const derivedDose = deriveDoseFromMedicine(med);
@@ -246,6 +294,8 @@ export function IpdMedicationsTab({
       setMedicineName("");
       setMedicineSearch("");
       setSelectedMedicine(null);
+      setMedicineSearchResults([]);
+      setShowMedicineDropdown(false);
       setDose("");
       setInstructions("");
       setIsSos(false);
@@ -625,41 +675,75 @@ export function IpdMedicationsTab({
 
             <form onSubmit={handleAddMedicationSubmit} className="mt-4 space-y-3.5 sm:space-y-4 text-xs">
               {/* Medicine Name with Search */}
-              <div className="relative">
+              <div className="relative" ref={medicineSearchContainerRef}>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Medicine Name <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="Type to search (e.g. Ceftriaxone, Pantoprazole)..."
-                  value={medicineSearch}
-                  onChange={(e) => handleMedicineSearch(e.target.value)}
-                  onBlur={() => {
-                    if (medicineName.trim() && !dose.trim()) {
-                      const autoDose = deriveDoseFromMedicine(selectedMedicine || { name: medicineName.trim() });
-                      setDose(autoDose);
-                      const autoRoute = deriveRouteFromMedicine(selectedMedicine || { name: medicineName.trim() });
-                      setRoute(autoRoute);
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Type to search (e.g. Ceftriaxone, Pantoprazole)..."
+                    value={medicineSearch}
+                    onChange={(e) => handleMedicineInputChange(e.target.value)}
+                    onFocus={() => {
+                      if (medicineSearchResults.length > 0 || medicineSearch.trim().length >= 2) {
+                        setShowMedicineDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (medicineName.trim() && !dose.trim()) {
+                        const autoDose = deriveDoseFromMedicine(selectedMedicine || { name: medicineName.trim() });
+                        setDose(autoDose);
+                        const autoRoute = deriveRouteFromMedicine(selectedMedicine || { name: medicineName.trim() });
+                        setRoute(autoRoute);
+                      }
+                    }}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 pr-9 text-xs focus:border-emerald-500 focus:outline-none"
+                    required
+                  />
+                  {isSearchingMedicines && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                    </div>
+                  )}
+                </div>
 
-                {medicineSearchResults.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg max-h-48 overflow-y-auto">
-                    {medicineSearchResults.map((m) => (
-                      <div
-                        key={m.id}
-                        onClick={() => handleSelectMedicine(m)}
-                        className="cursor-pointer rounded-lg px-3 py-2 hover:bg-emerald-50 hover:text-emerald-900 transition"
-                      >
-                        <p className="font-bold">{m.name}</p>
-                        {m.generic_name && (
-                          <p className="text-[10px] text-slate-400">{m.generic_name}</p>
-                        )}
-                      </div>
-                    ))}
+                {showMedicineDropdown && medicineSearch.trim().length >= 2 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg max-h-48 overflow-y-auto divide-y divide-slate-100">
+                    {medicineSearchResults.length > 0 ? (
+                      medicineSearchResults.map((m) => (
+                        <div
+                          key={m.id}
+                          onClick={() => handleSelectMedicine(m)}
+                          className="cursor-pointer rounded-lg px-3 py-2 hover:bg-emerald-50 hover:text-emerald-900 transition"
+                        >
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900 text-xs">{m.name}</span>
+                            {m.dosage_form && (
+                              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                                {m.dosage_form}
+                              </span>
+                            )}
+                            {m.strength && (
+                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
+                                {m.strength}
+                              </span>
+                            )}
+                          </div>
+                          {(m.generic_name || m.manufacturer) && (
+                            <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                              {[m.generic_name, m.manufacturer].filter(Boolean).join(" • ")}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      !isSearchingMedicines && (
+                        <div className="px-3 py-2.5 text-center text-[11px] text-slate-400 italic">
+                          No matching medicines found in catalog. &quot;{medicineSearch.trim()}&quot; will be prescribed as custom entry.
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
               </div>
