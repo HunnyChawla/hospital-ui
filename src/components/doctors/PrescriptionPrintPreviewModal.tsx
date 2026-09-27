@@ -172,7 +172,9 @@ export function PrescriptionPrintPreviewModal({
                 }
                 if (doctorRes) setDoctorData(doctorRes);
                 if (sigRes?.signature) setActiveSignature(sigRes.signature);
-                if (surgeriesRes?.items && surgeriesRes.items.length > 0) {
+                if (prescription.visit_id) {
+                    setActiveSurgeries(surgeriesRes?.items || []);
+                } else if (surgeriesRes?.items && surgeriesRes.items.length > 0) {
                     setActiveSurgeries(surgeriesRes.items);
                 }
 
@@ -272,6 +274,7 @@ export function PrescriptionPrintPreviewModal({
         if (section === "medicines") hasData = !!(prescription.items?.length);
         if (section === "tests") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type === "lab-test"));
         if (section === "advice") hasData = !!(prescription.advice_items?.some((a: any) => a.advice_type !== "lab-test") || prescription.plan_of_action);
+        if (section === "surgeries") hasData = !!(activeSurgeries?.length);
         if (section === "notes") hasData = !!(prescription.notes);
         if (section === "followup") hasData = !!(prescription.followup_date);
         return hasData;
@@ -874,7 +877,7 @@ export function PrescriptionPrintPreviewModal({
                                             patient={patientData}
                                             doctor={doctorData}
                                             visitData={visitData}
-                                            plannedSurgeries={activeSurgeries.length > 0 ? activeSurgeries : plannedSurgeries}
+                                            plannedSurgeries={activeSurgeries}
                                         />
                                     </div>
                                 </div>

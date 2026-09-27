@@ -280,8 +280,11 @@ export function PrescriptionFormSection({
         const fetchExtras = async () => {
             if (patientId) {
                 try {
+                    const surgsPromise = visitId
+                        ? plannedSurgeriesApi.list({ visit_id: visitId })
+                        : Promise.resolve({ items: [] });
                     const [surgs, pat] = await Promise.all([
-                        plannedSurgeriesApi.list({ visit_id: visitId }),
+                        surgsPromise,
                         patientsApi.getById(patientId),
                         fetchPatientLabBookings(patientId)
                     ]);
@@ -326,7 +329,7 @@ export function PrescriptionFormSection({
             }
         };
         fetchExtras();
-    }, [patientId, optometristId, doctorId]);
+    }, [patientId, optometristId, doctorId, visitId]);
 
 
 
@@ -1347,7 +1350,9 @@ export function PrescriptionFormSection({
 
             if (options.print) {
                 try {
-                    const surgs = await plannedSurgeriesApi.list({ visit_id: visitId });
+                    const surgs = visitId
+                        ? await plannedSurgeriesApi.list({ visit_id: visitId })
+                        : { items: [] };
                     setPlannedSurgeries(surgs.items || []);
                 } catch (e) {
                     console.error("Failed to fetch planned surgeries for print", e);
@@ -1405,7 +1410,9 @@ export function PrescriptionFormSection({
         // In read-only mode, fetch fresh data and open preview
         setIsSubmitting(true);
         try {
-            const surgs = await plannedSurgeriesApi.list({ visit_id: visitId });
+            const surgs = visitId
+                ? await plannedSurgeriesApi.list({ visit_id: visitId })
+                : { items: [] };
             setPlannedSurgeries(surgs.items || []);
 
             const data = await prescriptionDataApi.getPrescriptionData(patientId, visitId);
@@ -2619,6 +2626,7 @@ export function PrescriptionFormSection({
                                     patientId={patientId}
                                     surgeonId={doctorId}
                                     visitId={visitId}
+                                    onSurgeriesChange={setPlannedSurgeries}
                                 />
                             </div>
                         </div>

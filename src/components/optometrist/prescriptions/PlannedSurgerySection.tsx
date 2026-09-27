@@ -15,12 +15,14 @@ interface PlannedSurgerySectionProps {
     patientId: string;
     surgeonId: string;
     visitId: string;
+    onSurgeriesChange?: (surgeries: PlannedSurgery[]) => void;
 }
 
 export function PlannedSurgerySection({
     patientId,
     surgeonId,
     visitId,
+    onSurgeriesChange,
 }: PlannedSurgerySectionProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [plannedSurgeries, setPlannedSurgeries] = useState<PlannedSurgery[]>([]);
@@ -79,14 +81,21 @@ export function PlannedSurgerySection({
     // Load patient's planned surgeries
     useEffect(() => {
         const loadPlannedSurgeries = async () => {
+            if (!visitId) {
+                setPlannedSurgeries([]);
+                onSurgeriesChange?.([]);
+                return;
+            }
             setLoadingPlanned(true);
             try {
                 const response = await plannedSurgeriesApi.list({ visit_id: visitId });
                 setPlannedSurgeries(response.items);
+                onSurgeriesChange?.(response.items);
             } catch (error) {
                 // API might not exist yet - silently fail
                 console.warn("Planned surgeries API not available:", error);
                 setPlannedSurgeries([]);
+                onSurgeriesChange?.([]);
             } finally {
                 setLoadingPlanned(false);
             }
@@ -94,7 +103,7 @@ export function PlannedSurgerySection({
         if (isExpanded) {
             loadPlannedSurgeries();
         }
-    }, [isExpanded, patientId]);
+    }, [isExpanded, patientId, visitId]);
 
     const handleSelectSurgery = (surgery: SurgeryPrescriptionOption) => {
         setSelectedSurgery(surgery);
@@ -128,7 +137,9 @@ export function PlannedSurgerySection({
                 surgeon_id: surgeonId,
                 notes: notes || null,
             });
-            setPlannedSurgeries(prev => [...prev, newSurgery]);
+            const updated = [...plannedSurgeries, newSurgery];
+            setPlannedSurgeries(updated);
+            onSurgeriesChange?.(updated);
             toast.success("Surgery planned successfully");
 
             // Reset form
@@ -148,7 +159,9 @@ export function PlannedSurgerySection({
     const handleCancelSurgery = async (id: string) => {
         try {
             await plannedSurgeriesApi.cancel(id);
-            setPlannedSurgeries(prev => prev.filter(s => s.id !== id));
+            const updated = plannedSurgeries.filter(s => s.id !== id);
+            setPlannedSurgeries(updated);
+            onSurgeriesChange?.(updated);
             toast.success("Surgery cancelled");
         } catch (error) {
             handleError(error, { defaultMessage: "Failed to cancel surgery", logError: true });

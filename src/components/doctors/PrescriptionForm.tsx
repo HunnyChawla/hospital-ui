@@ -20,6 +20,7 @@ import { SearchableDropdown } from "../optometrist/prescriptions/SearchableDropd
 import { QuickPresetsSettingsModal } from "../optometrist/prescriptions/settings/QuickPresetsSettingsModal";
 import { PlannedSurgerySection } from "../optometrist/prescriptions/PlannedSurgerySection";
 import { PrescriptionPrintPreviewModal } from "./PrescriptionPrintPreviewModal";
+import type { PlannedSurgery } from "@/types";
 import {
   usePrescriptionTemplates,
   PrescriptionTemplate,
@@ -467,6 +468,7 @@ export function PrescriptionForm({
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [savedPrescription, setSavedPrescription] = useState<PrescriptionResponse | null>(null);
   const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
+  const [plannedSurgeries, setPlannedSurgeries] = useState<PlannedSurgery[]>([]);
   const [expandedMedIds, setExpandedMedIds] = useState<Record<string, boolean>>({});
   const [customFrequencyMedIds, setCustomFrequencyMedIds] = useState<Record<string, boolean>>({});
 
@@ -2480,6 +2482,7 @@ export function PrescriptionForm({
             patientId={patientId}
             surgeonId={doctorId}
             visitId={visitId}
+            onSurgeriesChange={setPlannedSurgeries}
           />
 
           <AdviceSection
@@ -2781,6 +2784,7 @@ export function PrescriptionForm({
           onClose={() => setShowPrintPreview(false)}
           prescription={savedPrescription}
           doctorSignature={doctorSignature}
+          plannedSurgeries={plannedSurgeries}
           onFinalize={async (printAfter) => {
             const rx = await prescriptionsApi.finalize(savedPrescription.id);
             setPrescriptionStatus("finalized");

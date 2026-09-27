@@ -323,10 +323,10 @@ export function PrescriptionPrint({
   }, [visitData]);
 
   const activeSurgeries = useMemo(() => {
-    if (Array.isArray(plannedSurgeries) && plannedSurgeries.length > 0) {
+    if (Array.isArray(plannedSurgeries)) {
       return plannedSurgeries;
     }
-    if (Array.isArray(visitData?.planned_surgeries) && visitData.planned_surgeries.length > 0) {
+    if (Array.isArray(visitData?.planned_surgeries)) {
       return visitData.planned_surgeries;
     }
     return [];
