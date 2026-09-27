@@ -27,7 +27,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PrescribedLabBookingModal } from "../lab-bookings/PrescribedLabBookingModal";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { Beaker } from "lucide-react";
-import { FinaliseVisitAction } from "@/components/health-record/FinaliseVisitAction";
 
 interface OpdListProps {
   doctorId?: string;
@@ -115,29 +114,16 @@ function PrintButtonsGroup({
           e.stopPropagation();
           setShowPrintDropdown(!showPrintDropdown);
         }}
-        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-        style={{ width: "2rem" }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.width = "auto";
-          e.currentTarget.style.paddingLeft = "0.75rem";
-          e.currentTarget.style.paddingRight = "0.75rem";
-        }}
-        onMouseLeave={(e) => {
-          if (!showPrintDropdown) {
-            e.currentTarget.style.width = "2rem";
-            e.currentTarget.style.paddingLeft = "0.5rem";
-            e.currentTarget.style.paddingRight = "0.5rem";
-          }
-        }}
-        title="Print"
+        className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500 text-white shadow-sm transition-all duration-150 hover:bg-sky-600 hover:scale-105 hover:shadow active:scale-95"
+        title="Print Options"
+        aria-label="Print Options"
       >
         <Printer className="h-4 w-4 shrink-0" />
-        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Print</span>
       </button>
 
       {showPrintDropdown && dropdownPosition && (
         <div
-          className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white shadow-lg"
+          className="fixed z-50 min-w-[190px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100"
           style={{
             top: `${dropdownPosition.top}px`,
             right: `${dropdownPosition.right}px`,
@@ -149,10 +135,10 @@ function PrintButtonsGroup({
               onPrintOpd();
               setShowPrintDropdown(false);
             }}
-            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-700"
           >
-            <Printer className="h-4 w-4" />
-            Print OPD
+            <Printer className="h-4 w-4 text-sky-500 shrink-0" />
+            <span>Print OPD Slip</span>
           </button>
           {hasInvoice ? (
             <button
@@ -161,10 +147,10 @@ function PrintButtonsGroup({
                 onPrintInvoice();
                 setShowPrintDropdown(false);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-700"
             >
-              <FileText className="h-4 w-4" />
-              Print Invoice
+              <FileText className="h-4 w-4 text-slate-500 shrink-0" />
+              <span>Print Invoice</span>
             </button>
           ) : null}
           {hasPayment ? (
@@ -174,10 +160,10 @@ function PrintButtonsGroup({
                 onPrintPayment();
                 setShowPrintDropdown(false);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700"
             >
-              <Receipt className="h-4 w-4" />
-              Print Payment Receipt
+              <Receipt className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>Print Payment Receipt</span>
             </button>
           ) : null}
         </div>
@@ -201,13 +187,13 @@ function CompactActionButton({
   disabled?: boolean;
 }) {
   const colorClasses = {
-    amber: "bg-amber-500 hover:bg-amber-600",
-    emerald: "bg-emerald-500 hover:bg-emerald-600",
-    rose: "bg-rose-500 hover:bg-rose-600",
-    slate: "bg-slate-500 hover:bg-slate-600",
-    sky: "bg-sky-500 hover:bg-sky-600",
-    indigo: "bg-indigo-500 hover:bg-indigo-600",
-    violet: "bg-violet-500 hover:bg-violet-600",
+    amber: "bg-amber-500 hover:bg-amber-600 active:bg-amber-700",
+    emerald: "bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700",
+    rose: "bg-rose-500 hover:bg-rose-600 active:bg-rose-700",
+    slate: "bg-slate-500 hover:bg-slate-600 active:bg-slate-700",
+    sky: "bg-sky-500 hover:bg-sky-600 active:bg-sky-700",
+    indigo: "bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700",
+    violet: "bg-violet-500 hover:bg-violet-600 active:bg-violet-700",
   };
 
   return (
@@ -217,10 +203,11 @@ function CompactActionButton({
         onClick();
       }}
       disabled={disabled}
-      className={`flex h-7 w-7 items-center justify-center rounded-md text-white transition-all ${colorClasses[color]} disabled:cursor-not-allowed disabled:opacity-50`}
+      className={`flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-sm transition-all duration-150 ${colorClasses[color]} hover:scale-105 hover:shadow active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100`}
       title={title}
+      aria-label={title}
     >
-      <Icon className="h-3.5 w-3.5" />
+      <Icon className="h-4 w-4" />
     </button>
   );
 }
@@ -253,7 +240,7 @@ function VisitListRow({
     new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000);
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3 shadow-sm hover:border-slate-200 hover:shadow transition">
+    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm hover:border-slate-200 hover:shadow transition">
       {/* Token */}
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold text-sm">
         #{visit.token_number}
@@ -276,23 +263,23 @@ function VisitListRow({
 
       {/* Visit Type - hidden on small screens */}
       <div className="hidden md:block min-w-[80px]">
-        <span className={`text-xs px-2 py-0.5 rounded ${visit.visit_type === "emergency" ? "bg-rose-50 text-rose-700 font-medium" : "text-slate-600"}`}>
+        <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${visit.visit_type === "emergency" ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200" : "bg-slate-50 text-slate-600"}`}>
           {visit.visit_type === "walk_in" ? "Walk-in" : visit.visit_type === "appointment" ? "Appt" : visit.visit_type === "emergency" ? "Emergency" : String(visit.visit_type || "").replace("_", " ")}
         </span>
       </div>
 
       {/* Status Badge */}
-      <div className="min-w-[140px] flex flex-col gap-1">
-        <div>
+      <div className="min-w-[150px] flex flex-col gap-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {isDilating ? (
-            <div className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold ${dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-violet-50 text-violet-700 border-violet-200"
+            <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${dilationOverdue ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200" : "bg-violet-50 text-violet-700 ring-1 ring-violet-200"
               }`}>
-              <Droplets className="h-3 w-3" />
+              <Droplets className="h-3 w-3 shrink-0" />
               <span>Dilating</span>
               {visit.dilation_started_at && (
                 <>
                   <span className="text-slate-300">|</span>
-                  <ClockIcon className="h-3 w-3" />
+                  <ClockIcon className="h-3 w-3 shrink-0" />
                   <span>
                     {dilationOverdue
                       ? "Overdue"
@@ -302,17 +289,17 @@ function VisitListRow({
               )}
             </div>
           ) : (
-            <span className={`pill inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium rounded-full whitespace-nowrap ${getStatusColor(visit.status)}`}>
               {getStatusIcon(visit.status)}
               <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
             </span>
           )}
           {visit.advised_to_admit && (
             <span
-              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap"
               title={visit.admission_advice_notes ? `Advised Admission: ${visit.admission_advice_notes}` : "Advised Admission to IPD"}
             >
-              <BedDouble className="h-2.5 w-2.5 text-amber-600" />
+              <BedDouble className="h-3 w-3 text-amber-600 shrink-0" />
               Advised Admit
             </span>
           )}
@@ -338,8 +325,8 @@ function VisitListRow({
       {/* Optometrist indicator - hidden on small screens */}
       <div className="hidden lg:block w-6">
         {visit.optometrist_investigation_completed_at && (
-          <span className="flex items-center justify-center rounded border border-emerald-200 bg-emerald-50 p-1" title={`Optometrist done at ${new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}>
-            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+          <span className="flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 p-1" title={`Optometrist done at ${new Date(visit.optometrist_investigation_completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}>
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
           </span>
         )}
       </div>
@@ -350,7 +337,7 @@ function VisitListRow({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         {actions.map((action, idx) => (
           <CompactActionButton
             key={idx}
@@ -360,7 +347,6 @@ function VisitListRow({
             onClick={action.onClick}
           />
         ))}
-        <FinaliseVisitAction episodeType="opd_visit" sourceId={visit.id} compact />
         <PrintButtonsGroup
           visit={visit}
           onPrintOpd={onPrintOpd}
@@ -400,20 +386,20 @@ function VisitCard({
     new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000);
 
   return (
-    <div className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full hover:border-slate-200 hover:shadow transition">
+    <div className="relative flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm h-full hover:border-slate-200 hover:shadow-md transition-all">
       {/* Header: Token + Patient Info */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700 font-bold">
           #{visit.token_number}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-slate-900 truncate">
+          <p className="font-semibold text-slate-900 truncate text-base">
             {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            {visit.patient_mobile && <span>{visit.patient_mobile}</span>}
-            <span className={`flex items-center gap-1 ${visit.visit_type === "emergency" ? "pill px-2 py-0.5 bg-rose-50 text-rose-700 font-medium" : ""}`}>
-              <User className="h-3 w-3" />
+            {visit.patient_mobile && <span className="font-medium text-slate-600">{visit.patient_mobile}</span>}
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${visit.visit_type === "emergency" ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200" : "bg-slate-50 text-slate-600"}`}>
+              <User className="h-3 w-3 shrink-0" />
               {visit.visit_type === "walk_in" ? "Walk-in" : visit.visit_type === "appointment" ? "Appt" : visit.visit_type === "emergency" ? "Emergency" : String(visit.visit_type || "").replace("_", " ")}
             </span>
             {visit.checked_in_at && (
@@ -425,16 +411,16 @@ function VisitCard({
 
       {/* Doctor & Optometrist Assignment Details */}
       {(visit.doctor_name || visit.optometrist_name) && (
-        <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-slate-600">
+        <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-slate-600">
           {visit.doctor_name && (
-            <div className="flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5" title="Assigned Doctor">
-              <Stethoscope className="h-3 w-3 text-sky-500 shrink-0" />
+            <div className="flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1" title="Assigned Doctor">
+              <Stethoscope className="h-3.5 w-3.5 text-sky-500 shrink-0" />
               <span>Doc: <span className="font-semibold text-slate-800">{visit.doctor_name}</span></span>
             </div>
           )}
           {visit.optometrist_name && (
-            <div className="flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5" title="Assigned Optometrist">
-              <User className="h-3 w-3 text-purple-500 shrink-0" />
+            <div className="flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1" title="Assigned Optometrist">
+              <User className="h-3.5 w-3.5 text-purple-500 shrink-0" />
               <span>Optom: <span className="font-semibold text-slate-800">{visit.optometrist_name}</span></span>
             </div>
           )}
@@ -443,30 +429,30 @@ function VisitCard({
 
       {/* Consultation Fee - actual vs agreed, when an invoice exists */}
       {visit.consultation_fee != null && (
-        <div className="mt-2 flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-600 w-fit" title="Consultation Fee">
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1 text-xs text-slate-600 w-fit" title="Consultation Fee">
           <span>Fee:</span>
           {visit.fee_overridden && visit.original_consultation_fee != null && (
             <span className="text-slate-400 line-through">₹{Number(visit.original_consultation_fee).toLocaleString("en-IN")}</span>
           )}
-          <span className="font-semibold text-slate-800">₹{Number(visit.consultation_fee).toLocaleString("en-IN")}</span>
+          <span className="font-semibold text-slate-900">₹{Number(visit.consultation_fee).toLocaleString("en-IN")}</span>
         </div>
       )}
 
-      {/* Footer: Status + Actions - Unified Compact Layout */}
-      <div className="mt-4 border-t border-slate-50 pt-3">
+      {/* Footer: Status + Actions - Unified Clean Layout */}
+      <div className="mt-4 border-t border-slate-100 pt-3">
         <div className="flex items-center justify-between gap-2">
           {/* Status Badges */}
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
             {/* Main status badge */}
             {isDilating ? (
-              <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold ${dilationOverdue ? "bg-amber-50 text-amber-700 border-amber-300" : "bg-violet-50 text-violet-700 border-violet-200"
+              <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${dilationOverdue ? "bg-amber-50 text-amber-700 ring-1 ring-amber-300" : "bg-violet-50 text-violet-700 ring-1 ring-violet-200"
                 }`}>
-                <Droplets className="h-3 w-3" />
+                <Droplets className="h-3.5 w-3.5 shrink-0" />
                 <span>Dilating</span>
                 {visit.dilation_started_at && (
                   <>
                     <span className="text-slate-300">|</span>
-                    <ClockIcon className="h-3 w-3" />
+                    <ClockIcon className="h-3.5 w-3.5 shrink-0" />
                     <span className="font-medium">
                       {dilationOverdue
                         ? "Overdue"
@@ -476,7 +462,7 @@ function VisitCard({
                 )}
               </div>
             ) : (
-              <span className={`pill flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium ${getStatusColor(visit.status)}`}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${getStatusColor(visit.status)}`}>
                 {getStatusIcon(visit.status)}
                 <span className="capitalize">{visit.status.replace(/_/g, " ")}</span>
               </span>
@@ -485,10 +471,10 @@ function VisitCard({
             {/* Advised to admit indicator */}
             {visit.advised_to_admit && (
               <span
-                className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 whitespace-nowrap"
                 title={visit.admission_advice_notes ? `Advised Admission: ${visit.admission_advice_notes}` : "Advised Admission to IPD"}
               >
-                <BedDouble className="h-3 w-3 text-amber-600" />
+                <BedDouble className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                 <span>Advised Admit</span>
               </span>
             )}
@@ -496,13 +482,13 @@ function VisitCard({
             {/* Optometrist completed indicator */}
             {visit.optometrist_investigation_completed_at && (
               <div className="group relative">
-                <span className="flex cursor-help items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 p-1" title="Optometrist investigation completed">
+                <span className="flex cursor-help items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 p-1.5" title="Optometrist investigation completed">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                 </span>
                 {/* Tooltip on hover */}
                 <div className="absolute bottom-full left-0 mb-2 hidden w-max min-w-[160px] flex-col gap-1 rounded-lg bg-slate-800 p-2.5 text-xs text-white shadow-xl ring-1 ring-white/10 group-hover:flex z-50">
                   <div className="font-semibold text-emerald-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3 w-3" />
+                    <CheckCircle2 className="h-3.5 w-3.5" />
                     Optometrist Done
                   </div>
                   <div className="text-slate-300 text-[10px]">
@@ -515,7 +501,7 @@ function VisitCard({
             )}
           </div>
 
-          {/* Action buttons - always compact */}
+          {/* Action buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
             {actions.map((action, idx) => (
               <CompactActionButton
@@ -526,8 +512,7 @@ function VisitCard({
                 onClick={action.onClick}
               />
             ))}
-            <FinaliseVisitAction episodeType="opd_visit" sourceId={visit.id} compact />
-        <PrintButtonsGroup
+            <PrintButtonsGroup
               visit={visit}
               onPrintOpd={onPrintOpd}
               onPrintInvoice={onPrintInvoice}
@@ -721,40 +706,43 @@ export function OpdList({ doctorId }: OpdListProps) {
       // Completion statuses
       case "completed":
       case "consultation_completed":
-        return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      case "examination_completed":
+        return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />;
       // Cancelled/no-show
       case "cancelled":
-        return <XCircle className="h-3 w-3 text-rose-500" />;
+        return <XCircle className="h-3.5 w-3.5 text-rose-500 shrink-0" />;
       case "no_show":
-        return <User className="h-3 w-3 text-slate-500" />;
+        return <User className="h-3.5 w-3.5 text-slate-500 shrink-0" />;
       // Check-in statuses
       case "checked_in":
       case "checked_in_opd":
-        return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
+        return <CheckCircle2 className="h-3.5 w-3.5 text-sky-500 shrink-0" />;
       // Optometrist statuses
       case "awaiting_optometrist":
-        return <ClockIcon className="h-3 w-3 text-purple-500" />;
+        return <ClockIcon className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
       case "optometrist_assigned":
-        return <User className="h-3 w-3 text-purple-500" />;
+        return <User className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
       case "optometrist_investigation_in_progress":
-        return <Play className="h-3 w-3 text-purple-500" />;
+        return <Play className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
       case "optometrist_investigation_completed":
-        return <CheckCircle className="h-3 w-3 text-purple-500" />;
-      // Doctor statuses
+        return <CheckCircle className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
+      // Doctor / Examination statuses
       case "awaiting_doctor":
-        return <ClockIcon className="h-3 w-3 text-amber-500" />;
+      case "awaiting_examination":
+        return <ClockIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
       case "doctor_assigned":
-        return <Stethoscope className="h-3 w-3 text-amber-500" />;
+        return <Stethoscope className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
       case "in_consultation":
       case "consultation_in_progress":
-        return <Play className="h-3 w-3 text-amber-500" />;
+      case "examination_in_progress":
+        return <Play className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
       // Dilation statuses
       case "dilation_in_progress":
-        return <ClockIcon className="h-3 w-3 text-indigo-500" />;
+        return <ClockIcon className="h-3.5 w-3.5 text-indigo-500 shrink-0" />;
       case "dilation_completed":
-        return <CheckCircle className="h-3 w-3 text-indigo-500" />;
+        return <CheckCircle className="h-3.5 w-3.5 text-indigo-500 shrink-0" />;
       default:
-        return <ClockIcon className="h-3 w-3 text-amber-500" />;
+        return <ClockIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
     }
   };
 
@@ -763,37 +751,40 @@ export function OpdList({ doctorId }: OpdListProps) {
       // Completion statuses - green
       case "completed":
       case "consultation_completed":
-        return "bg-emerald-50 text-emerald-700";
+      case "examination_completed":
+        return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
       // Cancelled - red
       case "cancelled":
-        return "bg-rose-50 text-rose-700";
+        return "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
       // No show - gray
       case "no_show":
-        return "bg-slate-50 text-slate-700";
+        return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
       // Check-in statuses - sky blue
       case "checked_in":
       case "checked_in_opd":
-        return "bg-sky-50 text-sky-700";
+        return "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
       // Optometrist statuses - purple
       case "awaiting_optometrist":
       case "optometrist_assigned":
       case "optometrist_investigation_in_progress":
       case "optometrist_investigation_completed":
-        return "bg-purple-50 text-purple-700";
-      // Doctor waiting/assigned - amber/orange
+        return "bg-purple-50 text-purple-700 ring-1 ring-purple-200";
+      // Doctor waiting/assigned / examination - amber
       case "awaiting_doctor":
+      case "awaiting_examination":
       case "doctor_assigned":
-        return "bg-amber-50 text-amber-700";
+        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
       // In consultation - orange
       case "in_consultation":
       case "consultation_in_progress":
-        return "bg-orange-50 text-orange-700";
+      case "examination_in_progress":
+        return "bg-orange-50 text-orange-700 ring-1 ring-orange-200";
       // Dilation statuses - indigo
       case "dilation_in_progress":
       case "dilation_completed":
-        return "bg-indigo-50 text-indigo-700";
+        return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200";
       default:
-        return "bg-amber-50 text-amber-700";
+        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
     }
   };
 

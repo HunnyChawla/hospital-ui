@@ -163,40 +163,43 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
       // Completion statuses
       case "completed":
       case "consultation_completed":
-        return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      case "examination_completed":
+        return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />;
       // Cancelled/no-show
       case "cancelled":
-        return <XCircle className="h-3 w-3 text-rose-500" />;
+        return <XCircle className="h-3.5 w-3.5 text-rose-500 shrink-0" />;
       case "no_show":
-        return <User className="h-3 w-3 text-slate-500" />;
+        return <User className="h-3.5 w-3.5 text-slate-500 shrink-0" />;
       // Check-in statuses
       case "checked_in":
       case "checked_in_opd":
-        return <CheckCircle2 className="h-3 w-3 text-sky-500" />;
+        return <CheckCircle2 className="h-3.5 w-3.5 text-sky-500 shrink-0" />;
       // Optometrist statuses
       case "awaiting_optometrist":
-        return <ClockIcon className="h-3 w-3 text-purple-500" />;
+        return <ClockIcon className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
       case "optometrist_assigned":
-        return <User className="h-3 w-3 text-purple-500" />;
+        return <User className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
       case "optometrist_investigation_in_progress":
-        return <Play className="h-3 w-3 text-purple-500" />;
+        return <Play className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
       case "optometrist_investigation_completed":
-        return <CheckCircle className="h-3 w-3 text-purple-500" />;
-      // Doctor statuses
+        return <CheckCircle className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
+      // Doctor / Examination statuses
       case "awaiting_doctor":
-        return <ClockIcon className="h-3 w-3 text-amber-500" />;
+      case "awaiting_examination":
+        return <ClockIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
       case "doctor_assigned":
-        return <Stethoscope className="h-3 w-3 text-amber-500" />;
+        return <Stethoscope className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
       case "in_consultation":
       case "consultation_in_progress":
-        return <Play className="h-3 w-3 text-amber-500" />;
+      case "examination_in_progress":
+        return <Play className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
       // Dilation statuses
       case "dilation_in_progress":
-        return <ClockIcon className="h-3 w-3 text-indigo-500" />;
+        return <ClockIcon className="h-3.5 w-3.5 text-indigo-500 shrink-0" />;
       case "dilation_completed":
-        return <CheckCircle className="h-3 w-3 text-indigo-500" />;
+        return <CheckCircle className="h-3.5 w-3.5 text-indigo-500 shrink-0" />;
       default:
-        return <ClockIcon className="h-3 w-3 text-amber-500" />;
+        return <ClockIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
     }
   };
 
@@ -205,37 +208,40 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
       // Completion statuses - green
       case "completed":
       case "consultation_completed":
-        return "bg-emerald-50 text-emerald-700";
+      case "examination_completed":
+        return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
       // Cancelled - red
       case "cancelled":
-        return "bg-rose-50 text-rose-700";
+        return "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
       // No show - gray
       case "no_show":
-        return "bg-slate-50 text-slate-700";
+        return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
       // Check-in statuses - sky blue
       case "checked_in":
       case "checked_in_opd":
-        return "bg-sky-50 text-sky-700";
+        return "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
       // Optometrist statuses - purple
       case "awaiting_optometrist":
       case "optometrist_assigned":
       case "optometrist_investigation_in_progress":
       case "optometrist_investigation_completed":
-        return "bg-purple-50 text-purple-700";
-      // Doctor waiting/assigned - amber/orange
+        return "bg-purple-50 text-purple-700 ring-1 ring-purple-200";
+      // Doctor waiting/assigned / examination - amber
       case "awaiting_doctor":
+      case "awaiting_examination":
       case "doctor_assigned":
-        return "bg-amber-50 text-amber-700";
+        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
       // In consultation - orange
       case "in_consultation":
       case "consultation_in_progress":
-        return "bg-orange-50 text-orange-700";
+      case "examination_in_progress":
+        return "bg-orange-50 text-orange-700 ring-1 ring-orange-200";
       // Dilation statuses - indigo
       case "dilation_in_progress":
       case "dilation_completed":
-        return "bg-indigo-50 text-indigo-700";
+        return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200";
       default:
-        return "bg-amber-50 text-amber-700";
+        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
     }
   };
 
@@ -603,80 +609,64 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
             {appointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="relative flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm h-full"
+                className="relative flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm h-full hover:border-slate-200 hover:shadow-md transition-all"
               >
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700 font-bold">
                       #{appointment.token_number}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900 truncate">
+                      <p className="font-semibold text-slate-900 truncate text-base">
                         {appointment.patient_name || `Patient ${appointment.patient_id.slice(0, 8)}...`}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         {appointment.patient_mobile && (
-                          <span>{appointment.patient_mobile}</span>
+                          <span className="font-medium text-slate-600">{appointment.patient_mobile}</span>
                         )}
                         {appointment.visit_id && (
-                          <span className="text-emerald-600">Visit Created</span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+                            Visit Created
+                          </span>
                         )}
                       </div>
                     </div>
                   </div>
                   {appointment.notes && (
-                    <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
+                    <div className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600">
                       {appointment.notes}
                     </div>
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 pt-3">
-                  <span className={`pill flex items-center gap-1 px-2 py-0.5 text-xs font-normal ${getStatusColor(appointment.status)}`}>
+                <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${getStatusColor(
+                      appointment.status
+                    )}`}
+                  >
                     {getStatusIcon(appointment.status)}
-                    <span className="capitalize">{appointment.status.replace("_", " ")}</span>
+                    <span className="capitalize">{appointment.status.replace(/_/g, " ")}</span>
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {!appointment.visit_id && appointment.status !== "cancelled" && appointment.status !== "no_show" && (
                       <button
                         onClick={() => openCreateModal(appointment)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-sky-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
-                        title="Create OPD"
+                        className="flex h-8 items-center gap-1.5 rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:bg-sky-600 hover:scale-105 hover:shadow active:scale-95"
+                        title="Create OPD Visit from this appointment"
                       >
                         <Plus className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Create OPD</span>
+                        <span>Create OPD</span>
                       </button>
                     )}
                     {appointment.visit_id && (
                       <button
                         onClick={() => setPrescriptionAppointment(appointment)}
-                        className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-violet-500 p-2 text-xs font-semibold text-white transition-all duration-300 hover:bg-violet-600"
-                        style={{ width: "2rem" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.width = "auto";
-                          e.currentTarget.style.paddingLeft = "0.75rem";
-                          e.currentTarget.style.paddingRight = "0.75rem";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.width = "2rem";
-                          e.currentTarget.style.paddingLeft = "0.5rem";
-                          e.currentTarget.style.paddingRight = "0.5rem";
-                        }}
+                        className="flex h-8 items-center gap-1.5 rounded-lg bg-violet-500 px-3 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:bg-violet-600 hover:scale-105 hover:shadow active:scale-95"
                         title="View Prescription"
                       >
                         <FileText className="h-4 w-4 shrink-0" />
-                        <span className="ml-1.5 hidden whitespace-nowrap group-hover:inline">Prescription</span>
+                        <span>Prescription</span>
                       </button>
                     )}
                   </div>
