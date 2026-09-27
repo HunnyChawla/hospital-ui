@@ -600,10 +600,12 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
 
     if (defaultValues) {
       // Update existing patient
-      await updatePatient.mutateAsync({
+      const updatedPatientApi = await updatePatient.mutateAsync({
         patientId: defaultValues.id,
         updates: patientData,
       });
+      const updatedPatient = patientsApi.mapToPatients([updatedPatientApi])[0];
+
       if (abhaProfile && abhaSessionKey) {
         try {
           await abhaApi.syncToPatient(defaultValues.id, {
@@ -619,8 +621,19 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           });
         }
       }
+
+      // Dispatch event for components listening to patient updates
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent("patient:updated", {
+          detail: {
+            patientId: defaultValues.id,
+            patient: updatedPatient
+          }
+        }));
+      }
+
       // React Query mutation already shows toast and invalidates cache!
-      onSuccess?.();
+      onSuccess?.(updatedPatient);
     } else {
       // Create new patient
       const newPatientApi = await createPatient.mutateAsync(patientData);

@@ -40,7 +40,7 @@ import { patientKeys } from "@/hooks/queries/usePatients";
 import { Patient } from "@/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getAbhaError } from "@/utils/abhaErrors";
-import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatAadhaarDisplay } from "@/utils/format";
+import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatAadhaarDisplay, formatDate, formatGender } from "@/utils/format";
 import { ABDM_X_CM_ID } from "@/utils/env";
 import { validateAbhaAddress } from "@/utils/abha";
 
@@ -1564,14 +1564,14 @@ export function AbhaEnrollmentModal({
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 font-medium block">Gender</span>
-                    <p className="font-medium text-slate-800 capitalize text-base">
-                      {resultProfile.gender || "N/A"}
+                    <p className="font-medium text-slate-800 text-base">
+                      {formatGender(resultProfile.gender)}
                     </p>
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 font-medium block">Date of Birth</span>
                     <p className="font-medium text-slate-800 text-base">
-                      {resultProfile.dob || "N/A"}
+                      {formatDate(resultProfile.dob)}
                     </p>
                   </div>
                   {resultProfile.email && (
@@ -2179,11 +2179,11 @@ export function AbhaEnrollmentModal({
                                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                                   {acc.gender && (
                                     <span>
-                                      Gender: {acc.gender === "M" ? "Male" : acc.gender === "F" ? "Female" : acc.gender}
+                                      Gender: {formatGender(acc.gender)}
                                     </span>
                                   )}
                                   {acc.gender && acc.dob && <span>•</span>}
-                                  {acc.dob && <span>DOB: {acc.dob}</span>}
+                                  {acc.dob && <span>DOB: {formatDate(acc.dob)}</span>}
                                 </div>
                               </div>
 

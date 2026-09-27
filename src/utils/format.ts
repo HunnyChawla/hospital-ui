@@ -19,16 +19,43 @@ export const formatCurrencyForPDF = (value: number): string => {
 export const formatDate = (value: string | null | undefined) => {
   if (!value) return "N/A";
   try {
-    const date = new Date(value);
+    const trimmed = value.trim();
+    const clean = trimmed.replace(/\//g, "-");
+    const parts = clean.split("-");
+    let date: Date;
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else if (parts[2].length === 4) {
+        // DD-MM-YYYY
+        date = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+      } else {
+        date = new Date(value);
+      }
+    } else if (parts.length === 1 && parts[0].length === 4 && /^\d{4}$/.test(parts[0])) {
+      return parts[0];
+    } else {
+      date = new Date(value);
+    }
     if (isNaN(date.getTime())) return "Invalid Date";
     return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     }).format(date);
-  } catch (e) {
+  } catch {
     return "Invalid Date";
   }
+};
+
+export const formatGender = (gender?: string | null): string => {
+  if (!gender) return "—";
+  const g = gender.trim().toUpperCase();
+  if (g === "M" || g === "MALE") return "Male";
+  if (g === "F" || g === "FEMALE") return "Female";
+  if (g === "O" || g === "OTHER") return "Other";
+  return gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
 };
 
 // Get today's date in YYYY-MM-DD format in local timezone (not UTC)

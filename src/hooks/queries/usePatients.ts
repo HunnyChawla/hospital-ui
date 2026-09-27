@@ -115,12 +115,10 @@ export function useUpdatePatient() {
     },
     onMutate: async ({ patientId, updates }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: patientKeys.detail(patientId) });
-      await queryClient.cancelQueries({ queryKey: patientKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: patientKeys.all });
 
       // Snapshot previous values
       const previousPatient = queryClient.getQueryData(patientKeys.detail(patientId));
-      const previousPatients = queryClient.getQueryData(patientKeys.lists());
 
       // Optimistically update detail cache
       queryClient.setQueryData(patientKeys.detail(patientId), (old: any) => {
@@ -134,33 +132,65 @@ export function useUpdatePatient() {
 
         return {
           ...old,
-          patients: old.patients.map((item: any) =>
-            item.id === patientId ? { ...item, ...updates } : item
-          ),
+          patients: old.patients.map((item: any) => {
+            if (item.id !== patientId) return item;
+            const title = updates.title !== undefined ? (updates.title || undefined) : item.title;
+            const firstName = updates.first_name !== undefined ? updates.first_name : "";
+            const lastName = updates.last_name !== undefined ? (updates.last_name || "") : "";
+            let name = item.name;
+            if (updates.first_name !== undefined || updates.last_name !== undefined || updates.title !== undefined) {
+              const titlePrefix = title && !firstName.startsWith(title) ? `${title} ` : "";
+              name = `${titlePrefix}${firstName} ${lastName}`.trim() || item.name;
+            }
+            const gender = updates.gender
+              ? ((updates.gender.charAt(0).toUpperCase() + updates.gender.slice(1).toLowerCase()) as "Male" | "Female" | "Other")
+              : item.gender;
+
+            return {
+              ...item,
+              ...updates,
+              name,
+              gender,
+              address: updates.address !== undefined ? (updates.address || undefined) : item.address,
+              city: updates.city !== undefined ? (updates.city || undefined) : item.city,
+              state: updates.state !== undefined ? (updates.state || undefined) : item.state,
+              pincode: updates.pincode !== undefined ? (updates.pincode || undefined) : item.pincode,
+              category: updates.category !== undefined ? (updates.category || undefined) : item.category,
+            };
+          }),
         };
       });
 
-      return { previousPatient, previousPatients };
+      return { previousPatient };
     },
     onError: (err, variables, context) => {
       // Rollback on error
       if (context?.previousPatient) {
         queryClient.setQueryData(patientKeys.detail(variables.patientId), context.previousPatient);
       }
-      if (context?.previousPatients) {
-        queryClient.setQueryData(patientKeys.lists(), context.previousPatients);
-      }
+      queryClient.invalidateQueries({ queryKey: patientKeys.all });
 
       // Show error toast
       createMutationErrorHandler('Failed to update patient')(err);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Direct cache update with the real server response
+      queryClient.setQueryData(patientKeys.detail(variables.patientId), data);
+      const mappedPatient = patientsApi.mapToPatients([data])[0];
+      queryClient.setQueriesData({ queryKey: patientKeys.lists() }, (old: any) => {
+        if (!old || !old.patients) return old;
+        return {
+          ...old,
+          patients: old.patients.map((item: any) =>
+            item.id === variables.patientId ? mappedPatient : item
+          ),
+        };
+      });
       toast.success('Patient updated successfully');
     },
-    onSettled: (data, error, variables) => {
-      // Refetch to ensure sync
-      queryClient.invalidateQueries({ queryKey: patientKeys.detail(variables.patientId) });
-      queryClient.invalidateQueries({ queryKey: patientKeys.lists() });
+    onSettled: () => {
+      // Refetch all queries under patientKeys.all to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: patientKeys.all });
     },
   });
 }

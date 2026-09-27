@@ -21,7 +21,7 @@ import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
 import { AbhaStatusBadge, AbhaEnrollmentModal, AbhaSyncModal, AbhaCardDownloadModal } from "@/components/abha";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
-import { usePatient } from "@/hooks/queries/usePatients";
+import { usePatient, patientKeys } from "@/hooks/queries/usePatients";
 
 import { opdVisitsApi, Visit, CreateVisitRequest, VisitStatus } from "@/services/opdVisitsApi";
 import { labBookingsApi, LabBooking, LabBookingTest } from "@/services/labBookingsApi";
@@ -86,9 +86,12 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [admissionsRefreshing, setAdmissionsRefreshing] = useState(false);
+  const { data: fullPatientData } = usePatient(patientId);
+  const patientFromQuery = fullPatientData ? patientsApi.mapToPatients([fullPatientData])[0] : null;
+  const abhaApiPatientData = fullPatientData as any;
   const patientsList = useAppSelector((s) => s.patients.list);
   const selectedPatient = useAppSelector((s) => s.patients.selected);
-  const patient = patientsList.find((p) => p.id === patientId) || (selectedPatient?.id === patientId ? selectedPatient : null);
+  const patient = patientFromQuery || patientsList.find((p) => p.id === patientId) || (selectedPatient?.id === patientId ? selectedPatient : null);
   const doctors = useAppSelector((s) => s.doctors.list);
 
   const [activeTab, setActiveTab] = useState<
@@ -106,16 +109,13 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [isAbhaSyncModalOpen, setIsAbhaSyncModalOpen] = useState(false);
   const [isCardDownloadModalOpen, setIsCardDownloadModalOpen] = useState(false);
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
-  const { data: fullPatientData } = usePatient(patientId);
-  const abhaApiPatientData = fullPatientData as any;
 
   const handleAbhaSuccessInDetail = async (_profile: any, _sessionKey: string, _aadhaar?: string) => {
     try {
       // AbhaEnrollmentModal directly handles syncing to the patient in the database.
       dispatch(fetchPatients({}) as any);
       dispatch(getPatientById({ patientId }) as any);
-      queryClient.invalidateQueries({ queryKey: ["patients"] });
-      queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
+      queryClient.invalidateQueries({ queryKey: patientKeys.all });
     } catch (e: any) {
       toast.error(getAbhaError(e, "Failed to refresh patient profile").message, {
         duration: 10000,
@@ -126,8 +126,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const handleAbhaSyncSuccess = (profile: any, sessionKey: string) => {
     dispatch(fetchPatients({}) as any);
     dispatch(getPatientById({ patientId }) as any);
-    queryClient.invalidateQueries({ queryKey: ["patients"] });
-    queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
+    queryClient.invalidateQueries({ queryKey: patientKeys.all });
   };
 
   const [labBookings, setLabBookings] = useState<LabBooking[]>([]);
@@ -970,14 +969,17 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       if (patientId) {
         dispatch(getPatientById({ patientId }));
         dispatch(fetchPatients({}));
+        queryClient.invalidateQueries({ queryKey: patientKeys.all });
       }
     };
 
     window.addEventListener("patient:created", handlePatientUpdated);
+    window.addEventListener("patient:updated", handlePatientUpdated);
     return () => {
       window.removeEventListener("patient:created", handlePatientUpdated);
+      window.removeEventListener("patient:updated", handlePatientUpdated);
     };
-  }, [patientId, dispatch]);
+  }, [patientId, dispatch, queryClient]);
 
   if (!patient) {
     return (
@@ -2120,9 +2122,10 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           // Refresh patient data after edit
           if (patientId) {
             dispatch(getPatientById({ patientId }));
+            queryClient.invalidateQueries({ queryKey: patientKeys.all });
           }
         }}
-        defaultValues={patient}
+        defaultValues={patient ?? undefined}
       />
 
       {/* Admission Form Modal */}

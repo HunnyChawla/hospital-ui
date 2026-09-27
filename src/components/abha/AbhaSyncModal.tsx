@@ -28,7 +28,7 @@ import {
   type AbhaLinkCheckResponseDto,
 } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
-import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatDate } from "@/utils/format";
+import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatDate, formatGender } from "@/utils/format";
 
 export interface AbhaSyncModalProps {
   isOpen: boolean;
@@ -430,11 +430,11 @@ export function AbhaSyncModal({
                           <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                             {acc.gender && (
                               <span>
-                                Gender: {acc.gender === "M" ? "Male" : acc.gender === "F" ? "Female" : acc.gender}
+                                Gender: {formatGender(acc.gender)}
                               </span>
                             )}
                             {acc.gender && acc.dob && <span>•</span>}
-                            {acc.dob && <span>DOB: {acc.dob}</span>}
+                            {acc.dob && <span>DOB: {formatDate(acc.dob)}</span>}
                           </div>
                         </div>
 
@@ -714,7 +714,7 @@ export function AbhaSyncModal({
                     </p>
                     <p>
                       <span className="font-medium text-slate-500">Gender:</span>{" "}
-                      {patientGender || "—"}
+                      {formatGender(patientGender)}
                     </p>
                     <p>
                       <span className="font-medium text-slate-500">DOB:</span>{" "}
@@ -744,11 +744,11 @@ export function AbhaSyncModal({
                     </p>
                     <p>
                       <span className="font-medium text-slate-500">Gender:</span>{" "}
-                      {fetchedProfile.gender || "—"}
+                      {formatGender(fetchedProfile.gender)}
                     </p>
                     <p>
                       <span className="font-medium text-slate-500">DOB:</span>{" "}
-                      {fetchedProfile.dob || "—"}
+                      {fetchedProfile.dob ? formatDate(fetchedProfile.dob) : "—"}
                     </p>
                     <p>
                       <span className="font-medium text-slate-500">Mobile:</span>{" "}

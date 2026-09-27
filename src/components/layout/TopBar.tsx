@@ -88,9 +88,9 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Listen for patient creation to refresh search
+  // Listen for patient creation and updates to refresh search
   useEffect(() => {
-    const handlePatientCreated = () => {
+    const handlePatientChanged = () => {
       // If we have a search term, refresh the search
       if (term.trim().length >= 2) {
         const timeoutId = setTimeout(async () => {
@@ -114,9 +114,11 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
       }
     };
 
-    window.addEventListener("patient:created", handlePatientCreated);
+    window.addEventListener("patient:created", handlePatientChanged);
+    window.addEventListener("patient:updated", handlePatientChanged);
     return () => {
-      window.removeEventListener("patient:created", handlePatientCreated);
+      window.removeEventListener("patient:created", handlePatientChanged);
+      window.removeEventListener("patient:updated", handlePatientChanged);
     };
   }, [term]);
 
