@@ -76,6 +76,22 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
         );
     };
 
+    const handleVaccineChange = (selectedId: string) => {
+        setVaccineId(selectedId);
+        const v = vaccines?.find((item) => item.id === selectedId);
+        if (v) {
+            if (!route && v.route) {
+                // Find matching route or fallback
+                const match = ROUTES.find((r) => r.toLowerCase() === v.route?.toLowerCase()) || v.route;
+                setRoute(match);
+            }
+            if (!site && v.administration_site) {
+                const match = SITES.find((s) => s.toLowerCase() === v.administration_site?.toLowerCase()) || v.administration_site;
+                setSite(match);
+            }
+        }
+    };
+
     const selected = vaccines?.find((v) => v.id === vaccineId);
 
     return (
@@ -112,30 +128,51 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
             </div>
 
             {showForm && (
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="text-sm">
-                            <span className="mb-1 block font-medium text-slate-700">Vaccine</span>
+                        <label className="text-sm sm:col-span-2">
+                            <span className="mb-1 block font-medium text-slate-700">Select Vaccine</span>
                             <select
                                 value={vaccineId}
-                                onChange={(e) => setVaccineId(e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                onChange={(e) => handleVaccineChange(e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 bg-white"
                             >
-                                <option value="">Select…</option>
+                                <option value="">Select a vaccine from master...</option>
                                 {(vaccines ?? []).map((vaccine) => (
                                     <option key={vaccine.id} value={vaccine.id}>
-                                        {vaccine.name}
+                                        {vaccine.code ? `[${vaccine.code}] ` : ""}{vaccine.name}
                                     </option>
                                 ))}
                             </select>
-                            {/* A hint, not a rule — the schedule varies by state
-                                and by the child in front of you. */}
-                            {selected?.schedule_hint && (
-                                <span className="mt-1 block text-xs text-slate-500">
-                                    Usually given: {selected.schedule_hint}
-                                </span>
-                            )}
                         </label>
+
+                        {/* Selected Vaccine Clinical Highlights Card */}
+                        {selected && (
+                            <div className="sm:col-span-2 rounded-lg bg-sky-50/70 border border-sky-200 p-3 text-xs space-y-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {selected.disease && (
+                                        <span className="font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">
+                                            Protects against: {selected.disease}
+                                        </span>
+                                    )}
+                                    {selected.vaccine_type && (
+                                        <span className="text-sky-800 bg-sky-100 px-2 py-0.5 rounded border border-sky-200 font-medium">
+                                            Type: {selected.vaccine_type}
+                                        </span>
+                                    )}
+                                    {selected.dose_volume !== null && selected.dose_volume !== undefined && (
+                                        <span className="text-indigo-800 bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200 font-medium">
+                                            Std Dose: {selected.dose_volume} {selected.dose_unit || "mL"}
+                                        </span>
+                                    )}
+                                </div>
+                                {selected.schedule_hint && (
+                                    <p className="text-slate-600">
+                                        <span className="font-semibold text-slate-700">Usually given:</span> {selected.schedule_hint}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         <label className="text-sm">
                             <span className="mb-1 block font-medium text-slate-700">Given on</span>
@@ -156,6 +193,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                                 min={1}
                                 value={doseNumber}
                                 onChange={(e) => setDoseNumber(e.target.value)}
+                                placeholder="e.g. 1, 2, 3"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                             />
                         </label>
@@ -167,6 +205,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                             <input
                                 value={batchNumber}
                                 onChange={(e) => setBatchNumber(e.target.value)}
+                                placeholder="e.g. BATCH-98234"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                             />
                         </label>
@@ -185,34 +224,34 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
 
                         <label className="text-sm">
                             <span className="mb-1 block font-medium text-slate-700">Route</span>
-                            <select
+                            <input
+                                list="routes-datalist"
                                 value={route}
                                 onChange={(e) => setRoute(e.target.value)}
+                                placeholder="e.g. Intramuscular"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                            >
-                                <option value="">—</option>
+                            />
+                            <datalist id="routes-datalist">
                                 {ROUTES.map((r) => (
-                                    <option key={r} value={r}>
-                                        {r}
-                                    </option>
+                                    <option key={r} value={r} />
                                 ))}
-                            </select>
+                            </datalist>
                         </label>
 
                         <label className="text-sm">
                             <span className="mb-1 block font-medium text-slate-700">Site</span>
-                            <select
+                            <input
+                                list="sites-datalist"
                                 value={site}
                                 onChange={(e) => setSite(e.target.value)}
+                                placeholder="e.g. Left upper arm"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                            >
-                                <option value="">—</option>
+                            />
+                            <datalist id="sites-datalist">
                                 {SITES.map((s) => (
-                                    <option key={s} value={s}>
-                                        {s}
-                                    </option>
+                                    <option key={s} value={s} />
                                 ))}
-                            </select>
+                            </datalist>
                         </label>
 
                         <label className="text-sm sm:col-span-2">
@@ -220,6 +259,7 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                             <input
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Adverse reactions, manufacturer, specific observations..."
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                             />
                         </label>
@@ -228,17 +268,17 @@ export function ImmunisationPanel({ patientId, episodeId }: ImmunisationPanelPro
                     <div className="mt-4 flex justify-end gap-2">
                         <button
                             onClick={reset}
-                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={submit}
                             disabled={!vaccineId || record.isPending}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600 disabled:opacity-50 cursor-pointer"
                         >
                             {record.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            Save
+                            Save Dose
                         </button>
                     </div>
                 </div>

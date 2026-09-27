@@ -37,50 +37,75 @@ export const fetchAdvices = createAsyncThunk(
 
 export const createAdvice = createAsyncThunk(
     "advices/createAdvice",
-    async ({
-        advice,
-        tenantId,
-    }: {
-        advice: CreateAdviceRequest;
-        tenantId?: string;
-    }) => {
-        return await advicesApi.create(advice, tenantId);
+    async (
+        {
+            advice,
+            tenantId,
+        }: {
+            advice: CreateAdviceRequest;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await advicesApi.create(advice, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const updateAdvice = createAsyncThunk(
     "advices/updateAdvice",
-    async ({
-        id,
-        updates,
-        tenantId,
-    }: {
-        id: string;
-        updates: UpdateAdviceRequest;
-        tenantId?: string;
-    }) => {
-        return await advicesApi.update(id, updates, tenantId);
+    async (
+        {
+            id,
+            updates,
+            tenantId,
+        }: {
+            id: string;
+            updates: UpdateAdviceRequest;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await advicesApi.update(id, updates, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const deleteAdvice = createAsyncThunk(
     "advices/deleteAdvice",
-    async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-        await advicesApi.delete(id, tenantId);
-        return id;
+    async ({ id, tenantId }: { id: string; tenantId?: string }, { rejectWithValue }) => {
+        try {
+            await advicesApi.delete(id, tenantId);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const bulkCreateAdvices = createAsyncThunk(
     "advices/bulkCreateAdvices",
-    async ({
-        advices,
-        tenantId,
-    }: {
-        advices: CreateAdviceRequest[];
-        tenantId?: string;
-    }) => {
-        return await advicesApi.bulkCreate(advices, tenantId);
+    async (
+        {
+            advices,
+            tenantId,
+        }: {
+            advices: CreateAdviceRequest[];
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await advicesApi.bulkCreate(advices, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 

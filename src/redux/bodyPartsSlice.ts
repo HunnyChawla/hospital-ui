@@ -29,54 +29,80 @@ const initialState: BodyPartsState = {
 
 export const fetchBodyParts = createAsyncThunk(
     "bodyParts/fetchBodyParts",
-    async (params: BodyPartsSearchParams) => {
-        const response = await bodyPartsApi.list(params);
-        return { response, params };
+    async (params: BodyPartsSearchParams, { rejectWithValue }) => {
+        try {
+            const response = await bodyPartsApi.list(params);
+            return { response, params };
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const createBodyPart = createAsyncThunk(
     "bodyParts/createBodyPart",
-    async ({
-        bodyPart,
-        isGlobal,
-        tenantId,
-    }: {
-        bodyPart: CreateBodyPartRequest;
-        isGlobal?: boolean;
-        tenantId?: string;
-    }) => {
-        return await bodyPartsApi.create(bodyPart, isGlobal, tenantId);
+    async (
+        {
+            bodyPart,
+            isGlobal,
+            tenantId,
+        }: {
+            bodyPart: CreateBodyPartRequest;
+            isGlobal?: boolean;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await bodyPartsApi.create(bodyPart, isGlobal, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const updateBodyPart = createAsyncThunk(
     "bodyParts/updateBodyPart",
-    async ({
-        id,
-        updates,
-        tenantId,
-    }: {
-        id: string;
-        updates: UpdateBodyPartRequest;
-        tenantId?: string;
-    }) => {
-        return await bodyPartsApi.update(id, updates, tenantId);
+    async (
+        {
+            id,
+            updates,
+            tenantId,
+        }: {
+            id: string;
+            updates: UpdateBodyPartRequest;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await bodyPartsApi.update(id, updates, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const deactivateBodyPart = createAsyncThunk(
     "bodyParts/deactivateBodyPart",
-    async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-        return await bodyPartsApi.deactivate(id, tenantId);
+    async ({ id, tenantId }: { id: string; tenantId?: string }, { rejectWithValue }) => {
+        try {
+            return await bodyPartsApi.deactivate(id, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const deleteBodyPart = createAsyncThunk(
     "bodyParts/deleteBodyPart",
-    async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-        await bodyPartsApi.delete(id, tenantId);
-        return id;
+    async ({ id, tenantId }: { id: string; tenantId?: string }, { rejectWithValue }) => {
+        try {
+            await bodyPartsApi.delete(id, tenantId);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 

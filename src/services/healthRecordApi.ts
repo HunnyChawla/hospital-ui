@@ -144,8 +144,23 @@ export interface DocumentVersion {
 
 export interface Vaccine {
     id: string;
+    tenant_id?: string | null;
     name: string;
     code: string | null;
+    short_name?: string | null;
+    vaccine_type?: string | null;
+    disease?: string | null;
+    description?: string | null;
+    route?: string | null;
+    administration_site?: string | null;
+    dose_volume?: number | null;
+    dose_unit?: string | null;
+    doses_required?: number | null;
+    minimum_age_days?: number | null;
+    maximum_age_days?: number | null;
+    minimum_interval_days?: number | null;
+    storage_min_temp?: number | null;
+    storage_max_temp?: number | null;
     /** When this is typically given. A hint for whoever is entering it, not a rule. */
     schedule_hint: string | null;
     is_active: boolean;

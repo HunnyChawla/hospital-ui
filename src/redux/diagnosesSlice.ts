@@ -37,54 +37,79 @@ export const fetchDiagnoses = createAsyncThunk(
 
 export const createDiagnosis = createAsyncThunk(
     "diagnoses/createDiagnosis",
-    async ({
-        diagnosis,
-        isGlobal,
-        tenantId,
-    }: {
-        diagnosis: CreateDiagnosisRequest;
-        isGlobal?: boolean;
-        tenantId?: string;
-    }) => {
-        return await diagnosesApi.create(diagnosis, isGlobal, tenantId);
+    async (
+        {
+            diagnosis,
+            isGlobal,
+            tenantId,
+        }: {
+            diagnosis: CreateDiagnosisRequest;
+            isGlobal?: boolean;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await diagnosesApi.create(diagnosis, isGlobal, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const updateDiagnosis = createAsyncThunk(
     "diagnoses/updateDiagnosis",
-    async ({
-        id,
-        updates,
-        tenantId,
-    }: {
-        id: string;
-        updates: UpdateDiagnosisRequest;
-        tenantId?: string;
-    }) => {
-        return await diagnosesApi.update(id, updates, tenantId);
+    async (
+        {
+            id,
+            updates,
+            tenantId,
+        }: {
+            id: string;
+            updates: UpdateDiagnosisRequest;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await diagnosesApi.update(id, updates, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const deleteDiagnosis = createAsyncThunk(
     "diagnoses/deleteDiagnosis",
-    async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-        await diagnosesApi.delete(id, tenantId);
-        return id;
+    async ({ id, tenantId }: { id: string; tenantId?: string }, { rejectWithValue }) => {
+        try {
+            await diagnosesApi.delete(id, tenantId);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const bulkCreateDiagnoses = createAsyncThunk(
     "diagnoses/bulkCreateDiagnoses",
-    async ({
-        diagnoses,
-        isGlobal,
-        tenantId,
-    }: {
-        diagnoses: CreateDiagnosisRequest[];
-        isGlobal?: boolean;
-        tenantId?: string;
-    }) => {
-        return await diagnosesApi.bulkCreate(diagnoses, isGlobal, tenantId);
+    async (
+        {
+            diagnoses,
+            isGlobal,
+            tenantId,
+        }: {
+            diagnoses: CreateDiagnosisRequest[];
+            isGlobal?: boolean;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await diagnosesApi.bulkCreate(diagnoses, isGlobal, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 

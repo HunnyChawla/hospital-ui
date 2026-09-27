@@ -5,12 +5,13 @@ import { DiagnosesPanel } from "@/components/master-data/DiagnosesPanel";
 import { SymptomsPanel } from "@/components/master-data/SymptomsPanel";
 import { AdvicesPanel } from "@/components/master-data/AdvicesPanel";
 import { MedicinesPanel } from "@/components/master-data/MedicinesPanel";
+import { VaccinesPanel } from "@/components/master-data/VaccinesPanel";
 import { BodyPartsPanel } from "@/components/master-data/BodyPartsPanel";
 import { SeedDataPanel } from "@/components/master-data/SeedDataPanel";
 import { isPlatformOwner } from "@/utils/auth";
 import { Database } from "lucide-react";
 
-type Tab = "diagnoses" | "symptoms" | "advices" | "medicines" | "body-parts" | "seed-data";
+type Tab = "diagnoses" | "symptoms" | "advices" | "medicines" | "vaccines" | "body-parts" | "seed-data";
 
 
 export default function MasterDataPage() {
@@ -30,7 +31,7 @@ export default function MasterDataPage() {
             <div>
                 <h1 className="text-2xl font-bold text-slate-900">Master Data</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                    Manage hospital master data including diagnoses, procedures, and other reference data
+                    Manage hospital master data including diagnoses, medicines, vaccines, and reference catalogs
                 </p>
             </div>
 
@@ -85,7 +86,18 @@ export default function MasterDataPage() {
                             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
                         )}
                     </button>
-
+                    <button
+                        onClick={() => setActiveTab("vaccines")}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors relative whitespace-nowrap ${activeTab === "vaccines"
+                            ? "text-sky-600"
+                            : "text-slate-600 hover:text-slate-900"
+                            }`}
+                    >
+                        Vaccines
+                        {activeTab === "vaccines" && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-600" />
+                        )}
+                    </button>
                     <button
                         onClick={() => setActiveTab("body-parts")}
                         className={`px-4 py-2 text-sm font-semibold transition-colors relative whitespace-nowrap ${activeTab === "body-parts"
@@ -123,6 +135,7 @@ export default function MasterDataPage() {
                 {activeTab === "symptoms" && <SymptomsPanel />}
                 {activeTab === "advices" && <AdvicesPanel />}
                 {activeTab === "medicines" && <MedicinesPanel />}
+                {activeTab === "vaccines" && <VaccinesPanel />}
                 {activeTab === "body-parts" && <BodyPartsPanel />}
                 {activeTab === "seed-data" && canSeed && <SeedDataPanel />}
             </div>

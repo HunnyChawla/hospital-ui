@@ -29,47 +29,69 @@ const initialState: MedicinesState = {
 
 export const fetchMedicines = createAsyncThunk(
   "medicines/fetchMedicines",
-  async (params: MedicinesSearchParams) => {
-    const response = params.q
-      ? await medicinesApi.search(params)
-      : await medicinesApi.list(params);
-    return { response, params };
+  async (params: MedicinesSearchParams, { rejectWithValue }) => {
+    try {
+      const response = params.q
+        ? await medicinesApi.search(params)
+        : await medicinesApi.list(params);
+      return { response, params };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error);
+    }
   }
 );
 
 export const createMedicine = createAsyncThunk(
   "medicines/createMedicine",
-  async ({
-    medicine,
-    tenantId,
-  }: {
-    medicine: CreateMedicineRequest;
-    tenantId?: string;
-  }) => {
-    return await medicinesApi.create(medicine, tenantId);
+  async (
+    {
+      medicine,
+      tenantId,
+    }: {
+      medicine: CreateMedicineRequest;
+      tenantId?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await medicinesApi.create(medicine, tenantId);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error);
+    }
   }
 );
 
 export const updateMedicine = createAsyncThunk(
   "medicines/updateMedicine",
-  async ({
-    id,
-    updates,
-    tenantId,
-  }: {
-    id: string;
-    updates: UpdateMedicineRequest;
-    tenantId?: string;
-  }) => {
-    return await medicinesApi.update(id, updates, tenantId);
+  async (
+    {
+      id,
+      updates,
+      tenantId,
+    }: {
+      id: string;
+      updates: UpdateMedicineRequest;
+      tenantId?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await medicinesApi.update(id, updates, tenantId);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error);
+    }
   }
 );
 
 export const deleteMedicine = createAsyncThunk(
   "medicines/deleteMedicine",
-  async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-    await medicinesApi.delete(id, tenantId);
-    return id;
+  async ({ id, tenantId }: { id: string; tenantId?: string }, { rejectWithValue }) => {
+    try {
+      await medicinesApi.delete(id, tenantId);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error);
+    }
   }
 );
 

@@ -37,54 +37,79 @@ export const fetchSymptoms = createAsyncThunk(
 
 export const createSymptom = createAsyncThunk(
     "symptoms/createSymptom",
-    async ({
-        symptom,
-        isGlobal,
-        tenantId,
-    }: {
-        symptom: CreateSymptomRequest;
-        isGlobal?: boolean;
-        tenantId?: string;
-    }) => {
-        return await symptomsApi.create(symptom, isGlobal, tenantId);
+    async (
+        {
+            symptom,
+            isGlobal,
+            tenantId,
+        }: {
+            symptom: CreateSymptomRequest;
+            isGlobal?: boolean;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await symptomsApi.create(symptom, isGlobal, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const updateSymptom = createAsyncThunk(
     "symptoms/updateSymptom",
-    async ({
-        id,
-        updates,
-        tenantId,
-    }: {
-        id: string;
-        updates: UpdateSymptomRequest;
-        tenantId?: string;
-    }) => {
-        return await symptomsApi.update(id, updates, tenantId);
+    async (
+        {
+            id,
+            updates,
+            tenantId,
+        }: {
+            id: string;
+            updates: UpdateSymptomRequest;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await symptomsApi.update(id, updates, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const deleteSymptom = createAsyncThunk(
     "symptoms/deleteSymptom",
-    async ({ id, tenantId }: { id: string; tenantId?: string }) => {
-        await symptomsApi.delete(id, tenantId);
-        return id;
+    async ({ id, tenantId }: { id: string; tenantId?: string }, { rejectWithValue }) => {
+        try {
+            await symptomsApi.delete(id, tenantId);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 
 export const bulkCreateSymptoms = createAsyncThunk(
     "symptoms/bulkCreateSymptoms",
-    async ({
-        symptoms,
-        isGlobal,
-        tenantId,
-    }: {
-        symptoms: CreateSymptomRequest[];
-        isGlobal?: boolean;
-        tenantId?: string;
-    }) => {
-        return await symptomsApi.bulkCreate(symptoms, isGlobal, tenantId);
+    async (
+        {
+            symptoms,
+            isGlobal,
+            tenantId,
+        }: {
+            symptoms: CreateSymptomRequest[];
+            isGlobal?: boolean;
+            tenantId?: string;
+        },
+        { rejectWithValue }
+    ) => {
+        try {
+            return await symptomsApi.bulkCreate(symptoms, isGlobal, tenantId);
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data || error);
+        }
     }
 );
 

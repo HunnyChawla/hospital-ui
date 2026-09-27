@@ -24,6 +24,7 @@ import seedDataReducer from "./seedDataSlice";
 import medicinesReducer from "./medicinesSlice";
 import bodyPartsReducer from "./bodyPartsSlice";
 import clinicPanelReducer from "./clinicPanelSlice";
+import vaccinesReducer from "./vaccinesSlice";
 
 
 export const store = configureStore({
@@ -53,6 +54,7 @@ export const store = configureStore({
     medicines: medicinesReducer,
     bodyParts: bodyPartsReducer,
     clinicPanel: clinicPanelReducer,
+    vaccines: vaccinesReducer,
   },
 });
 

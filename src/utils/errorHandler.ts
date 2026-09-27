@@ -102,26 +102,27 @@ function parseDetail(detail: any): string | null {
       if (typeof err === "string") return humanizeDbError(err);
       if (err?.msg) return humanizeDbError(err.msg);
       if (err?.message) return humanizeDbError(err.message);
+      if (err?.detail) return parseDetail(err.detail);
       if (err?.ctx) {
         const { resource_type, field, value } = err.ctx;
         if (resource_type && field) {
           return `${resource_type} with ${field} '${value || ""}' already exists`;
         }
       }
-      return "Validation error";
+      return typeof err === "object" ? JSON.stringify(err) : "Validation error";
     });
-    return messages.join(", ");
+    return messages.filter(Boolean).join(", ");
   }
 
   if (typeof detail === "object" && detail !== null) {
-    if ("message" in detail && typeof detail.message === "string") {
-      return humanizeDbError(detail.message);
+    if ("detail" in detail) {
+      return parseDetail(detail.detail);
     }
     if ("msg" in detail && typeof detail.msg === "string") {
       return humanizeDbError(detail.msg);
     }
-    if ("detail" in detail) {
-      return parseDetail(detail.detail);
+    if ("message" in detail && typeof detail.message === "string") {
+      return humanizeDbError(detail.message);
     }
   }
 
@@ -143,12 +144,11 @@ export function getErrorMessage(error: any): string {
     return error;
   }
 
-  // Handle Redux thunk rejected actions
+  // Handle Redux thunk rejected actions (payload or error)
   let actualError = error;
-  
   if (error?.payload) {
     actualError = error.payload;
-  } else if (error?.error) {
+  } else if (error?.error && typeof error.error === "object") {
     actualError = error.error;
   }
 
@@ -156,30 +156,46 @@ export function getErrorMessage(error: any): string {
     return actualError;
   }
 
-  // 1. Check axios response structure (actualError.response.data.detail)
-  if (actualError?.response?.data?.detail) {
-    const msg = parseDetail(actualError.response.data.detail);
-    if (msg) return msg;
-  }
-  if (actualError?.response?.statusText) {
-    return actualError.response.statusText;
-  }
-
-  // 2. Check direct data object (actualError.data.detail)
-  if (actualError?.data?.detail) {
-    const msg = parseDetail(actualError.data.detail);
-    if (msg) return msg;
-  }
-
-  // 3. Check direct detail property (Redux rejectWithValue / unwrapped API payload)
+  // 1. Check direct detail property (Redux rejectWithValue / unwrapped API payload / FastAPI error format)
   if (actualError?.detail) {
     const msg = parseDetail(actualError.detail);
     if (msg) return msg;
   }
 
-  // 4. Check message property
+  // 2. Check if actualError is itself an array of error details
+  if (Array.isArray(actualError)) {
+    const msg = parseDetail(actualError);
+    if (msg) return msg;
+  }
+
+  // 3. Check axios response structure (actualError.response.data)
+  if (actualError?.response?.data) {
+    const msg = parseDetail(actualError.response.data);
+    if (msg) return msg;
+  }
+
+  // 4. Check direct data object (actualError.data)
+  if (actualError?.data) {
+    const msg = parseDetail(actualError.data);
+    if (msg) return msg;
+  }
+
+  // 5. Check message property if it's not a generic HTTP status code message
   if (actualError?.message && typeof actualError.message === "string") {
-    return actualError.message;
+    const msg = actualError.message;
+    if (!msg.toLowerCase().includes("request failed with status code")) {
+      return humanizeDbError(msg);
+    }
+  }
+
+  // 6. Check msg property
+  if (actualError?.msg && typeof actualError.msg === "string") {
+    return humanizeDbError(actualError.msg);
+  }
+
+  // 7. Check statusText
+  if (actualError?.response?.statusText) {
+    return actualError.response.statusText;
   }
 
   // Default fallback
