@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { tenantsApi, Tenant, TenantStatus } from "@/services/tenantsApi";
 import { formatDate } from "@/utils/format";
 import {
@@ -11,6 +12,7 @@ import {
   Clock,
   UserPlus,
   CalendarClock,
+  UserX,
 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -31,6 +33,7 @@ export function TenantTable({
   onCreateUserClick,
   onExtendLicenseClick,
 }: TenantTableProps) {
+  const router = useRouter();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -333,6 +336,16 @@ export function TenantTable({
                       title="Create user"
                     >
                       <UserPlus className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/platform-patient-management?tenant_id=${tenant.id}`);
+                      }}
+                      className="flex items-center justify-center rounded-lg bg-rose-500 p-2 text-white transition hover:bg-rose-600"
+                      title="Patient Data Management & Cleanup"
+                    >
+                      <UserX className="h-4 w-4" />
                     </button>
                   </div>
                 </td>

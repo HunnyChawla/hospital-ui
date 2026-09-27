@@ -29,6 +29,7 @@ import {
   Settings,
   IdCard,
   Scale,
+  UserX,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
@@ -74,6 +75,7 @@ const iconMap: Record<string, LucideIcon> = {
   Monitor,
   Settings,
   IdCard,
+  UserX,
   Link: LinkIcon,
 };
 
@@ -152,6 +154,7 @@ export function Sidebar() {
       "/feature-flags",
       "/platform-billing",
       "/terms-conditions",
+      "/platform-patient-management",
     ];
 
     if (userRole !== "platform_owner") {
@@ -174,6 +177,9 @@ export function Sidebar() {
       }
       if (!items.find((i) => i.href === "/terms-conditions")) {
         items.push({ label: "Terms & Privacy", href: "/terms-conditions", icon: Scale });
+      }
+      if (!items.find((i) => i.href === "/platform-patient-management")) {
+        items.push({ label: "Patient Data Cleanup", href: "/platform-patient-management", icon: UserX });
       }
     }
 
