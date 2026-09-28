@@ -82,13 +82,15 @@ export function DocumentViewerModal({ version, onClose }: DocumentViewerModalPro
 
     if (!version) return null;
 
-    const label = DOC_LABELS[version.doc_type] ?? version.doc_type;
+    const label = version.title || (DOC_LABELS[version.doc_type] ?? version.doc_type);
+    const docNumber = version.document_number;
 
     const download = () => {
         if (!url) return;
         const link = document.createElement("a");
         link.href = url;
-        link.download = `${label.replace(/\s+/g, "-").toLowerCase()}-v${version.version}.pdf`;
+        const filenamePrefix = docNumber ? `${label}-${docNumber}` : label;
+        link.download = `${filenamePrefix.replace(/\s+/g, "-").toLowerCase()}-v${version.version}.pdf`;
         link.click();
     };
 
@@ -106,7 +108,14 @@ export function DocumentViewerModal({ version, onClose }: DocumentViewerModalPro
             <div className="flex h-full max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
                 <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
                     <div>
-                        <h2 className="text-sm font-semibold text-slate-900">{label}</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-sm font-semibold text-slate-900">{label}</h2>
+                            {docNumber && (
+                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono font-medium text-slate-600">
+                                    {docNumber}
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs text-slate-500">
                             Version {version.version}
                             {version.superseded_at ? " · superseded" : " · current"}
