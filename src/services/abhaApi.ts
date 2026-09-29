@@ -308,6 +308,14 @@ export const abhaApi = {
     return response.data;
   },
 
+  async getSuggestions(sessionKey: string, tenantId?: string): Promise<string[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params: Record<string, string> = { session_key: sessionKey };
+    if (apiTenantId) params.tenant_id = apiTenantId;
+    const response = await apiClient.get<string[]>("/abha/enroll/suggestion", { params });
+    return response.data;
+  },
+
   // Linking Existing ABHA
   async requestLinkOtp(req: AbhaLinkOtpRequestDto, tenantId?: string): Promise<{ session_key: string; message: string }> {
     const apiTenantId = getTenantIdForApi(tenantId);
