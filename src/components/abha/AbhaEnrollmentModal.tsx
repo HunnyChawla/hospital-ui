@@ -190,7 +190,6 @@ export function AbhaEnrollmentModal({
   const [linkOtp, setLinkOtp] = useState("");
   const [linkOtpSent, setLinkOtpSent] = useState(false);
   const [linkOtpMessage, setLinkOtpMessage] = useState<string | null>(null);
-  const [linkConsentAccepted, setLinkConsentAccepted] = useState(false);
   const [linkAccounts, setLinkAccounts] = useState<AbhaProfileDto[]>([]);
   const [showAccountSelection, setShowAccountSelection] = useState(false);
   const [selectedLinkAccount, setSelectedLinkAccount] = useState<AbhaProfileDto | null>(null);
@@ -261,7 +260,6 @@ export function AbhaEnrollmentModal({
     setLinkOtp("");
     setLinkOtpSent(false);
     setLinkOtpMessage(null);
-    setLinkConsentAccepted(false);
     setLinkAccounts([]);
     setShowAccountSelection(false);
     setSelectedLinkAccount(null);
@@ -714,16 +712,12 @@ export function AbhaEnrollmentModal({
       toast.error("Please enter existing ABHA Number, Aadhaar Number, registered Mobile, or ABHA Address");
       return;
     }
-    if (!linkConsentAccepted) {
-      toast.error("Please read and accept the consent to proceed");
-      return;
-    }
     setLoading(true);
     try {
       const res = await abhaApi.requestLinkOtp({
         abha_number: linkAbhaNumber,
         otp_system: linkOtpSystem,
-        consent_accepted: linkConsentAccepted,
+        consent_accepted: true,
       });
       setLinkSessionKey(res.session_key);
       setLinkOtpSent(true);
@@ -2311,20 +2305,10 @@ export function AbhaEnrollmentModal({
                           disabled={loading}
                           size="sm"
                         />
-                        {/* Linking an ABHA that already exists — nothing is
-                            being created, so the creation-specific declarations
-                            do not apply. */}
-                        <AbhaConsentPanel
-                          variant="aadhaar-authentication"
-                          checked={linkConsentAccepted}
-                          onChange={setLinkConsentAccepted}
-                          disabled={loading}
-                          beneficiaryName={initialName}
-                        />
                         <button
                           type="button"
                           onClick={handleRequestLinkOtp}
-                          disabled={loading || !linkAbhaNumber || !linkConsentAccepted}
+                          disabled={loading || !linkAbhaNumber}
                           className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
                         >
                           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
