@@ -47,19 +47,30 @@ export function AbdmConsentRequestModal({
 }: AbdmConsentRequestModalProps) {
   const [submitting, setSubmitting] = useState(false);
 
-  // Default dates: Past 2 years to today, valid for 30 days
+  // Helper to format Date in local timezone for datetime-local input (YYYY-MM-DDTHH:mm)
+  const formatDateTimeLocalInput = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Default dates: Past 2 years (at 00:00) to today (current time), valid for 30 days (at 23:59)
   const today = new Date();
   const twoYearsAgo = new Date();
   twoYearsAgo.setFullYear(today.getFullYear() - 2);
+  twoYearsAgo.setHours(0, 0, 0, 0);
 
   const thirtyDaysLater = new Date();
   thirtyDaysLater.setDate(today.getDate() + 30);
+  thirtyDaysLater.setHours(23, 59, 0, 0);
 
-  const formatDateInput = (d: Date) => d.toISOString().split("T")[0];
-
-  const [dateFrom, setDateFrom] = useState(formatDateInput(twoYearsAgo));
-  const [dateTo, setDateTo] = useState(formatDateInput(today));
-  const [expiryDate, setExpiryDate] = useState(formatDateInput(thirtyDaysLater));
+  const [dateFrom, setDateFrom] = useState(formatDateTimeLocalInput(twoYearsAgo));
+  const [dateTo, setDateTo] = useState(formatDateTimeLocalInput(today));
+  const [expiryDate, setExpiryDate] = useState(formatDateTimeLocalInput(thirtyDaysLater));
   const [purposeCode, setPurposeCode] = useState("CAREMGT");
   const [selectedHiTypes, setSelectedHiTypes] = useState<string[]>([
     "Prescription",
@@ -91,13 +102,36 @@ export function AbdmConsentRequestModal({
       return;
     }
 
+    if (!dateFrom || !dateTo) {
+      toast.error("Please specify both 'Records From' and 'Records To' date & time");
+      return;
+    }
+
+    const fromDate = new Date(dateFrom);
+    const toDate = new Date(dateTo);
+    const expiryDateObj = new Date(expiryDate);
+    const now = new Date();
+
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      toast.error("Invalid date or time provided");
+      return;
+    }
+
+    if (fromDate > toDate) {
+      toast.error("'Records From' date & time must be earlier than 'Records To' date & time");
+      return;
+    }
+
+    if (expiryDate && expiryDateObj <= now) {
+      toast.error("Consent erase/expiry date & time must be in the future");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const fromIso = new Date(`${dateFrom}T00:00:00.000Z`).toISOString();
-      const selectedTo = new Date(`${dateTo}T23:59:59.000Z`);
-      const now = new Date();
-      const toIso = selectedTo > now ? now.toISOString() : selectedTo.toISOString();
-      const expiryIso = new Date(`${expiryDate}T23:59:59.000Z`).toISOString();
+      const fromIso = fromDate.toISOString();
+      const toIso = toDate > now ? now.toISOString() : toDate.toISOString();
+      const expiryIso = expiryDateObj.toISOString();
 
       await hiuConsentService.createConsentRequest({
         patient_id: patientId || null,
@@ -189,43 +223,54 @@ export function AbdmConsentRequestModal({
           </div>
         </div>
 
-        {/* Date Ranges */}
+        {/* Date & Time Ranges */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">Records From</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-700">
+              Records From
+            </label>
             <div className="relative">
               <input
-                type="date"
+                type="datetime-local"
                 required
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
+            <p className="mt-1 text-[11px] text-slate-400">Date & time range start</p>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">Records To</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-700">
+              Records To
+            </label>
             <div className="relative">
               <input
-                type="date"
+                type="datetime-local"
                 required
                 value={dateTo}
+                max={formatDateTimeLocalInput(new Date())}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
+            <p className="mt-1 text-[11px] text-slate-400">Date & time range end (up to now)</p>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">Consent Erase Date</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-700">
+              Consent Erase Date & Time
+            </label>
             <div className="relative">
               <input
-                type="date"
+                type="datetime-local"
                 required
                 value={expiryDate}
+                min={formatDateTimeLocalInput(new Date())}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
+            <p className="mt-1 text-[11px] text-slate-400">Access expiry & auto-erasure time</p>
           </div>
         </div>
 

@@ -354,10 +354,13 @@ export function AbdmHiuConsentPanel({
                             </div>
                           </td>
                           <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600">
-                            {formatDate(req.date_range_from)} to {formatDate(req.date_range_to)}
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-slate-700">{formatDateTime(req.date_range_from)}</span>
+                              <span className="text-[10px] text-slate-400">to {formatDateTime(req.date_range_to)}</span>
+                            </div>
                           </td>
                           <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-500">
-                            {formatDate(req.expiry_at)}
+                            {formatDateTime(req.expiry_at)}
                           </td>
                           <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600">
                             {req.requester_name || "Doctor"}
