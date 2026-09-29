@@ -17,7 +17,8 @@ export type EpisodeType =
     | "planned_surgery"
     | "lab_booking"
     | "wellness_record"
-    | "health_document";
+    | "health_document"
+    | "immunization_record";
 
 export type EpisodeStatus = "open" | "finalised" | "reopened";
 
@@ -140,6 +141,9 @@ export interface DocumentVersion {
     finalised_by: string | null;
     superseded_at: string | null;
     is_current: boolean;
+    title?: string;
+    document_number?: string | null;
+    sub_type?: string | null;
 }
 
 export interface Vaccine {

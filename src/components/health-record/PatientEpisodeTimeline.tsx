@@ -51,6 +51,7 @@ const EPISODE_ICONS: Record<EpisodeType, React.ElementType> = {
     lab_booking: FlaskConical,
     wellness_record: HeartPulse,
     health_document: FileText,
+    immunization_record: Syringe,
 };
 
 const EPISODE_LABELS: Record<EpisodeType, string> = {
@@ -61,6 +62,7 @@ const EPISODE_LABELS: Record<EpisodeType, string> = {
     lab_booking: "Lab booking",
     wellness_record: "Wellness & Vitals",
     health_document: "Medical Document",
+    immunization_record: "Immunisation",
 };
 
 /**
