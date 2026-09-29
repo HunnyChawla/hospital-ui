@@ -20,6 +20,8 @@ import {
   Check,
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
@@ -139,6 +141,7 @@ export function AbhaEnrollmentModal({
 
   // Aadhaar OTP State
   const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [showAadhaar, setShowAadhaar] = useState(false);
   const [aadhaarOtpSystem, setAadhaarOtpSystem] = useState<AbdmOtpSystem>("aadhaar");
   const [aadhaarMobile, setAadhaarMobile] = useState(initialMobile);
   const [sessionKey, setSessionKey] = useState<string | null>(null);
@@ -238,6 +241,7 @@ export function AbhaEnrollmentModal({
   const resetState = () => {
     setActiveTab("aadhaar_otp");
     setAadhaarNumber("");
+    setShowAadhaar(false);
     setSessionKey(null);
     setOtp("");
     setOtpSent(false);
@@ -1714,15 +1718,34 @@ export function AbhaEnrollmentModal({
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     12-digit Aadhaar Number <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    maxLength={14}
-                    value={formatAadhaarDisplay(aadhaarNumber)}
-                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                    disabled={otpSent}
-                    placeholder="e.g. 1234 5678 9012"
-                    className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showAadhaar ? "text" : "password"}
+                      inputMode="numeric"
+                      maxLength={14}
+                      value={formatAadhaarDisplay(aadhaarNumber)}
+                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                      disabled={otpSent}
+                      placeholder={showAadhaar ? "e.g. 1234 5678 9012" : "•••• •••• ••••"}
+                      autoComplete="off"
+                      className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-10 text-sm font-mono tracking-wider focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAadhaar((prev) => !prev)}
+                      tabIndex={-1}
+                      disabled={otpSent}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 disabled:opacity-40 disabled:hover:text-slate-400 transition-colors"
+                      title={showAadhaar ? "Hide Aadhaar number" : "Show Aadhaar number"}
+                      aria-label={showAadhaar ? "Hide Aadhaar number" : "Show Aadhaar number"}
+                    >
+                      {showAadhaar ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {!otpSent ? (

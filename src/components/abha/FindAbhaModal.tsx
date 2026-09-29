@@ -8,6 +8,8 @@ import {
     Users,
     ArrowLeft,
     BadgeCheck,
+    Eye,
+    EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
@@ -20,6 +22,7 @@ import {
     type FoundAbhaAccount,
 } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
+import { formatAadhaarDisplay } from "@/utils/format";
 
 /**
  * Find a patient's ABHA at the registration desk.
@@ -59,6 +62,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
     const [searchBy, setSearchBy] = useState<FindAbhaBy>("mobile");
     const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>("abdm");
     const [value, setValue] = useState("");
+    const [showAadhaar, setShowAadhaar] = useState(false);
     const [otp, setOtp] = useState("");
     const [otpMessage, setOtpMessage] = useState<string | null>(null);
 
@@ -70,6 +74,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
         setLoading(false);
         setOtpSystem("abdm");
         setValue("");
+        setShowAadhaar(false);
         setOtp("");
         setOtpMessage(null);
         setSessionKey("");
@@ -183,6 +188,7 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                                         setSearchBy(option);
                                         setOtpSystem(option === "mobile" ? "abdm" : "aadhaar");
                                         setValue("");
+                                        setShowAadhaar(false);
                                     }}
                                     className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition ${
                                         searchBy === option
@@ -202,16 +208,39 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                             >
                                 {searchBy === "mobile" ? "Mobile number" : "Aadhaar number"}
                             </label>
-                            <input
-                                id="find-abha-value"
-                                inputMode="numeric"
-                                value={value}
-                                onChange={(e) =>
-                                    setValue(e.target.value.replace(/\D/g, "").slice(0, expectedLength))
-                                }
-                                placeholder={searchBy === "mobile" ? "9876543210" : "1234 5678 9012"}
-                                className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                            />
+                            <div className="relative mt-1">
+                                <input
+                                    id="find-abha-value"
+                                    type={searchBy === "aadhaar" && !showAadhaar ? "password" : "text"}
+                                    inputMode="numeric"
+                                    maxLength={searchBy === "aadhaar" ? 14 : 10}
+                                    value={searchBy === "aadhaar" ? formatAadhaarDisplay(value) : value}
+                                    onChange={(e) =>
+                                        setValue(e.target.value.replace(/\D/g, "").slice(0, expectedLength))
+                                    }
+                                    placeholder={searchBy === "mobile" ? "9876543210" : showAadhaar ? "1234 5678 9012" : "•••• •••• ••••"}
+                                    autoComplete="off"
+                                    className={`w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm font-mono focus:border-sky-500 focus:ring-1 focus:ring-sky-500 ${
+                                        searchBy === "aadhaar" ? "pr-10 tracking-wider" : ""
+                                    }`}
+                                />
+                                {searchBy === "aadhaar" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAadhaar(!showAadhaar)}
+                                        tabIndex={-1}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                                        title={showAadhaar ? "Hide Aadhaar number" : "Show Aadhaar number"}
+                                        aria-label={showAadhaar ? "Hide Aadhaar number" : "Show Aadhaar number"}
+                                    >
+                                        {showAadhaar ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                )}
+                            </div>
                             <p className="mt-1 text-[11px] text-slate-500">
                                 The patient will receive an OTP on their own phone and must
                                 approve the lookup.
