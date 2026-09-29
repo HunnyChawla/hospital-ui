@@ -1,45 +1,8 @@
 "use client";
 
+import React, { useState } from "react";
 import { useAppSelector } from "@/redux/hooks";
-
-/**
- * The NHA/UIDAI consent, as ABDM publishes it.
- *
- * SOURCE: the sandbox "Consent Language" page —
- * `ABDM_INTEGRATION_DOCS_PLANS/DOCS_SANDBOX_SITE/images/consent_language.png`.
- * The wording below is transcribed from that image, not paraphrased.
- *
- * ⚠️ REBUILT 8 Aug 2026. This component used to render ONE paragraph with ONE
- * checkbox — roughly ABDM's first declaration, expanded. Items 2 to 7 did not
- * exist. That mattered beyond an assessor's checklist: items 3 and 4 are the
- * patient-facing basis for linking records to their ABHA, which the product
- * does automatically on finalisation. No patient had ever been shown those
- * sentences.
- *
- * THE THREE PUBLISHED REQUIREMENTS, AND WHERE EACH IS HANDLED
- *
- *  1. "Private entities must remove the word 'government' from the consent."
- *     ABDM's items 3 and 5 contain it — "legacy (past) government health
- *     records", "my government health records". We are a private integrator,
- *     so both are stripped below. (An earlier audit recorded this as satisfied
- *     because the word was absent; it was absent only because those two items
- *     were absent.)
- *
- *  2. "Ensure that the second point is unchecked when ABHA is being created
- *     using Aadhaar." Item 2 is the "other than Aadhaar" branch selector. It is
- *     rendered — an assessor comparing screens should see seven items — and it
- *     is never pre-checked. Ticking it is how a user leaves the Aadhaar route,
- *     so it is wired to `onChooseOtherDocument` where that route exists.
- *
- *  3. "The beneficiary's name should reflect the patient's name dynamically."
- *     Items 6 and 7 carry names: the healthcare worker's, taken from the
- *     logged-in user, and the beneficiary's, passed in. Neither is typed by
- *     hand — a name someone can edit is not an attestation.
- *
- * NOT IN SCOPE (ABDM marks both "advised", not mandatory): the double-screen
- * setup with one display facing the patient, and rendering the consent in the
- * local language.
- */
+import { Check, AlertCircle } from "lucide-react";
 
 export type ConsentVariant =
     /** Creating a new ABHA via Aadhaar. The full published consent. */
@@ -47,27 +10,20 @@ export type ConsentVariant =
     /**
      * Any other Aadhaar-OTP flow — downloading a card, linking an ABHA that
      * already exists.
-     *
-     * A narrower set on purpose. The published consent governs *creation*:
-     * items 2, 3 and 5 speak about creating an account and about linking
-     * legacy records, and neither is true when someone is downloading their
-     * card. Showing them would be asking for agreement to something that is
-     * not happening. What still applies is the Aadhaar authentication itself
-     * and the two attestations.
      */
     | "aadhaar-authentication";
 
-interface AbhaConsentPanelProps {
+export interface AbhaConsentPanelProps {
     checked: boolean;
     onChange: (checked: boolean) => void;
     disabled?: boolean;
     variant?: ConsentVariant;
-    /** The patient's name, for item 7. Falls back to a neutral placeholder. */
+    /** The patient's name, for item 7. If empty or not provided, an optional inline input field is shown. */
     beneficiaryName?: string;
+    /** Callback when the user enters or changes the optional beneficiary name manually. */
+    onBeneficiaryNameChange?: (name: string) => void;
     /**
-     * Called when the user ticks item 2 — "using a document other than
-     * Aadhaar". Omit where there is no such route; the item then renders
-     * unchecked and inert, which is what the requirement asks for anyway.
+     * Called when the user ticks item 2 — "using a document other than Aadhaar".
      */
     onChooseOtherDocument?: () => void;
 }
@@ -91,8 +47,7 @@ const OTHER_DOCUMENT_DECLARATION =
     "Ayushman Bharat Health Account address (“ABHA Address”) using document other " +
     "than Aadhaar.";
 
-// Items 3 and 5 as published say "government health records". Stripped here —
-// requirement (1). The rest is verbatim.
+// Items 3 and 5 as published say "government health records". Stripped here for private entities.
 const LINKING_DECLARATION =
     "I consent to usage of my ABHA address and ABHA number for linking of my legacy " +
     "(past) health records and those which will be generated during this encounter.";
@@ -106,83 +61,233 @@ const ANONYMISATION_DECLARATION =
     "health purposes.";
 
 export function AbhaConsentPanel({
-    checked,
+    checked: _checked,
     onChange,
     disabled = false,
     variant = "abha-creation",
     beneficiaryName,
+    onBeneficiaryNameChange,
     onChooseOtherDocument,
 }: AbhaConsentPanelProps) {
-    // The worker attests in their own name, so it comes from the session rather
-    // than a prop — ABDM's wording is explicit that it depends on "the username
-    // used for logging in into the system".
-    // `userDetails` rather than `user`: the login response carries no name,
-    // and it is fetched separately on session restore.
     const workerName = useAppSelector((state) => state.auth.userDetails?.full_name);
-
     const creating = variant === "abha-creation";
-    const beneficiary = beneficiaryName?.trim() || "the beneficiary named above";
+
+    // Internal state for each declaration checkbox: NOT pre-selected by default
+    const [item1, setItem1] = useState(false);
+    const [item2, setItem2] = useState(false); // Optional
+    const [item3, setItem3] = useState(false);
+    const [item4, setItem4] = useState(false);
+    const [item5, setItem5] = useState(false);
+    const [item6, setItem6] = useState(false);
+    const [item7, setItem7] = useState(false);
+
+    // Optional manual beneficiary name state if not passed from parent
+    const [manualBeneficiaryName, setManualBeneficiaryName] = useState("");
+
+    const effectiveName = beneficiaryName?.trim() || manualBeneficiaryName.trim();
+    const beneficiaryDisplayName = effectiveName || "the beneficiary named above";
+    const showManualNameField = !beneficiaryName?.trim();
+
+    // Check whether all mandatory checkboxes are selected (Item 2 is optional)
+    const isAllMandatoryChecked = creating
+        ? Boolean(item1 && item3 && item4 && item5 && item6 && item7)
+        : Boolean(item1 && item6 && item7);
+
+    const requiredCount = creating ? 6 : 3;
+    const checkedRequiredCount = creating
+        ? [item1, item3, item4, item5, item6, item7].filter(Boolean).length
+        : [item1, item6, item7].filter(Boolean).length;
+
+    const handleToggleItem = (itemNum: 1 | 2 | 3 | 4 | 5 | 6 | 7) => {
+        if (disabled) return;
+        if (itemNum === 2 && onChooseOtherDocument) {
+            onChooseOtherDocument();
+            return;
+        }
+
+        const next1 = itemNum === 1 ? !item1 : item1;
+        const next2 = itemNum === 2 ? !item2 : item2;
+        const next3 = itemNum === 3 ? !item3 : item3;
+        const next4 = itemNum === 4 ? !item4 : item4;
+        const next5 = itemNum === 5 ? !item5 : item5;
+        const next6 = itemNum === 6 ? !item6 : item6;
+        const next7 = itemNum === 7 ? !item7 : item7;
+
+        if (itemNum === 1) setItem1(next1);
+        if (itemNum === 2) setItem2(next2);
+        if (itemNum === 3) setItem3(next3);
+        if (itemNum === 4) setItem4(next4);
+        if (itemNum === 5) setItem5(next5);
+        if (itemNum === 6) setItem6(next6);
+        if (itemNum === 7) setItem7(next7);
+
+        const allMandatory = creating
+            ? Boolean(next1 && next3 && next4 && next5 && next6 && next7)
+            : Boolean(next1 && next6 && next7);
+
+        onChange(allMandatory);
+    };
+
+    const handleToggleAllMandatory = () => {
+        if (disabled) return;
+        const target = !isAllMandatoryChecked;
+        setItem1(target);
+        setItem3(target);
+        setItem4(target);
+        setItem5(target);
+        setItem6(target);
+        setItem7(target);
+
+        const allMandatory = target;
+        onChange(allMandatory);
+    };
 
     return (
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold text-slate-700">I hereby declare that:</p>
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-xs font-semibold text-slate-800">I hereby declare that:</p>
+                    <p className="text-[11px] text-slate-500">
+                        {checkedRequiredCount} of {requiredCount} required declarations selected
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={handleToggleAllMandatory}
+                    disabled={disabled}
+                    className="rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-50 transition-colors shadow-2xs"
+                >
+                    {isAllMandatoryChecked ? "Deselect All" : "Select All Required"}
+                </button>
+            </div>
 
-            <div className="max-h-64 space-y-2.5 overflow-y-auto pr-1">
-                <ConsentItem checked disabled text={AADHAAR_DECLARATION} />
+            <div className="space-y-2.5">
+                {/* 1. Aadhaar Declaration (Mandatory) */}
+                <ConsentItem
+                    checked={item1}
+                    disabled={disabled}
+                    onToggle={() => handleToggleItem(1)}
+                    required
+                    text={AADHAAR_DECLARATION}
+                />
 
+                {/* 2. Other Document (Optional) */}
                 {creating && (
                     <ConsentItem
-                        // Requirement (2): never pre-checked on the Aadhaar route.
-                        checked={false}
-                        disabled={disabled || !onChooseOtherDocument}
-                        onToggle={onChooseOtherDocument}
+                        checked={item2}
+                        disabled={disabled}
+                        onToggle={() => handleToggleItem(2)}
+                        optional
                         text={
                             OTHER_DOCUMENT_DECLARATION +
-                            (onChooseOtherDocument ? " (Tick to proceed that way instead.)" : "")
+                            (onChooseOtherDocument ? " (Click to switch to other document registration.)" : "")
                         }
                     />
                 )}
 
-                {creating && <ConsentItem checked disabled text={LINKING_DECLARATION} />}
-                {creating && <ConsentItem checked disabled text={SHARING_DECLARATION} />}
-                {creating && <ConsentItem checked disabled text={ANONYMISATION_DECLARATION} />}
-            </div>
+                {/* 3. Linking Declaration (Mandatory) */}
+                {creating && (
+                    <ConsentItem
+                        checked={item3}
+                        disabled={disabled}
+                        onToggle={() => handleToggleItem(3)}
+                        required
+                        text={LINKING_DECLARATION}
+                    />
+                )}
 
-            {/* Items 6 and 7 — the two the staff member and the patient actually
-                act on. Kept outside the scroll area so they cannot be missed. */}
-            <div className="space-y-2 border-t border-slate-200 pt-3">
-                <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-700">
+                {/* 4. Sharing Declaration (Mandatory) */}
+                {creating && (
+                    <ConsentItem
+                        checked={item4}
+                        disabled={disabled}
+                        onToggle={() => handleToggleItem(4)}
+                        required
+                        text={SHARING_DECLARATION}
+                    />
+                )}
+
+                {/* 5. Anonymisation Declaration (Mandatory) */}
+                {creating && (
+                    <ConsentItem
+                        checked={item5}
+                        disabled={disabled}
+                        onToggle={() => handleToggleItem(5)}
+                        required
+                        text={ANONYMISATION_DECLARATION}
+                    />
+                )}
+
+                {/* 6. Staff Declaration (Mandatory) */}
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-700 pt-1 border-t border-slate-200">
                     <input
                         type="checkbox"
-                        checked={checked}
-                        onChange={(e) => onChange(e.target.checked)}
+                        checked={item6}
+                        onChange={() => handleToggleItem(6)}
                         disabled={disabled}
-                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:cursor-not-allowed"
                     />
                     <span>
                         I,{" "}
-                        <strong className="font-semibold">
+                        <strong className="font-semibold text-slate-900">
                             {workerName || "the logged-in user"}
                         </strong>
-                        , confirm that I have duly informed and explained the beneficiary of
-                        the contents of consent for aforementioned purposes.
+                        , confirm that I have duly informed and explained the beneficiary of the
+                        contents of consent for aforementioned purposes. <span className="text-red-500 font-semibold">*</span>
                     </span>
                 </label>
 
-                <label className="flex items-start gap-2 text-xs text-slate-600">
+                {/* 7. Beneficiary Consent (Mandatory with inline name input) */}
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-700">
                     <input
                         type="checkbox"
-                        checked
-                        disabled
-                        readOnly
-                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        checked={item7}
+                        onChange={() => handleToggleItem(7)}
+                        disabled={disabled}
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:cursor-not-allowed"
                     />
-                    <span>
-                        I, <strong className="font-semibold">{beneficiary}</strong>, have been
-                        explained about the consent as stated above and hereby provide my
-                        consent for the aforementioned purposes.
+                    <span className="leading-relaxed">
+                        I,{" "}
+                        {showManualNameField ? (
+                            <input
+                                id="beneficiary-name-manual"
+                                type="text"
+                                value={manualBeneficiaryName}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setManualBeneficiaryName(val);
+                                    onBeneficiaryNameChange?.(val);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                disabled={disabled}
+                                placeholder="Beneficiary name (optional)"
+                                className="inline-block mx-1 my-0.5 w-44 sm:w-52 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-500 align-baseline font-medium"
+                            />
+                        ) : (
+                            <strong className="font-semibold text-slate-900">
+                                {beneficiaryDisplayName}
+                            </strong>
+                        )}
+                        , have been explained about the consent as stated above and hereby provide
+                        my consent for the aforementioned purposes. <span className="text-red-500 font-semibold">*</span>
                     </span>
                 </label>
+            </div>
+
+            {/* Validation status badge */}
+            <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                {isAllMandatoryChecked ? (
+                    <p className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                        Consent declarations accepted
+                    </p>
+                ) : (
+                    <p className="text-amber-700 font-medium flex items-center gap-1.5">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                        Please check all required declarations (*) to enable OTP
+                    </p>
+                )}
             </div>
         </div>
     );
@@ -190,30 +295,37 @@ export function AbhaConsentPanel({
 
 function ConsentItem({
     checked,
-    disabled,
+    disabled = false,
     text,
     onToggle,
+    required = false,
+    optional = false,
 }: {
     checked: boolean;
-    disabled: boolean;
+    disabled?: boolean;
     text: string;
-    onToggle?: () => void;
+    onToggle: () => void;
+    required?: boolean;
+    optional?: boolean;
 }) {
     return (
         <label
-            className={`flex items-start gap-2 text-[11px] leading-relaxed text-slate-600 ${
-                onToggle && !disabled ? "cursor-pointer" : ""
+            className={`flex items-start gap-2 text-[11px] leading-relaxed text-slate-600 select-none ${
+                !disabled ? "cursor-pointer" : "opacity-60 cursor-not-allowed"
             }`}
         >
             <input
                 type="checkbox"
                 checked={checked}
-                readOnly={!onToggle}
                 disabled={disabled}
-                onChange={() => onToggle?.()}
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                onChange={onToggle}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:cursor-not-allowed"
             />
-            <span>{text}</span>
+            <span>
+                {text}
+                {required && <span className="text-red-500 font-semibold ml-0.5">*</span>}
+                {optional && <span className="text-slate-400 text-[10px] ml-1">(Optional)</span>}
+            </span>
         </label>
     );
 }

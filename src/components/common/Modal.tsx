@@ -52,7 +52,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md", closeOnOu
         className={`w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl scrollbar-hide ${contentClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 md:py-4">
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6 md:py-4">
           {typeof title === "string" ? (
             <h2 className="text-base font-semibold text-slate-900 md:text-lg">{title}</h2>
           ) : (

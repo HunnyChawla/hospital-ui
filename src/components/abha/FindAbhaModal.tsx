@@ -211,16 +211,25 @@ export function FindAbhaModal({ isOpen, onClose, onFound }: FindAbhaModalProps) 
                             <div className="relative mt-1">
                                 <input
                                     id="find-abha-value"
-                                    type={searchBy === "aadhaar" && !showAadhaar ? "password" : "text"}
+                                    name="find_abha_value"
+                                    type="text"
                                     inputMode="numeric"
                                     maxLength={searchBy === "aadhaar" ? 14 : 10}
                                     value={searchBy === "aadhaar" ? formatAadhaarDisplay(value) : value}
                                     onChange={(e) =>
                                         setValue(e.target.value.replace(/\D/g, "").slice(0, expectedLength))
                                     }
-                                    placeholder={searchBy === "mobile" ? "9876543210" : showAadhaar ? "1234 5678 9012" : "•••• •••• ••••"}
+                                    placeholder={searchBy === "mobile" ? "Enter 10-digit mobile number" : "Enter 12-digit Aadhaar number"}
                                     autoComplete="off"
-                                    className={`w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm font-mono focus:border-sky-500 focus:ring-1 focus:ring-sky-500 ${
+                                    data-lpignore="true"
+                                    data-1p-ignore="true"
+                                    data-bwignore="true"
+                                    style={
+                                        {
+                                            WebkitTextSecurity: searchBy === "aadhaar" && !showAadhaar ? "disc" : "none",
+                                        } as React.CSSProperties
+                                    }
+                                    className={`w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm font-mono placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 ${
                                         searchBy === "aadhaar" ? "pr-10 tracking-wider" : ""
                                     }`}
                                 />
