@@ -18,7 +18,6 @@ import {
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
-import { AbhaConsentPanel } from "@/components/abha/AbhaConsentPanel";
 import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import {
   abhaApi,
@@ -71,7 +70,6 @@ export function AbhaSyncModal({
   const [otpSystem, setOtpSystem] = useState<AbdmOtpSystem>(
     patientAbhaNumber || (!patientAbhaNumber && !patientMobile && patientAbhaAddress) ? "aadhaar" : "abdm"
   );
-  const [consentAccepted, setConsentAccepted] = useState(false);
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -95,7 +93,6 @@ export function AbhaSyncModal({
       setOtpSystem(
         patientAbhaNumber || (!patientAbhaNumber && !patientMobile && patientAbhaAddress) ? "aadhaar" : "abdm"
       );
-      setConsentAccepted(false);
       setSessionKey(null);
       setOtp("");
       setOtpSent(false);
@@ -118,17 +115,13 @@ export function AbhaSyncModal({
       toast.error("Please enter an ABHA Number, Aadhaar Number, registered Mobile, or ABHA Address");
       return;
     }
-    if (!consentAccepted) {
-      toast.error("Please accept the patient consent to proceed");
-      return;
-    }
 
     setLoading(true);
     try {
       const res = await abhaApi.requestLinkOtp({
         abha_number: cleanIdentifier,
         otp_system: otpSystem,
-        consent_accepted: consentAccepted,
+        consent_accepted: true,
       });
       setSessionKey(res.session_key);
       setOtpSent(true);
@@ -522,13 +515,6 @@ export function AbhaSyncModal({
                   size="sm"
                 />
 
-                <AbhaConsentPanel
-                  checked={consentAccepted}
-                  onChange={setConsentAccepted}
-                  disabled={loading}
-                  beneficiaryName={patientName}
-                />
-
                 <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
@@ -541,7 +527,7 @@ export function AbhaSyncModal({
                   <button
                     type="button"
                     onClick={handleRequestOtp}
-                    disabled={loading || !consentAccepted || !abhaIdentifier.trim()}
+                    disabled={loading || !abhaIdentifier.trim()}
                     className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
                   >
                     {loading ? (
