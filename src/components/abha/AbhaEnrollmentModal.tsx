@@ -196,8 +196,7 @@ export function AbhaEnrollmentModal({
 
   // Address Selection State
   const [cmId, setCmId] = useState<string>(ABDM_X_CM_ID || "sbx");
-  const [existingAbhaAddress, setExistingAbhaAddress] = useState<string | null>(null);
-  const [addressChoiceMode, setAddressChoiceMode] = useState<"existing" | "suggested" | "custom">("suggested");
+  const [isCustomAddress, setIsCustomAddress] = useState(false);
   const [suggestedAddresses, setSuggestedAddresses] = useState<string[]>([]);
   const [fetchingSuggestions, setFetchingSuggestions] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<string>("");
@@ -265,8 +264,7 @@ export function AbhaEnrollmentModal({
     setLinkAccounts([]);
     setShowAccountSelection(false);
     setSelectedLinkAccount(null);
-    setExistingAbhaAddress(null);
-    setAddressChoiceMode("suggested");
+    setIsCustomAddress(false);
     setSuggestedAddresses([]);
     setFetchingSuggestions(false);
     setSelectedAddress("");
@@ -829,10 +827,7 @@ export function AbhaEnrollmentModal({
       if (suggestions && suggestions.length > 0) {
         const cleaned = suggestions.map((a) => a.split("@")[0]);
         setSuggestedAddresses(cleaned);
-        if (!existingAbhaAddress) {
-          setAddressChoiceMode((prev) => (prev === "custom" && !customAddress ? "suggested" : prev));
-          setSelectedAddress((prev) => prev || cleaned[0] || "");
-        }
+        setSelectedAddress((prev) => prev || cleaned[0] || "");
       }
     } catch (err) {
       console.warn("ABDM address suggestions fetch failed:", err);
@@ -846,27 +841,27 @@ export function AbhaEnrollmentModal({
     if (res.cm_id) setCmId(res.cm_id);
     const effectiveSessionKey = res.session_key || sessionKey;
 
-    // Detect if the profile already has an existing ABHA address registered
-    const existingAddr = res.profile?.abha_address || null;
-    setExistingAbhaAddress(existingAddr);
+    // Linking existing ABHA or existing account with pre-set address skips address creation
+    if (activeTab === "link_existing" || (!res.is_new_abha && res.profile?.abha_address)) {
+      setResultProfile(res.profile || null);
+      setResultSessionKey(effectiveSessionKey);
+      setShowAddressSelection(false);
+      toast.success(res.message || "ABHA profile retrieved successfully");
+      if (effectiveSessionKey) void runLinkPrecheck(effectiveSessionKey, res.profile || null);
+      return;
+    }
 
+    // Enrollment flows (Aadhaar OTP / DL): Proceed to Address Selection step for new ABHA
     const suggestions = (res.suggested_addresses || []).map((addr) => addr.split("@")[0]);
     setSuggestedAddresses(suggestions);
 
-    if (existingAddr) {
-      // Patient already has an ABHA address -> Default to keeping existing address
-      setAddressChoiceMode("existing");
-      const defaultSuggestion = suggestions[0] || existingAddr.split("@")[0] || "";
-      setSelectedAddress(defaultSuggestion);
-    } else if (suggestions.length > 0) {
-      // Brand new ABHA creation with suggestions -> Default to first suggestion
-      setAddressChoiceMode("suggested");
+    if (suggestions.length > 0) {
+      setIsCustomAddress(false);
       const rawDefault = res.auto_selected_address || suggestions[0] || "";
       const defaultAddr = rawDefault.split("@")[0];
       setSelectedAddress(defaultAddr);
     } else {
-      // Brand new ABHA without suggestions -> Default to custom address
-      setAddressChoiceMode("custom");
+      setIsCustomAddress(true);
       setSelectedAddress("");
     }
 
@@ -883,21 +878,7 @@ export function AbhaEnrollmentModal({
 
   const handleConfirmAddress = async () => {
     const effectiveSessionKey = resultSessionKey || sessionKey;
-
-    if (addressChoiceMode === "existing" && existingAbhaAddress) {
-      // User chose to retain current ABHA address
-      const cleanExisting = existingAbhaAddress.trim();
-      const updatedProfile = resultProfile ? { ...resultProfile, abha_address: cleanExisting } : null;
-      if (updatedProfile) setResultProfile(updatedProfile);
-      setShowAddressSelection(false);
-      toast.success(`Current ABHA address retained: ${cleanExisting}`);
-      if (effectiveSessionKey) {
-        void runLinkPrecheck(effectiveSessionKey, updatedProfile);
-      }
-      return;
-    }
-
-    const rawTarget = addressChoiceMode === "custom" ? customAddress.trim() : selectedAddress.trim();
+    const rawTarget = isCustomAddress ? customAddress.trim() : selectedAddress.trim();
     if (!effectiveSessionKey || !rawTarget) {
       toast.error("Please select or enter an ABHA address");
       return;
@@ -907,7 +888,7 @@ export function AbhaEnrollmentModal({
     const cleanTarget = rawTarget.toLowerCase().replace(/\s+/g, "");
     const handleOnly = cleanTarget.split("@")[0];
 
-    if (addressChoiceMode === "custom") {
+    if (isCustomAddress) {
       const validation = validateAbhaAddress(handleOnly);
       if (!validation.isValid) {
         toast.error(validation.error || "Please enter a valid custom ABHA address");
@@ -1256,179 +1237,80 @@ export function AbhaEnrollmentModal({
             <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-800">
               <div className="flex items-center gap-2 font-semibold">
                 <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span>
-                  {existingAbhaAddress
-                    ? `ABHA Profile Verified: ${resultProfile.abha_number || "Linked"}`
-                    : `ABHA Number Created: ${resultProfile.abha_number || "Generated"}`}
-                </span>
+                <span>ABHA Number Created: {resultProfile.abha_number || "Generated"}</span>
               </div>
               <p className="text-xs mt-1 text-emerald-700">
-                {existingAbhaAddress
-                  ? "This profile has a registered ABHA address. You can continue using this address, choose from suggestions, or create a custom address."
-                  : "Please select or create an ABHA address for this profile. You can choose one of the suggestions or create a custom one below."}
+                Please select or create an ABHA address for this profile. You can choose one of the suggestions or create a custom one below.
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <label className="block text-sm font-medium text-slate-700">
                 Select or Create ABHA Address
               </label>
 
-              {/* Option 1: Current / Existing ABHA Address */}
-              {existingAbhaAddress && (
-                <div
-                  onClick={() => {
-                    setAddressChoiceMode("existing");
-                  }}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    addressChoiceMode === "existing"
-                      ? "border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500 shadow-xs"
-                      : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="abha_address_choice_mode"
-                      value="existing"
-                      checked={addressChoiceMode === "existing"}
-                      onChange={() => {
-                        setAddressChoiceMode("existing");
-                      }}
-                      className="h-4 w-4 mt-0.5 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 text-sm">
-                          {existingAbhaAddress.includes("@")
-                            ? existingAbhaAddress
-                            : `${existingAbhaAddress}@${cmId || "sbx"}`}
-                        </span>
-                        <span className="text-[11px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                          Current Address
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Keep using your existing registered ABHA address
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              )}
-
-              {/* Option 2: Suggested ABHA Addresses */}
+              {/* Suggestions List */}
               {(suggestedAddresses.length > 0 || fetchingSuggestions) && (
-                <div
-                  className={`p-3.5 rounded-xl border transition-all ${
-                    addressChoiceMode === "suggested"
-                      ? "border-emerald-500 bg-emerald-50/20 ring-1 ring-emerald-500 shadow-xs"
-                      : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <label
-                    className="flex items-center gap-3 cursor-pointer"
-                    onClick={() => {
-                      setAddressChoiceMode("suggested");
-                      if (!selectedAddress && suggestedAddresses[0]) {
-                        setSelectedAddress(suggestedAddresses[0]);
-                      }
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="abha_address_choice_mode"
-                      value="suggested"
-                      checked={addressChoiceMode === "suggested"}
-                      onChange={() => {
-                        setAddressChoiceMode("suggested");
-                        if (!selectedAddress && suggestedAddresses[0]) {
-                          setSelectedAddress(suggestedAddresses[0]);
-                        }
-                      }}
-                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                    />
-                    <span className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                      Choose from Suggested Addresses
-                      {fetchingSuggestions && (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
-                      )}
-                    </span>
-                  </label>
-
-                  {addressChoiceMode === "suggested" && (
-                    <div className="mt-3 pl-7 space-y-2 max-h-44 overflow-y-auto">
-                      {fetchingSuggestions && suggestedAddresses.length === 0 ? (
-                        <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                          <span>Fetching suggestions from ABDM...</span>
-                        </div>
-                      ) : (
-                        suggestedAddresses.map((addr, idx) => {
-                          const handle = addr.split("@")[0];
-                          const isSelected = selectedAddress === handle;
-                          return (
-                            <label
-                              key={addr}
-                              className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                                isSelected
-                                  ? "border-emerald-500 bg-emerald-50 text-emerald-950 font-medium"
-                                  : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="abha_suggested_handle"
-                                value={handle}
-                                checked={isSelected}
-                                onChange={() => setSelectedAddress(handle)}
-                                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                              />
-                              <span className="text-sm font-medium text-slate-900">
-                                {handle}@{cmId || "sbx"}
-                              </span>
-                              {idx === 0 && (
-                                <span className="text-[11px] bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded-full ml-auto">
-                                  Recommended
-                                </span>
-                              )}
-                            </label>
-                          );
-                        })
-                      )}
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-3">
+                  {fetchingSuggestions && suggestedAddresses.length === 0 ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                      <span>Fetching suggestions from ABDM...</span>
                     </div>
+                  ) : (
+                    suggestedAddresses.map((addr, idx) => {
+                      const handle = addr.split("@")[0];
+                      return (
+                        <label
+                          key={addr}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            !isCustomAddress && selectedAddress === handle
+                              ? "border-emerald-500 bg-emerald-50/50"
+                              : "border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="abha_address_choice"
+                            value={handle}
+                            checked={!isCustomAddress && selectedAddress === handle}
+                            onChange={() => {
+                              setIsCustomAddress(false);
+                              setSelectedAddress(handle);
+                            }}
+                            className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                          />
+                          <span className="font-medium text-slate-900 text-sm">
+                            {handle}@{cmId || "sbx"}
+                          </span>
+                          {idx === 0 && (
+                            <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded-full ml-auto">
+                              Recommended
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
                   )}
                 </div>
               )}
 
-              {/* Option 3: Custom Address Option */}
+              {/* Custom Address Option */}
               <div
-                className={`p-3.5 rounded-xl border transition-all ${
-                  addressChoiceMode === "custom"
-                    ? "border-emerald-500 bg-emerald-50/20 ring-1 ring-emerald-500 shadow-xs"
+                className={`p-3.5 rounded-xl border transition-colors ${
+                  isCustomAddress
+                    ? "border-emerald-500 bg-emerald-50/30"
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
               >
-                <label
-                  className="flex items-center gap-3 cursor-pointer"
-                  onClick={() => {
-                    setAddressChoiceMode("custom");
-                    if (!customAddress && suggestedAddresses[0]) {
-                      const initHandle = suggestedAddresses[0]
-                        .split("@")[0]
-                        .toLowerCase()
-                        .replace(/[^a-z0-9._]/g, "")
-                        .slice(0, 18);
-                      setCustomAddress(initHandle);
-                    }
-                  }}
-                >
+                <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
-                    name="abha_address_choice_mode"
+                    name="abha_address_choice"
                     value="custom"
-                    checked={addressChoiceMode === "custom"}
+                    checked={isCustomAddress}
                     onChange={() => {
-                      setAddressChoiceMode("custom");
+                      setIsCustomAddress(true);
                       if (!customAddress && suggestedAddresses[0]) {
                         const initHandle = suggestedAddresses[0]
                           .split("@")[0]
@@ -1440,12 +1322,12 @@ export function AbhaEnrollmentModal({
                     }}
                     className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
                   />
-                  <span className="text-sm font-semibold text-slate-900">
-                    Create Custom ABHA Address
+                  <span className="text-sm font-medium text-slate-900">
+                    Create custom ABHA address
                   </span>
                 </label>
 
-                {addressChoiceMode === "custom" && (
+                {isCustomAddress && (
                   <div className="mt-3 pl-7 space-y-3">
                     {/* Custom Address Input with Suffix */}
                     <div>
@@ -1643,20 +1525,12 @@ export function AbhaEnrollmentModal({
                 onClick={handleConfirmAddress}
                 disabled={
                   loading ||
-                  (addressChoiceMode === "custom"
-                    ? !customAddressValidation.isValid
-                    : addressChoiceMode === "suggested"
-                    ? !selectedAddress
-                    : !existingAbhaAddress)
+                  (isCustomAddress ? !customAddressValidation.isValid : !selectedAddress)
                 }
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>
-                  {addressChoiceMode === "existing"
-                    ? "Use Current Address & Continue"
-                    : "Confirm ABHA Address"}
-                </span>
+                <span>Confirm Address</span>
               </button>
             </div>
           </div>
