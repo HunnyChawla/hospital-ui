@@ -232,6 +232,28 @@ export const labBookingsApi = {
     const response = await apiClient.get<PatientWithPendingTestsResponse>(url);
     return response.data;
   },
+
+  async getReportPdf(bookingId: string, tenantId?: string): Promise<Blob> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get(`/lab-bookings/${bookingId}/report-pdf`, {
+      params,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  async downloadReportPdf(bookingId: string, filename?: string, tenantId?: string): Promise<void> {
+    const blob = await this.getReportPdf(bookingId, tenantId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || `Diagnostic-Report-${bookingId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export interface PatientWithPendingTests {
