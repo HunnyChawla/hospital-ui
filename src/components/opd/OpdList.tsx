@@ -26,10 +26,12 @@ import autoTable from "jspdf-autotable";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PrescribedLabBookingModal } from "../lab-bookings/PrescribedLabBookingModal";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
+import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { Beaker } from "lucide-react";
 
 interface OpdListProps {
   doctorId?: string;
+  onPatientClick?: (patientId: string) => void;
 }
 
 // Print Buttons Group Component for OPD Visits
@@ -221,6 +223,7 @@ function VisitListRow({
   onPrintOpd,
   onPrintInvoice,
   onPrintPayment,
+  onPatientClick,
 }: {
   visit: Visit;
   actions: Array<{
@@ -234,6 +237,7 @@ function VisitListRow({
   onPrintOpd: () => void;
   onPrintInvoice: () => void;
   onPrintPayment: () => void;
+  onPatientClick?: (patientId: string) => void;
 }) {
   const isDilating = visit.status === "dilation_in_progress";
   const dilationOverdue = isDilating && visit.dilation_started_at &&
@@ -248,7 +252,14 @@ function VisitListRow({
 
       {/* Patient Name */}
       <div className="min-w-0 flex-1 max-w-[180px]">
-        <p className="font-semibold text-slate-900 text-sm truncate">
+        <p
+          onClick={(e) => {
+            e.stopPropagation();
+            onPatientClick?.(visit.patient_id);
+          }}
+          className="font-semibold text-slate-900 text-sm truncate hover:text-sky-600 hover:underline cursor-pointer transition-colors"
+          title="View patient details"
+        >
           {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
         </p>
         {visit.patient_mobile && (
@@ -367,6 +378,7 @@ function VisitCard({
   onPrintOpd,
   onPrintInvoice,
   onPrintPayment,
+  onPatientClick,
 }: {
   visit: Visit;
   actions: Array<{
@@ -380,6 +392,7 @@ function VisitCard({
   onPrintOpd: () => void;
   onPrintInvoice: () => void;
   onPrintPayment: () => void;
+  onPatientClick?: (patientId: string) => void;
 }) {
   const isDilating = visit.status === "dilation_in_progress";
   const dilationOverdue = isDilating && visit.dilation_started_at &&
@@ -393,7 +406,14 @@ function VisitCard({
           #{visit.token_number}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-slate-900 truncate text-base">
+          <p
+            onClick={(e) => {
+              e.stopPropagation();
+              onPatientClick?.(visit.patient_id);
+            }}
+            className="font-semibold text-slate-900 truncate text-base hover:text-sky-600 hover:underline cursor-pointer transition-colors"
+            title="View patient details"
+          >
             {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -525,13 +545,14 @@ function VisitCard({
   );
 }
 
-export function OpdList({ doctorId }: OpdListProps) {
+export function OpdList({ doctorId, onPatientClick: externalOnPatientClick }: OpdListProps) {
   // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { userRole } = usePermissions();
   const [bookingVisit, setBookingVisit] = useState<Visit | null>(null);
   // Visit whose read-only prescription is being previewed (same modal the patient detail view uses)
   const [prescriptionVisit, setPrescriptionVisit] = useState<Visit | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
   const [selectedDoctorId, setSelectedDoctorId] = useState(() => {
@@ -540,6 +561,14 @@ export function OpdList({ doctorId }: OpdListProps) {
     }
     return doctorId || "";
   });
+
+  const handlePatientClick = (patientId: string) => {
+    if (externalOnPatientClick) {
+      externalOnPatientClick(patientId);
+    } else {
+      setSelectedPatientId(patientId);
+    }
+  };
 
   // Save selected doctor to local storage
   useEffect(() => {
@@ -1457,6 +1486,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               onPrintOpd={() => handlePrintOpd(visit.id)}
               onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
               onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+              onPatientClick={handlePatientClick}
             />
           ))}
         </div>
@@ -1473,6 +1503,7 @@ export function OpdList({ doctorId }: OpdListProps) {
               onPrintOpd={() => handlePrintOpd(visit.id)}
               onPrintInvoice={() => handlePrintInvoiceClick(visit.id, visit.invoice_id!)}
               onPrintPayment={() => handlePrintPaymentReceiptClick(visit.id, visit.payment_id!, visit.invoice_id)}
+              onPatientClick={handlePatientClick}
             />
           ))}
         </div>
@@ -1634,6 +1665,14 @@ export function OpdList({ doctorId }: OpdListProps) {
           onClose={() => setPrescriptionVisit(null)}
           visitId={prescriptionVisit.id}
           patientId={prescriptionVisit.patient_id}
+        />
+      )}
+
+      {/* Patient Detail Modal */}
+      {selectedPatientId && (
+        <PatientDetailView
+          patientId={selectedPatientId}
+          onClose={() => setSelectedPatientId(null)}
         />
       )}
     </div >

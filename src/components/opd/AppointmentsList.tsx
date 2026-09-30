@@ -10,6 +10,7 @@ import { CreateOpdFromAppointmentModal } from "./CreateOpdFromAppointmentModal";
 import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play, FileText } from "lucide-react";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
+import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -20,14 +21,16 @@ import autoTable from "jspdf-autotable";
 interface AppointmentsListProps {
   doctorId?: string;
   appointmentDate?: string;
+  onPatientClick?: (patientId: string) => void;
 }
 
-export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsListProps) {
+export function AppointmentsList({ doctorId, appointmentDate, onPatientClick }: AppointmentsListProps) {
   // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const queryClient = useQueryClient();
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const [exporting, setExporting] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   // Appointment whose linked visit prescription is being previewed
   const [prescriptionAppointment, setPrescriptionAppointment] = useState<Appointment | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState(() => {
@@ -617,7 +620,18 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
                       #{appointment.token_number}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900 truncate text-base">
+                      <p
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onPatientClick) {
+                            onPatientClick(appointment.patient_id);
+                          } else {
+                            setSelectedPatientId(appointment.patient_id);
+                          }
+                        }}
+                        className="font-semibold text-slate-900 truncate text-base hover:text-sky-600 hover:underline cursor-pointer transition-colors"
+                        title="View patient details"
+                      >
                         {appointment.patient_name || `Patient ${appointment.patient_id.slice(0, 8)}...`}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -718,6 +732,14 @@ export function AppointmentsList({ doctorId, appointmentDate }: AppointmentsList
           onClose={() => setPrescriptionAppointment(null)}
           visitId={prescriptionAppointment.visit_id}
           patientId={prescriptionAppointment.patient_id}
+        />
+      )}
+
+      {/* Patient Detail Modal */}
+      {selectedPatientId && (
+        <PatientDetailView
+          patientId={selectedPatientId}
+          onClose={() => setSelectedPatientId(null)}
         />
       )}
     </div>
