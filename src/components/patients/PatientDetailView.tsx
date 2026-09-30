@@ -168,6 +168,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const [showPrescribedBookingModal, setShowPrescribedBookingModal] = useState(false);
   const [selectedPrescribedVisitId, setSelectedPrescribedVisitId] = useState<string>("");
+  const [selectedPrescribedAdmissionId, setSelectedPrescribedAdmissionId] = useState<string>("");
   const [patientPrescribedVisits, setPatientPrescribedVisits] = useState<any[]>([]);
   const [showOnlyPendingPrescribed, setShowOnlyPendingPrescribed] = useState(true);
   const [loadingPrescribedVisits, setLoadingPrescribedVisits] = useState(false);
@@ -313,20 +314,33 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
 
         <div className="space-y-2">
           {visitsToRender.map((visitItem) => {
+            const isIpd = visitItem.encounter_type === "ipd" || !!visitItem.admission_id;
+            const itemKey = visitItem.admission_id ? `ipd_${visitItem.admission_id}` : `opd_${visitItem.visit_id || Math.random()}`;
             const isFullyBooked = (visitItem.pending_test_count || 0) === 0;
 
             return (
               <div
-                key={visitItem.visit_id}
+                key={itemKey}
                 className="bg-white rounded-xl p-3 border border-amber-200/80 flex items-center justify-between text-left hover:border-amber-300 transition shadow-2xs"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 text-sm">Visit #{visitItem.visit_number}</span>
+                    <span
+                      className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                        isIpd
+                          ? "bg-purple-100 text-purple-700 border border-purple-200"
+                          : "bg-sky-100 text-sky-700 border border-sky-200"
+                      }`}
+                    >
+                      {isIpd ? "IPD" : "OPD"}
+                    </span>
+                    <span className="font-bold text-slate-900 text-sm">
+                      {isIpd ? `Admission #${visitItem.admission_number || visitItem.admission_id?.substring(0, 8)}` : `Visit #${visitItem.visit_number}`}
+                    </span>
                     <span className="text-xs text-slate-500 font-medium">({visitItem.visit_date})</span>
                   </div>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Prescribed by: <span className="font-semibold">{visitItem.doctor_name || "OPD Doctor"}</span>
+                    Prescribed by: <span className="font-semibold">{visitItem.doctor_name || (isIpd ? "Attending Doctor" : "OPD Doctor")}</span>
                   </p>
                   {isFullyBooked ? (
                     <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -342,7 +356,13 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedPrescribedVisitId(visitItem.visit_id);
+                    if (isIpd) {
+                      setSelectedPrescribedAdmissionId(visitItem.admission_id || "");
+                      setSelectedPrescribedVisitId("");
+                    } else {
+                      setSelectedPrescribedVisitId(visitItem.visit_id || "");
+                      setSelectedPrescribedAdmissionId("");
+                    }
                     setShowPrescribedBookingModal(true);
                   }}
                   className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow transition flex items-center gap-1.5 cursor-pointer"
@@ -2341,11 +2361,16 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       />
 
       {/* Prescribed Lab Tests Booking Modal */}
-      {selectedPrescribedVisitId && (
+      {(selectedPrescribedVisitId || selectedPrescribedAdmissionId) && (
         <PrescribedLabBookingModal
           isOpen={showPrescribedBookingModal}
-          onClose={() => setShowPrescribedBookingModal(false)}
-          visitId={selectedPrescribedVisitId}
+          onClose={() => {
+            setShowPrescribedBookingModal(false);
+            setSelectedPrescribedVisitId("");
+            setSelectedPrescribedAdmissionId("");
+          }}
+          visitId={selectedPrescribedVisitId || undefined}
+          admissionId={selectedPrescribedAdmissionId || undefined}
           patientId={patientId}
           patientName={patient ? formatPatientName(patient) : undefined}
           onBookingCreated={() => {

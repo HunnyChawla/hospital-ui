@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { labBookingsApi, AdvisedTest, BookAdvisedTestsRequest, PaymentMethod, TestPriority, PatientWithPendingTests, LabBooking } from "@/services/labBookingsApi";
 import { labTestsApi, PrescriptionField } from "@/services/labTestsApi";
 import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
+import { admissionsApi, Admission } from "@/services/admissionsApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList, Eye, AlertTriangle, Edit2, Receipt, Building2 } from "lucide-react";
-import { currency, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
+import { currency, formatDate, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 
 export interface PrescribedLabBookingPanelProps {
@@ -34,16 +35,104 @@ export function PrescribedLabBookingPanel({
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [selectedEncounter, setSelectedEncounter] = useState<PatientWithPendingTests | null>(null);
 
+  // Encounter link choice: "none" | "ipd" | "opd"
+  const [encounterLinkType, setEncounterLinkType] = useState<"none" | "ipd" | "opd">(
+    propAdmissionId ? "ipd" : propVisitId ? "opd" : "none"
+  );
+
+  // Patient active admission and recent visits (for switching linking if user desires)
+  const [activeAdmission, setActiveAdmission] = useState<Admission | null>(null);
+  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
+  const [checkingPatientEncounters, setCheckingPatientEncounters] = useState(false);
+
   // IPD payment option state: "ledger" = Add to IPD Ledger (Post to Bill), "collect_now" = Collect Payment Now (Generate Invoice)
   const [ipdPaymentOption, setIpdPaymentOption] = useState<"ledger" | "collect_now">("ledger");
 
-  // Determine if active encounter is an IPD encounter
-  const isIpdEncounter = Boolean(
-    propAdmissionId ||
-    selectedAdmissionId ||
-    selectedEncounter?.admission_id ||
-    selectedEncounter?.encounter_type === "ipd"
-  );
+  // Determine current active patient ID
+  const currentPatientId = isDirectMode
+    ? propPatientId || selectedVisit?.patient_id
+    : selectedEncounter?.patient_id;
+
+  // Check active IPD admission and recent OPD visits when currentPatientId changes
+  useEffect(() => {
+    if (!currentPatientId) {
+      setActiveAdmission(null);
+      setRecentVisits([]);
+      return;
+    }
+
+    let isMounted = true;
+    const loadEncounters = async () => {
+      setCheckingPatientEncounters(true);
+      try {
+        const [admissionsRes, visitsRes] = await Promise.allSettled([
+          admissionsApi.list({ patient_id: currentPatientId }),
+          opdVisitsApi.list({ patient_id: currentPatientId, page_size: 10 }),
+        ]);
+
+        if (!isMounted) return;
+
+        if (admissionsRes.status === "fulfilled") {
+          const active = (admissionsRes.value.items || []).find(
+            (a) =>
+              a.status === "ACTIVE" ||
+              a.status === "admitted" ||
+              a.status === "DISCHARGE_INITIATED" ||
+              a.status === "discharge_initiated"
+          ) || null;
+          setActiveAdmission(active);
+        } else {
+          setActiveAdmission(null);
+        }
+
+        if (visitsRes.status === "fulfilled") {
+          setRecentVisits(visitsRes.value.items || []);
+        } else {
+          setRecentVisits([]);
+        }
+      } catch (err) {
+        console.error("Failed to load patient encounters for linking:", err);
+      } finally {
+        if (isMounted) setCheckingPatientEncounters(false);
+      }
+    };
+
+    loadEncounters();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPatientId]);
+
+  const availableAdmission =
+    activeAdmission ||
+    (selectedEncounter?.admission_id
+      ? {
+          id: selectedEncounter.admission_id,
+          admission_number: selectedEncounter.admission_number,
+        }
+      : propAdmissionId
+      ? { id: propAdmissionId, admission_number: undefined }
+      : null);
+
+  const hasIpdOption = Boolean(availableAdmission);
+
+  const availableOpdVisit =
+    selectedVisit ||
+    (selectedEncounter?.visit_id
+      ? {
+          id: selectedEncounter.visit_id,
+          visit_number: selectedEncounter.visit_number,
+          visit_date: selectedEncounter.visit_date,
+        }
+      : propVisitId
+      ? { id: propVisitId, visit_number: undefined }
+      : null) ||
+    (recentVisits.length > 0 ? recentVisits[0] : null);
+
+  const hasOpdOption = Boolean(availableOpdVisit);
+
+  const isIpdBilling = encounterLinkType === "ipd";
+  const shouldCollectPayment = !isIpdBilling || ipdPaymentOption === "collect_now";
 
   // Standalone mode state: Pending patients and date filters
   const [pendingPatients, setPendingPatients] = useState<PatientWithPendingTests[]>([]);
@@ -136,6 +225,7 @@ export function PrescribedLabBookingPanel({
           setSelectedEncounter(null);
           setSelectedVisitId("");
           setSelectedAdmissionId("");
+          setEncounterLinkType("none");
         }
       } else if (selectedVisitId || selectedAdmissionId) {
         const stillPending = items.some(
@@ -146,6 +236,7 @@ export function PrescribedLabBookingPanel({
         if (!stillPending) {
           setSelectedVisitId("");
           setSelectedAdmissionId("");
+          setEncounterLinkType("none");
         }
       } else if (items.length > 0) {
         // Auto-select the first pending encounter so the user immediately sees the prescribed tests
@@ -154,12 +245,21 @@ export function PrescribedLabBookingPanel({
         if (first.admission_id) {
           setSelectedAdmissionId(first.admission_id);
           setSelectedVisitId("");
+          setEncounterLinkType("ipd");
           fetchAdvisedTests({ admission_id: first.admission_id });
           setIpdPaymentOption("ledger");
         } else if (first.visit_id) {
           setSelectedVisitId(first.visit_id);
           setSelectedAdmissionId("");
+          setEncounterLinkType("opd");
           fetchAdvisedTests({ visit_id: first.visit_id });
+        } else {
+          setSelectedAdmissionId("");
+          setSelectedVisitId("");
+          setEncounterLinkType("none");
+          if (first.patient_id) {
+            fetchAdvisedTests({ patient_id: first.patient_id });
+          }
         }
       }
     } catch (error) {
@@ -212,7 +312,7 @@ export function PrescribedLabBookingPanel({
   }, [selectedVisitId, isDirectMode]);
 
   // Fetch Advised Tests for the selected encounter
-  const fetchAdvisedTests = async (identifier: string | { visit_id?: string; admission_id?: string }) => {
+  const fetchAdvisedTests = async (identifier: string | { visit_id?: string; admission_id?: string; patient_id?: string }) => {
     setLoadingTests(true);
     try {
       const tests = await labBookingsApi.getAdvisedTests(identifier);
@@ -251,12 +351,23 @@ export function PrescribedLabBookingPanel({
   useEffect(() => {
     if (isDirectMode) {
       if (propAdmissionId) {
+        setSelectedAdmissionId(propAdmissionId);
+        setSelectedVisitId("");
+        setEncounterLinkType("ipd");
         fetchAdvisedTests({ admission_id: propAdmissionId });
       } else if (propVisitId) {
+        setSelectedVisitId(propVisitId);
+        setSelectedAdmissionId("");
+        setEncounterLinkType("opd");
         fetchAdvisedTests({ visit_id: propVisitId });
+      } else if (propPatientId) {
+        setSelectedAdmissionId("");
+        setSelectedVisitId("");
+        setEncounterLinkType("none");
+        fetchAdvisedTests({ patient_id: propPatientId });
       }
     }
-  }, [isDirectMode, propVisitId, propAdmissionId]);
+  }, [isDirectMode, propVisitId, propAdmissionId, propPatientId]);
 
   // Load active prescription fields for each advised test
   useEffect(() => {
@@ -481,7 +592,7 @@ export function PrescribedLabBookingPanel({
       return;
     }
 
-    const isIpd = isIpdEncounter;
+    const isIpd = isIpdBilling;
     const shouldCollectPayment = isIpd ? ipdPaymentOption === "collect_now" : true;
 
     // Payment validation only if collecting payment now
@@ -515,10 +626,20 @@ export function PrescribedLabBookingPanel({
         }
       }
 
+      const targetAdmissionId =
+        encounterLinkType === "ipd"
+          ? (availableAdmission?.id || (isDirectMode ? propAdmissionId : selectedEncounter?.admission_id) || selectedAdmissionId || undefined)
+          : undefined;
+
+      const targetVisitId =
+        encounterLinkType === "opd"
+          ? (selectedVisitId || availableOpdVisit?.id || (isDirectMode ? propVisitId : selectedEncounter?.visit_id) || undefined)
+          : undefined;
+
       const bookingReq: BookAdvisedTestsRequest = {
         patient_id: pId,
-        visit_id: isDirectMode ? (propVisitId || undefined) : (selectedEncounter?.visit_id || (selectedVisitId || undefined)),
-        admission_id: isDirectMode ? (propAdmissionId || undefined) : (selectedEncounter?.admission_id || (selectedAdmissionId || undefined)),
+        visit_id: targetVisitId,
+        admission_id: targetAdmissionId,
         scheduled_date: scheduledDate,
         priority,
         collect_payment: shouldCollectPayment,
@@ -572,7 +693,7 @@ export function PrescribedLabBookingPanel({
 
   // Direct Mode render helper
   if (isDirectMode) {
-    const isIpd = isIpdEncounter;
+    const isIpd = isIpdBilling;
     return (
       <div className="space-y-4">
         {/* Patient Details */}
@@ -583,10 +704,18 @@ export function PrescribedLabBookingPanel({
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">
-              {propAdmissionId ? "Admission ID" : "Visit ID"}
+              {encounterLinkType === "ipd"
+                ? "Admission ID"
+                : encounterLinkType === "opd"
+                ? "Visit ID"
+                : "Booking Type"}
             </p>
             <p className="font-mono text-slate-700 font-semibold">
-              {(propAdmissionId || propVisitId)?.substring(0, 8)}...
+              {encounterLinkType === "ipd"
+                ? `${(availableAdmission?.id || propAdmissionId)?.substring(0, 8)}...`
+                : encounterLinkType === "opd"
+                ? `${(availableOpdVisit?.id || propVisitId)?.substring(0, 8)}...`
+                : "Standalone"}
             </p>
           </div>
         </div>
@@ -657,65 +786,191 @@ export function PrescribedLabBookingPanel({
               </div>
             )}
 
-            {/* IPD Payment Options Selector (Only for IPD encounters) */}
-            {isIpd && (
-              <div className="col-span-2 space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                    <Receipt className="h-4 w-4 text-purple-600" /> IPD Payment & Billing Option
+            {/* Encounter Linking Choice */}
+            <div className="col-span-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4 text-sky-600" /> Link with Patient Encounter (User Choice)
+                </span>
+                {checkingPatientEncounters && (
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3 animate-spin" /> Checking encounters...
                   </span>
-                  <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
-                    Inpatient Encounter
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  <label
-                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                      ipdPaymentOption === "ledger"
-                        ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
-                        : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="direct_ipd_payment_mode"
-                      checked={ipdPaymentOption === "ledger"}
-                      onChange={() => setIpdPaymentOption("ledger")}
-                      className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
-                    />
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Add to IPD Ledger (Post to Bill)</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Charges will be added to patient's admission bill. No standalone invoice is created now.
-                      </p>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                      ipdPaymentOption === "collect_now"
-                        ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
-                        : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="direct_ipd_payment_mode"
-                      checked={ipdPaymentOption === "collect_now"}
-                      onChange={() => setIpdPaymentOption("collect_now")}
-                      className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
-                    />
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Collect Payment Now</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Collect payment immediately at lab desk & generate a separate paid invoice receipt.
-                      </p>
-                    </div>
-                  </label>
-                </div>
+                )}
               </div>
-            )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                {/* Option 1: None (Standalone) */}
+                <label
+                  className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                    encounterLinkType === "none"
+                      ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="direct_encounter_link"
+                    checked={encounterLinkType === "none"}
+                    onChange={() => setEncounterLinkType("none")}
+                    className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
+                  />
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">None (Standalone)</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                      Direct lab booking. Do not link to admission or OPD visit.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Option 2: Link with IPD */}
+                <label
+                  className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                    hasIpdOption
+                      ? encounterLinkType === "ipd"
+                        ? "border-purple-500 bg-purple-50/50 shadow-sm ring-1 ring-purple-500/20 cursor-pointer"
+                        : "border-purple-200/80 bg-white hover:border-purple-300 cursor-pointer"
+                      : "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="direct_encounter_link"
+                    disabled={!hasIpdOption}
+                    checked={encounterLinkType === "ipd"}
+                    onChange={() => {
+                      if (hasIpdOption) {
+                        setEncounterLinkType("ipd");
+                      }
+                    }}
+                    className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
+                  />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-bold text-purple-950">Link with IPD</p>
+                      {hasIpdOption && (
+                        <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-purple-100 text-purple-700">
+                          IPD
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                      {availableAdmission
+                        ? `Admission #${availableAdmission.admission_number || availableAdmission.id.substring(0, 8)}`
+                        : "No active IPD admission"}
+                    </p>
+                  </div>
+                </label>
+
+                {/* Option 3: Link with OPD */}
+                <label
+                  className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                    hasOpdOption
+                      ? encounterLinkType === "opd"
+                        ? "border-teal-500 bg-teal-50/50 shadow-sm ring-1 ring-teal-500/20 cursor-pointer"
+                        : "border-teal-200/80 bg-white hover:border-teal-300 cursor-pointer"
+                      : "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="direct_encounter_link"
+                    disabled={!hasOpdOption}
+                    checked={encounterLinkType === "opd"}
+                    onChange={() => {
+                      if (hasOpdOption) {
+                        setEncounterLinkType("opd");
+                      }
+                    }}
+                    className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500 border-slate-300"
+                  />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-bold text-teal-950">Link with OPD</p>
+                      {hasOpdOption && (
+                        <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-teal-100 text-teal-700">
+                          OPD
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                      {availableOpdVisit
+                        ? `Visit #${availableOpdVisit.visit_number || availableOpdVisit.id.substring(0, 8)}`
+                        : "No OPD visit found"}
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* If OPD is selected and multiple visits available, show dropdown */}
+              {encounterLinkType === "opd" && recentVisits.length > 1 && (
+                <div className="pt-2 border-t border-slate-200/70">
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Select OPD Visit
+                  </label>
+                  <select
+                    value={selectedVisitId}
+                    onChange={(e) => setSelectedVisitId(e.target.value)}
+                    className="w-full rounded-xl border border-teal-300 bg-white px-3 py-1.5 text-xs outline-none focus:border-teal-500 font-medium"
+                  >
+                    {recentVisits.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        Visit #{v.visit_number} — {formatDate(v.created_at)} ({v.visit_type?.replace("_", " ")})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* If IPD is selected, show IPD Payment & Billing Option */}
+              {encounterLinkType === "ipd" && (
+                <div className="pt-2 border-t border-purple-200/70 space-y-1.5">
+                  <label className="text-xs font-semibold text-purple-900 block">
+                    IPD Payment & Billing Method
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label
+                      className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        ipdPaymentOption === "ledger"
+                          ? "border-purple-500 bg-purple-100/50 shadow-2xs font-medium"
+                          : "border-slate-200 bg-white hover:border-purple-200"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="direct_ipd_payment_mode"
+                        checked={ipdPaymentOption === "ledger"}
+                        onChange={() => setIpdPaymentOption("ledger")}
+                        className="mt-0.5 h-3.5 w-3.5 text-purple-600 focus:ring-purple-500"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">Add to IPD Ledger (Post to Bill)</p>
+                        <p className="text-[10px] text-slate-500">Charges added to admission bill. No immediate invoice.</p>
+                      </div>
+                    </label>
+                    <label
+                      className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        ipdPaymentOption === "collect_now"
+                          ? "border-sky-500 bg-sky-50 shadow-2xs font-medium"
+                          : "border-slate-200 bg-white hover:border-sky-200"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="direct_ipd_payment_mode"
+                        checked={ipdPaymentOption === "collect_now"}
+                        onChange={() => setIpdPaymentOption("collect_now")}
+                        className="mt-0.5 h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">Collect Payment Now</p>
+                        <p className="text-[10px] text-slate-500">Collect payment at lab desk with separate invoice.</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Scheduled Date */}
             <div className="col-span-1 space-y-1">
@@ -949,16 +1204,26 @@ export function PrescribedLabBookingPanel({
                       key={encounterKey}
                       onClick={() => {
                         setSelectedEncounter(patient);
-                        if (patient.visit_id) {
-                          setSelectedVisitId(patient.visit_id);
-                        } else {
+                        if (patient.admission_id) {
+                          setSelectedAdmissionId(patient.admission_id);
                           setSelectedVisitId("");
                           setSelectedVisit(null);
-                        }
-                        if (patient.admission_id) {
+                          setEncounterLinkType("ipd");
                           fetchAdvisedTests({ admission_id: patient.admission_id });
                         } else if (patient.visit_id) {
+                          setSelectedVisitId(patient.visit_id);
+                          setSelectedAdmissionId("");
+                          setSelectedVisit(null);
+                          setEncounterLinkType("opd");
                           fetchAdvisedTests({ visit_id: patient.visit_id });
+                        } else {
+                          setSelectedAdmissionId("");
+                          setSelectedVisitId("");
+                          setSelectedVisit(null);
+                          setEncounterLinkType("none");
+                          if (patient.patient_id) {
+                            fetchAdvisedTests({ patient_id: patient.patient_id });
+                          }
                         }
                       }}
                       className={`p-3 rounded-xl border transition-all cursor-pointer text-left ${
@@ -1127,8 +1392,8 @@ export function PrescribedLabBookingPanel({
                           );
                         })}
                       <div className="border-t border-slate-200 my-1 pt-2 flex justify-between font-bold text-slate-900 text-base">
-                        <span>{isIpdEncounter && ipdPaymentOption === "ledger" ? "Total Charges (IPD Ledger)" : "Total Amount to Collect"}</span>
-                        <span className={isIpdEncounter && ipdPaymentOption === "ledger" ? "text-purple-600" : "text-sky-600"}>
+                        <span>{isIpdBilling && ipdPaymentOption === "ledger" ? "Total Charges (IPD Ledger)" : "Total Amount to Collect"}</span>
+                        <span className={isIpdBilling && ipdPaymentOption === "ledger" ? "text-purple-600" : "text-sky-600"}>
                           {currency(
                             advisedTests
                               .filter((t) => selectedTestIds.includes(t.lab_test_id))
@@ -1143,65 +1408,191 @@ export function PrescribedLabBookingPanel({
                   </div>
                 )}
 
-                {/* IPD Payment Options Selector (Only for IPD encounters) */}
-                {isIpdEncounter && (
-                  <div className="col-span-2 space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                        <Receipt className="h-4 w-4 text-purple-600" /> IPD Payment & Billing Option
+                {/* Encounter Linking Choice */}
+                <div className="col-span-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Building2 className="h-4 w-4 text-sky-600" /> Link with Patient Encounter (User Choice)
+                    </span>
+                    {checkingPatientEncounters && (
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <RefreshCw className="h-3 w-3 animate-spin" /> Checking encounters...
                       </span>
-                      <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
-                        Inpatient Encounter
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                      <label
-                        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                          ipdPaymentOption === "ledger"
-                            ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
-                            : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="standalone_ipd_payment_mode"
-                          checked={ipdPaymentOption === "ledger"}
-                          onChange={() => setIpdPaymentOption("ledger")}
-                          className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">Add to IPD Ledger (Post to Bill)</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Charges will be added to patient's admission bill. No standalone invoice is created now.
-                          </p>
-                        </div>
-                      </label>
-
-                      <label
-                        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                          ipdPaymentOption === "collect_now"
-                            ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
-                            : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="standalone_ipd_payment_mode"
-                          checked={ipdPaymentOption === "collect_now"}
-                          onChange={() => setIpdPaymentOption("collect_now")}
-                          className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">Collect Payment Now</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Collect payment immediately at lab desk & generate a separate paid invoice receipt.
-                          </p>
-                        </div>
-                      </label>
-                    </div>
+                    )}
                   </div>
-                )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                    {/* Option 1: None (Standalone) */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        encounterLinkType === "none"
+                          ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="standalone_encounter_link"
+                        checked={encounterLinkType === "none"}
+                        onChange={() => setEncounterLinkType("none")}
+                        className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">None (Standalone)</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                          Direct lab booking. Do not link to admission or OPD visit.
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Option 2: Link with IPD */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                        hasIpdOption
+                          ? encounterLinkType === "ipd"
+                            ? "border-purple-500 bg-purple-50/50 shadow-sm ring-1 ring-purple-500/20 cursor-pointer"
+                            : "border-purple-200/80 bg-white hover:border-purple-300 cursor-pointer"
+                          : "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="standalone_encounter_link"
+                        disabled={!hasIpdOption}
+                        checked={encounterLinkType === "ipd"}
+                        onChange={() => {
+                          if (hasIpdOption) {
+                            setEncounterLinkType("ipd");
+                          }
+                        }}
+                        className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
+                      />
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-bold text-purple-950">Link with IPD</p>
+                          {hasIpdOption && (
+                            <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-purple-100 text-purple-700">
+                              IPD
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                          {availableAdmission
+                            ? `Admission #${availableAdmission.admission_number || availableAdmission.id.substring(0, 8)}`
+                            : "No active IPD admission"}
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Option 3: Link with OPD */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                        hasOpdOption
+                          ? encounterLinkType === "opd"
+                            ? "border-teal-500 bg-teal-50/50 shadow-sm ring-1 ring-teal-500/20 cursor-pointer"
+                            : "border-teal-200/80 bg-white hover:border-teal-300 cursor-pointer"
+                          : "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="standalone_encounter_link"
+                        disabled={!hasOpdOption}
+                        checked={encounterLinkType === "opd"}
+                        onChange={() => {
+                          if (hasOpdOption) {
+                            setEncounterLinkType("opd");
+                          }
+                        }}
+                        className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500 border-slate-300"
+                      />
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-bold text-teal-950">Link with OPD</p>
+                          {hasOpdOption && (
+                            <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-teal-100 text-teal-700">
+                              OPD
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                          {availableOpdVisit
+                            ? `Visit #${availableOpdVisit.visit_number || availableOpdVisit.id.substring(0, 8)}`
+                            : "No OPD visit found"}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* If OPD is selected and multiple visits available, show dropdown */}
+                  {encounterLinkType === "opd" && recentVisits.length > 1 && (
+                    <div className="pt-2 border-t border-slate-200/70">
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        Select OPD Visit
+                      </label>
+                      <select
+                        value={selectedVisitId}
+                        onChange={(e) => setSelectedVisitId(e.target.value)}
+                        className="w-full rounded-xl border border-teal-300 bg-white px-3 py-1.5 text-xs outline-none focus:border-teal-500 font-medium"
+                      >
+                        {recentVisits.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            Visit #{v.visit_number} — {formatDate(v.created_at)} ({v.visit_type?.replace("_", " ")})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* If IPD is selected, show IPD Payment & Billing Option */}
+                  {encounterLinkType === "ipd" && (
+                    <div className="pt-2 border-t border-purple-200/70 space-y-1.5">
+                      <label className="text-xs font-semibold text-purple-900 block">
+                        IPD Payment & Billing Method
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label
+                          className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            ipdPaymentOption === "ledger"
+                              ? "border-purple-500 bg-purple-100/50 shadow-2xs font-medium"
+                              : "border-slate-200 bg-white hover:border-purple-200"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="standalone_ipd_payment_mode"
+                            checked={ipdPaymentOption === "ledger"}
+                            onChange={() => setIpdPaymentOption("ledger")}
+                            className="mt-0.5 h-3.5 w-3.5 text-purple-600 focus:ring-purple-500"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Add to IPD Ledger (Post to Bill)</p>
+                            <p className="text-[10px] text-slate-500">Charges added to admission bill. No immediate invoice.</p>
+                          </div>
+                        </label>
+                        <label
+                          className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            ipdPaymentOption === "collect_now"
+                              ? "border-sky-500 bg-sky-50 shadow-2xs font-medium"
+                              : "border-slate-200 bg-white hover:border-sky-200"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="standalone_ipd_payment_mode"
+                            checked={ipdPaymentOption === "collect_now"}
+                            onChange={() => setIpdPaymentOption("collect_now")}
+                            className="mt-0.5 h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Collect Payment Now</p>
+                            <p className="text-[10px] text-slate-500">Collect payment at lab desk with separate invoice.</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Scheduled Date */}
                 <div className="col-span-1 space-y-1">
@@ -1233,7 +1624,7 @@ export function PrescribedLabBookingPanel({
                 </div>
 
                 {/* Payment inputs only if NOT posting to IPD ledger */}
-                {(!isIpdEncounter || ipdPaymentOption === "collect_now") && (
+                {(!isIpdBilling || ipdPaymentOption === "collect_now") && (
                   <>
                     {/* Payment Method */}
                     <div className="col-span-1 space-y-1">
@@ -1288,7 +1679,7 @@ export function PrescribedLabBookingPanel({
                     type="submit"
                     disabled={isSubmitting || selectedTestIds.length === 0}
                     className={`w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isIpdEncounter && ipdPaymentOption === "ledger"
+                      isIpdBilling && ipdPaymentOption === "ledger"
                         ? "bg-gradient-to-r from-purple-600 to-indigo-600"
                         : "bg-gradient-to-r from-sky-500 to-teal-500"
                     }`}
@@ -1301,7 +1692,7 @@ export function PrescribedLabBookingPanel({
                     ) : (
                       <>
                         <Beaker className="h-4 w-4" />
-                        {isIpdEncounter && ipdPaymentOption === "ledger"
+                        {isIpdBilling && ipdPaymentOption === "ledger"
                           ? `Book & Post to IPD Ledger (${selectedTestIds.length})`
                           : `Book Selected Tests (${selectedTestIds.length})`}
                       </>

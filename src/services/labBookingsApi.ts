@@ -192,7 +192,7 @@ export const labBookingsApi = {
   },
 
   async getAdvisedTests(
-    identifier: string | { visit_id?: string; admission_id?: string },
+    identifier: string | { visit_id?: string; admission_id?: string; patient_id?: string },
     tenantId?: string
   ): Promise<AdvisedTest[]> {
     const apiTenantId = getTenantIdForApi(tenantId);
@@ -202,6 +202,7 @@ export const labBookingsApi = {
     } else {
       if (identifier.visit_id) params.visit_id = identifier.visit_id;
       if (identifier.admission_id) params.admission_id = identifier.admission_id;
+      if (identifier.patient_id) params.patient_id = identifier.patient_id;
     }
     if (apiTenantId) {
       params.tenant_id = apiTenantId;
