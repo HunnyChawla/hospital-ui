@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, Printer } from "lucide-react";
+import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, Printer, Download } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import type { LabBooking } from "@/services/labBookingsApi";
@@ -25,6 +25,7 @@ export function PreviousLabReportModal({
 }: PreviousLabReportModalProps) {
     const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
     const [results, setResults] = useState<LabTestResultItem[]>([]);
 
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -38,6 +39,21 @@ export function PreviousLabReportModal({
         contentRef: printReportRef,
         documentTitle: booking ? `LabReport_${booking.booking_number}` : "Lab_Report",
     });
+
+    const handleDownloadPdf = async () => {
+        if (!booking?.id) return;
+        try {
+            setDownloadingPdf(true);
+            await labBookingsApi.downloadReportPdf(
+                booking.id,
+                `Diagnostic_Report_${booking.booking_number || booking.id.slice(0, 8)}.pdf`
+            );
+        } catch (error) {
+            handleError(error, { defaultMessage: "Failed to download PDF report" });
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
 
     useEffect(() => {
         if (isOpen && booking) {
@@ -229,13 +245,24 @@ export function PreviousLabReportModal({
 
                 {/* Modal Footer */}
                 <div className="no-print px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex items-center justify-between">
-                    <button
-                        type="button"
-                        onClick={() => handlePrintReport()}
-                        className="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border border-sky-200"
-                    >
-                        <Printer className="h-4 w-4" /> Print Report
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => handlePrintReport()}
+                            className="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border border-sky-200"
+                        >
+                            <Printer className="h-4 w-4" /> Print
+                        </button>
+                        <button
+                            type="button"
+                            disabled={downloadingPdf}
+                            onClick={handleDownloadPdf}
+                            className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                        >
+                            {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            Download PDF
+                        </button>
+                    </div>
                     <button
                         onClick={onClose}
                         className="px-5 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold rounded-xl transition-colors cursor-pointer"

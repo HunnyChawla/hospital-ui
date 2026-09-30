@@ -6,12 +6,13 @@ import { labBookingsApi, CreateLabBookingRequest, TestPriority, PaymentMethod } 
 import { labTestsApi, LabTest } from "@/services/labTestsApi";
 import { patientsApi } from "@/services/patientsApi";
 import { admissionsApi, Admission } from "@/services/admissionsApi";
+import { opdVisitsApi, Visit } from "@/services/opdVisitsApi";
 import { Patient } from "@/types";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
-import { Calendar, Search, User, Beaker, Plus, X, Receipt, Building2 } from "lucide-react";
+import { Calendar, Search, User, Beaker, Plus, X, Receipt, Building2, Link2, Stethoscope } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
-import { currency, getTodayDateLocal } from "@/utils/format";
+import { currency, getTodayDateLocal, formatDate } from "@/utils/format";
 
 interface LabBookingFormProps {
   defaultPatientId?: string;
@@ -34,9 +35,12 @@ export function LabBookingForm({
   const [paymentReference, setPaymentReference] = useState("");
   const [selectedTests, setSelectedTests] = useState<Array<{ lab_test_id: string; test: LabTest; customPrice?: number }>>([]);
   
-  // Active IPD admission check
+  // Encounter linking choice: "none" (Standalone), "ipd" (Active Admission), "opd" (OPD Visit)
+  const [encounterLinkType, setEncounterLinkType] = useState<"none" | "ipd" | "opd">("none");
   const [activeAdmission, setActiveAdmission] = useState<Admission | null>(null);
-  const [checkingAdmission, setCheckingAdmission] = useState(false);
+  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
+  const [selectedVisitId, setSelectedVisitId] = useState<string>("");
+  const [checkingEncounters, setCheckingEncounters] = useState(false);
   const [ipdPaymentOption, setIpdPaymentOption] = useState<"ledger" | "collect_now">("ledger");
 
   // Patient search
@@ -74,39 +78,62 @@ export function LabBookingForm({
     }
   }, [defaultPatientId, patients]);
 
-  // Check active IPD admission when patientId changes
+  // Check active IPD admission and recent OPD visits when patientId changes
   useEffect(() => {
     if (!patientId) {
       setActiveAdmission(null);
+      setRecentVisits([]);
+      setEncounterLinkType("none");
+      setSelectedVisitId("");
       return;
     }
 
-    const checkAdmission = async () => {
-      setCheckingAdmission(true);
+    const checkEncounters = async () => {
+      setCheckingEncounters(true);
       try {
-        const res = await admissionsApi.list({
-          patient_id: patientId,
-        });
-        const active = (res.items || []).find(
-          (a) =>
-            a.status === "ACTIVE" ||
-            a.status === "admitted" ||
-            a.status === "DISCHARGE_INITIATED" ||
-            a.status === "discharge_initiated"
-        );
-        setActiveAdmission(active || null);
-        if (active) {
-          setIpdPaymentOption("ledger");
+        const [admissionsRes, visitsRes] = await Promise.allSettled([
+          admissionsApi.list({ patient_id: patientId }),
+          opdVisitsApi.list({ patient_id: patientId, page_size: 10 }),
+        ]);
+
+        let active: Admission | null = null;
+        if (admissionsRes.status === "fulfilled") {
+          active =
+            (admissionsRes.value.items || []).find(
+              (a) =>
+                a.status === "ACTIVE" ||
+                a.status === "admitted" ||
+                a.status === "DISCHARGE_INITIATED" ||
+                a.status === "discharge_initiated"
+            ) || null;
+          setActiveAdmission(active);
+        } else {
+          setActiveAdmission(null);
         }
+
+        let visits: Visit[] = [];
+        if (visitsRes.status === "fulfilled") {
+          visits = visitsRes.value.items || [];
+          setRecentVisits(visits);
+          if (visits.length > 0) {
+            setSelectedVisitId(visits[0].id);
+          }
+        } else {
+          setRecentVisits([]);
+          setSelectedVisitId("");
+        }
+
+        // Give the user explicit choice: default to "none" (Standalone) so it does NOT
+        // automatically force IPD when the lab test was not prescribed from IPD!
+        setEncounterLinkType("none");
       } catch (err) {
-        console.error("Failed to check active admission:", err);
-        setActiveAdmission(null);
+        console.error("Failed to check patient encounters:", err);
       } finally {
-        setCheckingAdmission(false);
+        setCheckingEncounters(false);
       }
     };
 
-    checkAdmission();
+    checkEncounters();
   }, [patientId]);
 
   // Fetch available lab tests
@@ -234,7 +261,8 @@ export function LabBookingForm({
 
   const selectedPatient = patients.find((p) => p.id === patientId);
   const totalAmount = selectedTests.reduce((sum, st) => sum + (st.customPrice ?? st.test.price ?? 0), 0);
-  const isIpd = Boolean(activeAdmission);
+  const isIpd = encounterLinkType === "ipd" && Boolean(activeAdmission);
+  const isOpd = encounterLinkType === "opd" && Boolean(selectedVisitId);
   const shouldCollectPayment = isIpd ? ipdPaymentOption === "collect_now" : true;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -259,7 +287,8 @@ export function LabBookingForm({
     try {
       const bookingData: CreateLabBookingRequest = {
         patient_id: patientId,
-        admission_id: activeAdmission?.id || undefined,
+        admission_id: isIpd ? (activeAdmission?.id || undefined) : undefined,
+        visit_id: isOpd ? (selectedVisitId || undefined) : undefined,
         scheduled_date: scheduledDate,
         scheduled_time: undefined, // Not required
         priority,
@@ -275,15 +304,22 @@ export function LabBookingForm({
 
       const result = await labBookingsApi.create(bookingData);
       toast.success(
-        shouldCollectPayment
-          ? `Lab booking ${result.booking_number} created with invoice.`
-          : `Lab booking ${result.booking_number} created & posted to IPD ledger.`
+        isIpd && !shouldCollectPayment
+          ? `Lab booking ${result.booking_number} created & posted to IPD ledger.`
+          : isIpd
+          ? `Lab booking ${result.booking_number} created with invoice (linked to IPD).`
+          : isOpd
+          ? `Lab booking ${result.booking_number} created with invoice (linked to OPD Visit).`
+          : `Lab booking ${result.booking_number} created with invoice (Standalone).`
       );
       
       // Reset form
       setPatientId("");
       setDropdownSearchTerm("");
       setActiveAdmission(null);
+      setRecentVisits([]);
+      setEncounterLinkType("none");
+      setSelectedVisitId("");
       setScheduledDate(getTodayDateLocal());
       setPriority("routine");
       setNotes("");
@@ -378,63 +414,185 @@ export function LabBookingForm({
           </div>
         </div>
 
-        {/* IPD Active Admission Banner & Billing Mode Selector */}
-        {activeAdmission && (
-          <div className="col-span-2 space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3.5">
+        {/* Encounter Linking Choice (User Choice: None vs IPD vs OPD) */}
+        {patientId && (
+          <div className="col-span-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                <Receipt className="h-4 w-4 text-purple-600" /> IPD Billing & Payment Option
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Link2 className="h-4 w-4 text-sky-600" /> Encounter Linking (Your Choice)
               </span>
-              <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
-                Active IPD: {activeAdmission.admission_number || "Admitted"}
+              <span className="text-[10px] text-slate-500 font-medium">
+                Choose whether to link this booking with IPD, OPD, or Standalone
               </span>
             </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              {/* Option 1: None / Standalone */}
               <label
-                className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                  ipdPaymentOption === "ledger"
-                    ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
-                    : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                  encounterLinkType === "none"
+                    ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
+                    : "border-slate-200 bg-white/70 hover:bg-white"
                 }`}
               >
                 <input
                   type="radio"
-                  name="booking_form_ipd_mode"
-                  checked={ipdPaymentOption === "ledger"}
-                  onChange={() => setIpdPaymentOption("ledger")}
-                  className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300"
+                  name="encounter_link_choice"
+                  checked={encounterLinkType === "none"}
+                  onChange={() => setEncounterLinkType("none")}
+                  className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
                 />
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Add to IPD Ledger (Post to Bill)</p>
+                  <p className="text-xs font-bold text-slate-900">None (Standalone)</p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Charges will be added to patient's admission bill. No separate invoice is created now.
+                    Direct booking / walk-in. Not linked to any admission or visit.
                   </p>
                 </div>
               </label>
 
+              {/* Option 2: Link with IPD */}
               <label
-                className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                  ipdPaymentOption === "collect_now"
-                    ? "border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20"
-                    : "border-purple-200/80 bg-purple-100/40 hover:bg-white"
+                className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                  encounterLinkType === "ipd"
+                    ? "border-purple-500 bg-white shadow-sm ring-1 ring-purple-500/20"
+                    : activeAdmission
+                    ? "border-purple-200/80 bg-purple-50/30 hover:bg-white"
+                    : "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed"
                 }`}
               >
                 <input
                   type="radio"
-                  name="booking_form_ipd_mode"
-                  checked={ipdPaymentOption === "collect_now"}
-                  onChange={() => setIpdPaymentOption("collect_now")}
-                  className="mt-0.5 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300"
+                  name="encounter_link_choice"
+                  disabled={!activeAdmission}
+                  checked={encounterLinkType === "ipd"}
+                  onChange={() => {
+                    if (activeAdmission) setEncounterLinkType("ipd");
+                  }}
+                  className="mt-0.5 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300 disabled:opacity-50"
                 />
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Collect Payment Now</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-slate-900">Link with IPD</p>
+                    {activeAdmission && (
+                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                        Active
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Collect payment immediately at lab desk & generate a separate paid invoice.
+                    {activeAdmission
+                      ? `Admission: ${activeAdmission.admission_number || "Active"} (${activeAdmission.ward_name || "Ward"} - Bed ${activeAdmission.bed_number || "N/A"})`
+                      : "No active IPD admission for this patient"}
+                  </p>
+                </div>
+              </label>
+
+              {/* Option 3: Link with OPD */}
+              <label
+                className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                  encounterLinkType === "opd"
+                    ? "border-teal-500 bg-white shadow-sm ring-1 ring-teal-500/20"
+                    : recentVisits.length > 0
+                    ? "border-teal-200/80 bg-teal-50/30 hover:bg-white"
+                    : "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="encounter_link_choice"
+                  disabled={recentVisits.length === 0}
+                  checked={encounterLinkType === "opd"}
+                  onChange={() => {
+                    if (recentVisits.length > 0) setEncounterLinkType("opd");
+                  }}
+                  className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500 border-slate-300 disabled:opacity-50"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-slate-900">Link with OPD</p>
+                    {recentVisits.length > 0 && (
+                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-teal-100 text-teal-700">
+                        {recentVisits.length} visit{recentVisits.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {recentVisits.length > 0
+                      ? `Latest: ${recentVisits[0].visit_number} (${formatDate(recentVisits[0].created_at)})`
+                      : "No recent OPD visits for this patient"}
                   </p>
                 </div>
               </label>
             </div>
+
+            {/* If OPD is selected, show dropdown of visits */}
+            {encounterLinkType === "opd" && recentVisits.length > 0 && (
+              <div className="pt-2 border-t border-slate-200/70">
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Select OPD Visit
+                </label>
+                <select
+                  value={selectedVisitId}
+                  onChange={(e) => setSelectedVisitId(e.target.value)}
+                  className="w-full rounded-xl border border-teal-300 bg-white px-3 py-1.5 text-xs outline-none focus:border-teal-500 font-medium"
+                >
+                  {recentVisits.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      Visit #{v.visit_number} — {formatDate(v.created_at)} ({v.visit_type.replace("_", " ")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* If IPD is selected, show IPD Payment & Billing Option */}
+            {encounterLinkType === "ipd" && activeAdmission && (
+              <div className="pt-2 border-t border-purple-200/70 space-y-1.5">
+                <label className="text-xs font-semibold text-purple-900 block">
+                  IPD Payment & Billing Method
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label
+                    className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer ${
+                      ipdPaymentOption === "ledger"
+                        ? "border-purple-500 bg-purple-50/50 font-medium"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="booking_form_ipd_mode"
+                      checked={ipdPaymentOption === "ledger"}
+                      onChange={() => setIpdPaymentOption("ledger")}
+                      className="mt-0.5 h-3.5 w-3.5 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Add to IPD Ledger (Post to Bill)</p>
+                      <p className="text-[10px] text-slate-500">Charges added to admission bill. No immediate invoice.</p>
+                    </div>
+                  </label>
+                  <label
+                    className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer ${
+                      ipdPaymentOption === "collect_now"
+                        ? "border-sky-500 bg-sky-50/50 font-medium"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="booking_form_ipd_mode"
+                      checked={ipdPaymentOption === "collect_now"}
+                      onChange={() => setIpdPaymentOption("collect_now")}
+                      className="mt-0.5 h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Collect Payment Now</p>
+                      <p className="text-[10px] text-slate-500">Collect payment at lab desk with separate invoice.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
