@@ -1921,12 +1921,6 @@ export function AbhaEnrollmentModal({
 
                 {!otpSent ? (
                   <>
-                    <OtpSystemSelector
-                      value={aadhaarOtpSystem}
-                      onChange={setAadhaarOtpSystem}
-                      disabled={loading}
-                      size="sm"
-                    />
                     {/* Creating a new ABHA via Aadhaar — the full published
                         consent, all seven declarations. */}
                     <AbhaConsentPanel

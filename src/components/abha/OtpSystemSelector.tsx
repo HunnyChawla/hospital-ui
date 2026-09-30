@@ -17,7 +17,7 @@ export function OtpSystemSelector({
   value,
   onChange,
   disabled = false,
-  label = "OTP System (Gateway)",
+  label = "Send OTP via",
   className = "",
   size = "md",
 }: OtpSystemSelectorProps) {
@@ -29,7 +29,7 @@ export function OtpSystemSelector({
             {label} <span className="text-red-500">*</span>
           </label>
           <span className="text-[11px] text-slate-400 font-medium">
-            {value === "aadhaar" ? "UIDAI Aadhaar gateway" : "ABDM SMS gateway"}
+            {value === "aadhaar" ? "Aadhaar registered mobile" : "Direct mobile SMS"}
           </span>
         </div>
       )}
@@ -70,14 +70,14 @@ export function OtpSystemSelector({
                     : "bg-slate-100 text-slate-500"
                 }`}
               >
-                aadhaar
+                Aadhaar
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">UIDAI registered mobile</p>
+            <p className="text-[11px] text-slate-500 truncate mt-0.5">Aadhaar-linked mobile</p>
           </div>
         </button>
 
-        {/* ABDM OTP Choice */}
+        {/* ABDM / Direct Mobile SMS OTP Choice */}
         <button
           type="button"
           disabled={disabled}
@@ -104,7 +104,7 @@ export function OtpSystemSelector({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-xs tracking-tight">ABDM OTP</span>
+              <span className="font-semibold text-xs tracking-tight">Mobile SMS OTP</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded font-mono uppercase font-semibold ${
                   value === "abdm"
@@ -112,10 +112,10 @@ export function OtpSystemSelector({
                     : "bg-slate-100 text-slate-500"
                 }`}
               >
-                abdm
+                Mobile SMS
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">ABDM direct SMS</p>
+            <p className="text-[11px] text-slate-500 truncate mt-0.5">Direct SMS to mobile</p>
           </div>
         </button>
       </div>

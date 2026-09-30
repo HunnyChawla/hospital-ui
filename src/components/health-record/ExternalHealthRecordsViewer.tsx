@@ -625,10 +625,12 @@ export function ExternalHealthRecordsViewer({
                         </button>
                       )}
 
+                      {/* FHIR button kept in DOM but hidden */}
                       <button
                         type="button"
                         onClick={() => setJsonDrawerRecord(rec)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                        className="hidden items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                        style={{ display: "none" }}
                         title="View Decrypted FHIR JSON"
                       >
                         <Code2 className="h-3 w-3 text-slate-400" />
