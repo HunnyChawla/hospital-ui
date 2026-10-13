@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Search, Loader2 } from "lucide-react";
+import { Plus, X, ArrowUp, ArrowDown, Edit2, Check, GripVertical, Trash2, Search, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import type { QuickLabTest } from "@/services/quickPresetsApi";
 import { labTestsApi, type LabTest } from "@/services/labTestsApi";
+import { CreateLabTestModal } from "@/components/lab-tests/CreateLabTestModal";
 
 interface LabTestPresetListProps {
     items: QuickLabTest[];
@@ -26,6 +27,10 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    // Create new lab test modal state
+    const [showAddTestModal, setShowAddTestModal] = useState(false);
+    const [pendingTestName, setPendingTestName] = useState("");
 
     const handleSearch = (query: string) => {
         setValue(query);
@@ -64,11 +69,14 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
 
         // Auto-select category if exact match, otherwise default or guess
         if (test.category) {
-            // Map API category to QuickPresets category if needed, assuming direct mapping for now
-            // or default to "Other" if not in the specific list
-            const validCategories: QuickLabTest["category"][] = ["Hematology", "Biochemistry", "Microbiology", "Pathology", "Serology", "Other"];
-            // Simple casing check or just use as is if types align manually
-            // Since backend category is string, we do a best effort match
+            const validCategories: QuickLabTest["category"][] = [
+                "Hematology",
+                "Biochemistry",
+                "Microbiology",
+                "Pathology",
+                "Serology",
+                "Other",
+            ];
             const found = validCategories.find(c => c.toLowerCase() === test.category.toLowerCase());
             if (found) {
                 setCategory(found);
@@ -80,16 +88,36 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
         setShowSuggestions(false);
     };
 
-    const startEdit = (index: number) => {
+    const startEdit = async (index: number) => {
         const item = items[index];
         setLabel(item.label);
         setValue(item.value);
-        setSelectedLabTestId(item.lab_test_id || null);
         setCategory(item.category);
         setEditingIndex(index);
         setAddingNew(false);
         setSearchResults([]);
         setShowSuggestions(false);
+
+        if (item.lab_test_id) {
+            setSelectedLabTestId(item.lab_test_id);
+        } else {
+            // Attempt to resolve legacy preset without lab_test_id from database
+            try {
+                const res = await labTestsApi.list({ search: item.value, page_size: 5 });
+                const exact = res.items.find(
+                    t =>
+                        t.test_name.toLowerCase() === item.value.toLowerCase() ||
+                        t.test_code.toLowerCase() === item.value.toLowerCase()
+                );
+                if (exact) {
+                    setSelectedLabTestId(exact.id);
+                } else {
+                    setSelectedLabTestId(null);
+                }
+            } catch {
+                setSelectedLabTestId(null);
+            }
+        }
     };
 
     const startAdd = () => {
@@ -106,10 +134,19 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
     const cancelForm = () => {
         setEditingIndex(null);
         setAddingNew(false);
+        setShowSuggestions(false);
     };
 
     const saveItem = () => {
-        if (!label.trim() || !value.trim()) return;
+        if (!label.trim() || !value.trim()) {
+            toast.error("Please provide both label and test name.");
+            return;
+        }
+
+        if (!selectedLabTestId) {
+            toast.error("Free text is not allowed. Please select a lab test from the database or add it first.");
+            return;
+        }
 
         const normalizedLabel = label.trim().toLowerCase();
         const normalizedValue = value.trim().toLowerCase();
@@ -132,7 +169,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
             label: label.trim(),
             value: value.trim(),
             category,
-            lab_test_id: selectedLabTestId || undefined,
+            lab_test_id: selectedLabTestId,
         };
 
         if (addingNew) {
@@ -215,7 +252,7 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
                                         onFocus={() => {
                                             if (value) handleSearch(value);
                                         }}
-                                        placeholder="Type to search..."
+                                        placeholder="Type to search database..."
                                         className="w-full text-xs rounded border border-indigo-200 pl-2 pr-7 py-1.5 focus:border-indigo-500 focus:outline-none"
                                         autoFocus={addingNew || editingIndex !== null}
                                     />
@@ -225,21 +262,71 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
                                         <Search className="absolute right-2 top-2 h-3.5 w-3.5 text-slate-400" />
                                     )}
 
-                                    {showSuggestions && searchResults.length > 0 && (
-                                        <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                                            {searchResults.map((test) => (
-                                                <button
-                                                    key={test.id}
-                                                    type="button"
-                                                    onClick={() => selectLabTest(test)}
-                                                    className="w-full px-3 py-2 text-left text-xs hover:bg-indigo-50 border-b border-slate-100 last:border-0"
-                                                >
-                                                    <p className="font-medium text-slate-900">{test.test_name}</p>
-                                                    <p className="text-[10px] text-slate-500">Code: {test.test_code}</p>
-                                                </button>
-                                            ))}
+                                    {/* Suggestions Dropdown */}
+                                    {showSuggestions && (
+                                        <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
+                                            {isSearching ? (
+                                                <div className="flex items-center justify-center gap-2 p-3 text-xs text-slate-500">
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                                                    Searching database...
+                                                </div>
+                                            ) : searchResults.length > 0 ? (
+                                                <>
+                                                    {searchResults.map((test) => (
+                                                        <button
+                                                            key={test.id}
+                                                            type="button"
+                                                            onClick={() => selectLabTest(test)}
+                                                            className="w-full px-3 py-2 text-left text-xs hover:bg-indigo-50 border-b border-slate-100 last:border-0 flex items-center justify-between"
+                                                        >
+                                                            <div>
+                                                                <p className="font-medium text-slate-900">{test.test_name}</p>
+                                                                <p className="text-[10px] text-slate-500">Code: {test.test_code}</p>
+                                                            </div>
+                                                            {test.category && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                                                    {test.category}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                    {value.trim() && (
+                                                        <div className="p-2 border-t border-slate-100 bg-slate-50">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPendingTestName(value);
+                                                                    setShowAddTestModal(true);
+                                                                    setShowSuggestions(false);
+                                                                }}
+                                                                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100/60 rounded transition"
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                Add &quot;{value.trim()}&quot; as new test to database
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : value.trim() ? (
+                                                <div className="p-3 text-center">
+                                                    <p className="text-xs text-slate-500 mb-2">No lab tests found matching &quot;{value.trim()}&quot;</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setPendingTestName(value);
+                                                            setShowAddTestModal(true);
+                                                            setShowSuggestions(false);
+                                                        }}
+                                                        className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-sm transition"
+                                                    >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        Add &quot;{value.trim()}&quot; to database
+                                                    </button>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     )}
+
                                     {/* Overlay to close suggestions */}
                                     {showSuggestions && (
                                         <div
@@ -248,6 +335,45 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
                                         />
                                     )}
                                 </div>
+
+                                {/* Selection Status Feedback */}
+                                {selectedLabTestId ? (
+                                    <div className="mt-1.5 flex items-center justify-between rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
+                                        <span className="flex items-center gap-1 truncate font-medium">
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                            <span className="truncate">Linked to database test</span>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedLabTestId(null);
+                                                setValue("");
+                                                setShowSuggestions(false);
+                                            }}
+                                            className="ml-2 shrink-0 text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium"
+                                        >
+                                            Change
+                                        </button>
+                                    </div>
+                                ) : value.trim() ? (
+                                    <div className="mt-1.5 flex items-center justify-between rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                                        <span className="flex items-center gap-1 truncate">
+                                            <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                            <span className="truncate">Select from search or add to database. Free text is not allowed.</span>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setPendingTestName(value);
+                                                setShowAddTestModal(true);
+                                                setShowSuggestions(false);
+                                            }}
+                                            className="ml-2 shrink-0 text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline flex items-center gap-0.5 whitespace-nowrap"
+                                        >
+                                            <Plus className="h-3 w-3" /> Add Test
+                                        </button>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                         <div className="flex items-center justify-between">
@@ -275,8 +401,9 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
                                 </button>
                                 <button
                                     onClick={saveItem}
-                                    disabled={!label.trim() || !value.trim()}
-                                    className="px-2 py-1 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded flex items-center gap-1 shadow-sm disabled:opacity-50"
+                                    disabled={!label.trim() || !value.trim() || !selectedLabTestId}
+                                    title={!selectedLabTestId ? "Please select a test from the database or add it first" : ""}
+                                    className="px-2 py-1 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded flex items-center gap-1 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
                                 >
                                     <Check className="h-3 w-3" />
                                     {addingNew ? "Add" : "Update"}
@@ -348,6 +475,17 @@ export function LabTestPresetList({ items, onChange }: LabTestPresetListProps) {
                     </div>
                 ))}
             </div>
+
+            {/* Modal for creating a new lab test directly from the preset list */}
+            <CreateLabTestModal
+                isOpen={showAddTestModal}
+                onClose={() => setShowAddTestModal(false)}
+                initialName={pendingTestName}
+                initialCategory={category}
+                onSuccess={(createdTest) => {
+                    selectLabTest(createdTest);
+                }}
+            />
         </div>
     );
 }
