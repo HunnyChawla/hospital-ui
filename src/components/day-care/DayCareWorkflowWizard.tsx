@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { dayCareApi } from "@/services/dayCareApi";
 import { doctorsApi } from "@/services/doctorsApi";
-import { surgeriesApi } from "@/services/surgeriesApi";
+import { surgeriesApi, ProcedurePerformedOption } from "@/services/surgeriesApi";
 import { otConsumablesApi, OTConsumable } from "@/services/otConsumablesApi";
 import { diagnosesApi, Diagnosis } from "@/services/diagnosesApi";
 import { advicesApi, Advice } from "@/services/advicesApi";
@@ -150,6 +150,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("billing");
   const [availableSurgeries, setAvailableSurgeries] = useState<Surgery[]>([]);
+  const [availableProcedures, setAvailableProcedures] = useState<ProcedurePerformedOption[]>([]);
   const [availableConsumables, setAvailableConsumables] = useState<OTConsumable[]>([]);
   const [availableDiagnoses, setAvailableDiagnoses] = useState<Diagnosis[]>([]);
   const [availableAdvices, setAvailableAdvices] = useState<Advice[]>([]);
@@ -268,6 +269,18 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     try {
       const v = await dayCareApi.getVisit(visitId);
       setVisit(v);
+
+      const procs = await surgeriesApi
+        .listProcedures({
+          surgery_id: v.surgery_id || undefined,
+          surgery_name: v.surgery_name || undefined,
+          is_active: true,
+        })
+        .catch((err) => {
+          console.warn("Failed to load mapped procedures:", err);
+          return [] as ProcedurePerformedOption[];
+        });
+      setAvailableProcedures(procs);
       
       if (v.invoice_id) {
         try {
@@ -284,12 +297,12 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       if (initialLoad) setActiveTab(tabToLoad);
 
       await Promise.all([
-        loadTabResource(v, "consent"),
-        loadTabResource(v, "clinical"),
-        loadTabResource(v, "checklist"),
-        loadTabResource(v, "ot"),
-        loadTabResource(v, "recovery"),
-        loadTabResource(v, "discharge"),
+        loadTabResource(v, "consent", procs),
+        loadTabResource(v, "clinical", procs),
+        loadTabResource(v, "checklist", procs),
+        loadTabResource(v, "ot", procs),
+        loadTabResource(v, "recovery", procs),
+        loadTabResource(v, "discharge", procs),
       ]);
     } catch (err) {
       toast.error(getErrorMessage(err) || "Failed to load daycare visit details");
@@ -391,8 +404,10 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     });
   };
 
-  const loadTabResource = async (v: DayCareVisit, tab: TabType) => {
+  const loadTabResource = async (v: DayCareVisit, tab: TabType, procs?: ProcedurePerformedOption[]) => {
     try {
+      const procList = procs ?? availableProcedures;
+      const defaultProc = procList.find(p => p.is_default) || procList[0];
       if (tab === "consent") {
         await fetchMrdDocuments(v.patient_id, v.id);
       } else if (tab === "clinical") {
@@ -427,7 +442,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
           setOtConsumables(data.consumables || []);
         } else {
           setOt({
-            procedure_name: v.surgery_name, surgeon_id: v.surgeon_id, assistant_name: "",
+            procedure_name: defaultProc?.name || "", surgeon_id: v.surgeon_id, assistant_name: "",
             scrub_nurse_name: "", anaesthetist_name: "", anaesthesia_type: "topical",
             findings: "", procedure_notes: "", complications: ""
           });
@@ -452,8 +467,12 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
           setDischargeMeds(data.medications || []);
           setDischargeAdvices(data.follow_up_instructions ? data.follow_up_instructions.split('\n').filter(Boolean) : []);
         } else {
+          const otData = ot.procedure_name ? ot : await dayCareApi.getOTRecord(v.id).catch(() => null);
           setDischarge({
-            diagnosis: "", procedure_performed: v.surgery_name, discharge_summary: "", follow_up_instructions: ""
+            diagnosis: "",
+            procedure_performed: otData?.procedure_name || defaultProc?.name || v.surgery_name,
+            discharge_summary: "",
+            follow_up_instructions: ""
           });
           setDischargeMeds([]);
           setDischargeAdvices([]);
@@ -703,6 +722,9 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         consumables: otConsumables
       });
       setOt(saved);
+      if (!discharge.id && saved.procedure_name) {
+        setDischarge(prev => ({ ...prev, procedure_performed: saved.procedure_name || prev.procedure_performed }));
+      }
       toast.success("OT Record saved");
       
       // If currently ready_for_ot, advance to in_ot first, then to recovery
@@ -1554,8 +1576,12 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                 <Combobox
                   value={ot.procedure_name || ""}
                   onChange={(val) => setOt({ ...ot, procedure_name: val })}
-                  options={availableSurgeries.map(s => ({ label: s.name, value: s.name }))}
-                  placeholder="Type or select procedure..."
+                  options={
+                    availableProcedures.length > 0
+                      ? availableProcedures.map(p => ({ label: p.name, value: p.name }))
+                      : availableSurgeries.map(s => ({ label: s.name, value: s.name }))
+                  }
+                  placeholder="Type or select procedure performed..."
                 />
               </div>
               <div>
@@ -1826,7 +1852,17 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-slate-700 mb-2">Procedure Completed</label>
-                <input type="text" value={discharge.procedure_performed || ""} onChange={(e) => setDischarge({ ...discharge, procedure_performed: e.target.value })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" />
+                <Combobox
+                  value={discharge.procedure_performed || ""}
+                  onChange={(val) => setDischarge({ ...discharge, procedure_performed: val })}
+                  options={
+                    availableProcedures.length > 0
+                      ? availableProcedures.map(p => ({ label: p.name, value: p.name }))
+                      : availableSurgeries.map(s => ({ label: s.name, value: s.name }))
+                  }
+                  placeholder="Type or select procedure completed..."
+                  allowCustomValue={true}
+                />
               </div>
             </div>
 

@@ -40,6 +40,25 @@ export type PaginatedSurgeryPrescriptionOptionResponse = {
     total_pages: number;
 };
 
+export type ProcedurePerformedOption = {
+    id: string;
+    tenant_id: string;
+    code?: string | null;
+    name: string;
+    description?: string | null;
+    category?: string | null;
+    is_active: boolean;
+    is_default: boolean;
+    display_order: number;
+};
+
+export type ProcedurePerformedParams = {
+    surgery_id?: string;
+    surgery_name?: string;
+    is_active?: boolean;
+    search?: string;
+};
+
 export const surgeriesApi = {
     list: async (params?: SurgeryParams) => {
         const { data } = await apiClient.get<PaginatedSurgeryResponse>("/surgeries", {
@@ -54,6 +73,54 @@ export const surgeriesApi = {
         const { data } = await apiClient.get<PaginatedSurgeryPrescriptionOptionResponse>(
             "/surgeries/prescription-options",
             { params }
+        );
+        return data;
+    },
+
+    listProcedures: async (params?: ProcedurePerformedParams) => {
+        const { data } = await apiClient.get<ProcedurePerformedOption[]>(
+            "/surgeries/procedures",
+            { params }
+        );
+        return data;
+    },
+
+    listSurgeryProcedures: async (surgeryId: string) => {
+        const { data } = await apiClient.get<ProcedurePerformedOption[]>(
+            `/surgeries/${surgeryId}/procedures`
+        );
+        return data;
+    },
+
+    updateSurgeryProcedures: async (
+        surgeryId: string,
+        payload: {
+            procedures: {
+                procedure_id: string;
+                is_default: boolean;
+                display_order: number;
+            }[];
+        }
+    ) => {
+        const { data } = await apiClient.put<ProcedurePerformedOption[]>(
+            `/surgeries/${surgeryId}/procedures`,
+            payload
+        );
+        return data;
+    },
+
+    createProcedure: async (payload: {
+        name: string;
+        code?: string | null;
+        description?: string | null;
+        category?: string | null;
+        surgery_id?: string | null;
+        is_default?: boolean;
+        display_order?: number;
+    }) => {
+        const { data } = await apiClient.post<ProcedurePerformedOption>(
+            "/surgeries/procedures",
+            payload
         );
         return data;
     },

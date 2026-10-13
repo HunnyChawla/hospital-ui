@@ -26,6 +26,7 @@ export function Combobox({
 }: ComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [isFiltering, setIsFiltering] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync the input value with the selected option label
@@ -36,22 +37,26 @@ export function Combobox({
     } else {
       setInputValue(value || "");
     }
+    setIsFiltering(false);
   }, [value, options]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setIsFiltering(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter(opt => 
-    opt.label.toLowerCase().includes((inputValue || "").toLowerCase()) ||
-    opt.value.toLowerCase().includes((inputValue || "").toLowerCase())
-  );
+  const filteredOptions = isFiltering
+    ? options.filter(opt =>
+        opt.label.toLowerCase().includes((inputValue || "").toLowerCase()) ||
+        opt.value.toLowerCase().includes((inputValue || "").toLowerCase())
+      )
+    : options;
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -60,10 +65,14 @@ export function Combobox({
         value={inputValue} 
         onChange={(e) => {
           setInputValue(e.target.value);
+          setIsFiltering(true);
           onChange(e.target.value);
           setIsOpen(true);
         }}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => {
+          setIsFiltering(false);
+          setIsOpen(true);
+        }}
         className={clsx(
           "w-full text-sm rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all pr-10",
           className
@@ -72,7 +81,10 @@ export function Combobox({
       />
       <div 
         className="absolute right-3 top-3.5 cursor-pointer text-slate-400 hover:text-slate-600"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsFiltering(false);
+          setIsOpen(!isOpen);
+        }}
       >
         <ChevronDown className={clsx("w-4 h-4 transition-transform", isOpen && "rotate-180")} />
       </div>
@@ -91,6 +103,7 @@ export function Combobox({
                 )}
                 onClick={() => {
                   onChange(opt.value);
+                  setIsFiltering(false);
                   setIsOpen(false);
                 }}
               >

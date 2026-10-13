@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Filter, Pencil, Trash2, CheckCircle2, XCircle, Package } from "lucide-react";
+import { Plus, Search, Filter, Pencil, Trash2, CheckCircle2, XCircle, Package, Link2 } from "lucide-react";
 import { CreateSurgeryRequest, Surgery, UpdateSurgeryRequest } from "@/types";
 import { surgeriesApi } from "@/services/surgeriesApi";
 import { useTenant } from "@/hooks/useTenant";
 import { SurgeryFormModal } from "@/components/surgeries/SurgeryFormModal";
 import { DeleteSurgeryModal } from "@/components/surgeries/DeleteSurgeryModal";
 import { SurgeryPackagesModal } from "@/components/surgeries/SurgeryPackagesModal";
+import { SurgeryProceduresModal } from "@/components/surgeries/SurgeryProceduresModal";
 
 function ExpandableActionButton({
     onClick,
@@ -65,6 +66,7 @@ export default function SurgeriesPage() {
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPackagesModalOpen, setIsPackagesModalOpen] = useState(false);
+    const [isProceduresModalOpen, setIsProceduresModalOpen] = useState(false);
     const [selectedSurgery, setSelectedSurgery] = useState<Surgery | null>(null);
 
     const fetchSurgeries = async () => {
@@ -101,6 +103,11 @@ export default function SurgeriesPage() {
     const handleManagePackages = (surgery: Surgery) => {
         setSelectedSurgery(surgery);
         setIsPackagesModalOpen(true);
+    };
+
+    const handleManageProcedures = (surgery: Surgery) => {
+        setSelectedSurgery(surgery);
+        setIsProceduresModalOpen(true);
     };
 
     const handleDeleteClick = (surgery: Surgery) => {
@@ -244,6 +251,13 @@ export default function SurgeriesPage() {
                                         <td className="w-[20%] whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <ExpandableActionButton
+                                                    onClick={() => handleManageProcedures(surgery)}
+                                                    icon={Link2}
+                                                    title="Manage Linked Procedures"
+                                                    label="Procedures"
+                                                    variant="emerald"
+                                                />
+                                                <ExpandableActionButton
                                                     onClick={() => handleManagePackages(surgery)}
                                                     icon={Package}
                                                     title="Manage Surgery Packages"
@@ -343,6 +357,12 @@ export default function SurgeriesPage() {
             <SurgeryPackagesModal
                 isOpen={isPackagesModalOpen}
                 onClose={() => setIsPackagesModalOpen(false)}
+                surgery={selectedSurgery}
+            />
+
+            <SurgeryProceduresModal
+                isOpen={isProceduresModalOpen}
+                onClose={() => setIsProceduresModalOpen(false)}
                 surgery={selectedSurgery}
             />
         </div>

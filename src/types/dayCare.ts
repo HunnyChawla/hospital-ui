@@ -32,6 +32,7 @@ export interface DayCareVisit {
   patient_uhid?: string;
   surgeon_id: string;
   surgeon_name?: string;
+  surgery_id?: string | null;
   surgery_name: string;
   package_id?: string | null;
   package_name?: string | null;
