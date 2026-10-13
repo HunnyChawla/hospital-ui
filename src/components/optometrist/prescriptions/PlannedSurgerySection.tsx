@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Scissors, Calendar, Plus, Trash2, ChevronDown, ChevronUp, Loader2, AlertCircle, Search } from "lucide-react";
+import { Scissors, Calendar, Plus, ChevronDown, ChevronUp, Loader2, AlertCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { surgeriesApi, SurgeryPrescriptionOption } from "@/services/surgeriesApi";
 import { plannedSurgeriesApi } from "@/services/plannedSurgeriesApi";
@@ -145,16 +145,6 @@ export function PlannedSurgerySection({
         }
     };
 
-    const handleCancelSurgery = async (id: string) => {
-        try {
-            await plannedSurgeriesApi.cancel(id);
-            setPlannedSurgeries(prev => prev.filter(s => s.id !== id));
-            toast.success("Surgery cancelled");
-        } catch (error) {
-            handleError(error, { defaultMessage: "Failed to cancel surgery", logError: true });
-        }
-    };
-
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString("en-US", {
             month: "short",
@@ -202,7 +192,7 @@ export function PlannedSurgerySection({
                                 {plannedSurgeries.map((surgery) => (
                                     <div
                                         key={surgery.id}
-                                        className="flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-200"
+                                        className="flex items-center p-3 rounded-lg bg-amber-50 border border-amber-200"
                                     >
                                         <div className="flex items-center gap-3">
                                             <Scissors className="h-4 w-4 text-amber-600" />
@@ -219,14 +209,6 @@ export function PlannedSurgerySection({
                                                 </div>
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleCancelSurgery(surgery.id)}
-                                            className="p-1.5 text-rose-500 hover:bg-rose-100 rounded transition"
-                                            title="Cancel surgery"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
                                     </div>
                                 ))}
                             </div>

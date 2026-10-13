@@ -330,7 +330,7 @@ export function DayCareDashboard() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          UHID: <span className="font-semibold text-slate-700">{v.patient_uhid || "N/A"}</span> |{" "}
+                          UHID: <span className="font-semibold text-slate-700">{v.patient_uhid || (v.patient_id ? v.patient_id.slice(0, 8) : "N/A")}</span> |{" "}
                           Surgery: <span className="font-semibold text-slate-800">{v.surgery_name}</span> | Surgeon:{" "}
                           <span className="font-semibold text-slate-700">{v.surgeon_name}</span>
                         </p>
@@ -388,7 +388,14 @@ export function DayCareDashboard() {
                 plannedSurgeries.map((s) => (
                   <div key={s.id} className="p-3.5 hover:bg-slate-50/80 rounded-xl transition-colors flex flex-col gap-2.5">
                     <div>
-                      <p className="font-bold text-xs text-slate-800">{s.patient_name}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold text-xs text-slate-800">{s.patient_name}</p>
+                        {(s.patient_uhid || s.patient_id) && (
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            UHID: {s.patient_uhid || s.patient_id.slice(0, 8)}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-slate-500 mt-0.5">
                         Surgery: <span className="font-semibold text-slate-700">{s.surgery_name}</span> | Surgeon:{" "}
                         <span className="font-semibold text-slate-700">{s.surgeon_name}</span>

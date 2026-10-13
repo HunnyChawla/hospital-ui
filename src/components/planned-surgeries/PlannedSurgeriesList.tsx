@@ -1110,7 +1110,7 @@ export function PlannedSurgeriesList({
                                         <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-600 sm:grid-cols-2">
                                             <div className="flex items-center gap-1.5 min-w-0">
                                                 <Stethoscope className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                                <span className="truncate">Dr. <strong className="font-medium text-slate-700">{surgery.surgeon_name || "Unassigned"}</strong></span>
+                                                <span className="truncate"><strong className="font-medium text-slate-700">{surgery.surgeon_name || "Unassigned"}</strong></span>
                                             </div>
                                             <div className="flex items-center gap-1.5 min-w-0">
                                                 <Calendar className="h-3.5 w-3.5 text-sky-500 shrink-0" />

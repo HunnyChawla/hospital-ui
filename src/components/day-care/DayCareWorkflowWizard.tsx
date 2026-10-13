@@ -24,6 +24,7 @@ import {
   Download,
   Eye,
   Upload,
+  TrendingDown,
   X
 } from "lucide-react";
 import { dayCareApi } from "@/services/dayCareApi";
@@ -35,7 +36,7 @@ import { advicesApi, Advice } from "@/services/advicesApi";
 import { medicinesApi, Medicine } from "@/services/medicinesApi";
 import { servicesApi, Service } from "@/services/servicesApi";
 import { Combobox } from "@/components/common/Combobox";
-import { Surgery } from "@/types";
+import { Surgery, TaperingStep } from "@/types";
 import {
   DayCareVisit,
   DayCareStatus,
@@ -80,11 +81,14 @@ const DOSAGES = [
 ];
 
 const FREQUENCIES = [
-  "OD (1x)", "BD (2x)", "TID (3x)", "QID (4x)", "SOS (As needed)", "STAT (Immediately)", "1-0-0", "1-0-1", "1-1-1-1", "0-1-0", "0-0-1"
+  "1 time daily", "2 times daily", "3 times daily", "4 times daily", "6 times a day", "8 times daily",
+  "Every 2 hours", "Every 4 hours", "Every 6 hours", "Every 8 hours",
+  "OD (1x)", "BD (2x)", "TID (3x)", "QID (4x)", "SOS (As needed)", "STAT (Immediately)",
+  "1-0-0", "1-0-1", "1-1-1", "1-1-1-1", "0-1-0", "0-0-1", "At bedtime"
 ];
 
 const DURATIONS = [
-  "1 day", "3 days", "5 days", "7 days", "10 days", "14 days", "1 month", "Until finished", "Continuous"
+  "1 day", "2 days", "3 days", "5 days", "7 days", "10 days", "14 days", "21 days", "1 month", "2 months", "3 months", "Until finished", "Continuous"
 ];
 
 const MEDICINE_INSTRUCTIONS = [
@@ -219,6 +223,24 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
 
   const { data: surgery } = usePlannedSurgery(visit?.planned_surgery_id || null);
   const { data: summary } = useSurgeryPaymentSummary(visit?.planned_surgery_id || null);
+
+  const isOphthalmologyVisit =
+    visit?.body_part_department === "Ophthalmology" ||
+    !!visit?.eye ||
+    !!surgery?.eye;
+
+  const selectedEyeCode = (visit?.eye || surgery?.eye || "").toUpperCase();
+  const selectedBodyPartName = (visit?.body_part_name || surgery?.body_part_name || "").toLowerCase();
+
+  const isRightEyeOnly =
+    selectedEyeCode === "OD" ||
+    (!selectedEyeCode && (selectedBodyPartName.includes("right") || selectedBodyPartName === "od"));
+  const isLeftEyeOnly =
+    selectedEyeCode === "OS" ||
+    (!selectedEyeCode && (selectedBodyPartName.includes("left") || selectedBodyPartName === "os"));
+
+  const showRightEye = isOphthalmologyVisit && !isLeftEyeOnly;
+  const showLeftEye = isOphthalmologyVisit && !isRightEyeOnly;
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -373,6 +395,7 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         } else {
           setClinical({
             bp_systolic: 120, bp_diastolic: 80, pulse: 75, temperature: 37, spo2: 98, weight: 70,
+            rbs: "",
             has_diabetes: false, has_hypertension: false, has_cardiac_history: false,
             allergies: "", current_medications: "", risk_assessment_notes: ""
           });
@@ -613,12 +636,40 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     }
   };
 
+  const normalizeEyeDetails = (
+    details?: { dilated?: boolean; corneal_thickness?: string | number | null; iol_details?: string | null } | null
+  ) => {
+    if (!details) return null;
+    const ctStr =
+      details.corneal_thickness !== undefined && details.corneal_thickness !== null
+        ? String(details.corneal_thickness).trim()
+        : "";
+    const iolStr = details.iol_details ? details.iol_details.trim() : "";
+    const dilated = !!details.dilated;
+
+    if (!dilated && !ctStr && !iolStr) {
+      return null;
+    }
+
+    const parsedCt = ctStr && !isNaN(Number(ctStr)) ? Number(ctStr) : ctStr || null;
+    return {
+      dilated,
+      corneal_thickness: parsedCt,
+      iol_details: iolStr || null,
+    };
+  };
+
   const handleSaveChecklist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!visit) return;
     setSubmitting(true);
     try {
-      await dayCareApi.upsertPreparationChecklist(visit.id, checklist);
+      const payload: Partial<DayCarePreparationChecklist> = {
+        ...checklist,
+        right_eye_details: showRightEye ? normalizeEyeDetails(checklist.right_eye_details) : null,
+        left_eye_details: showLeftEye ? normalizeEyeDetails(checklist.left_eye_details) : null,
+      };
+      await dayCareApi.upsertPreparationChecklist(visit.id, payload);
       toast.success("Prep checklist saved");
       if (visit.status === "pre_assessment_completed") {
         await handleTransition("ready_for_ot", "ot");
@@ -780,10 +831,70 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       return;
     }
     setDischargeMeds([...dischargeMeds, newMed]);
-    setNewMed({ name: "", dose: "", frequency: "", duration: "", instructions: "" });
+    setNewMed({ name: "", dose: "", frequency: "", duration: "", instructions: "", tapering_steps: undefined });
   };
   const removeDischargeMed = (idx: number) => {
     setDischargeMeds(dischargeMeds.filter((_, i) => i !== idx));
+  };
+  const handleItemTaperingToggle = (idx: number) => {
+    const updated = [...dischargeMeds];
+    const item = updated[idx];
+    if (item.tapering_steps && item.tapering_steps.length > 0) {
+      updated[idx] = { ...item, tapering_steps: undefined };
+    } else {
+      updated[idx] = {
+        ...item,
+        tapering_steps: [
+          {
+            sequence: 1,
+            dosage: item.dose || "1 drop",
+            frequency: item.frequency || "4 times daily",
+            duration: item.duration || "1 week",
+            instructions: item.instructions || "Instill 1 drop"
+          }
+        ]
+      };
+    }
+    setDischargeMeds(updated);
+  };
+  const handleItemAddStep = (medIdx: number) => {
+    const updated = [...dischargeMeds];
+    const item = updated[medIdx];
+    const currentSteps = item.tapering_steps || [];
+    const lastStep = currentSteps[currentSteps.length - 1];
+    updated[medIdx] = {
+      ...item,
+      tapering_steps: [
+        ...currentSteps,
+        {
+          sequence: currentSteps.length + 1,
+          dosage: lastStep?.dosage || item.dose || "1 drop",
+          frequency: lastStep?.frequency || "2 times daily",
+          duration: lastStep?.duration || "1 week",
+          instructions: lastStep?.instructions || item.instructions || "Instill 1 drop"
+        }
+      ]
+    };
+    setDischargeMeds(updated);
+  };
+  const handleItemStepChange = (medIdx: number, stepIdx: number, field: keyof TaperingStep, val: string) => {
+    const updated = [...dischargeMeds];
+    const item = updated[medIdx];
+    if (!item.tapering_steps) return;
+    const newSteps = [...item.tapering_steps];
+    newSteps[stepIdx] = { ...newSteps[stepIdx], [field]: val };
+    updated[medIdx] = { ...item, tapering_steps: newSteps };
+    setDischargeMeds(updated);
+  };
+  const handleItemRemoveStep = (medIdx: number, stepIdx: number) => {
+    const updated = [...dischargeMeds];
+    const item = updated[medIdx];
+    if (!item.tapering_steps) return;
+    const newSteps = item.tapering_steps
+      .filter((_, sIdx) => sIdx !== stepIdx)
+      .map((s, newIdx) => ({ ...s, sequence: newIdx + 1 }));
+    updated[medIdx] = { ...item, tapering_steps: newSteps.length > 0 ? newSteps : undefined };
+    setDischargeMeds(updated);
   };
   const addDischargeAdvice = () => {
     if (!newAdvice.trim()) return;
@@ -1228,6 +1339,19 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
                     <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400">kg</span>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Random Blood Sugar (RBS)</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="e.g. 110"
+                      value={clinical.rbs || ""}
+                      onChange={(e) => setClinical({ ...clinical, rbs: e.target.value })}
+                      className="w-full text-sm font-semibold rounded-xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+                    />
+                    <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400">mg/dL</span>
+                  </div>
+                </div>
               </div>
 
               <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pt-6 pb-3">Medical History</h3>
@@ -1316,58 +1440,65 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               ))}
             </div>
 
-            {visit?.body_part_department === "Ophthalmology" && (
+            {isOphthalmologyVisit && (showRightEye || showLeftEye) && (
               <>
-            <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pt-6 pb-3">Eye-Specific Preparation Details</h3>
+            <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pt-6 pb-3 flex items-center gap-2">
+              <span>Eye-Specific Preparation Details</span>
+              <span className="text-xs font-medium text-slate-400">(Optional)</span>
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Right Eye */}
+              {showRightEye && (
               <div className="bg-blue-50/50 border border-blue-200 p-6 rounded-2xl">
                 <h4 className="font-bold text-blue-900 text-lg mb-5 flex items-center gap-2">
                   <div className="p-1.5 bg-blue-100 rounded text-blue-700">OD</div> Right Eye
                 </h4>
                 <div className="space-y-5">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={!!checklist.right_eye_details?.dilated} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { corneal_thickness: checklist.right_eye_details?.corneal_thickness || "", iol_details: checklist.right_eye_details?.iol_details || "", dilated: e.target.checked } })} className="w-5 h-5 text-sky-600 rounded border-slate-300 focus:ring-sky-500" />
+                    <input type="checkbox" checked={!!checklist.right_eye_details?.dilated} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { corneal_thickness: checklist.right_eye_details?.corneal_thickness ?? "", iol_details: checklist.right_eye_details?.iol_details || "", dilated: e.target.checked } })} className="w-5 h-5 text-sky-600 rounded border-slate-300 focus:ring-sky-500" />
                     <span className="font-semibold text-slate-800">Pupil Dilated</span>
                   </label>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Corneal Thickness</label>
-                    <input type="text" value={checklist.right_eye_details?.corneal_thickness || ""} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { dilated: !!checklist.right_eye_details?.dilated, iol_details: checklist.right_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 545 µm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
+                    <input type="text" value={checklist.right_eye_details?.corneal_thickness ?? ""} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { dilated: !!checklist.right_eye_details?.dilated, iol_details: checklist.right_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 545 µm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">IOL (Lens) Details</label>
-                    <input type="text" value={checklist.right_eye_details?.iol_details || ""} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { dilated: !!checklist.right_eye_details?.dilated, corneal_thickness: checklist.right_eye_details?.corneal_thickness || "", iol_details: e.target.value } })} placeholder="e.g. Alcon +21.5D" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
+                    <input type="text" value={checklist.right_eye_details?.iol_details || ""} onChange={(e) => setChecklist({ ...checklist, right_eye_details: { dilated: !!checklist.right_eye_details?.dilated, corneal_thickness: checklist.right_eye_details?.corneal_thickness ?? "", iol_details: e.target.value } })} placeholder="e.g. Alcon +21.5D" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Left Eye */}
+              {showLeftEye && (
               <div className="bg-purple-50/50 border border-purple-200 p-6 rounded-2xl">
                 <h4 className="font-bold text-purple-900 text-lg mb-5 flex items-center gap-2">
                   <div className="p-1.5 bg-purple-100 rounded text-purple-700">OS</div> Left Eye
                 </h4>
                 <div className="space-y-5">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={!!checklist.left_eye_details?.dilated} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { corneal_thickness: checklist.left_eye_details?.corneal_thickness || "", iol_details: checklist.left_eye_details?.iol_details || "", dilated: e.target.checked } })} className="w-5 h-5 text-sky-600 rounded border-slate-300 focus:ring-sky-500" />
+                    <input type="checkbox" checked={!!checklist.left_eye_details?.dilated} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { corneal_thickness: checklist.left_eye_details?.corneal_thickness ?? "", iol_details: checklist.left_eye_details?.iol_details || "", dilated: e.target.checked } })} className="w-5 h-5 text-sky-600 rounded border-slate-300 focus:ring-sky-500" />
                     <span className="font-semibold text-slate-800">Pupil Dilated</span>
                   </label>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Corneal Thickness</label>
-                    <input type="text" value={checklist.left_eye_details?.corneal_thickness || ""} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { dilated: !!checklist.left_eye_details?.dilated, iol_details: checklist.left_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 540 µm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
+                    <input type="text" value={checklist.left_eye_details?.corneal_thickness ?? ""} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { dilated: !!checklist.left_eye_details?.dilated, iol_details: checklist.left_eye_details?.iol_details || "", corneal_thickness: e.target.value } })} placeholder="e.g. 540 µm" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">IOL (Lens) Details</label>
-                    <input type="text" value={checklist.left_eye_details?.iol_details || ""} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { dilated: !!checklist.left_eye_details?.dilated, corneal_thickness: checklist.left_eye_details?.corneal_thickness || "", iol_details: e.target.value } })} placeholder="e.g. Tecnis +20.0D" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
+                    <input type="text" value={checklist.left_eye_details?.iol_details || ""} onChange={(e) => setChecklist({ ...checklist, left_eye_details: { dilated: !!checklist.left_eye_details?.dilated, corneal_thickness: checklist.left_eye_details?.corneal_thickness ?? "", iol_details: e.target.value } })} placeholder="e.g. Tecnis +20.0D" className="w-full text-sm rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100" />
                   </div>
                 </div>
               </div>
+              )}
             </div>
               </>
             )}
 
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">
-                {visit?.body_part_department === "Ophthalmology" ? "Preparation Notes" : `${visit?.body_part_name || "Site"} Preparation Notes`}
+                {isOphthalmologyVisit ? "Preparation Notes" : `${visit?.body_part_name || "Site"} Preparation Notes`}
               </label>
               <textarea value={checklist.checklist_notes || ""} onChange={(e) => setChecklist({ ...checklist, checklist_notes: e.target.value })} className="w-full text-sm rounded-xl border border-slate-200 px-4 py-3 h-24 bg-slate-50 focus:bg-white outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all" placeholder="Note pre-op drops timing, patient anxiety levels, etc..." />
             </div>
@@ -1717,115 +1848,428 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
               )}
             </div>
 
-            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
-              <h3 className="font-bold text-slate-800 text-lg mb-4">Discharge Home Medications</h3>
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Discharge Home Medications</h3>
+                  <p className="text-xs text-slate-500">Prescribe discharge medications with optional tapering dose regimens</p>
+                </div>
+              </div>
               
-              <div className="grid grid-cols-12 gap-3 items-end bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-5">
-                <div className="col-span-12 md:col-span-3">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Medicine Name</label>
-                  <Combobox
-                    value={newMed.name}
-                    onChange={(val) => {
-                      const selected = availableMedicines.find(m => m.name === val);
-                      if (selected) {
+              {/* Add New Medication Card */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                    Add Medication
+                  </span>
+                  {newMed.tapering_steps && newMed.tapering_steps.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setNewMed({ ...newMed, tapering_steps: undefined })}
+                      className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-bold transition-all shadow-sm border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                    >
+                      <Activity className="h-3.5 w-3.5" />
+                      Disable Tapering Regimen
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
                         setNewMed({
                           ...newMed,
-                          name: val,
-                          dose: selected.default_dosage || newMed.dose,
-                          frequency: selected.default_frequency || newMed.frequency,
-                          duration: selected.default_duration || newMed.duration,
-                          instructions: selected.default_instructions || newMed.instructions,
+                          tapering_steps: [
+                            {
+                              sequence: 1,
+                              dosage: newMed.dose || "1 drop",
+                              frequency: newMed.frequency || "4 times daily",
+                              duration: newMed.duration || "1 week",
+                              instructions: newMed.instructions || "Instill 1 drop"
+                            }
+                          ]
                         });
-                      } else {
-                        setNewMed({ ...newMed, name: val });
-                      }
-                    }}
-                    options={Array.from(new Map(availableMedicines.map(m => [m.name, m])).values()).map(m => ({ label: m.name, value: m.name }))}
-                    placeholder="e.g. Tobradex Drops"
-                    allowCustomValue={true}
-                  />
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 px-3 py-1 text-xs font-bold transition-all shadow-sm"
+                    >
+                      <Activity className="h-3.5 w-3.5" />
+                      Enable Tapering Regimen
+                    </button>
+                  )}
                 </div>
-                <div className="col-span-6 sm:col-span-4 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Dose</label>
-                  <Combobox
-                    value={newMed.dose}
-                    onChange={(val) => setNewMed({ ...newMed, dose: val })}
-                    options={DOSAGES.map(d => ({ label: d, value: d }))}
-                    placeholder="1 drop"
-                    allowCustomValue={true}
-                  />
+
+                <div className="grid grid-cols-12 gap-3 items-end">
+                  <div className="col-span-12 md:col-span-4">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Medicine Name</label>
+                    <Combobox
+                      value={newMed.name}
+                      onChange={(val) => {
+                        const selected = availableMedicines.find(m => m.name === val);
+                        if (selected) {
+                          setNewMed({
+                            ...newMed,
+                            name: val,
+                            dose: selected.default_dosage || newMed.dose || "1 drop",
+                            frequency: selected.default_frequency || newMed.frequency || "4 times daily",
+                            duration: selected.default_duration || newMed.duration || "1 week",
+                            instructions: selected.default_instructions || newMed.instructions || "Instill 1 drop",
+                          });
+                        } else {
+                          setNewMed({ ...newMed, name: val });
+                        }
+                      }}
+                      options={Array.from(new Map(availableMedicines.map(m => [m.name, m])).values()).map(m => ({ label: m.name, value: m.name }))}
+                      placeholder="e.g. Prednisolone / Tobradex"
+                      allowCustomValue={true}
+                    />
+                  </div>
+                  <div className="col-span-6 sm:col-span-4 md:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Dose</label>
+                    <Combobox
+                      value={newMed.dose}
+                      onChange={(val) => setNewMed({ ...newMed, dose: val })}
+                      options={DOSAGES.map(d => ({ label: d, value: d }))}
+                      placeholder="1 drop"
+                      allowCustomValue={true}
+                    />
+                  </div>
+                  
+                  {(!newMed.tapering_steps || newMed.tapering_steps.length === 0) ? (
+                    <>
+                      <div className="col-span-6 sm:col-span-4 md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Frequency</label>
+                        <Combobox
+                          value={newMed.frequency}
+                          onChange={(val) => setNewMed({ ...newMed, frequency: val })}
+                          options={FREQUENCIES.map(f => ({ label: f, value: f }))}
+                          placeholder="4 times daily"
+                          allowCustomValue={true}
+                        />
+                      </div>
+                      <div className="col-span-6 sm:col-span-4 md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Duration</label>
+                        <Combobox
+                          value={newMed.duration}
+                          onChange={(val) => setNewMed({ ...newMed, duration: val })}
+                          options={DURATIONS.map(d => ({ label: d, value: d }))}
+                          placeholder="7 days"
+                          allowCustomValue={true}
+                        />
+                      </div>
+                      <div className="col-span-6 sm:col-span-8 md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Instructions</label>
+                        <Combobox
+                          value={newMed.instructions || ""}
+                          onChange={(val) => setNewMed({ ...newMed, instructions: val })}
+                          options={MEDICINE_INSTRUCTIONS.map(i => ({ label: i, value: i }))}
+                          placeholder="e.g. Instill 1 drop"
+                          allowCustomValue={true}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="col-span-12 sm:col-span-6 md:col-span-6">
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Default Instructions</label>
+                      <Combobox
+                        value={newMed.instructions || ""}
+                        onChange={(val) => setNewMed({ ...newMed, instructions: val })}
+                        options={MEDICINE_INSTRUCTIONS.map(i => ({ label: i, value: i }))}
+                        placeholder="e.g. Instill 1 drop"
+                        allowCustomValue={true}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="col-span-6 sm:col-span-4 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Frequency</label>
-                  <Combobox
-                    value={newMed.frequency}
-                    onChange={(val) => setNewMed({ ...newMed, frequency: val })}
-                    options={FREQUENCIES.map(f => ({ label: f, value: f }))}
-                    placeholder="QID (4x)"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-4 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Duration</label>
-                  <Combobox
-                    value={newMed.duration}
-                    onChange={(val) => setNewMed({ ...newMed, duration: val })}
-                    options={DURATIONS.map(d => ({ label: d, value: d }))}
-                    placeholder="7 days"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-8 md:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Instructions</label>
-                  <Combobox
-                    value={newMed.instructions || ""}
-                    onChange={(val) => setNewMed({ ...newMed, instructions: val })}
-                    options={MEDICINE_INSTRUCTIONS.map(i => ({ label: i, value: i }))}
-                    placeholder="e.g. After food"
-                    allowCustomValue={true}
-                  />
-                </div>
-                <div className="col-span-12 sm:col-span-4 md:col-span-1">
-                  <button type="button" onClick={addDischargeMed} className="w-full px-5 py-2.5 h-[42px] bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold shadow transition-all flex items-center justify-center">
-                    Add
+
+                {/* Tapering Regimen Builder for newMed */}
+                {newMed.tapering_steps && newMed.tapering_steps.length > 0 && (
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/30 p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-purple-200/60 pb-2">
+                      <span className="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
+                        Tapering Dose Regimen Steps
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentSteps = newMed.tapering_steps || [];
+                          const lastStep = currentSteps[currentSteps.length - 1];
+                          setNewMed({
+                            ...newMed,
+                            tapering_steps: [
+                              ...currentSteps,
+                              {
+                                sequence: currentSteps.length + 1,
+                                dosage: lastStep?.dosage || newMed.dose || "1 drop",
+                                frequency: lastStep?.frequency || "2 times daily",
+                                duration: lastStep?.duration || "1 week",
+                                instructions: lastStep?.instructions || newMed.instructions || "Instill 1 drop"
+                              }
+                            ]
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-purple-700 shadow-sm transition-all"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Step
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {newMed.tapering_steps.map((step, stepIndex) => (
+                        <div key={stepIndex} className="flex flex-col sm:flex-row gap-2.5 items-end bg-white p-3 rounded-lg border border-purple-100 shadow-xs">
+                          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
+                            <div>
+                              <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase">
+                                Step {stepIndex + 1} Dosage
+                              </label>
+                              <Combobox
+                                value={step.dosage || ""}
+                                onChange={(val) => {
+                                  const newSteps = [...(newMed.tapering_steps || [])];
+                                  newSteps[stepIndex] = { ...newSteps[stepIndex], dosage: val };
+                                  setNewMed({ ...newMed, tapering_steps: newSteps });
+                                }}
+                                options={DOSAGES.map(d => ({ label: d, value: d }))}
+                                placeholder="1 drop"
+                                allowCustomValue={true}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase">
+                                Frequency
+                              </label>
+                              <Combobox
+                                value={step.frequency || ""}
+                                onChange={(val) => {
+                                  const newSteps = [...(newMed.tapering_steps || [])];
+                                  newSteps[stepIndex] = { ...newSteps[stepIndex], frequency: val };
+                                  setNewMed({ ...newMed, tapering_steps: newSteps });
+                                }}
+                                options={FREQUENCIES.map(f => ({ label: f, value: f }))}
+                                placeholder="6 times a day"
+                                allowCustomValue={true}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase">
+                                Duration
+                              </label>
+                              <Combobox
+                                value={step.duration || ""}
+                                onChange={(val) => {
+                                  const newSteps = [...(newMed.tapering_steps || [])];
+                                  newSteps[stepIndex] = { ...newSteps[stepIndex], duration: val };
+                                  setNewMed({ ...newMed, tapering_steps: newSteps });
+                                }}
+                                options={DURATIONS.map(d => ({ label: d, value: d }))}
+                                placeholder="1 week"
+                                allowCustomValue={true}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-purple-950/80 mb-1 block uppercase">
+                                Instructions
+                              </label>
+                              <Combobox
+                                value={step.instructions || ""}
+                                onChange={(val) => {
+                                  const newSteps = [...(newMed.tapering_steps || [])];
+                                  newSteps[stepIndex] = { ...newSteps[stepIndex], instructions: val };
+                                  setNewMed({ ...newMed, tapering_steps: newSteps });
+                                }}
+                                options={MEDICINE_INSTRUCTIONS.map(i => ({ label: i, value: i }))}
+                                placeholder="Instill 1 drop"
+                                allowCustomValue={true}
+                              />
+                            </div>
+                          </div>
+                          {newMed.tapering_steps && newMed.tapering_steps.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newSteps = newMed.tapering_steps!
+                                  .filter((_, sIdx) => sIdx !== stepIndex)
+                                  .map((s, newIdx) => ({ ...s, sequence: newIdx + 1 }));
+                                setNewMed({ ...newMed, tapering_steps: newSteps });
+                              }}
+                              className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors self-center sm:self-end"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={addDischargeMed}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Medication
                   </button>
                 </div>
               </div>
 
+              {/* Prescribed Medications List */}
               {dischargeMeds.length === 0 ? (
                 <div className="text-center py-6 bg-white border border-slate-200 border-dashed rounded-xl">
                   <p className="text-sm text-slate-400">No home medications prescribed.</p>
                 </div>
               ) : (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto scrollbar-hide shadow-sm">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase text-left">
-                      <tr>
-                        <th className="px-5 py-3 font-bold tracking-wider">Medicine</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Dose</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Frequency</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Duration</th>
-                        <th className="px-5 py-3 font-bold tracking-wider">Instructions</th>
-                        <th className="px-5 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {dischargeMeds.map((m, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                          <td className="px-5 py-3 font-bold text-slate-800">{m.name}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.dose}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.frequency}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.duration}</td>
-                          <td className="px-5 py-3 text-slate-600 font-medium">{m.instructions}</td>
-                          <td className="px-5 py-3 text-right">
-                            <button type="button" onClick={() => removeDischargeMed(i)} className="text-slate-400 hover:text-rose-500 transition-colors">
-                              <Trash2 className="h-4 w-4 inline" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-3">
+                  {dischargeMeds.map((m, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition-all space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">
+                            {i + 1}
+                          </span>
+                          <h4 className="font-bold text-slate-900 text-base">{m.name}</h4>
+                          {m.dose && (
+                            <span className="text-xs bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-md border border-slate-200">
+                              {m.dose}
+                            </span>
+                          )}
+                          {m.tapering_steps && m.tapering_steps.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                              <TrendingDown className="w-3 h-3 text-purple-600" />
+                              Tapering ({m.tapering_steps.length} steps)
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleItemTaperingToggle(i)}
+                            className={clsx(
+                              "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold transition-all shadow-xs",
+                              m.tapering_steps && m.tapering_steps.length > 0
+                                ? "border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            )}
+                          >
+                            <Activity className="h-3 w-3" />
+                            {m.tapering_steps && m.tapering_steps.length > 0 ? "Disable Tapering" : "Enable Tapering"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeDischargeMed(i)}
+                            className="text-slate-400 hover:text-rose-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* When NOT tapering: show single frequency, duration, instructions */}
+                      {(!m.tapering_steps || m.tapering_steps.length === 0) ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-8 text-xs text-slate-600">
+                          <div>
+                            <span className="font-bold text-slate-500 uppercase block text-[10px]">Frequency:</span>
+                            <span className="font-semibold text-slate-800">{m.frequency || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-500 uppercase block text-[10px]">Duration:</span>
+                            <span className="font-semibold text-slate-800">{m.duration || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-500 uppercase block text-[10px]">Instructions:</span>
+                            <span className="font-semibold text-slate-800">{m.instructions || "-"}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        /* When tapering: render tapering schedule and steps editor */
+                        <div className="pl-2 sm:pl-8 space-y-2">
+                          <div className="rounded-xl border border-purple-100 bg-purple-50/30 p-3.5 space-y-3">
+                            <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                              <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                                <TrendingDown className="h-3.5 w-3.5 text-purple-600" />
+                                Tapering Schedule
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleItemAddStep(i)}
+                                className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-purple-700 shadow-xs"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Add Step
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {m.tapering_steps.map((step, stepIdx) => (
+                                <div key={stepIdx} className="flex flex-col sm:flex-row gap-2.5 items-end bg-white p-2.5 rounded-lg border border-purple-100 shadow-2xs">
+                                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+                                    <div>
+                                      <label className="text-[9px] font-bold text-purple-950/80 mb-0.5 block uppercase">
+                                        Step {stepIdx + 1} Dose
+                                      </label>
+                                      <Combobox
+                                        value={step.dosage || ""}
+                                        onChange={(val) => handleItemStepChange(i, stepIdx, "dosage", val)}
+                                        options={DOSAGES.map(d => ({ label: d, value: d }))}
+                                        placeholder="1 drop"
+                                        allowCustomValue={true}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] font-bold text-purple-950/80 mb-0.5 block uppercase">
+                                        Frequency
+                                      </label>
+                                      <Combobox
+                                        value={step.frequency || ""}
+                                        onChange={(val) => handleItemStepChange(i, stepIdx, "frequency", val)}
+                                        options={FREQUENCIES.map(f => ({ label: f, value: f }))}
+                                        placeholder="4 times daily"
+                                        allowCustomValue={true}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] font-bold text-purple-950/80 mb-0.5 block uppercase">
+                                        Duration
+                                      </label>
+                                      <Combobox
+                                        value={step.duration || ""}
+                                        onChange={(val) => handleItemStepChange(i, stepIdx, "duration", val)}
+                                        options={DURATIONS.map(d => ({ label: d, value: d }))}
+                                        placeholder="1 week"
+                                        allowCustomValue={true}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] font-bold text-purple-950/80 mb-0.5 block uppercase">
+                                        Instructions
+                                      </label>
+                                      <Combobox
+                                        value={step.instructions || ""}
+                                        onChange={(val) => handleItemStepChange(i, stepIdx, "instructions", val)}
+                                        options={MEDICINE_INSTRUCTIONS.map(ins => ({ label: ins, value: ins }))}
+                                        placeholder="Instill 1 drop"
+                                        allowCustomValue={true}
+                                      />
+                                    </div>
+                                  </div>
+                                  {m.tapering_steps!.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleItemRemoveStep(i, stepIdx)}
+                                      className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors self-center sm:self-end"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

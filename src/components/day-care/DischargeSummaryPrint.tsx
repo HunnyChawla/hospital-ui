@@ -122,13 +122,30 @@ export const DischargeSummaryPrint = ({ data, doctorSignature }: DischargeSummar
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="pl-5 text-xs text-slate-700 mt-1">
-                                            {med.instructions && <span className="mr-2 font-semibold">({med.instructions})</span>}
-                                            <span className="uppercase font-medium">
-                                                {med.frequency && `${med.frequency}, `}
-                                                {med.duration && `${med.duration}`}
-                                            </span>
-                                        </div>
+                                        {med.tapering_steps && med.tapering_steps.length > 0 ? (
+                                            <div className="pl-5 mt-1.5 border-l-2 border-slate-300 space-y-1">
+                                                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">
+                                                    Tapering Regimen Schedule:
+                                                </p>
+                                                {med.tapering_steps.map((step: any, stepIdx: number) => (
+                                                    <div key={stepIdx} className="text-xs text-slate-800">
+                                                        <span className="font-semibold text-slate-900">Step {stepIdx + 1}: </span>
+                                                        <span>{step.dosage || med.dose || ""}</span>
+                                                        {step.frequency && <span className="mx-1">• {step.frequency}</span>}
+                                                        {step.duration && <span className="mx-1">• {step.duration}</span>}
+                                                        {step.instructions && <span className="text-slate-500 italic"> ({step.instructions})</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="pl-5 text-xs text-slate-700 mt-1">
+                                                {med.instructions && <span className="mr-2 font-semibold">({med.instructions})</span>}
+                                                <span className="uppercase font-medium">
+                                                    {med.frequency && `${med.frequency}, `}
+                                                    {med.duration && `${med.duration}`}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

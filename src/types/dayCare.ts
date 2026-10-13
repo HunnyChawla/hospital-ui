@@ -104,8 +104,8 @@ export interface DayCarePreparationChecklist {
   site_marked: boolean;
   investigations_reviewed: boolean;
   npo_status_verified: boolean;
-  right_eye_details?: { dilated: boolean; corneal_thickness: string; iol_details: string } | null;
-  left_eye_details?: { dilated: boolean; corneal_thickness: string; iol_details: string } | null;
+  right_eye_details?: { dilated: boolean; corneal_thickness?: string | number | null; iol_details?: string | null } | null;
+  left_eye_details?: { dilated: boolean; corneal_thickness?: string | number | null; iol_details?: string | null } | null;
   checklist_notes: string | null;
 }
 
@@ -156,12 +156,15 @@ export interface DayCareRecoveryRecord {
   attendant_present: boolean;
 }
 
+import type { TaperingStep } from "./index";
+
 export interface DischargeMedicationItem {
   name: string;
   dose: string;
   frequency: string;
   duration: string;
   instructions?: string;
+  tapering_steps?: TaperingStep[];
 }
 
 export interface DayCareDischargeRecord {
