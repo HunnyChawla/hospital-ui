@@ -283,7 +283,14 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
       const tabToLoad = initialLoad ? getInitialTabForStatus(v.status) : activeTab;
       if (initialLoad) setActiveTab(tabToLoad);
 
-      await loadTabResource(v, tabToLoad);
+      await Promise.all([
+        loadTabResource(v, "consent"),
+        loadTabResource(v, "clinical"),
+        loadTabResource(v, "checklist"),
+        loadTabResource(v, "ot"),
+        loadTabResource(v, "recovery"),
+        loadTabResource(v, "discharge"),
+      ]);
     } catch (err) {
       toast.error(getErrorMessage(err) || "Failed to load daycare visit details");
     } finally {
@@ -621,7 +628,8 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     if (!visit) return;
     setSubmitting(true);
     try {
-      await dayCareApi.upsertClinicalAssessment(visit.id, clinical);
+      const saved = await dayCareApi.upsertClinicalAssessment(visit.id, clinical);
+      setClinical(saved);
       toast.success("Clinical assessment saved");
       if (visit.status === "checked_in") {
         await handleTransition("pre_assessment_completed", "checklist");
@@ -669,7 +677,8 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
         right_eye_details: showRightEye ? normalizeEyeDetails(checklist.right_eye_details) : null,
         left_eye_details: showLeftEye ? normalizeEyeDetails(checklist.left_eye_details) : null,
       };
-      await dayCareApi.upsertPreparationChecklist(visit.id, payload);
+      const saved = await dayCareApi.upsertPreparationChecklist(visit.id, payload);
+      setChecklist(saved);
       toast.success("Prep checklist saved");
       if (visit.status === "pre_assessment_completed") {
         await handleTransition("ready_for_ot", "ot");
@@ -689,10 +698,11 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     if (!visit) return;
     setSubmitting(true);
     try {
-      await dayCareApi.upsertOTRecord(visit.id, {
+      const saved = await dayCareApi.upsertOTRecord(visit.id, {
         ...ot,
         consumables: otConsumables
       });
+      setOt(saved);
       toast.success("OT Record saved");
       
       // If currently ready_for_ot, advance to in_ot first, then to recovery
@@ -717,10 +727,11 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     if (!visit) return;
     setSubmitting(true);
     try {
-      await dayCareApi.upsertRecoveryRecord(visit.id, {
+      const saved = await dayCareApi.upsertRecoveryRecord(visit.id, {
         ...recovery,
         monitoring_records: recoveryVitals
       });
+      setRecovery(saved);
       toast.success("Recovery Record saved");
       setActiveTab("discharge");
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -736,11 +747,12 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
     if (!visit) return;
     setSubmitting(true);
     try {
-      await dayCareApi.upsertDischargeRecord(visit.id, {
+      const saved = await dayCareApi.upsertDischargeRecord(visit.id, {
         ...discharge,
         follow_up_instructions: dischargeAdvices.join('\n'),
         medications: dischargeMeds
       });
+      setDischarge(saved);
       toast.success("Discharge Record saved");
       if (visit.status !== "discharged") {
         await dayCareApi.transitionStatus(visit.id, { to_status: "discharged", notes: "Discharged from workflow" });
@@ -938,37 +950,52 @@ export function DayCareWorkflowWizard({ visitId }: DayCareWorkflowWizardProps) {
 
   if (!visit) return null;
 
-  const currentStageIndex = STAGES.findIndex(s => s.id === activeTab);
-  const highestStageIndex = STAGES.findIndex(s => s.defaultStatus.includes(visit.status));
-  
   // If visit is cancelled/postponed/no_show, allow navigating anywhere or show warning
   const isTerminalState = ["cancelled", "postponed", "no_show"].includes(visit.status);
+
+  const isStageCompleted = (stageId: TabType): boolean => {
+    switch (stageId) {
+      case "billing":
+        return Boolean(visit.check_in_at) || !["scheduled", "cancelled", "postponed", "no_show"].includes(visit.status);
+      case "consent":
+        return mrdDocuments.length > 0;
+      case "clinical":
+        return Boolean(clinical.id);
+      case "checklist":
+        return Boolean(checklist.id);
+      case "ot":
+        return Boolean(ot.id);
+      case "recovery":
+        return Boolean(recovery.id);
+      case "discharge":
+        return Boolean(discharge.id) || visit.status === "discharged";
+      default:
+        return false;
+    }
+  };
 
   return (
     <div className="w-full max-w-[1440px] mx-auto px-4 md:px-6 space-y-6 pb-20">
       {/* Stepper Navigation */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden">
-        {/* Background Connecting Line */}
-        <div className="absolute left-[7.14%] right-[7.14%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-slate-100 -translate-y-1/2 z-0" />
-        
-        {/* Filled Connecting Line */}
-        <div 
-          className="absolute left-[7.14%] top-[2.25rem] md:top-[2.75rem] h-[2px] bg-emerald-500 -translate-y-1/2 transition-all duration-500 z-0" 
-          style={{ 
-            width: `calc(${Math.max(0, Math.min(6, Math.max(highestStageIndex, currentStageIndex))) / 6 * 100}% * 0.8572)` 
-          }} 
-        />
-
         <div className="relative flex justify-between items-start w-full z-10">
           {STAGES.map((stage, idx) => {
             const isActive = activeTab === stage.id;
-            const isCompleted = highestStageIndex > idx || currentStageIndex > idx || visit.status === "discharged";
+            const isCompleted = isStageCompleted(stage.id);
             const isPendingPaymentAction = stage.id === "billing" && summary && summary.balance_due > 0;
             const isActuallyCompleted = isCompleted && !isPendingPaymentAction;
             const isSelectable = true; // Always allow navigating to any step to keep the workflow flexible
 
             return (
-              <div key={stage.id} className="flex flex-col items-center flex-1 min-w-0">
+              <div key={stage.id} className="relative flex flex-col items-center flex-1 min-w-0">
+                {idx < STAGES.length - 1 && (
+                  <div
+                    className={clsx(
+                      "absolute left-1/2 top-[18px] w-full h-[2px] -translate-y-1/2 transition-colors duration-500 z-0",
+                      isActuallyCompleted ? "bg-emerald-500" : "bg-slate-100"
+                    )}
+                  />
+                )}
                 <button
                   onClick={() => isSelectable && setActiveTab(stage.id)}
                   disabled={!isSelectable}
