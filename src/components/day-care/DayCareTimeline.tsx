@@ -105,9 +105,9 @@ export function DayCareTimeline({ timeline, currentStatus, cancellationReason }:
   return (
     <div className="w-full">
       {/* Steps Track */}
-      <div className="relative flex items-center justify-between">
+      <div className="relative flex items-center justify-between pb-11 w-full">
         {/* Connecting Lines */}
-        <div className="absolute left-0 right-0 top-1/2 -z-10 h-0.5 -translate-y-1/2 bg-slate-200">
+        <div className="absolute left-[18px] right-[18px] top-[18px] -z-10 h-0.5 -translate-y-1/2 bg-slate-200">
           <div className="flex h-full w-full justify-between">
             {timeline.slice(0, -1).map((_, idx) => (
               <div

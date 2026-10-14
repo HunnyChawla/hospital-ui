@@ -296,18 +296,18 @@ export function DayCareDashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left Column: Visits List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col h-full max-h-[600px]">
             <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-4">
               <h2 className="text-base font-bold text-slate-900">Active Day Care Patients ({filteredVisits.length})</h2>
             </div>
 
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white">
+              <div className="flex-1 flex flex-col items-center justify-center py-20 bg-white">
                 <Loader2 className="h-10 w-10 text-sky-600 animate-spin" />
                 <p className="text-sm font-semibold text-slate-500 mt-4">Loading daycare visits...</p>
               </div>
             ) : filteredVisits.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white text-center px-4">
+              <div className="flex-1 flex flex-col items-center justify-center py-20 bg-white text-center px-4">
                 <div className="rounded-full bg-slate-50 p-4 border border-slate-100 mb-4">
                   <CalendarDays className="h-8 w-8 text-slate-400" />
                 </div>
@@ -317,7 +317,7 @@ export function DayCareDashboard() {
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden divide-y divide-slate-100">
                 {filteredVisits.map((v) => (
                   <div key={v.id} className="p-5 hover:bg-slate-50/40 transition-colors flex flex-col gap-4">
                     {/* Top Row: Info */}
@@ -346,7 +346,7 @@ export function DayCareDashboard() {
                     </div>
 
                     {/* Timeline Component Row */}
-                    <div className="py-2.5 px-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+                    <div className="py-2.5 px-3 bg-slate-50/50 rounded-2xl border border-slate-100 overflow-x-auto scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                       <DayCareTimeline
                         timeline={v.timeline || []}
                         currentStatus={v.status}
