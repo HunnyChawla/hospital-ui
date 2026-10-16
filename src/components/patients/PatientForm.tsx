@@ -15,6 +15,7 @@ import { abhaApi } from "@/services/abhaApi";
 import { getAbhaError } from "@/utils/abhaErrors";
 import { resolveAbhaNumber } from "@/utils/abha";
 import { toast } from "sonner";
+import { noSpecialCharsRule, validateNoSpecialChars } from "@/utils/inputSanitization";
 
 
 export interface InitialAbhaData {
@@ -537,6 +538,11 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
         setAgeError("Mother's/Parent's name is required for a newborn baby.");
         return;
       }
+      const parentNameError = validateNoSpecialChars(parentName, "parent_name");
+      if (parentNameError) {
+        setAgeError(`Mother's/Parent's name: ${parentNameError}`);
+        return;
+      }
       patientData = {
         title: "Baby of",
         first_name: `Baby of ${parentName.trim()}`,
@@ -761,7 +767,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <label className="col-span-2 space-y-1">
               <span className="text-slate-600 text-sm">First Name <span className="text-rose-500">*</span></span>
               <input
-                {...register("first_name", { required: "First name is required" })}
+                {...register("first_name", { required: "First name is required", validate: noSpecialCharsRule("first_name") })}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
                 placeholder="e.g. John"
               />
@@ -773,10 +779,13 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <label className="col-span-1 space-y-1">
               <span className="text-slate-600 text-sm">Last Name</span>
               <input
-                {...register("last_name")}
+                {...register("last_name", { validate: noSpecialCharsRule("last_name") })}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
                 placeholder="e.g. Doe"
               />
+              {errors.last_name && (
+                <p className="text-xs text-rose-500">{errors.last_name.message}</p>
+              )}
             </label>
           </div>
         ) : (
@@ -1120,19 +1129,25 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           <label className="space-y-1">
             <span className="text-slate-600">City</span>
             <input
-              {...register("city")}
+              {...register("city", { validate: noSpecialCharsRule("city") })}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="City name"
             />
+            {errors.city && (
+              <p className="text-xs text-rose-500">{errors.city.message}</p>
+            )}
           </label>
 
           <label className="space-y-1">
             <span className="text-slate-600">State</span>
             <input
-              {...register("state")}
+              {...register("state", { validate: noSpecialCharsRule("state") })}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="State"
             />
+            {errors.state && (
+              <p className="text-xs text-rose-500">{errors.state.message}</p>
+            )}
           </label>
 
           <label className="space-y-1">
