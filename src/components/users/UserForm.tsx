@@ -165,6 +165,7 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
             <option value="receptionist">Receptionist</option>
             <option value="optometrist">Optometrist</option>
             <option value="examiner">Examiner</option>
+            <option value="lab_technician">Lab Technician</option>
           </select>
           {errors.role && (
             <p className="text-xs text-rose-500">{errors.role.message as string}</p>

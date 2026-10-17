@@ -64,6 +64,7 @@ export function FeatureFlagManagement() {
 
     const [abdmMilestone, setAbdmMilestone] = useState<AbdmMilestoneLevel>("none");
     const [autoInviteUnlinked, setAutoInviteUnlinked] = useState<boolean>(false);
+    const [useBlackSmsForOtp, setUseBlackSmsForOtp] = useState<boolean>(false);
 
     const [clinicPanelFlags, setClinicPanelFlags] = useState({
         enabled: false,
@@ -248,6 +249,11 @@ export function FeatureFlagManagement() {
         } else {
             setAutoInviteUnlinked(false);
         }
+        if (allFlags?.abdm?.use_black_sms_for_otp !== undefined) {
+            setUseBlackSmsForOtp(Boolean(allFlags.abdm.use_black_sms_for_otp));
+        } else {
+            setUseBlackSmsForOtp(false);
+        }
         if (allFlags?.clinic_panel) {
             setClinicPanelFlags({
                 enabled: allFlags.clinic_panel.enabled as boolean,
@@ -270,6 +276,7 @@ export function FeatureFlagManagement() {
             flags: {
                 milestone: abdmMilestone,
                 m2_auto_invite_unlinked: autoInviteUnlinked,
+                use_black_sms_for_otp: useBlackSmsForOtp,
             }
         });
         updateFlags({
@@ -852,6 +859,42 @@ export function FeatureFlagManagement() {
                                             Requires ABDM Milestone 2 (M2) or higher to be active.
                                         </p>
                                     )}
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Black SMS Gateway for OTP (Alternative to ABDM Gateway) */}
+                        <div className={`rounded-xl border p-4.5 transition-all ${
+                            useBlackSmsForOtp
+                                ? "border-amber-300 bg-amber-50/40 shadow-xs"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}>
+                            <label className="flex items-start gap-4 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={useBlackSmsForOtp}
+                                    onChange={(e) => setUseBlackSmsForOtp(e.target.checked)}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-1.5 rounded-md ${useBlackSmsForOtp ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                                            <MessageSquare className="h-4 w-4" />
+                                        </div>
+                                        <span className="font-semibold text-slate-900">
+                                            Use Black SMS Gateway for OTP
+                                        </span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-md font-medium ml-auto border ${
+                                            useBlackSmsForOtp
+                                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                : "bg-slate-100 text-slate-600 border-slate-200"
+                                        }`}>
+                                            {useBlackSmsForOtp ? "Active (Black SMS Gateway)" : "Default: ABDM Gateway"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                                        When enabled, user-initiated linking generates and delivers OTPs via the Black SMS Gateway and validates them internally. When disabled, OTP sending and verification use the ABDM Gateway.
+                                    </p>
                                 </div>
                             </label>
                         </div>
