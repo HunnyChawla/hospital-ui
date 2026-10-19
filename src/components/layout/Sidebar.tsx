@@ -155,6 +155,7 @@ export function Sidebar() {
       "/platform-billing",
       "/terms-conditions",
       "/platform-patient-management",
+      "/api-permissions",
     ];
 
     if (userRole !== "platform_owner") {
@@ -163,6 +164,9 @@ export function Sidebar() {
 
     // Add Platform Owner screens if not present
     if (userRole === "platform_owner") {
+      if (!items.find((i) => i.href === "/api-permissions")) {
+        items.push({ label: "API Permissions", href: "/api-permissions", icon: Shield });
+      }
       if (!items.find((i) => i.href === "/screens")) {
         items.push({ label: "Screens", href: "/screens", icon: Monitor });
       }

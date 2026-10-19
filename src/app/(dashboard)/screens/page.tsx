@@ -1,14 +1,29 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { isPlatformOwner } from "@/utils/auth";
 import { ScreenList } from "@/components/screens/ScreenList";
 
-export const metadata = {
-    title: "Screen Management | HMS",
-    description: "Manage application screens and menus",
-};
+export default function ScreensPage() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
 
-export default function ServicesPage() {
-    return (
-        <div className="flex h-full flex-col space-y-4 p-8">
-            <ScreenList />
-        </div>
-    );
+  useEffect(() => {
+    if (!isPlatformOwner()) {
+      router.replace("/");
+      return;
+    }
+    setAuthorized(true);
+  }, [router]);
+
+  if (!authorized) {
+    return null;
+  }
+
+  return (
+    <div className="flex h-full flex-col space-y-4 p-8">
+      <ScreenList />
+    </div>
+  );
 }
