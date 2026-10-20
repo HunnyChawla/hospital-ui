@@ -11,11 +11,11 @@
  * Address fields additionally allow: # ( ) : &
  */
 
-// General text fields: letters, digits, whitespace, - . , ' /
-const SAFE_TEXT_REGEX = /^[\p{L}\p{N}\s\-.,'/]+$/u;
+// General text fields: letters, digits, underscore, whitespace, - . , ' /
+const SAFE_TEXT_REGEX = /^[\p{L}\p{N}_\s\-.,'/]+$/u;
 
 // Address fields: also allow # ( ) : &
-const SAFE_ADDRESS_REGEX = /^[\p{L}\p{N}\s\-.,'/()#:&]+$/u;
+const SAFE_ADDRESS_REGEX = /^[\p{L}\p{N}_\s\-.,'/()#:&]+$/u;
 
 // Dangerous characters strictly forbidden even in free-text fields (notes, description, remarks)
 const DANGEROUS_CHARS_REGEX = /[<>{}[\]]/;
@@ -46,7 +46,7 @@ const FREE_TEXT_FIELDS = new Set([
   "summary",
 ]);
 
-const EXCLUDED_SUFFIXES = ["_id", "_url", "_key", "_hash", "_code", "_base64", "_token"];
+const EXCLUDED_SUFFIXES = ["_id", "_url", "_key", "_hash", "_code", "_base64", "_token", "_type", "_status"];
 
 const ADDRESS_FIELDS = new Set([
   "address",
