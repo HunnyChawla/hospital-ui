@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import { getEnv } from "../utils/env";
+import { scanPayloadForSpecialChars } from "../utils/inputSanitization";
 
 // Lazy initialization to ensure window.__ENV is loaded before baseURL is set
 let _apiClient: ReturnType<typeof axios.create> | null = null;
@@ -16,6 +17,28 @@ const getApiClient = () => {
 
     // Add auth token to requests and guard against unconsented API calls
     _apiClient.interceptors.request.use((config) => {
+      // Scan mutation request bodies for special characters
+      if (
+        config.data &&
+        typeof config.data === "object" &&
+        ["post", "put", "patch"].includes((config.method || "").toLowerCase())
+      ) {
+        const url = config.url || "";
+        // Skip auth endpoints (passwords) and ABDM callbacks
+        const isExempt = url.includes("/auth/") || url.includes("/abdm/");
+
+        if (!isExempt) {
+          const violations = scanPayloadForSpecialChars(config.data as Record<string, unknown>);
+          if (violations.length > 0) {
+            const error = new Error(
+              `Special characters are not allowed in: ${violations.join(", ")}`
+            );
+            (error as any).isInputSanitizationError = true;
+            throw error;
+          }
+        }
+      }
+
       if (typeof window !== "undefined") {
         const token = localStorage.getItem("auth_token");
         if (token) {

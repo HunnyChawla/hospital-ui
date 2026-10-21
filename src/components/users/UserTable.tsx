@@ -6,6 +6,7 @@ import { formatDate } from "@/utils/format";
 import { Edit2, ChevronLeft, ChevronRight, Key } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { ResetPasswordModal } from "@/components/password/ResetPasswordModal";
+import { ROLE_LABELS } from "@/constants/screens";
 
 interface UserTableProps {
   onUserClick?: (userId: string) => void;
@@ -81,6 +82,8 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
         return "bg-indigo-50 text-indigo-700";
       case "examiner":
         return "bg-teal-50 text-teal-700";
+      case "lab_technician":
+        return "bg-rose-50 text-rose-700";
       default:
         return "bg-slate-50 text-slate-700";
     }
@@ -134,7 +137,7 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
                   </td>
                   <td className="px-4 py-3">
                     <span className={`pill px-2 py-0.5 text-xs font-normal ${getRoleColor(user.role)}`}>
-                      {user.role}
+                      {ROLE_LABELS[user.role] || user.role}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">

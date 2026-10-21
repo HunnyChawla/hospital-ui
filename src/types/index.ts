@@ -983,6 +983,33 @@ export type AvailableScreen = {
   description?: string;
 };
 
+export interface ApiPermissionItem {
+  id: string;
+  path_pattern: string;
+  http_method: string;
+  module_tag: string;
+  summary: string | null;
+  description: string | null;
+  allowed_roles: string[];
+  is_public: boolean;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface ApiPermissionListResponse {
+  total: number;
+  endpoints: ApiPermissionItem[];
+  available_roles: string[];
+  available_modules: string[];
+}
+
+export interface ApiPermissionSyncResponse {
+  total_discovered: number;
+  new_endpoints_added: number;
+  updated_endpoints: number;
+}
+
 // ============================================
 // SURGERY BILLING TYPES
 // ============================================
