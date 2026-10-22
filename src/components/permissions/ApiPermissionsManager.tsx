@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Globe,
   RefreshCw,
@@ -183,6 +183,258 @@ export function ApiPermissionsManager() {
         is_public: getEffectiveIsPublic(item),
       },
     }));
+  };
+
+  // Multi-row selection state
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const masterCheckboxRef = useRef<HTMLInputElement | null>(null);
+
+  // Clear row selections when filters change
+  useEffect(() => {
+    setSelectedRowIds(new Set());
+  }, [search, selectedMethod, selectedModule, selectedRoleFilter]);
+
+  // Non-public endpoints in the current filtered view
+  const nonPublicFiltered = useMemo(
+    () => endpoints.filter((e) => !getEffectiveIsPublic(e)),
+    [endpoints, dirtyMap]
+  );
+
+  // Row selection helpers
+  const isAllRowsSelected = endpoints.length > 0 && endpoints.every((e) => selectedRowIds.has(e.id));
+  const isSomeRowsSelected = endpoints.some((e) => selectedRowIds.has(e.id)) && !isAllRowsSelected;
+
+  useEffect(() => {
+    if (masterCheckboxRef.current) {
+      masterCheckboxRef.current.indeterminate = isSomeRowsSelected;
+    }
+  }, [isSomeRowsSelected]);
+
+  const handleToggleSelectAllRows = () => {
+    if (isAllRowsSelected) {
+      setSelectedRowIds(new Set());
+    } else {
+      setSelectedRowIds(new Set(endpoints.map((e) => e.id)));
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedRowIds(new Set());
+  };
+
+  // Status computation for role column-header checkboxes
+  const getRoleHeaderStatus = (roleKey: string) => {
+    if (nonPublicFiltered.length === 0) {
+      return { checked: false, indeterminate: false, count: 0, total: 0 };
+    }
+    const count = nonPublicFiltered.filter((item) =>
+      getEffectiveRoles(item).includes(roleKey)
+    ).length;
+    const allChecked = count === nonPublicFiltered.length;
+    const indeterminate = count > 0 && !allChecked;
+    return {
+      checked: allChecked,
+      indeterminate,
+      count,
+      total: nonPublicFiltered.length,
+    };
+  };
+
+  // Toggle role across ALL filtered endpoints
+  const handleToggleRoleForFiltered = (roleKey: string, isCurrentlyAllChecked: boolean) => {
+    if (nonPublicFiltered.length === 0) return;
+    const roleDef = MANAGED_ROLES.find((r) => r.key === roleKey);
+    const roleLabel = roleDef ? roleDef.label : roleKey;
+    const shouldAdd = !isCurrentlyAllChecked;
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of nonPublicFiltered) {
+        const currentRoles = getEffectiveRoles(item);
+        const updatedRoles = shouldAdd
+          ? currentRoles.includes(roleKey)
+            ? currentRoles
+            : [...currentRoles, roleKey]
+          : currentRoles.filter((r) => r !== roleKey);
+
+        next[item.id] = {
+          allowed_roles: updatedRoles,
+          is_public: getEffectiveIsPublic(item),
+        };
+      }
+      return next;
+    });
+
+    toast.success(
+      shouldAdd
+        ? `Granted ${roleLabel} to all ${nonPublicFiltered.length} filtered APIs.`
+        : `Removed ${roleLabel} from all ${nonPublicFiltered.length} filtered APIs.`
+    );
+  };
+
+  // Status for Public column header checkbox
+  const publicCount = endpoints.filter((e) => getEffectiveIsPublic(e)).length;
+  const isPublicAllChecked = endpoints.length > 0 && publicCount === endpoints.length;
+  const isPublicIndeterminate = publicCount > 0 && !isPublicAllChecked;
+
+  const handleTogglePublicForFiltered = () => {
+    if (endpoints.length === 0) return;
+    const shouldMakePublic = !isPublicAllChecked;
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of endpoints) {
+        next[item.id] = {
+          allowed_roles: getEffectiveRoles(item),
+          is_public: shouldMakePublic,
+        };
+      }
+      return next;
+    });
+
+    toast.success(
+      shouldMakePublic
+        ? `Marked all ${endpoints.length} filtered APIs as Public.`
+        : `Marked all ${endpoints.length} filtered APIs as Protected.`
+    );
+  };
+
+  // Bulk actions on selected rows
+  const getSelectedItems = (): ApiPermissionItem[] => {
+    return endpoints.filter((e) => selectedRowIds.has(e.id));
+  };
+
+  const handleBulkSetAllRoles = () => {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+    const allRoleKeys = MANAGED_ROLES.map((r) => r.key);
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of selected) {
+        next[item.id] = {
+          allowed_roles: allRoleKeys,
+          is_public: getEffectiveIsPublic(item),
+        };
+      }
+      return next;
+    });
+
+    toast.success(`Granted all roles to ${selected.length} selected APIs.`);
+  };
+
+  const handleBulkSetAdminOnly = () => {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of selected) {
+        next[item.id] = {
+          allowed_roles: ["admin"],
+          is_public: getEffectiveIsPublic(item),
+        };
+      }
+      return next;
+    });
+
+    toast.success(`Set Admin-only access for ${selected.length} selected APIs.`);
+  };
+
+  const handleBulkClearRoles = () => {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of selected) {
+        next[item.id] = {
+          allowed_roles: [],
+          is_public: getEffectiveIsPublic(item),
+        };
+      }
+      return next;
+    });
+
+    toast.success(`Cleared all roles from ${selected.length} selected APIs.`);
+  };
+
+  const handleBulkGrantRole = (roleKey: string) => {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+    const roleDef = MANAGED_ROLES.find((r) => r.key === roleKey);
+    const roleLabel = roleDef ? roleDef.label : roleKey;
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of selected) {
+        const currentRoles = getEffectiveRoles(item);
+        if (!currentRoles.includes(roleKey)) {
+          next[item.id] = {
+            allowed_roles: [...currentRoles, roleKey],
+            is_public: getEffectiveIsPublic(item),
+          };
+        }
+      }
+      return next;
+    });
+
+    toast.success(`Granted ${roleLabel} to ${selected.length} selected APIs.`);
+  };
+
+  const handleBulkRevokeRole = (roleKey: string) => {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+    const roleDef = MANAGED_ROLES.find((r) => r.key === roleKey);
+    const roleLabel = roleDef ? roleDef.label : roleKey;
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of selected) {
+        const currentRoles = getEffectiveRoles(item);
+        if (currentRoles.includes(roleKey)) {
+          next[item.id] = {
+            allowed_roles: currentRoles.filter((r) => r !== roleKey),
+            is_public: getEffectiveIsPublic(item),
+          };
+        }
+      }
+      return next;
+    });
+
+    toast.success(`Revoked ${roleLabel} from ${selected.length} selected APIs.`);
+  };
+
+  const handleBulkTogglePublic = () => {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+    const anyNotPublic = selected.some((item) => !getEffectiveIsPublic(item));
+
+    setDirtyMap((prev) => {
+      const next = { ...prev };
+      for (const item of selected) {
+        next[item.id] = {
+          allowed_roles: getEffectiveRoles(item),
+          is_public: anyNotPublic,
+        };
+      }
+      return next;
+    });
+
+    toast.success(
+      anyNotPublic
+        ? `Marked ${selected.length} selected APIs as Public.`
+        : `Marked ${selected.length} selected APIs as Protected.`
+    );
   };
 
   // Save all dirty changes
@@ -369,6 +621,111 @@ export function ApiPermissionsManager() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar when rows are selected */}
+      {selectedRowIds.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50/95 p-3.5 text-xs text-sky-900 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="flex items-center gap-2.5">
+            <div className="rounded-lg bg-sky-600 px-2.5 py-1 text-xs font-bold text-white">
+              {selectedRowIds.size}
+            </div>
+            <span className="font-semibold text-sky-950">
+              API{selectedRowIds.size === 1 ? "" : "s"} selected of {endpoints.length} filtered
+            </span>
+            <span className="text-slate-300">|</span>
+            <button
+              onClick={handleClearSelection}
+              className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline"
+            >
+              Clear selection
+            </button>
+            {!isAllRowsSelected && (
+              <button
+                onClick={handleToggleSelectAllRows}
+                className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline"
+              >
+                Select all {endpoints.length}
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-700">
+              Batch Actions:
+            </span>
+
+            {/* Presets */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleBulkSetAllRoles}
+                className="rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-sky-500"
+                title="Assign all 8 roles to selected APIs"
+              >
+                All Roles
+              </button>
+              <button
+                onClick={handleBulkSetAdminOnly}
+                className="rounded-lg border border-sky-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-sky-800 shadow-sm transition hover:bg-sky-50"
+                title="Assign only Admin to selected APIs"
+              >
+                Admin Only
+              </button>
+              <button
+                onClick={handleBulkClearRoles}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                title="Remove all roles from selected APIs"
+              >
+                Clear Roles
+              </button>
+            </div>
+
+            {/* Role Grant & Revoke Dropdowns */}
+            <div className="flex items-center gap-1.5 border-l border-sky-200 pl-2">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) handleBulkGrantRole(e.target.value);
+                }}
+                className="rounded-lg border border-sky-300 bg-white px-2.5 py-1.5 text-xs font-medium text-sky-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+              >
+                <option value="" disabled>
+                  + Grant Role...
+                </option>
+                {MANAGED_ROLES.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    + {r.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) handleBulkRevokeRole(e.target.value);
+                }}
+                className="rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-800 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer"
+              >
+                <option value="" disabled>
+                  - Revoke Role...
+                </option>
+                {MANAGED_ROLES.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    - {r.label}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={handleBulkTogglePublic}
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                title="Toggle public access for selected APIs"
+              >
+                Toggle Public
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Permissions Matrix Data Grid */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
@@ -387,16 +744,60 @@ export function ApiPermissionsManager() {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  <th className="sticky left-0 z-10 bg-slate-50 px-3 py-3 w-24">Method</th>
-                  <th className="px-3 py-3 min-w-[280px]">Endpoint Route &amp; Purpose</th>
-                  <th className="px-2 py-3 text-center w-16" title="Public endpoints require no authentication">
-                    <Globe className="mx-auto h-4 w-4 text-slate-400" />
+                  {/* Master row selection checkbox */}
+                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      ref={masterCheckboxRef}
+                      checked={isAllRowsSelected}
+                      disabled={loading || endpoints.length === 0}
+                      onChange={handleToggleSelectAllRows}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:opacity-40"
+                      title={isAllRowsSelected ? "Deselect all visible APIs" : "Select all visible APIs"}
+                    />
                   </th>
-                  {MANAGED_ROLES.map((role) => (
-                    <th key={role.key} className="px-2 py-3 text-center min-w-[70px]">
-                      {role.shortLabel}
-                    </th>
-                  ))}
+                  <th className="px-3 py-3 w-24">Method</th>
+                  <th className="px-3 py-3 min-w-[280px]">Endpoint Route &amp; Purpose</th>
+                  <th className="px-2 py-2 text-center w-16" title="Public endpoints require no authentication">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1">
+                        <Globe className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-[10px] lowercase text-slate-500 font-normal">all</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        ref={(el) => {
+                          if (el) el.indeterminate = isPublicIndeterminate;
+                        }}
+                        checked={isPublicAllChecked}
+                        disabled={loading || endpoints.length === 0}
+                        onChange={handleTogglePublicForFiltered}
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:opacity-40"
+                        title={isPublicAllChecked ? "Unmark all filtered as public" : "Mark all filtered as public"}
+                      />
+                    </div>
+                  </th>
+                  {MANAGED_ROLES.map((role) => {
+                    const status = getRoleHeaderStatus(role.key);
+                    return (
+                      <th key={role.key} className="px-2 py-2 text-center min-w-[72px]">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[11px] font-bold text-slate-700">{role.shortLabel}</span>
+                          <input
+                            type="checkbox"
+                            ref={(el) => {
+                              if (el) el.indeterminate = status.indeterminate;
+                            }}
+                            checked={status.checked}
+                            disabled={loading || status.total === 0}
+                            onChange={() => handleToggleRoleForFiltered(role.key, status.checked)}
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:opacity-40"
+                            title={`Toggle ${role.label} for all ${status.total} filtered APIs`}
+                          />
+                        </div>
+                      </th>
+                    );
+                  })}
                   <th className="px-2 py-3 text-center min-w-[90px] text-amber-700" title="Platform Owner has permanent full access across all endpoints">
                     Owner
                   </th>
@@ -407,6 +808,7 @@ export function ApiPermissionsManager() {
                   const effectiveRoles = getEffectiveRoles(item);
                   const isPublic = getEffectiveIsPublic(item);
                   const isDirty = dirtyMap[item.id] !== undefined;
+                  const isRowSelected = selectedRowIds.has(item.id);
                   const methodStyle = METHOD_STYLES[item.http_method] || {
                     bg: "bg-slate-50",
                     text: "text-slate-700",
@@ -417,11 +819,25 @@ export function ApiPermissionsManager() {
                     <tr
                       key={item.id}
                       className={`transition-colors hover:bg-slate-50/70 ${
-                        isDirty ? "bg-amber-50/40" : ""
+                        isRowSelected
+                          ? "bg-sky-50/70"
+                          : isDirty
+                          ? "bg-amber-50/40"
+                          : ""
                       }`}
                     >
+                      {/* Row selection checkbox */}
+                      <td className="sticky left-0 z-10 bg-inherit px-3 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isRowSelected}
+                          onChange={() => handleToggleSelectRow(item.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                        />
+                      </td>
+
                       {/* Method Badge */}
-                      <td className="sticky left-0 z-10 bg-white px-3 py-2.5">
+                      <td className="px-3 py-2.5">
                         <span
                           className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold ${methodStyle.bg} ${methodStyle.text} ${methodStyle.border}`}
                         >
