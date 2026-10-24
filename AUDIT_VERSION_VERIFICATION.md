@@ -89,15 +89,12 @@ You do **not** need any manual setup in production:
 ```json
 {
   "service": "hospital-ui",
-  "version": "2.1.0",
-  "git_commit": "f23bd61c23fc2c27169e750e02b5110ba71a2f4d",
-  "git_branch": "master",
-  "git_ref": "2.1.0",
-  "build_timestamp": "2026-10-24T06:45:00.123Z",
-  "source_sha256": "CDAFB3D6813D76A7E0794F17BB2CF0572BDF0D092B95F7B6DC9FD8284AC2B5BD",
+  "version": "2.0.1",
+  "build_timestamp": "2026-10-24T06:55:13.368Z",
+  "source_sha256": "F0C0743C8EE534919CBD9F234E8283282C9CD7C8F0844AED5D9E69027D1892F8",
   "hash_algorithm": "SHA-256",
-  "verification_command": "git archive --format=tar 2.1.0 | sha256sum",
-  "verification_powershell": "git archive --format=tar 2.1.0 -o temp.tar; (Get-FileHash temp.tar -Algorithm SHA256).Hash; Remove-Item temp.tar"
+  "verification_command": "git archive --format=tar 2.0.1 | sha256sum",
+  "verification_powershell": "git archive --format=tar 2.0.1 -o temp.tar; (Get-FileHash temp.tar -Algorithm SHA256).Hash; Remove-Item temp.tar"
 }
 ```
 

@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Modal } from "./Modal";
 import { CopyToClipboardButton } from "./CopyToClipboardButton";
-import { ShieldCheck, GitCommit, GitBranch, Calendar, Terminal, Info, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Calendar, Terminal, Info, CheckCircle2 } from "lucide-react";
 
 export interface VersionInfo {
   service: string;
   version: string;
-  git_commit?: string;
-  git_branch?: string;
-  git_ref?: string;
   build_timestamp?: string;
   source_sha256?: string;
   hash_algorithm?: string;
@@ -85,49 +82,19 @@ export function VersionModal({ isOpen, onClose, data }: VersionModalProps) {
           </p>
         </div>
 
-        {/* Git & Build Metadata Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {/* Build / Release Date */}
+        {data.build_timestamp && (
           <div className="rounded-xl border border-slate-200/80 bg-white p-3">
             <div className="flex items-center justify-between text-xs text-slate-500">
-              <span className="flex items-center gap-1 font-medium">
-                <GitCommit className="h-3.5 w-3.5 text-slate-400" /> Git Commit
-              </span>
-              {data.git_commit && (
-                <CopyToClipboardButton
-                  value={data.git_commit}
-                  label="Copy Commit SHA"
-                  size="sm"
-                  className="text-slate-400 hover:text-sky-600"
-                />
-              )}
-            </div>
-            <p className="mt-1 font-mono text-xs font-semibold text-slate-800">
-              {data.git_commit ? data.git_commit.substring(0, 10) : "N/A"}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200/80 bg-white p-3">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span className="flex items-center gap-1 font-medium">
-                <GitBranch className="h-3.5 w-3.5 text-slate-400" /> Branch / Tag
-              </span>
-            </div>
-            <p className="mt-1 text-xs font-semibold text-slate-800 truncate">
-              {data.git_branch || "N/A"} {data.git_ref ? `(${data.git_ref})` : ""}
-            </p>
-          </div>
-
-          <div className="sm:col-span-2 rounded-xl border border-slate-200/80 bg-white p-3">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span className="flex items-center gap-1 font-medium">
-                <Calendar className="h-3.5 w-3.5 text-slate-400" /> Build Timestamp
+              <span className="flex items-center gap-1.5 font-medium">
+                <Calendar className="h-3.5 w-3.5 text-slate-400" /> Release Timestamp
               </span>
             </div>
             <p className="mt-1 text-xs font-semibold text-slate-800">
-              {data.build_timestamp ? new Date(data.build_timestamp).toLocaleString() : "N/A"}
+              {new Date(data.build_timestamp).toLocaleString()}
             </p>
           </div>
-        </div>
+        )}
 
         {/* Verification Command for Auditors */}
         {data.verification_command && (

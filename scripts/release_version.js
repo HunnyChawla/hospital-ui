@@ -154,9 +154,6 @@ async function main() {
     const auditPayload = {
       service: 'hospital-ui',
       version: newVersion,
-      git_commit: initialCommitSha,
-      git_branch: branch,
-      git_ref: newVersion,
       build_timestamp: buildTimestamp,
       source_sha256: sha256,
       hash_algorithm: 'SHA-256',
