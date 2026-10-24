@@ -8,7 +8,7 @@ import { fetchTenant } from "@/redux/tenantSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { extractSubdomain } from "@/utils/subdomain";
-import { Mail, Lock, Building2 } from "lucide-react";
+import { Mail, Lock, Building2, Eye, EyeOff } from "lucide-react";
 import { Suspense } from "react";
 import Image from "next/image";
 import { Footer } from "@/components/layout/Footer";
@@ -26,6 +26,7 @@ function LoginForm() {
     hospital_id: "",
   });
   const [showHospitalIdInput, setShowHospitalIdInput] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     // Restore session on mount
@@ -194,7 +195,7 @@ function LoginForm() {
             </div>
 
             <div className="rounded-3xl border border-slate-200/50 bg-white/90 backdrop-blur-sm p-8 shadow-xl shadow-sky-100/50">
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
                 {/* Email */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">
@@ -210,6 +211,7 @@ function LoginForm() {
                         setFormData({ ...formData, email: e.target.value })
                       }
                       placeholder="Enter your email"
+                      autoComplete="off"
                       className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                       required
                     />
@@ -225,15 +227,29 @@ function LoginForm() {
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-sky-400 to-teal-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none z-0"></div>
                     <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors pointer-events-none z-30" />
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
                       }
                       placeholder="Enter your password"
-                      className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-bwignore="true"
+                      className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors z-30 p-1 rounded-lg"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      title={showPassword ? "Hide password" : "Show password"}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -253,6 +269,7 @@ function LoginForm() {
                           setFormData({ ...formData, hospital_id: e.target.value })
                         }
                         placeholder="Enter hospital ID"
+                        autoComplete="off"
                         className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                         required
                       />

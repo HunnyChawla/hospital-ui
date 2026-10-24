@@ -7,6 +7,7 @@ import { SkeletonRow } from "../shared/SkeletonRow";
 import { Patient } from "@/types";
 import { useState, useEffect } from "react";
 import { Pagination } from "../common/Pagination";
+import { MaskedValue } from "../common/MaskedValue";
 
 interface PatientTableProps {
   onPatientClick?: (patientId: string) => void;
@@ -117,8 +118,8 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
 
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
                     <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1.5">
-                      <Phone className="h-3.5 w-3.5 text-slate-400" />
-                      <span>{patient.mobile}</span>
+                      <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <MaskedValue type="mobile" value={patient.mobile} size="xs" />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1.5">
                       <Calendar className="h-3.5 w-3.5 text-slate-400" />
@@ -135,7 +136,12 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                     {(patient.abhaAddress || patient.abhaNumber) && (
                       <div className="flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-teal-800">
                         <ShieldCheck className="h-3.5 w-3.5 text-teal-600 shrink-0" />
-                        <span className="font-mono truncate">{patient.abhaAddress || patient.abhaNumber}</span>
+                        <MaskedValue
+                          type={patient.abhaAddress ? "abha_address" : "abha_number"}
+                          value={patient.abhaAddress || patient.abhaNumber}
+                          size="xs"
+                          textClassName="truncate"
+                        />
                       </div>
                     )}
                   </div>
@@ -192,13 +198,13 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                           <div className="flex flex-col gap-0.5">
                             {patient.abhaAddress && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-700">
-                                <ShieldCheck className="h-3.5 w-3.5 text-teal-600" />
-                                {patient.abhaAddress}
+                                <ShieldCheck className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                                <MaskedValue type="abha_address" value={patient.abhaAddress} size="xs" />
                               </span>
                             )}
                             {patient.abhaNumber && (
                               <span className="text-[11px] font-mono text-slate-500">
-                                {patient.abhaNumber}
+                                <MaskedValue type="abha_number" value={patient.abhaNumber} size="xs" />
                               </span>
                             )}
                           </div>
@@ -208,7 +214,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col text-slate-700">
-                          <span>{patient.mobile}</span>
+                          <MaskedValue type="mobile" value={patient.mobile} size="xs" />
                           <span className="text-xs text-slate-500 capitalize">
                             {(patient.status || "Active").toLowerCase()}
                           </span>

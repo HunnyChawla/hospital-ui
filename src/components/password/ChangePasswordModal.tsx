@@ -65,7 +65,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Change Password" size="sm">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-5">
                 {/* Current Password */}
                 <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700">
@@ -75,6 +75,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
                         <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
                             type={showCurrentPassword ? "text" : "password"}
+                            autoComplete="current-password"
                             {...register("current_password", {
                                 required: "Current password is required",
                             })}
@@ -103,6 +104,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
                         <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
                             type={showNewPassword ? "text" : "password"}
+                            autoComplete="new-password"
                             {...register("new_password", {
                                 required: "New password is required",
                                 minLength: {
@@ -135,6 +137,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
                         <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
                             type={showConfirmPassword ? "text" : "password"}
+                            autoComplete="new-password"
                             {...register("confirm_password", {
                                 required: "Please confirm your new password",
                                 validate: (value) =>

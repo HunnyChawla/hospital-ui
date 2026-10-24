@@ -85,7 +85,7 @@ export function ResetPasswordModal({
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-5">
                     {/* New Password */}
                     <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-slate-700">
@@ -95,6 +95,7 @@ export function ResetPasswordModal({
                             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type={showNewPassword ? "text" : "password"}
+                                autoComplete="new-password"
                                 {...register("new_password", {
                                     required: "New password is required",
                                     minLength: {
@@ -127,6 +128,7 @@ export function ResetPasswordModal({
                             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type={showConfirmPassword ? "text" : "password"}
+                                autoComplete="new-password"
                                 {...register("confirm_password", {
                                     required: "Please confirm the password",
                                     validate: (value) =>

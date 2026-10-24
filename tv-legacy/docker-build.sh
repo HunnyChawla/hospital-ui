@@ -237,7 +237,7 @@ do_build() {
     [ -n "$git_sha" ] && log_info "Git SHA: ${git_sha}"
 
     # Construct build command
-    # --pull ensures we always get the latest base images (node:20-alpine)
+    # --pull ensures we always get the latest base images (node:24-alpine)
     local cmd="docker buildx build --pull --platform ${PLATFORMS}"
 
     # Cache configuration

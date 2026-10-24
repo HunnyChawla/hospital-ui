@@ -31,6 +31,7 @@ import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
 import { OpdSlipPrint } from "@/components/opd/OpdSlipPrint";
 import { Modal } from "@/components/common/Modal";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { CancellationRefundAcknowledgmentModal, type CancellationDetails } from "@/components/common/CancellationRefundAcknowledgmentModal";
 import { canCancelVisit, VISIT_CANCELLATION_REASONS } from "@/utils/visitCancellation";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -1062,7 +1063,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     <span>•</span>
                     <span>{patient.gender}</span>
                     <span>•</span>
-                    <span>{patient.mobile}</span>
+                    <MaskedValue type="mobile" value={patient.mobile} size="xs" />
                     <span>•</span>
                     <span className="capitalize">{patient.status}</span>
                     {patient.category && (
@@ -1234,7 +1235,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                                   </p>
                                   <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
                                     {appointment.patient_mobile && (
-                                      <span>{appointment.patient_mobile}</span>
+                                      <MaskedValue type="mobile" value={appointment.patient_mobile} size="xs" />
                                     )}
                                     <span className="flex items-center gap-1">
                                       <Calendar className="h-3 w-3" />
@@ -2469,7 +2470,9 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 <div className="text-xs text-slate-500 mt-0.5">UHID: {patient.healthId}</div>
               )}
               {patient?.abhaAddress && (
-                <div className="text-xs text-sky-600 font-medium mt-0.5">{patient.abhaAddress}</div>
+                <div className="text-xs text-sky-600 font-medium mt-0.5">
+                  <MaskedValue type="abha_address" value={patient.abhaAddress} size="xs" textClassName="text-sky-700" />
+                </div>
               )}
               <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
                 <ShieldCheck className="h-3.5 w-3.5" />
