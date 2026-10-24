@@ -130,6 +130,32 @@ function parseDetail(detail: any): string | null {
 }
 
 /**
+ * Humanizes common backend error strings, network errors, and database constraint errors
+ * into clear, user-facing instructions.
+ */
+function humanizeErrorMessage(message: string): string {
+  if (!message) return message;
+  const trimmed = message.trim();
+  const lower = trimmed.toLowerCase();
+
+  // Network / server connection error
+  if (lower === "network error" || lower.includes("failed to fetch") || lower.includes("networkerror")) {
+    return "Unable to connect to the server. Please check your internet connection and try again.";
+  }
+
+  // Credentials / Login error
+  if (
+    lower.includes("invalid email, password, or hospital_id") ||
+    lower.includes("invalid email or password") ||
+    lower.includes("invalid credentials")
+  ) {
+    return "Invalid email or password. Please verify your credentials and try again.";
+  }
+
+  return humanizeDbError(trimmed);
+}
+
+/**
  * Extracts user-friendly error message from API error response
  * Handles both old format (string) and new format (array with structured errors)
  * Also handles Redux thunk errors (rejected actions & unwrapped payloads)
@@ -141,7 +167,7 @@ export function getErrorMessage(error: any): string {
 
   // Handle direct string errors
   if (typeof error === "string") {
-    return error;
+    return humanizeErrorMessage(error);
   }
 
   // Handle Redux thunk rejected actions (payload or error)
@@ -153,49 +179,84 @@ export function getErrorMessage(error: any): string {
   }
 
   if (typeof actualError === "string") {
-    return actualError;
+    return humanizeErrorMessage(actualError);
+  }
+
+  // Detect HTTP 429 Too Many Requests (Rate limit exceeded)
+  const statusCode =
+    actualError?.response?.status ||
+    actualError?.status ||
+    (typeof actualError?.code === "number" ? actualError.code : undefined);
+
+  if (statusCode === 429) {
+    const retryAfter =
+      actualError?.response?.headers?.["retry-after"] ||
+      actualError?.headers?.["retry-after"] ||
+      actualError?.response?.data?.detail?.[0]?.ctx?.retry_after ||
+      actualError?.data?.detail?.[0]?.ctx?.retry_after ||
+      actualError?.detail?.[0]?.ctx?.retry_after;
+
+    if (retryAfter) {
+      return `Too many failed login attempts. For security, please wait ${retryAfter} seconds before trying again.`;
+    }
+    return "Too many requests. For security, please wait a moment before trying again.";
+  }
+
+  // Detect Client-Side Network / Connection Error (offline, refused, CORS block)
+  const messageStr = actualError?.message || "";
+  if (
+    actualError?.code === "ERR_NETWORK" ||
+    messageStr.toLowerCase() === "network error" ||
+    messageStr.toLowerCase().includes("failed to fetch")
+  ) {
+    return "Unable to connect to the server. Please check your internet connection and try again.";
   }
 
   // 1. Check direct detail property (Redux rejectWithValue / unwrapped API payload / FastAPI error format)
   if (actualError?.detail) {
     const msg = parseDetail(actualError.detail);
-    if (msg) return msg;
+    if (msg) return humanizeErrorMessage(msg);
   }
 
   // 2. Check if actualError is itself an array of error details
   if (Array.isArray(actualError)) {
     const msg = parseDetail(actualError);
-    if (msg) return msg;
+    if (msg) return humanizeErrorMessage(msg);
   }
 
   // 3. Check axios response structure (actualError.response.data)
   if (actualError?.response?.data) {
     const msg = parseDetail(actualError.response.data);
-    if (msg) return msg;
+    if (msg) return humanizeErrorMessage(msg);
   }
 
   // 4. Check direct data object (actualError.data)
   if (actualError?.data) {
     const msg = parseDetail(actualError.data);
-    if (msg) return msg;
+    if (msg) return humanizeErrorMessage(msg);
   }
 
-  // 5. Check message property if it's not a generic HTTP status code message
+  // 5. Check 401 Unauthorized status fallback
+  if (statusCode === 401) {
+    return "Invalid email or password. Please verify your credentials and try again.";
+  }
+
+  // 6. Check message property if it's not a generic HTTP status code message
   if (actualError?.message && typeof actualError.message === "string") {
     const msg = actualError.message;
     if (!msg.toLowerCase().includes("request failed with status code")) {
-      return humanizeDbError(msg);
+      return humanizeErrorMessage(msg);
     }
   }
 
-  // 6. Check msg property
+  // 7. Check msg property
   if (actualError?.msg && typeof actualError.msg === "string") {
-    return humanizeDbError(actualError.msg);
+    return humanizeErrorMessage(actualError.msg);
   }
 
-  // 7. Check statusText
+  // 8. Check statusText
   if (actualError?.response?.statusText) {
-    return actualError.response.statusText;
+    return humanizeErrorMessage(actualError.response.statusText);
   }
 
   // Default fallback
