@@ -356,7 +356,7 @@ if defined VERSION echo [INFO] Version: !VERSION!
 if defined GIT_SHA echo [INFO] Git SHA: !GIT_SHA!
 
 :: Construct command
-:: --pull ensures we always get the latest base images (node:20-alpine, nginx:alpine)
+:: --pull ensures we always get the latest base images (node:24-alpine, nginx:alpine)
 set "CMD=docker buildx build --pull --platform !PLATFORMS!"
 
 :: Cache configuration

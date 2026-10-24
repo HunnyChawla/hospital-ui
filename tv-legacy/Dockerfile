@@ -2,7 +2,7 @@
 # Simple Node.js server for serving static HTML/CSS/JS files
 # Compatible with older browsers for TV displays
 
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Set working directory
 WORKDIR /app
