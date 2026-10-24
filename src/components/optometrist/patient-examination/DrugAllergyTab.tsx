@@ -242,6 +242,7 @@ export function DrugAllergyTab({
                   setShowDrugDropdown(true);
                 }}
                 onFocus={() => setShowDrugDropdown(true)}
+                autoComplete="off"
                 className="w-full rounded-lg border border-slate-300 pl-10 pr-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 placeholder="Search or type drug name..."
               />

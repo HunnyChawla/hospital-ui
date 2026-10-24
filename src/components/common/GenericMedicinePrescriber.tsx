@@ -576,6 +576,9 @@ export function GenericMedicinePrescriber<T extends PrescribedMedicineItem = Pre
                   setShowDropdown(false);
                 }
               }}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full rounded-xl border border-slate-300 bg-slate-50/50 py-2 pl-9 pr-9 text-xs sm:text-sm outline-none transition focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 placeholder:text-slate-400 font-medium"
               placeholder={placeholder}
             />

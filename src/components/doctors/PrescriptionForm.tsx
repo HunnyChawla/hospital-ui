@@ -2397,6 +2397,7 @@ export function PrescriptionForm({
                       }}
                       onFocus={() => diagnosisSearchResults.length > 0 && setShowDiagnosisDropdown(true)}
                       disabled={!canEdit}
+                      autoComplete="off"
                       className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-500"
                       placeholder="Search diagnosis catalog..."
                     />

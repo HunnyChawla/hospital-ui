@@ -337,6 +337,7 @@ export function AdviceSection({
                                 }
                             }}
                             disabled={disabled}
+                            autoComplete="off"
                             placeholder={
                                 draftType === "lab-test"
                                     ? "Search lab tests or type custom test..."

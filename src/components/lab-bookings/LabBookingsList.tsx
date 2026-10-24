@@ -16,6 +16,7 @@ import { TestReportPrint } from "../lab-technician/TestReportPrint";
 import { InvoicePaymentReceiptPrint } from "../payments/InvoicePaymentReceiptPrint";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 import { Modal } from "../common/Modal";
+import { MaskedValue } from "../common/MaskedValue";
 import { useTenant } from "@/hooks/useTenant";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -1005,8 +1006,8 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                       <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
                         {booking.patient_mobile && (
                           <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {booking.patient_mobile}
+                            <User className="h-3 w-3 shrink-0" />
+                            <MaskedValue type="mobile" value={booking.patient_mobile} size="xs" />
                           </span>
                         )}
                         <span className="flex items-center gap-1">
@@ -1262,7 +1263,9 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                 {selectedBooking.patient_mobile && (
                   <div>
                     <p className="text-xs text-slate-500">Mobile</p>
-                    <p className="mt-1 font-semibold text-slate-900">{selectedBooking.patient_mobile}</p>
+                    <div className="mt-1 font-semibold text-slate-900">
+                      <MaskedValue type="mobile" value={selectedBooking.patient_mobile} size="xs" />
+                    </div>
                   </div>
                 )}
                 <div>

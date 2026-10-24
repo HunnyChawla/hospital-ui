@@ -697,6 +697,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
+      autoComplete="off"
       className="space-y-4"
     >
       {/* UHID Display (read-only, shown only when editing) */}
@@ -768,6 +769,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
               <span className="text-slate-600 text-sm">First Name <span className="text-rose-500">*</span></span>
               <input
                 {...register("first_name", { required: "First name is required", validate: noSpecialCharsRule("first_name") })}
+                autoComplete="off"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
                 placeholder="e.g. John"
               />
@@ -780,6 +782,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
               <span className="text-slate-600 text-sm">Last Name</span>
               <input
                 {...register("last_name", { validate: noSpecialCharsRule("last_name") })}
+                autoComplete="off"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
                 placeholder="e.g. Doe"
               />
@@ -794,6 +797,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <input
               value={parentName}
               onChange={(e) => setParentName(e.target.value)}
+              autoComplete="off"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="e.g. Jane Doe"
             />
@@ -807,6 +811,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           <input
             id="patient-mobile-input"
             type="tel"
+            autoComplete="off"
             {...register("mobile", {
               required: "Mobile is required",
               minLength: { value: 10, message: "Mobile must be at least 10 digits" },
@@ -860,6 +865,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           <span className="text-slate-600">Email Address <span className="text-slate-400 text-xs">(Optional)</span></span>
           <input
             type="email"
+            autoComplete="off"
             {...register("email")}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             placeholder="john.doe@example.com"
@@ -902,6 +908,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
                     max="120"
                     value={ageYears}
                     onChange={(e) => handleAgeChange('years', e.target.value)}
+                    autoComplete="off"
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                     placeholder="0"
                   />
@@ -914,6 +921,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
                     max="11"
                     value={ageMonths}
                     onChange={(e) => handleAgeChange('months', e.target.value)}
+                    autoComplete="off"
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                     placeholder="0"
                   />
@@ -926,6 +934,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
                     max="31"
                     value={ageDays}
                     onChange={(e) => handleAgeChange('days', e.target.value)}
+                    autoComplete="off"
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                     placeholder="0"
                   />
@@ -950,6 +959,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
                   value={dobValue}
                   onChange={(e) => handleDobChange(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
+                  autoComplete="off"
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
                 />
               </label>
@@ -1120,6 +1130,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <span className="text-slate-600">Address</span>
             <input
               {...register("address")}
+              autoComplete="off"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Street address"
             />
@@ -1130,6 +1141,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <span className="text-slate-600">City</span>
             <input
               {...register("city", { validate: noSpecialCharsRule("city") })}
+              autoComplete="off"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="City name"
             />
@@ -1142,6 +1154,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <span className="text-slate-600">State</span>
             <input
               {...register("state", { validate: noSpecialCharsRule("state") })}
+              autoComplete="off"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="State"
             />
@@ -1154,6 +1167,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             <span className="text-slate-600">Pincode</span>
             <input
               {...register("pincode")}
+              autoComplete="off"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
               placeholder="Pincode"
             />

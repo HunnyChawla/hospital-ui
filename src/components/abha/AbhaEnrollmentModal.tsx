@@ -43,6 +43,7 @@ import { Patient } from "@/types";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getAbhaError } from "@/utils/abhaErrors";
 import { formatAbhaLinkInput, formatAbhaOrMobileInput, formatAadhaarDisplay, formatDate, formatGender } from "@/utils/format";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { ABDM_X_CM_ID } from "@/utils/env";
 import { validateAbhaAddress } from "@/utils/abha";
 
@@ -1837,6 +1838,7 @@ export function AbhaEnrollmentModal({
                         value={aadhaarMobile}
                         onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ""))}
                         placeholder="10-digit mobile number"
+                        autoComplete="off"
                         className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                       />
                       <p className="mt-1 text-xs text-slate-400">
@@ -1888,6 +1890,7 @@ export function AbhaEnrollmentModal({
                         onChange={(e) => setDocMobile(e.target.value.replace(/\D/g, ""))}
                         disabled={docOtpSent}
                         placeholder="10-digit mobile number"
+                        autoComplete="off"
                         className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
                       />
                       <p className="mt-1 text-xs text-slate-400">
@@ -1979,6 +1982,7 @@ export function AbhaEnrollmentModal({
                           value={docId}
                           onChange={(e) => setDocId(e.target.value)}
                           placeholder="e.g. HR06BB5258"
+                          autoComplete="off"
                           className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
                         />
                       </div>
@@ -1994,6 +1998,7 @@ export function AbhaEnrollmentModal({
                           value={docFirstName}
                           onChange={(e) => setDocFirstName(e.target.value)}
                           placeholder="First name as in document"
+                          autoComplete="off"
                           className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
                         />
                       </div>
@@ -2005,6 +2010,7 @@ export function AbhaEnrollmentModal({
                           type="text"
                           value={docMiddleName}
                           onChange={(e) => setDocMiddleName(e.target.value)}
+                          autoComplete="off"
                           className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
                         />
                       </div>
@@ -2016,6 +2022,7 @@ export function AbhaEnrollmentModal({
                           type="text"
                           value={docLastName}
                           onChange={(e) => setDocLastName(e.target.value)}
+                          autoComplete="off"
                           className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm"
                         />
                       </div>
@@ -2229,12 +2236,12 @@ export function AbhaEnrollmentModal({
                                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
                                   {acc.abha_number && (
                                     <span className="font-mono text-slate-700 font-medium">
-                                      ABHA: {formatAbhaOrMobileInput(acc.abha_number)}
+                                      <MaskedValue type="abha_number" value={acc.abha_number} prefix="ABHA: " size="xs" />
                                     </span>
                                   )}
                                   {acc.abha_address && (
                                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">
-                                      {acc.abha_address}
+                                      <MaskedValue type="abha_address" value={acc.abha_address} size="xs" />
                                     </span>
                                   )}
                                 </div>
@@ -2317,6 +2324,10 @@ export function AbhaEnrollmentModal({
                         }}
                         disabled={linkOtpSent}
                         placeholder="e.g. 12-3456-7890-1234, 1234 5678 9012, 9876543210, or name@abdm"
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
                         className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100"
                       />
                     </div>

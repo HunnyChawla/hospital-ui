@@ -16,6 +16,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
 import { ChangePasswordModal } from "@/components/password/ChangePasswordModal";
+import { MaskedValue } from "@/components/common/MaskedValue";
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;
@@ -273,7 +274,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                         <p className="font-semibold text-slate-900 truncate">{patient.name}</p>
                         <div className="mt-0.5 flex flex-col gap-0.5">
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-                            <span>{patient.mobile}</span>
+                            <MaskedValue type="mobile" value={patient.mobile} size="xs" />
                             <span>•</span>
                             <span className="truncate">{patient.healthId}</span>
                             {patient.age && (
@@ -284,7 +285,14 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                             )}
                             {(patient.abhaAddress || patient.abhaNumber) && (
                               <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
-                                ABHA: {patient.abhaAddress || patient.abhaNumber}
+                                <MaskedValue
+                                  type={patient.abhaAddress ? "abha_address" : "abha_number"}
+                                  value={patient.abhaAddress || patient.abhaNumber}
+                                  prefix="ABHA: "
+                                  size="xs"
+                                  textClassName="text-teal-800"
+                                  iconClassName="text-teal-600 hover:text-teal-800"
+                                />
                               </span>
                             )}
                           </div>

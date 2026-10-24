@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { ResendableOtpField } from "@/components/common/ResendableOtpField";
 import { OtpSystemSelector } from "@/components/abha/OtpSystemSelector";
 import {
@@ -410,12 +411,12 @@ export function AbhaSyncModal({
                           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
                             {acc.abha_number && (
                               <span className="font-mono text-slate-700 font-medium">
-                                ABHA: {formatAbhaOrMobileInput(acc.abha_number)}
+                                <MaskedValue type="abha_number" value={acc.abha_number} prefix="ABHA: " size="xs" />
                               </span>
                             )}
                             {acc.abha_address && (
                               <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">
-                                {acc.abha_address}
+                                <MaskedValue type="abha_address" value={acc.abha_address} size="xs" />
                               </span>
                             )}
                           </div>
@@ -501,6 +502,10 @@ export function AbhaSyncModal({
                   }}
                   disabled={otpSent || loading}
                   placeholder="e.g. 12-3456-7890-1234, 1234 5678 9012, 9876543210, or name@abdm"
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
                   className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono disabled:bg-slate-100 disabled:text-slate-600"
                 />
               </div>

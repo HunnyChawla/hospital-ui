@@ -11,6 +11,7 @@ import { formatDate, getTodayDateLocal } from "@/utils/format";
 import { Calendar, User, Stethoscope, CheckCircle2, XCircle, Clock as ClockIcon, Plus, ChevronLeft, ChevronRight, Download, Loader2, CheckCircle, Play, FileText } from "lucide-react";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -636,7 +637,9 @@ export function AppointmentsList({ doctorId, appointmentDate, onPatientClick }: 
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         {appointment.patient_mobile && (
-                          <span className="font-medium text-slate-600">{appointment.patient_mobile}</span>
+                          <span className="font-medium text-slate-600">
+                            <MaskedValue type="mobile" value={appointment.patient_mobile} size="xs" />
+                          </span>
                         )}
                         {appointment.visit_id && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
