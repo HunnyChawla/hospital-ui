@@ -8,7 +8,8 @@
     "export": "next build",
     "start": "next start",
     "serve": "npx serve@latest out",
-    "lint": "eslint"
+    "lint": "eslint",
+    "release": "node scripts/release_version.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

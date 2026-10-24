@@ -1,0 +1,12 @@
+{
+  "service": "hospital-ui",
+  "version": "2.0.0",
+  "git_commit": "f23bd61c23fc2c27169e750e02b5110ba71a2f4d",
+  "git_branch": "abdm-testing-predevelop",
+  "git_ref": "2.0.0",
+  "build_timestamp": "2026-10-24T06:32:05.573Z",
+  "source_sha256": "CDAFB3D6813D76A7E0794F17BB2CF0572BDF0D092B95F7B6DC9FD8284AC2B5BD",
+  "hash_algorithm": "SHA-256",
+  "verification_command": "git archive --format=tar 2.0.0 | sha256sum",
+  "verification_powershell": "git archive --format=tar 2.0.0 -o temp.tar; (Get-FileHash temp.tar -Algorithm SHA256).Hash; Remove-Item temp.tar"
+}
