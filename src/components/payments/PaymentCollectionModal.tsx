@@ -95,7 +95,7 @@ export function PaymentCollectionModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Collect Payment" size="md">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
         {/* Invoice Details */}
         <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
           <div className="space-y-2 text-sm">
@@ -132,6 +132,7 @@ export function PaymentCollectionModal({
             max={balanceAmount}
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+            autoComplete="off"
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
             required
           />
@@ -170,6 +171,10 @@ export function PaymentCollectionModal({
               value={paymentReference}
               onChange={(e) => setPaymentReference(e.target.value)}
               placeholder={`Enter ${paymentMethod.toUpperCase()} reference`}
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-bwignore="true"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
               required
             />

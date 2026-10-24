@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, ShieldCheck, UserPlus, Copy, Check, RefreshCw, AtSign } from "lucide-react";
 import { toast } from "sonner";
+import { MaskedValue } from "@/components/common/MaskedValue";
 
 interface AbhaStatusBadgeProps {
   abhaNumber?: string | null;
@@ -50,7 +51,14 @@ export function AbhaStatusBadge({
             title={`Verified Ayushman Bharat Health Account (ABHA) Number: ${abhaNumber}`}
           >
             <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>ABHA: {abhaNumber}</span>
+            <MaskedValue
+              type="abha_number"
+              value={abhaNumber}
+              prefix={<span className="font-sans font-medium text-emerald-800">ABHA: </span>}
+              textClassName="font-mono text-emerald-900"
+              iconClassName="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+              size={size === "sm" ? "xs" : "sm"}
+            />
             {abhaVerified && (
               <span className="flex items-center text-emerald-600 ml-0.5" title="Verified by ABDM">
                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -83,7 +91,14 @@ export function AbhaStatusBadge({
             ) : (
               <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
             )}
-            <span>{hasAbhaNumber ? abhaAddress : `ABHA: ${abhaAddress}`}</span>
+            <MaskedValue
+              type="abha_address"
+              value={abhaAddress}
+              prefix={!hasAbhaNumber ? <span className="font-sans font-medium text-emerald-800">ABHA: </span> : undefined}
+              textClassName="font-mono text-emerald-900"
+              iconClassName="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+              size={size === "sm" ? "xs" : "sm"}
+            />
             {!hasAbhaNumber && abhaVerified && (
               <span className="flex items-center text-emerald-600 ml-0.5" title="Verified by ABDM">
                 <CheckCircle2 className="h-3.5 w-3.5" />

@@ -115,7 +115,7 @@ export function IpdRefundModal({
         title="Issue Inpatient Refund Voucher"
         size="md"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs">
             <div className="flex justify-between items-center">
               <div>
@@ -174,6 +174,10 @@ export function IpdRefundModal({
                 placeholder="e.g. UPI Ref # or Cheque Number"
                 value={paymentReference}
                 onChange={(e) => setPaymentReference(e.target.value)}
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
                 className="w-full mt-1 px-3 py-2 text-xs border border-slate-300 rounded-lg"
               />
             </div>

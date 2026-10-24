@@ -6,6 +6,7 @@ import { Modal } from "@/components/common/Modal";
 import { usersApi, CreateUserRequest } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { Eye, EyeOff } from "lucide-react";
 
 interface CreateTenantUserModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function CreateTenantUserModal({
   tenantName,
 }: CreateTenantUserModalProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -64,7 +66,7 @@ export function CreateTenantUserModal({
       title={`Create User in ${tenantName}`}
       size="lg"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-4">
         <div className="rounded-xl bg-sky-50 border border-sky-200 p-3 mb-4">
           <p className="text-sm text-sky-700">
             This user will be created in <strong>{tenantName}</strong> and will only have access to that tenant.
@@ -118,26 +120,39 @@ export function CreateTenantUserModal({
             )}
           </label>
 
-          <label className="space-y-1">
-            <span className="text-slate-600">
+          <div className="space-y-1">
+            <label className="block text-slate-600">
               Password <span className="text-rose-500">*</span>
-            </span>
-            <input
-              type="password"
-              {...register("password", {
-                required: "Password is required",
-                minLength: {
-                  value: 6,
-                  message: "Password must be at least 6 characters",
-                },
-              })}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
-              placeholder="Enter password"
-            />
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 6,
+                    message: "Password must be at least 6 characters",
+                  },
+                })}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-10 outline-none focus:border-sky-400"
+                placeholder="Enter password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-0.5 rounded"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {errors.password && (
               <p className="text-xs text-rose-500">{errors.password.message as string}</p>
             )}
-          </label>
+          </div>
 
           <label className="space-y-1">
             <span className="text-slate-600">

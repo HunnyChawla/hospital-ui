@@ -278,6 +278,10 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
                       type="text"
                       value={paymentReference}
                       onChange={(e) => setPaymentReference(e.target.value)}
+                      autoComplete="off"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-bwignore="true"
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 placeholder:text-slate-300"
                       placeholder={
                         paymentMethod === "upi" ? "Enter UPI transaction ID" : paymentMethod === "card" ? "Enter card transaction ID" : "Enter cheque number"

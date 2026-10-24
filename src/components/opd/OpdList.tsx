@@ -27,6 +27,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PrescribedLabBookingModal } from "../lab-bookings/PrescribedLabBookingModal";
 import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions/HistoryPrescriptionModal";
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { Beaker } from "lucide-react";
 
 interface OpdListProps {
@@ -263,13 +264,15 @@ function VisitListRow({
           {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
         </p>
         {visit.patient_mobile && (
-          <p className="text-xs text-slate-500 truncate sm:hidden">{visit.patient_mobile}</p>
+          <div className="text-xs text-slate-500 truncate sm:hidden">
+            <MaskedValue type="mobile" value={visit.patient_mobile} size="xs" />
+          </div>
         )}
       </div>
 
       {/* Mobile - hidden on small screens */}
       <div className="hidden sm:block min-w-[100px] text-xs text-slate-500">
-        {visit.patient_mobile || "-"}
+        <MaskedValue type="mobile" value={visit.patient_mobile} size="xs" />
       </div>
 
       {/* Visit Type - hidden on small screens */}
@@ -417,7 +420,11 @@ function VisitCard({
             {visit.patient_name || `Patient ${visit.patient_id.slice(0, 8)}...`}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            {visit.patient_mobile && <span className="font-medium text-slate-600">{visit.patient_mobile}</span>}
+            {visit.patient_mobile && (
+              <span className="font-medium text-slate-600">
+                <MaskedValue type="mobile" value={visit.patient_mobile} size="xs" />
+              </span>
+            )}
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${visit.visit_type === "emergency" ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200" : "bg-slate-50 text-slate-600"}`}>
               <User className="h-3 w-3 shrink-0" />
               {visit.visit_type === "walk_in" ? "Walk-in" : visit.visit_type === "appointment" ? "Appt" : visit.visit_type === "emergency" ? "Emergency" : String(visit.visit_type || "").replace("_", " ")}

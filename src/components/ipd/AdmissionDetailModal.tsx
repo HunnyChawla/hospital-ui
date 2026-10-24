@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import { admissionsApi, Admission, AmountDueResponse } from "@/services/admissionsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { paymentsApi, Payment } from "@/services/paymentsApi";
@@ -498,7 +499,9 @@ export function AdmissionDetailModal({ isOpen, onClose, admissionId }: Admission
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Patient</p>
                 <p className="mt-0.5 text-base font-bold text-slate-900">{admission.patient_name || "N/A"}</p>
                 {admission.patient_mobile && (
-                  <p className="text-xs text-slate-600 font-medium">{admission.patient_mobile}</p>
+                  <div className="text-xs text-slate-600 font-medium">
+                    <MaskedValue type="mobile" value={admission.patient_mobile} size="xs" />
+                  </div>
                 )}
               </div>
             </div>

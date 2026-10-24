@@ -8,6 +8,7 @@ import {
   platformPatientApi,
   PlatformPatientSearchItem,
 } from "@/services/platformPatientApi";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import {
   Building2,
   Search,
@@ -711,7 +712,7 @@ export default function PlatformPatientManagementPage() {
                         <div className="flex items-center gap-1.5">
                           <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span className="font-semibold text-slate-700">Mobile:</span>
-                          <span className="font-mono">{patient.mobile || "N/A"}</span>
+                          <MaskedValue type="mobile" value={patient.mobile} fallback="N/A" size="xs" />
                           {patient.mobile_verified && (
                             <span className="inline-flex items-center text-[10px] text-emerald-600 font-semibold gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                               <CheckCircle className="h-3 w-3" /> Verified
@@ -723,9 +724,7 @@ export default function PlatformPatientManagementPage() {
                         <div className="flex items-center gap-1.5">
                           <CreditCard className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span className="font-semibold text-slate-700">ABHA No:</span>
-                          <span className="font-mono text-slate-800">
-                            {patient.abha_number || "None"}
-                          </span>
+                          <MaskedValue type="abha_number" value={patient.abha_number} fallback="None" size="xs" textClassName="text-slate-800" />
                           {patient.abha_verified && (
                             <span className="inline-flex items-center text-[10px] text-teal-600 font-semibold gap-0.5 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
                               <CheckCircle className="h-3 w-3" /> Linked
@@ -737,9 +736,13 @@ export default function PlatformPatientManagementPage() {
                         <div className="flex items-center gap-1.5 sm:col-span-2 lg:col-span-1">
                           <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span className="font-semibold text-slate-700">ABHA Address:</span>
-                          <span className="font-mono text-slate-800 truncate" title={patient.abha_address || undefined}>
-                            {patient.abha_address || "None"}
-                          </span>
+                          <MaskedValue
+                            type="abha_address"
+                            value={patient.abha_address}
+                            fallback="None"
+                            size="xs"
+                            textClassName="text-slate-800 truncate"
+                          />
                         </div>
                       </div>
 

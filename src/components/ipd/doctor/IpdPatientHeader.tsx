@@ -28,6 +28,7 @@ import { UpdateCareStatusModal } from "../UpdateCareStatusModal";
 import { TransferBedFormModal } from "../TransferBedFormModal";
 import { IpdBillingDrawer } from "../billing/IpdBillingDrawer";
 import { AddChargeModal } from "../billing/AddChargeModal";
+import { MaskedValue } from "@/components/common/MaskedValue";
 
 interface IpdPatientHeaderProps {
   chart: IpdPatientChart;
@@ -181,7 +182,11 @@ export function IpdPatientHeader({
                     Blood: {patient.blood_group}
                   </span>
                 )}
-                {patient.mobile && <span>📱 {patient.mobile}</span>}
+                {patient.mobile && (
+                  <span className="inline-flex items-center gap-1">
+                    📱 <MaskedValue type="mobile" value={patient.mobile} size="xs" />
+                  </span>
+                )}
                 {admission.ward_name && admission.bed_number && (
                   <span className="font-semibold text-slate-800">
                     🛏️ {admission.ward_name} / Bed {admission.bed_number}

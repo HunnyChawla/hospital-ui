@@ -140,7 +140,7 @@ export function ReceiveAdvanceModal({
         title={modalTitle}
         size="md"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
           {/* Patient Quick Context & Bill Summary */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs">
             <div className="flex items-center justify-between">
@@ -217,6 +217,7 @@ export function ReceiveAdvanceModal({
                 min="1"
                 step="0.01"
                 required
+                autoComplete="off"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -276,6 +277,10 @@ export function ReceiveAdvanceModal({
               <input
                 type="text"
                 required
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
                 placeholder="e.g. UPI/123456789 or Card Auth 987654"
                 value={paymentReference}
                 onChange={(e) => setPaymentReference(e.target.value)}

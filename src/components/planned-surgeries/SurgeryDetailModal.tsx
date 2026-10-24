@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { PlannedSurgery, PlannedSurgeryStatus } from "@/types";
 import { formatDate } from "@/utils/format";
 import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
+import { MaskedValue } from "@/components/common/MaskedValue";
 import {
     X,
     User,
@@ -174,8 +175,8 @@ export function SurgeryDetailModal({
                                 <span>UHID: <strong className="text-slate-700">{surgery.patient_uhid || surgery.patient_id.slice(0, 8)}</strong></span>
                                 {surgery.patient_mobile && (
                                     <span className="flex items-center gap-1">
-                                        <Phone className="h-3 w-3 text-slate-400" />
-                                        {surgery.patient_mobile}
+                                        <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                        <MaskedValue type="mobile" value={surgery.patient_mobile} size="xs" />
                                     </span>
                                 )}
                             </div>
