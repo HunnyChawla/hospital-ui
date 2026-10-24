@@ -100,8 +100,25 @@ export const login = createAsyncThunk(
       }
       return { ...response, permissions: undefined };
     } catch (error: any) {
-      // Preserve the error structure for proper error handling
-      return rejectWithValue(error);
+      // Preserve the error structure and response data for proper error handling
+      const serializableError = {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data,
+        detail: error.response?.data?.detail,
+        headers: error.response?.headers,
+        response: error.response
+          ? {
+              status: error.response.status,
+              statusText: error.response.statusText,
+              data: error.response.data,
+              headers: error.response.headers,
+            }
+          : undefined,
+      };
+      return rejectWithValue(serializableError);
     }
   }
 );
