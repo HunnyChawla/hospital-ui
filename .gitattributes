@@ -13,3 +13,7 @@ entrypoint.sh text eol=lf
 Dockerfile text eol=lf
 .dockerignore text eol=lf
 nginx.conf text eol=lf
+
+# Export-ignore metadata files from git archive releases so SHA-256 calculation remains deterministic
+public/version.json export-ignore
+public/version export-ignore

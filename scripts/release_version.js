@@ -13,7 +13,7 @@
  *     node scripts/release_version.js 2.5.0      # Explicit version
  *
  * IMPORTANT:
- *     Run this script from your DEPLOYMENT branch only (e.g. main / master / develop),
+ *     Run this script from your DEPLOYMENT branch only (e.g. main / master / pre-develop),
  *     then push the commit and tag directly to that branch.
  */
 
@@ -112,23 +112,27 @@ async function main() {
     // Continue
   }
 
-  // 4. Update VERSION file
+  // 4. Ensure .gitattributes exists with export-ignore for version files
+  const gitattributesFile = path.join(repoRoot, '.gitattributes');
+  const exportRule = 'public/version.json export-ignore\npublic/version export-ignore';
+  if (!fs.existsSync(gitattributesFile) || !fs.readFileSync(gitattributesFile, 'utf-8').includes('public/version.json export-ignore')) {
+    fs.appendFileSync(gitattributesFile, `\n${exportRule}\n`, 'utf-8');
+  }
+
+  // 5. Update VERSION file
   fs.writeFileSync(versionFile, `${newVersion}\n`, 'utf-8');
   console.log(`[*] Updated VERSION file to ${newVersion}`);
 
-  // 5. Git Commit & Tag
+  // 6. Commit initial bump
   console.log(`[*] Committing version bump to branch '${branch}'...`);
-  runGit('git add VERSION', repoRoot);
+  runGit('git add VERSION .gitattributes', repoRoot);
   runGit(`git commit -m "chore(release): bump version to ${newVersion}"`, repoRoot);
 
-  console.log(`[*] Creating Git tag: ${newVersion}...`);
-  runGit(`git tag ${newVersion}`, repoRoot);
+  const initialCommitSha = runGit('git rev-parse HEAD', repoRoot);
 
-  const commitSha = runGit('git rev-parse HEAD', repoRoot);
-
-  // 6. Calculate Deterministic SHA-256 for Tag
-  console.log(`[*] Calculating deterministic SHA-256 archive hash for tag '${newVersion}'...`);
-  const git = spawn('git', ['archive', '--format=tar', newVersion], { cwd: repoRoot });
+  // 7. Calculate Deterministic SHA-256 for Tag
+  console.log(`[*] Calculating deterministic SHA-256 archive hash for version '${newVersion}'...`);
+  const git = spawn('git', ['archive', '--format=tar', 'HEAD'], { cwd: repoRoot });
   const hash = crypto.createHash('sha256');
 
   git.stdout.on('data', chunk => hash.update(chunk));
@@ -150,7 +154,7 @@ async function main() {
     const auditPayload = {
       service: 'hospital-ui',
       version: newVersion,
-      git_commit: commitSha,
+      git_commit: initialCommitSha,
       git_branch: branch,
       git_ref: newVersion,
       build_timestamp: buildTimestamp,
@@ -168,16 +172,28 @@ async function main() {
     const jsonStr = JSON.stringify(auditPayload, null, 2);
     fs.writeFileSync(path.join(outDir, 'version.json'), jsonStr, 'utf-8');
     fs.writeFileSync(path.join(outDir, 'version'), jsonStr, 'utf-8');
+    console.log('[*] Generated public/version.json and public/version');
+
+    // 8. Amend release commit to include public/version.json and public/version
+    console.log('[*] Committing version files into release commit...');
+    runGit('git add public/version.json public/version', repoRoot);
+    runGit('git commit --amend --no-edit', repoRoot);
+
+    const finalCommitSha = runGit('git rev-parse HEAD', repoRoot);
+
+    // 9. Tag the amended commit
+    console.log(`[*] Creating Git tag: ${newVersion} on commit ${finalCommitSha.substring(0, 8)}...`);
+    runGit(`git tag ${newVersion}`, repoRoot);
 
     console.log('\n' + '='.repeat(65));
-    console.log(' RELEASE & AUDIT HASH CREATED SUCCESSFULLY!');
+    console.log(' RELEASE & AUDIT HASH CREATED AND COMMITTED SUCCESSFULLY!');
     console.log('='.repeat(65));
     console.log(` Service                : ${auditPayload.service}`);
     console.log(` New Version            : ${auditPayload.version}`);
-    console.log(` Git Commit             : ${auditPayload.git_commit}`);
-    console.log(` Git Tag                : ${auditPayload.git_ref}`);
+    console.log(` Git Commit             : ${finalCommitSha}`);
+    console.log(` Git Tag                : ${newVersion}`);
     console.log(` Source SHA-256         : ${auditPayload.source_sha256}`);
-    console.log(` Metadata Saved         : public/version.json, public/version`);
+    console.log(` Committed Files        : VERSION, public/version.json, public/version, .gitattributes`);
     console.log('-'.repeat(65));
     console.log(' NEXT STEP: Push commit & tag to your deployment branch:');
     if (branch && branch !== 'DETACHED_HEAD') {
