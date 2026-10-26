@@ -132,7 +132,7 @@ function ClinicPanelInner() {
     if (userId) {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId);
-      usersApi.getById(userId, apiTenantId)
+      usersApi.getMe(apiTenantId)
         .then((user) => {
           setPanelUser({ full_name: user.full_name });
         })

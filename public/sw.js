@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cura-hospital-v4'; // Bumping version to force update and purge stale API caches
+const CACHE_NAME = 'cura-hospital-v5'; // Bumping version to force update and purge stale API caches
 const urlsToCache = [
   '/manifest.json',
   '/cura-logo-v2.png',
