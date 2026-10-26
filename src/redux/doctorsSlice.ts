@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { doctorsApi, Doctor, CreateDoctorRequest, UpdateDoctorRequest } from "@/services/doctorsApi";
-import { usersApi } from "@/services/usersApi";
 
 type DoctorsState = {
   list: Doctor[];
@@ -16,36 +15,20 @@ const initialState: DoctorsState = {
 
 export const fetchDoctors = createAsyncThunk("doctors/fetch", async () => {
   const doctors = await doctorsApi.list();
-  
-  // Try to fetch user names for doctors that don't have names
-  const doctorsWithNames = await Promise.all(
-    doctors.map(async (doctor) => {
-      // If doctor already has name, return as is
-      if (doctor.name || doctor.user?.name) {
-        return doctor;
-      }
-      
-      // Try to fetch user details
-      try {
-        const user = await usersApi.getById(doctor.user_id);
-        return {
-          ...doctor,
-          name: user.full_name,
-          user: {
-            name: user.full_name,
-            email: user.email,
-          },
-          is_active: doctor.is_active !== undefined ? doctor.is_active : user.status === "active",
-          status: doctor.status || user.status,
-        };
-      } catch {
-        // If user fetch fails, return doctor without name
-        return doctor;
-      }
-    })
-  );
-  
-  return doctorsWithNames;
+
+  return doctors.map((doctor) => {
+    const doctorDisplayName = doctor.name || doctor.user_name || doctor.user?.name || "Doctor";
+    return {
+      ...doctor,
+      name: doctorDisplayName,
+      user: doctor.user || {
+        name: doctorDisplayName,
+        email: "",
+      },
+      is_active: doctor.is_active !== undefined ? doctor.is_active : doctor.status === "active",
+      status: doctor.status || "active",
+    };
+  });
 });
 
 export const createDoctor = createAsyncThunk(

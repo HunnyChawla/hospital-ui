@@ -10,6 +10,7 @@ const getApiClient = () => {
   if (_apiClient === null) {
     _apiClient = axios.create({
       baseURL: getEnv("NEXT_PUBLIC_API_BASE_URL", "/api"),
+      withCredentials: true,
       headers: {
         "Content-Type": "application/json",
       },
@@ -65,7 +66,7 @@ const getApiClient = () => {
       return config;
     });
 
-    // Handle 401 (logout) and 403 consent_required errors
+    // Handle 401 (logout), 403 session terminated, and 403 consent_required errors
     let isRedirectingToLogin = false;
     _apiClient.interceptors.response.use(
       (response) => response,
@@ -74,7 +75,27 @@ const getApiClient = () => {
           return Promise.reject(error);
         }
 
-        if (error.response?.status === 401) {
+        const status = error.response?.status;
+        const detail = error.response?.data?.detail;
+        const detailStr = typeof detail === "string"
+          ? detail
+          : JSON.stringify(detail || "");
+        const isTerminated = detailStr.toLowerCase().includes("terminated");
+
+        // 403 Consent Required
+        const isConsentRequired =
+          status === 403 &&
+          Array.isArray(detail) &&
+          detail.some((d: any) => d.type === "consent_required");
+
+        if (isConsentRequired && typeof window !== "undefined") {
+          localStorage.setItem("consent_required", "true");
+          window.dispatchEvent(new CustomEvent("legal:consent_required"));
+          return Promise.reject(error);
+        }
+
+        // Handle 401 (unauthorized) and 403 (session terminated)
+        if (status === 401 || (status === 403 && isTerminated)) {
           if (typeof window !== "undefined" && !isRedirectingToLogin) {
             isRedirectingToLogin = true;
             localStorage.removeItem("auth_token");
@@ -83,16 +104,8 @@ const getApiClient = () => {
             localStorage.removeItem("role");
             localStorage.removeItem("consent_required");
             const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-            window.location.href = `${basePath}/login`;
-          }
-        } else if (error.response?.status === 403) {
-          const detail = error.response.data?.detail;
-          const isConsentRequired =
-            Array.isArray(detail) &&
-            detail.some((d: any) => d.type === "consent_required");
-          if (isConsentRequired && typeof window !== "undefined") {
-            localStorage.setItem("consent_required", "true");
-            window.dispatchEvent(new CustomEvent("legal:consent_required"));
+            const query = isTerminated ? "?reason=session_terminated" : "";
+            window.location.href = `${basePath}/login${query}`;
           }
         }
         return Promise.reject(error);

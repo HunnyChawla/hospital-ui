@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu, Key } from "lucide-react";
+import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu, Key, Laptop } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -11,12 +11,12 @@ import { Patient } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { patientsApi } from "@/services/patientsApi";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
-import { usersApi } from "@/services/usersApi";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
 import { ChangePasswordModal } from "@/components/password/ChangePasswordModal";
 import { MaskedValue } from "@/components/common/MaskedValue";
+import { ActiveSessionsModal } from "@/components/auth/ActiveSessionsModal";
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;
@@ -39,6 +39,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const { hospitalName, tenant } = useTenant();
   const { toggleMobileSidebar, isMobile } = useSidebar();
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showActiveSessionsModal, setShowActiveSessionsModal] = useState(false);
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -364,6 +365,16 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
             </div>
             <button
               onClick={() => {
+                setShowActiveSessionsModal(true);
+                setShowProfileDropdown(false);
+              }}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
+            >
+              <Laptop className="h-4 w-4" />
+              Active Sessions
+            </button>
+            <button
+              onClick={() => {
                 setShowChangePasswordModal(true);
                 setShowProfileDropdown(false);
               }}
@@ -387,6 +398,12 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
       <ChangePasswordModal
         isOpen={showChangePasswordModal}
         onClose={() => setShowChangePasswordModal(false)}
+      />
+
+      {/* Active Sessions Modal */}
+      <ActiveSessionsModal
+        isOpen={showActiveSessionsModal}
+        onClose={() => setShowActiveSessionsModal(false)}
       />
     </header>
   );

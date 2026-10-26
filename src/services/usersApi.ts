@@ -82,6 +82,13 @@ export const usersApi = {
     return response.data;
   },
 
+  async getMe(tenantId?: string): Promise<User> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params = apiTenantId ? { tenant_id: apiTenantId } : {};
+    const response = await apiClient.get<User>("/users/me", { params });
+    return response.data;
+  },
+
   async getById(userId: string, tenantId?: string): Promise<User> {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};

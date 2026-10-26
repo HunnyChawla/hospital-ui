@@ -9,6 +9,39 @@ export interface LoginRequest {
   hospital_id: string;
 }
 
+export interface ActiveSession {
+  id: string;
+  device_name: string;
+  device_type: string;
+  ip_address: string;
+  last_active_at: string;
+  created_at: string;
+  is_current: boolean;
+}
+
+export interface SessionPolicyInfo {
+  max_concurrent_sessions: number;
+  allow_keep_alive: boolean;
+  message?: string | null;
+}
+
+export interface InvalidateSessionsResponse {
+  success: boolean;
+  invalidated_count: number;
+  message: string;
+}
+
+export interface TenantSessionPolicy {
+  id?: string | null;
+  tenant_id: string;
+  tenant_name?: string | null;
+  subdomain?: string | null;
+  max_concurrent_sessions: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
+}
+
 export interface LoginResponse {
   token: {
     access_token: string;
@@ -17,9 +50,14 @@ export interface LoginResponse {
   user_id: string;
   tenant_id: string;
   role: string;
+  full_name?: string;
+  email?: string;
   must_change_password?: boolean;
   consent_required?: boolean;
   pending_consents?: any[];
+  current_session_id?: string;
+  other_active_sessions?: ActiveSession[];
+  session_policy?: SessionPolicyInfo;
 }
 
 export const authApi = {
@@ -32,6 +70,7 @@ export const authApi = {
       loginUrl,
       credentials,
       {
+        withCredentials: true,
         headers: {
           "Content-Type": "application/json",
         },
@@ -49,5 +88,47 @@ export const authApi = {
       console.error("Logout API call failed:", error);
     }
   },
-};
 
+  async getActiveSessions(): Promise<ActiveSession[]> {
+    const response = await apiClient.get<ActiveSession[]>("/auth/sessions");
+    return response.data;
+  },
+
+  async invalidateSessions(sessionIds: string[], token?: string): Promise<InvalidateSessionsResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const response = await apiClient.post<InvalidateSessionsResponse>(
+      "/auth/sessions/invalidate",
+      { session_ids: sessionIds },
+      { headers }
+    );
+    return response.data;
+  },
+
+  async invalidateOtherSessions(token?: string): Promise<InvalidateSessionsResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const response = await apiClient.post<InvalidateSessionsResponse>(
+      "/auth/sessions/invalidate-others",
+      {},
+      { headers }
+    );
+    return response.data;
+  },
+
+  async getSessionPolicies(): Promise<{ items: TenantSessionPolicy[]; total: number }> {
+    const response = await apiClient.get<{ items: TenantSessionPolicy[]; total: number }>("/session-policies/tenants");
+    return response.data;
+  },
+
+  async updateSessionPolicy(tenantId: string, maxConcurrentSessions: number): Promise<TenantSessionPolicy> {
+    const response = await apiClient.put<TenantSessionPolicy>(`/session-policies/tenants/${tenantId}`, {
+      max_concurrent_sessions: maxConcurrentSessions,
+    });
+    return response.data;
+  },
+};

@@ -294,7 +294,7 @@ export function PrescriptionFormSection({
                     console.error("Failed to fetch patient extras", e);
                 }
             }
-            if (optometristId) {
+            if (optometristId && !savedPrescription?.optometrist_name) {
                 try {
                     const opt = await usersApi.getById(optometristId);
                     setOptometristDetails(opt);

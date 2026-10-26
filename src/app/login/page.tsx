@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { login, restoreSession } from "@/redux/authSlice";
+import { completeLogin, logout, restoreSession } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -12,6 +12,8 @@ import { Mail, Lock, Building2, Eye, EyeOff } from "lucide-react";
 import { Suspense } from "react";
 import Image from "next/image";
 import { Footer } from "@/components/layout/Footer";
+import { ActiveSessionsConflictModal } from "@/components/auth/ActiveSessionsConflictModal";
+import { ActiveSession, LoginResponse, SessionPolicyInfo, authApi } from "@/services/authApi";
 
 function LoginForm() {
   const router = useRouter();
@@ -27,8 +29,21 @@ function LoginForm() {
   });
   const [showHospitalIdInput, setShowHospitalIdInput] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
+  const [pendingConflictSessions, setPendingConflictSessions] = useState<ActiveSession[] | null>(null);
+  const [pendingConflictPolicy, setPendingConflictPolicy] = useState<SessionPolicyInfo | undefined>(undefined);
+  const [pendingDefaultScreen, setPendingDefaultScreen] = useState<string>("/");
   const [isEmailReadOnly, setIsEmailReadOnly] = useState(true);
   const [isPasswordReadOnly, setIsPasswordReadOnly] = useState(true);
+
+  useEffect(() => {
+    // Check if user was logged out due to session termination from another device
+    const reason = searchParams.get("reason");
+    if (reason === "session_terminated") {
+      toast.error("Your session was terminated from another device. Please sign in again.");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Restore session on mount
@@ -74,8 +89,8 @@ function LoginForm() {
   }, []);
 
   useEffect(() => {
-    // Redirect if already authenticated
-    if (isAuthenticated) {
+    // Redirect if already authenticated and not reviewing conflicting sessions
+    if (isAuthenticated && !pendingConflictSessions) {
       const returnUrl = searchParams.get("returnUrl");
       if (returnUrl) {
         router.push(returnUrl);
@@ -83,7 +98,38 @@ function LoginForm() {
         router.push("/");
       }
     }
-  }, [isAuthenticated, router, searchParams]);
+  }, [isAuthenticated, router, searchParams, pendingConflictSessions]);
+
+  const handleConflictProceed = async () => {
+    if (!pendingLoginResponse) return;
+    try {
+      setSubmitting(true);
+      const result = await dispatch(completeLogin(pendingLoginResponse)).unwrap();
+      toast.success("Login successful");
+      const returnUrl = searchParams.get("returnUrl");
+      const dest = returnUrl || result.permissions?.default_screen || pendingDefaultScreen;
+      setPendingConflictSessions(null);
+      setPendingLoginResponse(null);
+      router.push(dest);
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConflictCancel = async () => {
+    if (pendingLoginResponse?.token?.access_token && pendingLoginResponse?.current_session_id) {
+      try {
+        await authApi.invalidateSessions([pendingLoginResponse.current_session_id], pendingLoginResponse.token.access_token);
+      } catch {
+        // Ignore invalidation error on cancel
+      }
+    }
+    setPendingConflictSessions(null);
+    setPendingLoginResponse(null);
+    toast.info("Login cancelled");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,28 +139,39 @@ function LoginForm() {
       return;
     }
 
+    setSubmitting(true);
     try {
-      const result = await dispatch(login(formData)).unwrap();
-      toast.success("Login successful");
+      // 1. Authenticate credentials with backend
+      const response = await authApi.login(formData);
 
       // Save hospital ID to localStorage
       if (typeof window !== "undefined" && formData.hospital_id) {
         localStorage.setItem("hospital_id", formData.hospital_id);
       }
 
-      // Check for returnUrl
       const returnUrl = searchParams.get("returnUrl");
-      if (returnUrl) {
-        router.push(returnUrl);
+      const defaultScreen = returnUrl || "/";
+
+      // 2. If active sessions exist on other devices/profiles, IMMEDIATELY show review modal
+      if (response.other_active_sessions && response.other_active_sessions.length > 0) {
+        setPendingLoginResponse(response);
+        setPendingConflictSessions(response.other_active_sessions);
+        setPendingConflictPolicy(response.session_policy);
+        setPendingDefaultScreen(defaultScreen);
+        setSubmitting(false);
         return;
       }
 
-      // Navigate to the default screen from permissions, or fallback to dashboard
-      const defaultScreen = result.permissions?.default_screen || "/";
-      router.push(defaultScreen);
+      // 3. No active sessions conflict: complete login immediately
+      const result = await dispatch(completeLogin(response)).unwrap();
+      toast.success("Login successful");
+      const dest = returnUrl || result.permissions?.default_screen || defaultScreen;
+      router.push(dest);
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -217,7 +274,6 @@ function LoginForm() {
                   aria-hidden="true"
                   autoComplete="new-password"
                 />
-
                 {/* Email */}
                 <div className="space-y-2">
                   <label htmlFor="login-email" className="block text-sm font-semibold text-slate-700">
@@ -328,11 +384,11 @@ function LoginForm() {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={submitting || loading}
                   className="w-full rounded-xl bg-gradient-to-r from-sky-500 via-sky-600 to-teal-500 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-sky-500/40 hover:scale-[1.02] hover:from-sky-600 hover:via-sky-700 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg relative overflow-hidden group"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    {loading ? (
+                    {submitting || loading ? (
                       <>
                         <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -354,6 +410,16 @@ function LoginForm() {
           </div>
         </div>
       </div>
+
+      {/* Active Sessions Conflict Modal */}
+      <ActiveSessionsConflictModal
+        isOpen={pendingConflictSessions !== null}
+        sessions={pendingConflictSessions || []}
+        policy={pendingConflictPolicy}
+        token={pendingLoginResponse?.token?.access_token}
+        onProceed={handleConflictProceed}
+        onCancel={handleConflictCancel}
+      />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { doctorsApi, Doctor, CreateDoctorRequest, UpdateDoctorRequest, ConsultationFeeRequest } from '@/services/doctorsApi';
-import { usersApi } from '@/services/usersApi';
 import { useTenantContext } from '@/lib/tenant-context';
 import { toast } from 'sonner';
 
@@ -27,30 +26,19 @@ export function useDoctors() {
     queryFn: async () => {
       const doctors = await doctorsApi.list(isPlatformOwner ? tenantId ?? undefined : undefined);
 
-      // Fetch user data for each doctor to get their names
-      const doctorsWithUsers = await Promise.all(
-        doctors.map(async (doctor) => {
-          try {
-            const user = await usersApi.getById(doctor.user_id, isPlatformOwner ? tenantId ?? undefined : undefined);
-            return {
-              ...doctor,
-              name: user.full_name,
-              user: {
-                name: user.full_name,
-                email: user.email,
-              },
-              is_active: doctor.is_active !== undefined ? doctor.is_active : user.status === "active",
-              status: doctor.status || user.status,
-            };
-          } catch (error) {
-            // If user fetch fails, return doctor without user info
-            console.error(`Failed to fetch user for doctor ${doctor.id}:`, error);
-            return doctor;
-          }
-        })
-      );
-
-      return doctorsWithUsers;
+      return doctors.map((doctor) => {
+        const doctorDisplayName = doctor.name || doctor.user_name || doctor.user?.name || "Doctor";
+        return {
+          ...doctor,
+          name: doctorDisplayName,
+          user: doctor.user || {
+            name: doctorDisplayName,
+            email: "",
+          },
+          is_active: doctor.is_active !== undefined ? doctor.is_active : doctor.status === "active",
+          status: doctor.status || "active",
+        };
+      });
     },
   });
 }
