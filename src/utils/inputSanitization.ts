@@ -34,6 +34,9 @@ const DANGEROUS_CHARS_REGEX = /[<>{}[\]]/;
 // Fields that should skip validation entirely (passwords, tokens, base64)
 const EXCLUDED_FIELDS = new Set([
   "password",
+  "new_password",
+  "current_password",
+  "confirm_password",
   "hashed_password",
   "email",
   "session_key",

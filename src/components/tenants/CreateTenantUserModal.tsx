@@ -7,6 +7,8 @@ import { usersApi, CreateUserRequest } from "@/services/usersApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Eye, EyeOff } from "lucide-react";
+import { validatePassword } from "@/utils/passwordPolicy";
+import { PasswordRequirements } from "@/components/password/PasswordRequirements";
 
 interface CreateTenantUserModalProps {
   isOpen: boolean;
@@ -28,6 +30,7 @@ export function CreateTenantUserModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<CreateUserRequest>({
     defaultValues: {
@@ -39,6 +42,10 @@ export function CreateTenantUserModal({
       cabin: "",
     },
   });
+
+  const passwordValue = watch("password");
+  const emailValue = watch("email");
+  const nameValue = watch("full_name");
 
   const onSubmit = async (values: CreateUserRequest) => {
     setSubmitting(true);
@@ -131,8 +138,16 @@ export function CreateTenantUserModal({
                 {...register("password", {
                   required: "Password is required",
                   minLength: {
-                    value: 6,
-                    message: "Password must be at least 6 characters",
+                    value: 12,
+                    message: "Password must be at least 12 characters",
+                  },
+                  validate: (value) => {
+                    const res = validatePassword(value, {
+                      email: emailValue,
+                      name: nameValue,
+                      hospitalId: tenantName,
+                    });
+                    return res.isValid || res.errors[0];
                   },
                 })}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-10 outline-none focus:border-sky-400"
@@ -152,6 +167,14 @@ export function CreateTenantUserModal({
             {errors.password && (
               <p className="text-xs text-rose-500">{errors.password.message as string}</p>
             )}
+            <PasswordRequirements
+              password={passwordValue || ""}
+              context={{
+                email: emailValue,
+                name: nameValue,
+                hospitalId: tenantName,
+              }}
+            />
           </div>
 
           <label className="space-y-1">

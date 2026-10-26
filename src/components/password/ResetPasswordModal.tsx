@@ -7,6 +7,8 @@ import { passwordApi } from "@/services/passwordApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Lock, Eye, EyeOff, User } from "lucide-react";
+import { validatePassword } from "@/utils/passwordPolicy";
+import { PasswordRequirements } from "./PasswordRequirements";
 
 interface ResetPasswordModalProps {
     isOpen: boolean;
@@ -99,8 +101,12 @@ export function ResetPasswordModal({
                                 {...register("new_password", {
                                     required: "New password is required",
                                     minLength: {
-                                        value: 6,
-                                        message: "Password must be at least 6 characters",
+                                        value: 12,
+                                        message: "Password must be at least 12 characters",
+                                    },
+                                    validate: (value) => {
+                                        const res = validatePassword(value, { name: userName });
+                                        return res.isValid || res.errors[0];
                                     },
                                 })}
                                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
@@ -117,6 +123,10 @@ export function ResetPasswordModal({
                         {errors.new_password && (
                             <p className="text-xs text-rose-500">{errors.new_password.message}</p>
                         )}
+                        <PasswordRequirements
+                            password={newPassword}
+                            context={{ name: userName }}
+                        />
                     </div>
 
                     {/* Confirm New Password */}
