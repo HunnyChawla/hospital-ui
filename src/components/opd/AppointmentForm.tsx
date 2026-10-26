@@ -271,7 +271,7 @@ export function AppointmentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
       {/* Patient Selection Section */}
       {showDropdownSearch && (
         <div ref={searchRef} className="space-y-1.5">

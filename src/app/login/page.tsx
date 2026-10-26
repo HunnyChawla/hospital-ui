@@ -34,6 +34,8 @@ function LoginForm() {
   const [pendingConflictSessions, setPendingConflictSessions] = useState<ActiveSession[] | null>(null);
   const [pendingConflictPolicy, setPendingConflictPolicy] = useState<SessionPolicyInfo | undefined>(undefined);
   const [pendingDefaultScreen, setPendingDefaultScreen] = useState<string>("/");
+  const [isEmailReadOnly, setIsEmailReadOnly] = useState(true);
+  const [isPasswordReadOnly, setIsPasswordReadOnly] = useState(true);
 
   useEffect(() => {
     // Check if user was logged out due to session termination from another device
@@ -253,15 +255,36 @@ function LoginForm() {
 
             <div className="rounded-3xl border border-slate-200/50 bg-white/90 backdrop-blur-sm p-8 shadow-xl shadow-sky-100/50">
               <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
+                {/* Hidden dummy fields to prevent browser autofill heuristics from populating credentials */}
+                <input
+                  type="text"
+                  name="prevent_autofill_username"
+                  id="prevent_autofill_username"
+                  style={{ display: "none" }}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  autoComplete="off"
+                />
+                <input
+                  type="password"
+                  name="prevent_autofill_password"
+                  id="prevent_autofill_password"
+                  style={{ display: "none" }}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  autoComplete="new-password"
+                />
                 {/* Email */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">
+                  <label htmlFor="login-email" className="block text-sm font-semibold text-slate-700">
                     Email Address
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-sky-400 to-teal-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none z-0"></div>
                     <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors pointer-events-none z-30" />
                     <input
+                      id="login-email"
+                      name="login_email"
                       type="email"
                       value={formData.email}
                       onChange={(e) =>
@@ -269,6 +292,12 @@ function LoginForm() {
                       }
                       placeholder="Enter your email"
                       autoComplete="off"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-bwignore="true"
+                      data-form-type="other"
+                      readOnly={isEmailReadOnly}
+                      onFocus={() => setIsEmailReadOnly(false)}
                       className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                       required
                     />
@@ -277,23 +306,28 @@ function LoginForm() {
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">
+                  <label htmlFor="login-password" className="block text-sm font-semibold text-slate-700">
                     Password
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-sky-400 to-teal-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none z-0"></div>
                     <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors pointer-events-none z-30" />
                     <input
+                      id="login-password"
+                      name="login_password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
                       }
                       placeholder="Enter your password"
-                      autoComplete="off"
+                      autoComplete="new-password"
                       data-lpignore="true"
                       data-1p-ignore="true"
                       data-bwignore="true"
+                      data-form-type="other"
+                      readOnly={isPasswordReadOnly}
+                      onFocus={() => setIsPasswordReadOnly(false)}
                       className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                       required
                     />
@@ -313,13 +347,15 @@ function LoginForm() {
                 {/* Hospital ID */}
                 {showHospitalIdInput && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">
+                    <label htmlFor="login-hospital-id" className="block text-sm font-semibold text-slate-700">
                       Hospital ID
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-sky-400 to-teal-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none z-0"></div>
                       <Building2 className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors pointer-events-none z-30" />
                       <input
+                        id="login-hospital-id"
+                        name="login_hospital_id"
                         type="text"
                         value={formData.hospital_id}
                         onChange={(e) =>
@@ -327,6 +363,10 @@ function LoginForm() {
                         }
                         placeholder="Enter hospital ID"
                         autoComplete="off"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
+                        data-form-type="other"
                         className="w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition-all duration-200 focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100/50 relative z-20"
                         required
                       />

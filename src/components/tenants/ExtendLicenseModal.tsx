@@ -101,7 +101,7 @@ export function ExtendLicenseModal({
       title={`Extend License - ${tenant.name}`}
       size="md"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-6">
         {/* Current License Status */}
         <div className={`rounded-xl border p-4 ${licenseStatus.bgColor}`}>
           <div className="flex items-start gap-3">
