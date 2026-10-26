@@ -188,10 +188,7 @@ function LoginForm() {
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center relative p-8">
         {/* Background with pattern */}
         <div className="absolute inset-0 bg-gradient-to-br from-sky-50 via-teal-50 to-cyan-50"></div>
-        <div className="absolute inset-0 opacity-5" style={{
-          backgroundImage: `radial-gradient(circle at 2px 2px, rgb(14, 165, 233) 1px, transparent 0)`,
-          backgroundSize: '40px 40px'
-        }}></div>
+        <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle_at_2px_2px,_rgb(14,165,233)_1px,_transparent_0)] [background-size:40px_40px]"></div>
 
         {/* Floating decorative circles */}
         <div className="absolute top-20 left-20 w-32 h-32 bg-sky-200/20 rounded-full blur-2xl"></div>
@@ -260,7 +257,7 @@ function LoginForm() {
                   type="text"
                   name="prevent_autofill_username"
                   id="prevent_autofill_username"
-                  style={{ display: "none" }}
+                  className="hidden"
                   tabIndex={-1}
                   aria-hidden="true"
                   autoComplete="off"
@@ -269,7 +266,7 @@ function LoginForm() {
                   type="password"
                   name="prevent_autofill_password"
                   id="prevent_autofill_password"
-                  style={{ display: "none" }}
+                  className="hidden"
                   tabIndex={-1}
                   aria-hidden="true"
                   autoComplete="new-password"
