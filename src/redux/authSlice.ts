@@ -33,11 +33,11 @@ const initialState: AuthState = {
   pendingConsents: [],
 };
 
-// Fetch user details (full name, email, etc.)
+// Fetch user details (full name, email, etc.) for the logged-in user
 export const fetchUserDetails = createAsyncThunk(
   "auth/fetchUserDetails",
-  async (userId: string) => {
-    const userDetails = await usersApi.getById(userId);
+  async (_userId?: string) => {
+    const userDetails = await usersApi.getMe();
     return {
       full_name: userDetails.full_name,
       email: userDetails.email,
@@ -120,6 +120,53 @@ export const login = createAsyncThunk(
       };
       return rejectWithValue(serializableError);
     }
+  }
+);
+
+// Complete login session after conflict resolution or direct login
+export const completeLogin = createAsyncThunk(
+  "auth/completeLogin",
+  async (response: LoginResponse, { dispatch }) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", response.token.access_token);
+      localStorage.setItem("user_id", response.user_id);
+      const tenantId = response.tenant_id || "000c5fe0-a5bc-40c5-9d8e-88d2ef811cb1";
+      localStorage.setItem("tenant_id", tenantId);
+      localStorage.setItem("role", response.role);
+
+      if (response.must_change_password) {
+        localStorage.setItem("must_change_password", "true");
+      } else {
+        localStorage.removeItem("must_change_password");
+      }
+
+      if (response.consent_required) {
+        localStorage.setItem("consent_required", "true");
+      } else {
+        localStorage.removeItem("consent_required");
+      }
+
+      if (!response.consent_required) {
+        dispatch(fetchTenant(tenantId));
+        dispatch(fetchUserDetails(response.user_id));
+
+        try {
+          const featureFlags = await getAllFeatureFlags();
+          localStorage.setItem("feature_flags", JSON.stringify(featureFlags));
+        } catch (err) {
+          console.error("Failed to pre-fetch feature flags on login:", err);
+        }
+
+        const permissionsResult = await dispatch(fetchMyPermissions());
+        return {
+          ...response,
+          permissions: permissionsResult.payload as UserPermissions | undefined,
+        };
+      }
+
+      return { ...response, permissions: undefined };
+    }
+    return { ...response, permissions: undefined };
   }
 );
 
@@ -246,6 +293,12 @@ const authSlice = createSlice({
         state.mustChangePassword = action.payload.must_change_password || false;
         state.consentRequired = action.payload.consent_required || false;
         state.pendingConsents = action.payload.pending_consents || [];
+        if (action.payload.full_name && action.payload.email) {
+          state.userDetails = {
+            full_name: action.payload.full_name,
+            email: action.payload.email,
+          };
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -254,6 +307,31 @@ const authSlice = createSlice({
         } else {
           state.error = action.error.message || "Login failed";
         }
+        state.isAuthenticated = false;
+      })
+      .addCase(completeLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(completeLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.token = action.payload.token.access_token;
+        state.isAuthenticated = true;
+        state.error = null;
+        state.mustChangePassword = action.payload.must_change_password || false;
+        state.consentRequired = action.payload.consent_required || false;
+        state.pendingConsents = action.payload.pending_consents || [];
+        if (action.payload.full_name && action.payload.email) {
+          state.userDetails = {
+            full_name: action.payload.full_name,
+            email: action.payload.email,
+          };
+        }
+      })
+      .addCase(completeLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to complete login";
         state.isAuthenticated = false;
       })
       .addCase(fetchUserDetails.fulfilled, (state, action) => {
