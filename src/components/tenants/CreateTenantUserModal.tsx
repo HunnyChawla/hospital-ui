@@ -87,6 +87,7 @@ export function CreateTenantUserModal({
             </span>
             <input
               type="text"
+              autoComplete="off"
               {...register("full_name", { required: "Full name is required" })}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
               placeholder="Dr. John Smith"
@@ -100,6 +101,7 @@ export function CreateTenantUserModal({
             <span className="text-slate-600">Cabin</span>
             <input
               type="text"
+              autoComplete="off"
               {...register("cabin")}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
               placeholder="Room 101"
@@ -112,6 +114,7 @@ export function CreateTenantUserModal({
             </span>
             <input
               type="email"
+              autoComplete="off"
               {...register("email", {
                 required: "Email is required",
                 pattern: {

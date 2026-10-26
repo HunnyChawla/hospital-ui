@@ -187,7 +187,7 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-6">
       {/* Logo Upload */}
       <div className="flex items-start gap-6">
         <div className="flex-shrink-0">
