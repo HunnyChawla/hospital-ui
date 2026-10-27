@@ -3,10 +3,20 @@ import { apiClient } from "./api";
 
 import { getEnv } from "../utils/env";
 
+export interface CaptchaResponse {
+  captcha_id: string;
+  captcha_token: string;
+  image: string;
+  expires_in: number;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
   hospital_id: string;
+  captcha_id?: string;
+  captcha_answer?: string;
+  captcha_token?: string;
 }
 
 export interface ActiveSession {
@@ -23,6 +33,8 @@ export interface SessionPolicyInfo {
   max_concurrent_sessions: number;
   allow_keep_alive: boolean;
   message?: string | null;
+  session_expiry_minutes?: number;
+  idle_timeout_minutes?: number | null;
 }
 
 export interface InvalidateSessionsResponse {
@@ -37,15 +49,29 @@ export interface TenantSessionPolicy {
   tenant_name?: string | null;
   subdomain?: string | null;
   max_concurrent_sessions: number;
+  session_expiry_minutes?: number;
+  idle_timeout_minutes?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
   updated_by?: string | null;
+}
+
+export interface SessionExtendResponse {
+  token: {
+    access_token: string;
+    token_type: string;
+    expires_in?: number;
+  };
+  session_id: string;
+  expires_at: string;
+  session_expiry_minutes: number;
 }
 
 export interface LoginResponse {
   token: {
     access_token: string;
     token_type: string;
+    expires_in?: number;
   };
   user_id: string;
   tenant_id: string;
@@ -61,6 +87,15 @@ export interface LoginResponse {
 }
 
 export const authApi = {
+  async getCaptcha(): Promise<CaptchaResponse> {
+    const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");
+    const captchaUrl = baseUrl ? `${baseUrl}/auth/captcha` : "/api/auth/captcha";
+    const response = await axios.get<CaptchaResponse>(captchaUrl, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     // Get API URL at runtime to ensure window.__ENV is available
     const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");
@@ -125,10 +160,22 @@ export const authApi = {
     return response.data;
   },
 
-  async updateSessionPolicy(tenantId: string, maxConcurrentSessions: number): Promise<TenantSessionPolicy> {
+  async updateSessionPolicy(
+    tenantId: string,
+    maxConcurrentSessions: number,
+    sessionExpiryMinutes: number = 600,
+    idleTimeoutMinutes: number = 15
+  ): Promise<TenantSessionPolicy> {
     const response = await apiClient.put<TenantSessionPolicy>(`/session-policies/tenants/${tenantId}`, {
       max_concurrent_sessions: maxConcurrentSessions,
+      session_expiry_minutes: sessionExpiryMinutes,
+      idle_timeout_minutes: idleTimeoutMinutes,
     });
+    return response.data;
+  },
+
+  async extendSession(): Promise<SessionExtendResponse> {
+    const response = await apiClient.post<SessionExtendResponse>("/auth/session/extend", {});
     return response.data;
   },
 };

@@ -12,15 +12,33 @@ import {
   Check,
   X,
   AlertCircle,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { authApi, TenantSessionPolicy } from "@/services/authApi";
+
+const EXPIRY_PRESETS = [
+  { label: "1h", minutes: 60 },
+  { label: "4h", minutes: 240 },
+  { label: "10h (Default)", minutes: 600 },
+  { label: "24h", minutes: 1440 },
+  { label: "48h (Max)", minutes: 2880 },
+];
+
+function formatDuration(minutes: number = 600): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  if (remaining === 0) return `${hours} hr${hours > 1 ? "s" : ""}`;
+  return `${hours}h ${remaining}m`;
+}
 
 export function SessionPoliciesManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [editingPolicy, setEditingPolicy] = useState<TenantSessionPolicy | null>(null);
   const [sessionLimitInput, setSessionLimitInput] = useState<number>(1);
+  const [sessionExpiryInput, setSessionExpiryInput] = useState<number>(600);
 
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["session-policies"],
@@ -29,21 +47,30 @@ export function SessionPoliciesManager() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ tenantId, limit }: { tenantId: string; limit: number }) =>
-      authApi.updateSessionPolicy(tenantId, limit),
+    mutationFn: ({
+      tenantId,
+      limit,
+      expiryMinutes,
+    }: {
+      tenantId: string;
+      limit: number;
+      expiryMinutes: number;
+    }) => authApi.updateSessionPolicy(tenantId, limit, expiryMinutes),
     onSuccess: (updated) => {
-      toast.success(`Session limit updated for ${updated.tenant_name || updated.subdomain}`);
+      toast.success(`Session policy updated for ${updated.tenant_name || updated.subdomain}`);
       queryClient.invalidateQueries({ queryKey: ["session-policies"] });
       setEditingPolicy(null);
     },
-    onError: () => {
-      toast.error("Failed to update session policy");
+    onError: (err: any) => {
+      const msg = err?.response?.data?.detail?.[0]?.msg || err?.response?.data?.detail || "Failed to update session policy";
+      toast.error(typeof msg === "string" ? msg : "Failed to update session policy");
     },
   });
 
   const handleEditClick = (policy: TenantSessionPolicy) => {
     setEditingPolicy(policy);
-    setSessionLimitInput(policy.max_concurrent_sessions);
+    setSessionLimitInput(policy.max_concurrent_sessions || 1);
+    setSessionExpiryInput(policy.session_expiry_minutes || 600);
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -52,6 +79,7 @@ export function SessionPoliciesManager() {
     updateMutation.mutate({
       tenantId: editingPolicy.tenant_id,
       limit: Number(sessionLimitInput),
+      expiryMinutes: Number(sessionExpiryInput),
     });
   };
 
@@ -74,10 +102,10 @@ export function SessionPoliciesManager() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Session Lockout Policies
+                Session Lockout &amp; Expiry Policies
               </h1>
               <p className="text-sm text-slate-500">
-                Configure maximum concurrent active sessions per user for each hospital
+                Configure session expiration time and concurrent login limits per hospital
               </p>
             </div>
           </div>
@@ -97,13 +125,14 @@ export function SessionPoliciesManager() {
       {/* Info Banner */}
       <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-4 text-sm text-sky-900">
         <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 shrink-0 text-sky-600" />
-          <div>
-            <p className="font-semibold">Session Lockout Policy Rule:</p>
-            <p className="mt-0.5 text-xs text-sky-800">
-              When set to <strong>1</strong> (Single Device Lockout), users logging into a new device will be
-              forced to terminate other active sessions. When set to greater than 1, users can optionally keep
-              multiple device sessions active up to the configured limit.
+          <AlertCircle className="h-5 w-5 shrink-0 text-sky-600 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold">Healthcare Security &amp; Session Management:</p>
+            <p className="text-xs text-sky-800 leading-relaxed">
+              • <strong>Session Expiry Time:</strong> Default is <strong>10 hours</strong> (configurable from 15 minutes to 48 hours). Active users will see warning alerts <strong>15 minutes</strong> and <strong>5 minutes</strong> prior to session expiration to extend without losing unsaved work.
+            </p>
+            <p className="text-xs text-sky-800 leading-relaxed">
+              • <strong>Concurrent Sessions:</strong> When set to <strong>1</strong> (Single Device Lockout), users signing in from a new browser/device will terminate previous sessions.
             </p>
           </div>
         </div>
@@ -130,15 +159,16 @@ export function SessionPoliciesManager() {
             <tr>
               <th className="px-6 py-3.5 font-semibold text-slate-700">Hospital</th>
               <th className="px-6 py-3.5 font-semibold text-slate-700">Subdomain</th>
+              <th className="px-6 py-3.5 font-semibold text-slate-700">Session Expiry</th>
               <th className="px-6 py-3.5 font-semibold text-slate-700">Max Concurrent Sessions</th>
-              <th className="px-6 py-3.5 font-semibold text-slate-700">Mode</th>
+              <th className="px-6 py-3.5 font-semibold text-slate-700">Lockout Mode</th>
               <th className="px-6 py-3.5 text-right font-semibold text-slate-700">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-slate-500">
+                <td colSpan={6} className="p-8 text-center text-slate-500">
                   <div className="flex items-center justify-center gap-2">
                     <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
                     Loading session policies...
@@ -147,13 +177,14 @@ export function SessionPoliciesManager() {
               </tr>
             ) : filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-slate-500">
+                <td colSpan={6} className="p-8 text-center text-slate-500">
                   No hospitals matching your search
                 </td>
               </tr>
             ) : (
               filteredItems.map((item) => {
                 const isSingle = item.max_concurrent_sessions === 1;
+                const expiryMin = item.session_expiry_minutes || 600;
                 return (
                   <tr key={item.tenant_id} className="hover:bg-slate-50/80 transition">
                     <td className="px-6 py-4 font-medium text-slate-900">
@@ -164,6 +195,17 @@ export function SessionPoliciesManager() {
                     </td>
                     <td className="px-6 py-4 font-mono text-xs text-slate-500">
                       {item.subdomain}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-sky-500" />
+                        <span className="font-semibold text-slate-900">
+                          {formatDuration(expiryMin)}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          ({expiryMin} min)
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -208,7 +250,7 @@ export function SessionPoliciesManager() {
       {/* Edit Modal */}
       {editingPolicy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-900/10">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-900/10">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
@@ -228,24 +270,77 @@ export function SessionPoliciesManager() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="mt-5 space-y-4">
+            <form onSubmit={handleSave} className="mt-5 space-y-5">
+              {/* Session Expiry Configuration */}
               <div>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Session Expiry Duration (Minutes)
+                </label>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Configurable between 15 minutes and 48 hours (2880 minutes). Default is 10 hours (600 minutes).
+                </p>
+
+                {/* Preset buttons */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {EXPIRY_PRESETS.map((p) => (
+                    <button
+                      key={p.minutes}
+                      type="button"
+                      onClick={() => setSessionExpiryInput(p.minutes)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                        sessionExpiryInput === p.minutes
+                          ? "bg-sky-600 text-white shadow-sm"
+                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={15}
+                    max={2880}
+                    value={sessionExpiryInput}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setSessionExpiryInput(isNaN(val) ? 600 : Math.min(2880, Math.max(15, val)));
+                    }}
+                    className="w-32 rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    required
+                  />
+                  <span className="text-xs text-slate-500">
+                    minutes ({formatDuration(sessionExpiryInput)})
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Active users receive an extension popup <strong>15 min</strong> before expiry and a final urgent alarm <strong>5 min</strong> before expiry if declined.
+                </p>
+              </div>
+
+              {/* Concurrent Sessions Configuration */}
+              <div className="border-t border-slate-100 pt-4">
                 <label className="block text-xs font-semibold text-slate-700">
                   Maximum Concurrent Active Sessions per User
                 </label>
                 <input
                   type="number"
                   min={1}
-                  max={20}
+                  max={50}
                   value={sessionLimitInput}
-                  onChange={(e) => setSessionLimitInput(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setSessionLimitInput(isNaN(val) ? 1 : Math.min(50, Math.max(1, val)));
+                  }}
                   className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                   required
                 />
                 <p className="mt-1.5 text-xs text-slate-500">
                   {sessionLimitInput === 1 ? (
                     <span className="text-amber-600 font-medium">
-                      ⚠️ Setting limit to 1 enables strict lockout: users will be forced to log out other devices.
+                      ⚠️ Setting limit to 1 enables strict lockout: signing in from a new device terminates other sessions.
                     </span>
                   ) : (
                     <span>Users can be logged in on up to {sessionLimitInput} devices simultaneously.</span>

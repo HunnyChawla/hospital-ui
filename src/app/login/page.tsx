@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { completeLogin, logout, restoreSession } from "@/redux/authSlice";
+import { completeLogin, restoreSession } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -13,7 +13,8 @@ import { Suspense } from "react";
 import Image from "next/image";
 import { Footer } from "@/components/layout/Footer";
 import { ActiveSessionsConflictModal } from "@/components/auth/ActiveSessionsConflictModal";
-import { ActiveSession, LoginResponse, SessionPolicyInfo, authApi } from "@/services/authApi";
+import { MathCaptcha } from "@/components/auth/MathCaptcha";
+import { ActiveSession, CaptchaResponse, LoginResponse, SessionPolicyInfo, authApi } from "@/services/authApi";
 
 function LoginForm() {
   const router = useRouter();
@@ -36,12 +37,62 @@ function LoginForm() {
   const [pendingDefaultScreen, setPendingDefaultScreen] = useState<string>("/");
   const [isEmailReadOnly, setIsEmailReadOnly] = useState(true);
   const [isPasswordReadOnly, setIsPasswordReadOnly] = useState(true);
+  const [captchaData, setCaptchaData] = useState<CaptchaResponse | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+
+  const fetchCaptcha = async () => {
+    try {
+      setCaptchaLoading(true);
+      const data = await authApi.getCaptcha();
+      setCaptchaData(data);
+      setCaptchaAnswer("");
+    } catch (err) {
+      console.error("Failed to load captcha challenge:", err);
+      toast.error("Failed to load security challenge. Please refresh.");
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
+
+  const getTargetReturnUrl = () => {
+    const fromParams = searchParams.get("returnUrl");
+    if (fromParams) return fromParams;
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("tv_login_return_url");
+    }
+    return null;
+  };
+
+  const navigateToDestination = (dest: string) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("tv_login_return_url");
+    }
+    if (dest.startsWith("http://") || dest.startsWith("https://")) {
+      window.location.href = dest;
+    } else {
+      router.push(dest);
+    }
+  };
+
+  useEffect(() => {
+    const qReturnUrl = searchParams.get("returnUrl");
+    if (qReturnUrl && typeof window !== "undefined") {
+      sessionStorage.setItem("tv_login_return_url", qReturnUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Check if user was logged out due to session termination from another device
     const reason = searchParams.get("reason");
     if (reason === "session_terminated") {
       toast.error("Your session was terminated from another device. Please sign in again.");
+    } else if (reason === "session_expired") {
+      toast.error("Your session has expired due to timeout. Please sign in again to continue.");
     }
   }, [searchParams]);
 
@@ -91,9 +142,9 @@ function LoginForm() {
   useEffect(() => {
     // Redirect if already authenticated and not reviewing conflicting sessions
     if (isAuthenticated && !pendingConflictSessions) {
-      const returnUrl = searchParams.get("returnUrl");
+      const returnUrl = getTargetReturnUrl();
       if (returnUrl) {
-        router.push(returnUrl);
+        navigateToDestination(returnUrl);
       } else {
         router.push("/");
       }
@@ -106,11 +157,11 @@ function LoginForm() {
       setSubmitting(true);
       const result = await dispatch(completeLogin(pendingLoginResponse)).unwrap();
       toast.success("Login successful");
-      const returnUrl = searchParams.get("returnUrl");
+      const returnUrl = getTargetReturnUrl();
       const dest = returnUrl || result.permissions?.default_screen || pendingDefaultScreen;
       setPendingConflictSessions(null);
       setPendingLoginResponse(null);
-      router.push(dest);
+      navigateToDestination(dest);
     } catch (err: any) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -139,17 +190,32 @@ function LoginForm() {
       return;
     }
 
+    if (!captchaAnswer.trim()) {
+      toast.error("Please solve the security verification challenge");
+      return;
+    }
+
+    if (!captchaData) {
+      toast.error("Security challenge is loading, please wait...");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // 1. Authenticate credentials with backend
-      const response = await authApi.login(formData);
+      // 1. Authenticate credentials with backend including captcha verification
+      const response = await authApi.login({
+        ...formData,
+        captcha_id: captchaData.captcha_id,
+        captcha_answer: captchaAnswer.trim(),
+        captcha_token: captchaData.captcha_token,
+      });
 
       // Save hospital ID to localStorage
       if (typeof window !== "undefined" && formData.hospital_id) {
         localStorage.setItem("hospital_id", formData.hospital_id);
       }
 
-      const returnUrl = searchParams.get("returnUrl");
+      const returnUrl = getTargetReturnUrl();
       const defaultScreen = returnUrl || "/";
 
       // 2. If active sessions exist on other devices/profiles, IMMEDIATELY show review modal
@@ -166,10 +232,12 @@ function LoginForm() {
       const result = await dispatch(completeLogin(response)).unwrap();
       toast.success("Login successful");
       const dest = returnUrl || result.permissions?.default_screen || defaultScreen;
-      router.push(dest);
+      navigateToDestination(dest);
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
+      // Auto-refresh captcha on failed attempt
+      fetchCaptcha();
     } finally {
       setSubmitting(false);
     }
@@ -370,6 +438,16 @@ function LoginForm() {
                     </div>
                   </div>
                 )}
+
+                {/* Math Security CAPTCHA */}
+                <MathCaptcha
+                  captcha={captchaData}
+                  value={captchaAnswer}
+                  onChange={setCaptchaAnswer}
+                  onRefresh={fetchCaptcha}
+                  loading={captchaLoading}
+                  disabled={submitting || loading}
+                />
 
                 {/* Error Message */}
                 {error && (
