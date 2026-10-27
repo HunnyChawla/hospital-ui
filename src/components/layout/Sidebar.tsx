@@ -23,6 +23,7 @@ import {
   Building2,
   CalendarDays,
   Shield,
+  ShieldCheck,
   Monitor,
   Link as LinkIcon,
   LayoutTemplate,
@@ -159,6 +160,7 @@ export function Sidebar() {
       "/terms-conditions",
       "/platform-patient-management",
       "/api-permissions",
+      "/session-policies",
     ];
 
     if (userRole !== "platform_owner") {
@@ -190,6 +192,9 @@ export function Sidebar() {
       }
       if (!items.find((i) => i.href === "/platform-patient-management")) {
         items.push({ label: "Patient Data Cleanup", href: "/platform-patient-management", icon: UserX });
+      }
+      if (!items.find((i) => i.href === "/session-policies")) {
+        items.push({ label: "Session Policies", href: "/session-policies", icon: ShieldCheck });
       }
     }
 

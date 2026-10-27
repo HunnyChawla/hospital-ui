@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { setConsentRequired } from "@/redux/authSlice";
 import { ForceChangePasswordModal } from "@/components/password/ForceChangePasswordModal";
 import { ForceAcceptTermsModal } from "@/components/legal/ForceAcceptTermsModal";
+import { SessionTimeoutWatcher } from "@/components/auth/SessionTimeoutWatcher";
 
 /**
  * Global Password Change Modal
@@ -120,6 +121,8 @@ export default function Providers({
               <GlobalPasswordChangeModal />
               {/* Global Legal Consent Modal - renders immediately after auth or when terms update */}
               <GlobalLegalConsentModal />
+              {/* Global Session Expiration & Inactivity Alarm Watcher */}
+              <SessionTimeoutWatcher />
             </div>
           </SidebarProvider>
         </QueryClientProvider>

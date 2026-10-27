@@ -64,6 +64,8 @@ function LoginForm() {
     const reason = searchParams.get("reason");
     if (reason === "session_terminated") {
       toast.error("Your session was terminated from another device. Please sign in again.");
+    } else if (reason === "session_expired") {
+      toast.error("Your session has expired due to timeout. Please sign in again to continue.");
     }
   }, [searchParams]);
 
