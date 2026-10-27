@@ -1,9 +1,9 @@
 {
   "service": "hospital-ui",
-  "version": "3.4.0",
-  "build_timestamp": "2026-10-27T07:43:13.436Z",
-  "source_sha256": "F3A288B5BF79E4621EBDDA198458F6075B3A5E0BD914BE8B0E24AFB40DFC57C7",
+  "version": "3.5.0",
+  "build_timestamp": "2026-10-27T08:38:28.474Z",
+  "source_sha256": "D31603ACF4B6449D5DDDDC3C8FE55557306621C62E12649303D22C0026E2C726",
   "hash_algorithm": "SHA-256",
-  "verification_command": "git archive --format=tar 3.4.0 | sha256sum",
-  "verification_powershell": "git archive --format=tar 3.4.0 -o temp.tar; (Get-FileHash temp.tar -Algorithm SHA256).Hash; Remove-Item temp.tar"
+  "verification_command": "git archive --format=tar 3.5.0 | sha256sum",
+  "verification_powershell": "git archive --format=tar 3.5.0 -o temp.tar; (Get-FileHash temp.tar -Algorithm SHA256).Hash; Remove-Item temp.tar"
 }
