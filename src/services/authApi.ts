@@ -3,10 +3,20 @@ import { apiClient } from "./api";
 
 import { getEnv } from "../utils/env";
 
+export interface CaptchaResponse {
+  captcha_id: string;
+  captcha_token: string;
+  image: string;
+  expires_in: number;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
   hospital_id: string;
+  captcha_id?: string;
+  captcha_answer?: string;
+  captcha_token?: string;
 }
 
 export interface ActiveSession {
@@ -61,6 +71,15 @@ export interface LoginResponse {
 }
 
 export const authApi = {
+  async getCaptcha(): Promise<CaptchaResponse> {
+    const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");
+    const captchaUrl = baseUrl ? `${baseUrl}/auth/captcha` : "/api/auth/captcha";
+    const response = await axios.get<CaptchaResponse>(captchaUrl, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     // Get API URL at runtime to ensure window.__ENV is available
     const baseUrl = getEnv("NEXT_PUBLIC_API_BASE_URL", "/api").replace(/\/$/, "");

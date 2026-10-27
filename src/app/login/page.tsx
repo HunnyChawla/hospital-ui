@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { completeLogin, logout, restoreSession } from "@/redux/authSlice";
+import { completeLogin, restoreSession } from "@/redux/authSlice";
 import { fetchTenant } from "@/redux/tenantSlice";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -13,7 +13,8 @@ import { Suspense } from "react";
 import Image from "next/image";
 import { Footer } from "@/components/layout/Footer";
 import { ActiveSessionsConflictModal } from "@/components/auth/ActiveSessionsConflictModal";
-import { ActiveSession, LoginResponse, SessionPolicyInfo, authApi } from "@/services/authApi";
+import { MathCaptcha } from "@/components/auth/MathCaptcha";
+import { ActiveSession, CaptchaResponse, LoginResponse, SessionPolicyInfo, authApi } from "@/services/authApi";
 
 function LoginForm() {
   const router = useRouter();
@@ -36,6 +37,27 @@ function LoginForm() {
   const [pendingDefaultScreen, setPendingDefaultScreen] = useState<string>("/");
   const [isEmailReadOnly, setIsEmailReadOnly] = useState(true);
   const [isPasswordReadOnly, setIsPasswordReadOnly] = useState(true);
+  const [captchaData, setCaptchaData] = useState<CaptchaResponse | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+
+  const fetchCaptcha = async () => {
+    try {
+      setCaptchaLoading(true);
+      const data = await authApi.getCaptcha();
+      setCaptchaData(data);
+      setCaptchaAnswer("");
+    } catch (err) {
+      console.error("Failed to load captcha challenge:", err);
+      toast.error("Failed to load security challenge. Please refresh.");
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
 
   useEffect(() => {
     // Check if user was logged out due to session termination from another device
@@ -139,10 +161,25 @@ function LoginForm() {
       return;
     }
 
+    if (!captchaAnswer.trim()) {
+      toast.error("Please solve the security verification challenge");
+      return;
+    }
+
+    if (!captchaData) {
+      toast.error("Security challenge is loading, please wait...");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // 1. Authenticate credentials with backend
-      const response = await authApi.login(formData);
+      // 1. Authenticate credentials with backend including captcha verification
+      const response = await authApi.login({
+        ...formData,
+        captcha_id: captchaData.captcha_id,
+        captcha_answer: captchaAnswer.trim(),
+        captcha_token: captchaData.captcha_token,
+      });
 
       // Save hospital ID to localStorage
       if (typeof window !== "undefined" && formData.hospital_id) {
@@ -170,6 +207,8 @@ function LoginForm() {
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
+      // Auto-refresh captcha on failed attempt
+      fetchCaptcha();
     } finally {
       setSubmitting(false);
     }
@@ -370,6 +409,16 @@ function LoginForm() {
                     </div>
                   </div>
                 )}
+
+                {/* Math Security CAPTCHA */}
+                <MathCaptcha
+                  captcha={captchaData}
+                  value={captchaAnswer}
+                  onChange={setCaptchaAnswer}
+                  onRefresh={fetchCaptcha}
+                  loading={captchaLoading}
+                  disabled={submitting || loading}
+                />
 
                 {/* Error Message */}
                 {error && (
