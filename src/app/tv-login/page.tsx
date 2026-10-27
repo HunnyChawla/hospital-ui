@@ -47,9 +47,16 @@ function TVLoginContent() {
         // Wait for restoration and auth loading
         if (isRestored && !authLoading) {
             if (!isAuthenticated) {
-                // Redirect to login with return URL
-                const returnUrl = `/tv-login?code=${codeParam}&hospital=${hospitalParam || ""}`;
-                router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+                // Redirect to login with canonical return URL
+                const hospitalQuery = hospitalParam ? `&hospital=${encodeURIComponent(hospitalParam)}` : "";
+                const returnUrl = `/tv-login/?code=${encodeURIComponent(codeParam)}${hospitalQuery}`;
+                if (typeof window !== "undefined") {
+                    sessionStorage.setItem("tv_login_return_url", returnUrl);
+                    if (hospitalParam) {
+                        localStorage.setItem("hospital_id", hospitalParam);
+                    }
+                }
+                router.push(`/login/?returnUrl=${encodeURIComponent(returnUrl)}`);
                 return;
             }
 

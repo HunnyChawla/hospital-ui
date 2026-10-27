@@ -29,7 +29,7 @@ import { SessionTimeoutWatcher } from "@/components/auth/SessionTimeoutWatcher";
 function GlobalPasswordChangeModal() {
   const { isAuthenticated, mustChangePassword } = useAppSelector((s) => s.auth);
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
+  const isLoginPage = pathname?.startsWith("/login") || pathname?.startsWith("/tv-login");
 
   // Only show if user is authenticated, must change password, and not on login page
   if (!isAuthenticated || !mustChangePassword || isLoginPage) {
@@ -47,7 +47,7 @@ function GlobalLegalConsentModal() {
   const dispatch = useAppDispatch();
   const { isAuthenticated, consentRequired, mustChangePassword } = useAppSelector((s) => s.auth);
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
+  const isLoginPage = pathname?.startsWith("/login") || pathname?.startsWith("/tv-login");
 
   useEffect(() => {
     const handleConsentRequired = () => {
@@ -83,7 +83,7 @@ export default function Providers({
   // Get current pathname to conditionally render sidebar
   const pathname = usePathname();
   // Handle both /login and /login/ paths, and /tv-login for standalone auth
-  const isLoginPage = pathname === "/login" || pathname === "/login/" || pathname === "/tv-login";
+  const isLoginPage = pathname?.startsWith("/login") || pathname?.startsWith("/tv-login");
 
   useEffect(() => {
     // Read tenant_id and role from localStorage

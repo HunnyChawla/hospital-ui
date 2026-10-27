@@ -59,6 +59,33 @@ function LoginForm() {
     fetchCaptcha();
   }, []);
 
+  const getTargetReturnUrl = () => {
+    const fromParams = searchParams.get("returnUrl");
+    if (fromParams) return fromParams;
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("tv_login_return_url");
+    }
+    return null;
+  };
+
+  const navigateToDestination = (dest: string) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("tv_login_return_url");
+    }
+    if (dest.startsWith("http://") || dest.startsWith("https://")) {
+      window.location.href = dest;
+    } else {
+      router.push(dest);
+    }
+  };
+
+  useEffect(() => {
+    const qReturnUrl = searchParams.get("returnUrl");
+    if (qReturnUrl && typeof window !== "undefined") {
+      sessionStorage.setItem("tv_login_return_url", qReturnUrl);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // Check if user was logged out due to session termination from another device
     const reason = searchParams.get("reason");
@@ -115,9 +142,9 @@ function LoginForm() {
   useEffect(() => {
     // Redirect if already authenticated and not reviewing conflicting sessions
     if (isAuthenticated && !pendingConflictSessions) {
-      const returnUrl = searchParams.get("returnUrl");
+      const returnUrl = getTargetReturnUrl();
       if (returnUrl) {
-        router.push(returnUrl);
+        navigateToDestination(returnUrl);
       } else {
         router.push("/");
       }
@@ -130,11 +157,11 @@ function LoginForm() {
       setSubmitting(true);
       const result = await dispatch(completeLogin(pendingLoginResponse)).unwrap();
       toast.success("Login successful");
-      const returnUrl = searchParams.get("returnUrl");
+      const returnUrl = getTargetReturnUrl();
       const dest = returnUrl || result.permissions?.default_screen || pendingDefaultScreen;
       setPendingConflictSessions(null);
       setPendingLoginResponse(null);
-      router.push(dest);
+      navigateToDestination(dest);
     } catch (err: any) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -188,7 +215,7 @@ function LoginForm() {
         localStorage.setItem("hospital_id", formData.hospital_id);
       }
 
-      const returnUrl = searchParams.get("returnUrl");
+      const returnUrl = getTargetReturnUrl();
       const defaultScreen = returnUrl || "/";
 
       // 2. If active sessions exist on other devices/profiles, IMMEDIATELY show review modal
@@ -205,7 +232,7 @@ function LoginForm() {
       const result = await dispatch(completeLogin(response)).unwrap();
       toast.success("Login successful");
       const dest = returnUrl || result.permissions?.default_screen || defaultScreen;
-      router.push(dest);
+      navigateToDestination(dest);
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
