@@ -14,6 +14,12 @@
 // General text fields: letters, digits, underscore, whitespace, - . , ' /
 const SAFE_TEXT_REGEX = /^[\p{L}\p{N}_\s\-.,'/]+$/u;
 
+/**
+ * Master toggle to enable/disable input sanitization checks across the application.
+ * Set to false to temporarily disable special character validation without removing code.
+ */
+export const INPUT_SANITIZATION_ENABLED: boolean = false;
+
 // Address fields: also allow # ( ) : &
 const SAFE_ADDRESS_REGEX = /^[\p{L}\p{N}_\s\-.,'/()#:&]+$/u;
 
@@ -195,6 +201,10 @@ export function validateNoSpecialChars(
   value: string | null | undefined,
   fieldName: string = ""
 ): string | null {
+  if (!INPUT_SANITIZATION_ENABLED) {
+    return null;
+  }
+
   if (!value || typeof value !== "string" || !value.trim()) return null;
   if (isExcludedField(fieldName)) return null;
 
@@ -261,6 +271,10 @@ export function scanPayloadForSpecialChars(
   data: Record<string, unknown>,
   parentPath: string = ""
 ): string[] {
+  if (!INPUT_SANITIZATION_ENABLED) {
+    return [];
+  }
+
   const violations: string[] = [];
 
   for (const [key, value] of Object.entries(data)) {
