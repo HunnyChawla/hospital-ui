@@ -67,6 +67,31 @@ export type EfficiencyScorePoint = {
   revenue_per_day?: number | null;
 };
 
+export type PatientTurnaroundPoint = {
+  period_start: string;
+  avg_time_minutes: number;
+  median_time_minutes?: number | null;
+  min_time_minutes?: number | null;
+  max_time_minutes?: number | null;
+  total_patients_served: number;
+  avg_consult_minutes?: number | null;
+  avg_wait_minutes?: number | null;
+};
+
+export type PatientTurnaroundSummary = {
+  overall_avg_minutes: number;
+  daily_avg_minutes?: number | null;
+  weekly_avg_minutes?: number | null;
+  monthly_avg_minutes?: number | null;
+  total_patients_served: number;
+};
+
+export type PatientTurnaroundResponse = {
+  meta: AnalyticsMeta;
+  summary: PatientTurnaroundSummary;
+  data: PatientTurnaroundPoint[];
+};
+
 export type AnalyticsFilters = {
   start_date: string;
   end_date: string;
@@ -131,6 +156,13 @@ export const analyticsApi = {
   ): Promise<SeriesResponse<EfficiencyScorePoint>> => {
     const params = withTenantParam(filters);
     const response = await apiClient.get("/analytics/efficiency/score", { params });
+    return response.data;
+  },
+  patientTurnaroundTime: async (
+    filters: AnalyticsFilters
+  ): Promise<PatientTurnaroundResponse> => {
+    const params = withTenantParam(filters);
+    const response = await apiClient.get("/analytics/operations/patient-turnaround-time", { params });
     return response.data;
   },
 };

@@ -40,6 +40,7 @@ export interface Visit {
   checked_in_at: string | null;
   consultation_started_at: string | null;
   consultation_ended_at: string | null;
+  total_time_minutes?: number | null;
   invoice_id: string | null;
   /**
    * Consultation fee, sourced from the linked invoice - null until one

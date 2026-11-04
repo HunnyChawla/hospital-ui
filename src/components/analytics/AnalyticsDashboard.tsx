@@ -49,6 +49,7 @@ type AnalyticsData = {
   appointmentSummary: Awaited<ReturnType<typeof analyticsApi.appointmentSummary>> | null;
   diagnosticsUsage: Awaited<ReturnType<typeof analyticsApi.diagnosticsUsage>> | null;
   efficiencyScore: Awaited<ReturnType<typeof analyticsApi.efficiencyScore>> | null;
+  patientTurnaroundTime: Awaited<ReturnType<typeof analyticsApi.patientTurnaroundTime>> | null;
 };
 
 const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
@@ -85,6 +86,7 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
     appointmentSummary: null,
     diagnosticsUsage: null,
     efficiencyScore: null,
+    patientTurnaroundTime: null,
   });
 
   const getDateRange = (preset: DatePreset): Pick<AnalyticsFilters, "start_date" | "end_date" | "granularity"> => {
@@ -118,6 +120,7 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
         appointmentSummary,
         diagnosticsUsage,
         efficiencyScore,
+        patientTurnaroundTime,
       ] = await Promise.all([
         analyticsApi.patientFlow(currentFilters),
         analyticsApi.bedOccupancy(currentFilters),
@@ -126,6 +129,7 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
         analyticsApi.appointmentSummary(currentFilters),
         analyticsApi.diagnosticsUsage(currentFilters),
         analyticsApi.efficiencyScore(currentFilters),
+        analyticsApi.patientTurnaroundTime(currentFilters),
       ]);
 
       setData({
@@ -136,6 +140,7 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
         appointmentSummary,
         diagnosticsUsage,
         efficiencyScore,
+        patientTurnaroundTime,
       });
       // Debug: log counts and sample data to help diagnose empty appointment metrics
       try {
@@ -263,6 +268,13 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
       labCompletionRate: sum(diagnostics.map((p) => p.orders)) > 0
         ? (sum(diagnostics.map((p) => p.completed)) / sum(diagnostics.map((p) => p.orders))) * 100
         : 0,
+
+      // Patient Turnaround Time
+      avgTurnaroundTime: data.patientTurnaroundTime?.summary?.overall_avg_minutes || 0,
+      dailyAvgTurnaroundTime: data.patientTurnaroundTime?.summary?.daily_avg_minutes ?? null,
+      weeklyAvgTurnaroundTime: data.patientTurnaroundTime?.summary?.weekly_avg_minutes ?? null,
+      monthlyAvgTurnaroundTime: data.patientTurnaroundTime?.summary?.monthly_avg_minutes ?? null,
+      totalPatientsServed: data.patientTurnaroundTime?.summary?.total_patients_served || 0,
     };
   }, [data]);
 
@@ -305,11 +317,24 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
       ? ((secondHalfOccupancy - firstHalfOccupancy) / firstHalfOccupancy) * 100
       : 0;
     
+    // Turnaround trend
+    const turnaround = data.patientTurnaroundTime?.data ?? [];
+    let turnaroundChange = 0;
+    if (turnaround.length >= 2) {
+      const tMid = Math.floor(turnaround.length / 2);
+      const firstHalfT = turnaround.slice(0, tMid);
+      const secondHalfT = turnaround.slice(tMid);
+      const firstAvg = avg(firstHalfT.map(p => p.avg_time_minutes).filter(v => v > 0));
+      const secondAvg = avg(secondHalfT.map(p => p.avg_time_minutes).filter(v => v > 0));
+      turnaroundChange = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
+    }
+
     return {
       revenue: revenueChange,
       appointments: appointmentChange,
       admissions: admissionChange,
       occupancy: occupancyChange,
+      turnaround: turnaroundChange,
     };
   }, [data]);
 
@@ -319,6 +344,7 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
     const appointments = data.doctorUtilization?.data ?? [];
     const flow = data.patientFlow?.data ?? [];
     const occupancy = data.bedOccupancy?.data ?? [];
+    const turnaround = data.patientTurnaroundTime?.data ?? [];
 
     const apptScheduled = (p: any) => p?.appointments ?? p?.scheduled ?? 0;
 
@@ -327,6 +353,8 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
       appointments: appointments.map((p) => apptScheduled(p) || 0).filter(v => !isNaN(v)),
       admissions: flow.map((p) => p.admissions || 0).filter(v => !isNaN(v)),
       occupancy: occupancy.map((p) => p.occupancy_pct || 0).filter(v => !isNaN(v)),
+      turnaround: turnaround.map((p) => p.avg_time_minutes || 0).filter(v => !isNaN(v)),
+      turnaroundPeriods: turnaround.map((p) => p.period_start),
     };
   }, [data]);
 
@@ -529,8 +557,8 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
         />
       </div>
 
-      {/* Performance Metrics (two cards: 50/50) */}
-      <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+      {/* Performance Metrics (three cards: Completion, Consult, Turnaround) */}
+      <div className="grid gap-2 grid-cols-1 md:grid-cols-3">
         <PerformanceCard
           label="Appointment Completion"
           value={`${summary.appointmentCompletionRate.toFixed(1)}%`}
@@ -554,6 +582,28 @@ export function AnalyticsDashboard({ refreshSignal, onRequestRefresh }: Analytic
           icon={Clock}
           color="teal"
           loading={loading}
+        />
+        <TurnaroundCard
+          label="Avg Patient Turnaround Time"
+          value={summary.avgTurnaroundTime > 0 ? `${summary.avgTurnaroundTime.toFixed(1)} min` : "-"}
+          trend={trends?.turnaround ?? null}
+          dailyAvg={summary.dailyAvgTurnaroundTime}
+          weeklyAvg={summary.weeklyAvgTurnaroundTime}
+          monthlyAvg={summary.monthlyAvgTurnaroundTime}
+          totalServed={summary.totalPatientsServed}
+          loading={loading}
+          chartData={chartData.turnaround}
+          periods={chartData.turnaroundPeriods || []}
+          onChartClick={(data, chartType, color, formatValue) => {
+            setChartModalData({
+              title: "Patient Turnaround Time - Detailed View",
+              data,
+              chartType,
+              color,
+              formatValue,
+            });
+            setShowChartModal(true);
+          }}
         />
       </div>
 
@@ -831,6 +881,125 @@ function PerformanceCard({ label, value, total, completed, cancelled, noShows, n
       )}
       {!loading && total === 0 && (
         <p className="text-xs text-slate-400 mt-1.5">No data available</p>
+      )}
+    </div>
+  );
+}
+
+type TurnaroundCardProps = {
+  label: string;
+  value: string;
+  trend: number | null;
+  dailyAvg?: number | null;
+  weeklyAvg?: number | null;
+  monthlyAvg?: number | null;
+  totalServed: number;
+  loading: boolean;
+  chartData: number[];
+  periods: string[];
+  onChartClick?: (
+    data: { period: string; value: number }[],
+    chartType: "line" | "area" | "bar",
+    color: "emerald" | "sky" | "amber" | "fuchsia" | "purple" | "indigo",
+    formatValue?: (v: number) => string
+  ) => void;
+};
+
+function TurnaroundCard({
+  label,
+  value,
+  trend,
+  dailyAvg,
+  weeklyAvg,
+  monthlyAvg,
+  totalServed,
+  loading,
+  chartData,
+  periods,
+  onChartClick,
+}: TurnaroundCardProps) {
+  const TrendIcon = trend !== null 
+    ? (trend < 0 ? ArrowDownRight : trend > 0 ? ArrowUpRight : Minus)
+    : null;
+
+  const validChartData = chartData.filter((val) => val != null && !isNaN(val) && val > 0);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-1.5">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-slate-500 truncate">{label}</p>
+          {loading ? (
+            <div className="mt-1.5 h-7 w-24 animate-pulse rounded bg-slate-200"></div>
+          ) : (
+            <p className="mt-1.5 text-xl font-bold text-slate-900">{value}</p>
+          )}
+          {trend !== null && TrendIcon && !loading && (
+            <div
+              className={clsx(
+                "mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+                trend < 0
+                  ? "bg-emerald-100 text-emerald-700"
+                  : trend > 0
+                  ? "bg-rose-100 text-rose-700"
+                  : "bg-slate-100 text-slate-600"
+              )}
+              title={trend < 0 ? "Turnaround time improved" : "Turnaround time increased"}
+            >
+              <TrendIcon className="h-3 w-3" />
+              <span>{Math.abs(trend).toFixed(1)}% vs prior</span>
+            </div>
+          )}
+        </div>
+        <div className="rounded-lg p-2 bg-indigo-50 shrink-0">
+          <Clock className="h-5 w-5 text-indigo-600" />
+        </div>
+      </div>
+
+      {!loading && (
+        <div className="space-y-1.5 border-t border-slate-100 pt-1.5 text-[11px]">
+          <div className="grid grid-cols-3 gap-1 text-center bg-slate-50 rounded-lg p-1">
+            <div>
+              <p className="text-[10px] text-slate-400 uppercase font-semibold">Day Avg</p>
+              <p className="font-bold text-slate-800">
+                {dailyAvg != null && dailyAvg > 0 ? `${dailyAvg.toFixed(1)}m` : "-"}
+              </p>
+            </div>
+            <div className="border-x border-slate-200 px-1">
+              <p className="text-[10px] text-slate-400 uppercase font-semibold">Week Avg</p>
+              <p className="font-bold text-slate-800">
+                {weeklyAvg != null && weeklyAvg > 0 ? `${weeklyAvg.toFixed(1)}m` : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 uppercase font-semibold">Month Avg</p>
+              <p className="font-bold text-slate-800">
+                {monthlyAvg != null && monthlyAvg > 0 ? `${monthlyAvg.toFixed(1)}m` : "-"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
+            <span>Served: <strong className="text-slate-800 font-semibold">{totalServed.toLocaleString()}</strong> patients</span>
+            {validChartData.length > 0 && onChartClick && (
+              <button
+                type="button"
+                onClick={() => {
+                  const fullData = periods
+                    .map((period, idx) => ({
+                      period: period || "",
+                      value: chartData[idx] || 0,
+                    }))
+                    .filter((d) => d.period);
+                  onChartClick(fullData, "line", "indigo", (v) => `${v.toFixed(1)} min`);
+                }}
+                className="text-indigo-600 hover:text-indigo-800 hover:underline font-semibold cursor-pointer text-[11px] inline-flex items-center gap-0.5"
+              >
+                <span>View Trend</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
