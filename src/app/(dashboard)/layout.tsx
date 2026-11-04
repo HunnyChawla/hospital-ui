@@ -10,9 +10,14 @@ import { fetchMyPermissions, hydratePermissions } from "@/redux/permissionsSlice
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
 import { store } from "@/redux/store";
+import dynamic from "next/dynamic";
 import { TopBar } from "@/components/layout/TopBar";
 import { Footer } from "@/components/layout/Footer";
-import { PatientDetailView } from "@/components/patients/PatientDetailView";
+
+const PatientDetailView = dynamic(
+  () => import("@/components/patients/PatientDetailView").then((mod) => mod.PatientDetailView),
+  { ssr: false }
+);
 import { usePermissions } from "@/hooks/usePermissions";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";

@@ -7,16 +7,27 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { searchPatients } from "@/redux/patientsSlice";
 import { logout } from "@/redux/authSlice";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
 import { Patient } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { patientsApi } from "@/services/patientsApi";
-import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
-import { ChangePasswordModal } from "@/components/password/ChangePasswordModal";
 import { MaskedValue } from "@/components/common/MaskedValue";
-import { ActiveSessionsModal } from "@/components/auth/ActiveSessionsModal";
+
+const PatientFormModal = dynamic(
+  () => import("@/components/patients/PatientFormModal").then((mod) => mod.PatientFormModal),
+  { ssr: false }
+);
+const ChangePasswordModal = dynamic(
+  () => import("@/components/password/ChangePasswordModal").then((mod) => mod.ChangePasswordModal),
+  { ssr: false }
+);
+const ActiveSessionsModal = dynamic(
+  () => import("@/components/auth/ActiveSessionsModal").then((mod) => mod.ActiveSessionsModal),
+  { ssr: false }
+);
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;

@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@headlessui/react",
+      "@tanstack/react-query",
+      "recharts",
+    ],
+  },
 };
 
 export default nextConfig;
