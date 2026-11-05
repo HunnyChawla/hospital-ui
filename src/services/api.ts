@@ -1,7 +1,10 @@
 import axios from "axios";
 
 import { getEnv } from "../utils/env";
-import { scanPayloadForSpecialChars } from "../utils/inputSanitization";
+import {
+  INPUT_SANITIZATION_ENABLED,
+  scanPayloadForSpecialChars,
+} from "../utils/inputSanitization";
 
 // Lazy initialization to ensure window.__ENV is loaded before baseURL is set
 let _apiClient: ReturnType<typeof axios.create> | null = null;
@@ -18,8 +21,9 @@ const getApiClient = () => {
 
     // Add auth token to requests and guard against unconsented API calls
     _apiClient.interceptors.request.use((config) => {
-      // Scan mutation request bodies for special characters
+      // Scan mutation request bodies for special characters (if enabled)
       if (
+        INPUT_SANITIZATION_ENABLED &&
         config.data &&
         typeof config.data === "object" &&
         ["post", "put", "patch"].includes((config.method || "").toLowerCase())
