@@ -7,6 +7,7 @@ import { useDoctorPanel } from "@/hooks/useDoctorPanel";
 import { usePatientDetails } from "@/hooks/usePatientDetails";
 import { useDoctorPanelPreferences } from "@/hooks/useDoctorPanelPreferences";
 import { useDoctorLiveQueue } from "@/hooks/useDoctorLiveQueue";
+import { usePermissions } from "@/hooks/usePermissions";
 import { DoctorStats } from "@/types";
 import { DoctorPanelVerticalLayout } from "./dashboard/DoctorPanelVerticalLayout";
 import { PatientHistoryTimeline } from "./patient-details/PatientHistoryTimeline";
@@ -40,6 +41,7 @@ type QueuePatient = {
 
 export function DoctorPanel() {
   const router = useRouter();
+  const { hasAccess } = usePermissions();
 
   // Use our custom hook for doctor panel state
   const {
@@ -183,8 +185,12 @@ export function DoctorPanel() {
   useEffect(() => {
     if (selectedPatientId) {
       fetchPatientName(selectedPatientId);
-      fetchLabBookings(selectedPatientId);
-      fetchCurrentAdmission(selectedPatientId);
+      if (hasAccess("/lab-bookings") || hasAccess("/labs")) {
+        fetchLabBookings(selectedPatientId);
+      }
+      if (hasAccess("/admissions") || hasAccess("/ipd-workspace")) {
+        fetchCurrentAdmission(selectedPatientId);
+      }
 
       // Find the current visit ID from today's schedule
       if (todaySchedule && todaySchedule.slots) {
@@ -197,7 +203,7 @@ export function DoctorPanel() {
     } else {
       setCurrentVisitId(undefined);
     }
-  }, [selectedPatientId, todaySchedule]);
+  }, [selectedPatientId, todaySchedule, hasAccess]);
 
   // Generate queue from schedule (include ALL patients, filtering done in EnhancedQueueBoard)
   useEffect(() => {

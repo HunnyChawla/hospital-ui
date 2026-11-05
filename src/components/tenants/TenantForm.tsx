@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Building2, Upload } from "lucide-react";
 import NextImage from "next/image";
+import { subscriptionPlansApi, SubscriptionPlanResponse } from "@/services/subscriptionPlansApi";
 
 interface TenantFormProps {
   defaultValues?: Tenant;
@@ -39,6 +40,11 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<SubscriptionPlanResponse[]>([]);
+
+  useEffect(() => {
+    subscriptionPlansApi.listPlans().then(setAvailablePlans).catch(() => {});
+  }, []);
 
   const {
     register,
@@ -282,12 +288,23 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
           <span className="text-slate-600">Plan</span>
           <select
             {...register("plan")}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 capitalize"
           >
             <option value="">No Plan</option>
-            <option value="basic">Basic</option>
-            <option value="standard">Standard</option>
-            <option value="premium">Premium</option>
+            {availablePlans.length > 0 ? (
+              availablePlans.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.name} {p.is_standard ? "" : "(Custom)"}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="basic">Basic Plan</option>
+                <option value="standard">Standard Plan</option>
+                <option value="premium">Premium Plan</option>
+                <option value="ultra">Ultra Plan</option>
+              </>
+            )}
           </select>
         </label>
 

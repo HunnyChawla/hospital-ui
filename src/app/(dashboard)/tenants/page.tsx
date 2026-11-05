@@ -8,8 +8,9 @@ import { TenantFormModal } from "@/components/tenants/TenantFormModal";
 import { ShiftConfigModal } from "@/components/tenants/ShiftConfigModal";
 import { CreateTenantUserModal } from "@/components/tenants/CreateTenantUserModal";
 import { ExtendLicenseModal } from "@/components/tenants/ExtendLicenseModal";
+import { TenantPlanModal } from "@/components/tenants/TenantPlanModal";
 import { Tenant, TenantStatus } from "@/services/tenantsApi";
-import { Building2, CheckCircle, XCircle, AlertTriangle, LayoutGrid } from "lucide-react";
+import { Building2, CheckCircle, XCircle, AlertTriangle, LayoutGrid, Search, X } from "lucide-react";
 
 type StatusFilter = TenantStatus | "all";
 
@@ -17,6 +18,17 @@ export default function TenantsPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  // Debounce search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Modal states
   const [showFormModal, setShowFormModal] = useState(false);
@@ -27,6 +39,8 @@ export default function TenantsPage() {
   const [createUserTenant, setCreateUserTenant] = useState<Tenant | null>(null);
   const [showExtendLicenseModal, setShowExtendLicenseModal] = useState(false);
   const [extendLicenseTenant, setExtendLicenseTenant] = useState<Tenant | null>(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [planTenant, setPlanTenant] = useState<Tenant | null>(null);
 
   useEffect(() => {
     if (!isPlatformOwner()) {
@@ -81,6 +95,16 @@ export default function TenantsPage() {
     setExtendLicenseTenant(null);
   };
 
+  const handlePlanConfigClick = (tenant: Tenant) => {
+    setPlanTenant(tenant);
+    setShowPlanModal(true);
+  };
+
+  const handleClosePlanModal = () => {
+    setShowPlanModal(false);
+    setPlanTenant(null);
+  };
+
   if (!authorized) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -123,8 +147,8 @@ export default function TenantsPage() {
           </button>
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="mb-4 border-b border-slate-200">
+        {/* Status Filter Tabs & Search Bar */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-3">
           <nav className="-mb-px flex space-x-1 overflow-x-auto" aria-label="Tabs">
             {statusFilters.map((filter) => {
               const Icon = filter.icon;
@@ -147,11 +171,36 @@ export default function TenantsPage() {
               );
             })}
           </nav>
+
+          {/* Search Input Box */}
+          <div className="relative w-full sm:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, subdomain, email, phone..."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <TenantTable
           statusFilter={selectedStatus === "all" ? undefined : selectedStatus}
+          search={debouncedSearchQuery}
+          onClearSearch={() => setSearchQuery("")}
           onEditClick={handleEditTenant}
+          onPlanConfigClick={handlePlanConfigClick}
           onShiftConfigClick={handleShiftConfigClick}
           onCreateUserClick={handleCreateUserClick}
           onExtendLicenseClick={handleExtendLicenseClick}
@@ -163,6 +212,17 @@ export default function TenantsPage() {
         onClose={handleCloseFormModal}
         defaultValues={selectedTenant}
       />
+
+      {planTenant && (
+        <TenantPlanModal
+          isOpen={showPlanModal}
+          onClose={handleClosePlanModal}
+          tenant={planTenant}
+          onSuccess={() => {
+            window.dispatchEvent(new CustomEvent("tenant-updated", { detail: { tenantId: planTenant.id } }));
+          }}
+        />
+      )}
 
       {shiftConfigTenant && (
         <ShiftConfigModal

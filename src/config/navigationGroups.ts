@@ -32,6 +32,7 @@ import {
   ClipboardList,
   ShieldCheck,
   Scale,
+  Database,
   Link as LinkIcon,
   LucideIcon,
 } from "lucide-react";
@@ -105,12 +106,14 @@ export const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   ClipboardList,
   Scale,
+  Database,
   Link: LinkIcon,
 };
 
 // All Platform Owner screen paths
 export const PLATFORM_OWNER_SCREENS: readonly string[] = [
   "/tenants",
+  "/subscription-plans",
   "/rate-limits",
   "/session-policies",
   "/platform-billing",
@@ -131,6 +134,7 @@ export const PLATFORM_OWNER_GROUPS: NavGroupDefinition[] = [
     allowStandaloneSingle: false,
     items: [
       { path: "/tenants", label: "Tenants", icon: Building2 },
+      { path: "/subscription-plans", label: "Plans & Modules", icon: Boxes },
       { path: "/rate-limits", label: "Rate Limits", icon: Gauge },
       { path: "/session-policies", label: "Session Policies", icon: ShieldCheck },
     ],
@@ -263,6 +267,7 @@ export const HOSPITAL_GROUPS: NavGroupDefinition[] = [
       { path: "/panel-config", label: "Panel Configuration", icon: Settings },
       { path: "/optometrist-mappings", label: "Optometrist Mappings", icon: LinkIcon },
       { path: "/examiner-mappings", label: "Examiner Mappings", icon: LinkIcon },
+      { path: "/backup", label: "Data Backup", icon: Database },
     ],
   },
 ];

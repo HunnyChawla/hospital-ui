@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { StatCard } from "@/components/common/StatCard";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
@@ -33,8 +33,10 @@ import { RecentAdmissionsList } from "@/components/dashboard/RecentAdmissionsLis
 import { AdmissionDetailModal } from "@/components/ipd/AdmissionDetailModal";
 import { MRDPanel } from "@/components/mrd/MRDPanel";
 import { useTenant } from "@/hooks/useTenant";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/utils/format";
 import { analyticsApi } from "@/services/analyticsApi";
+import { invoicesApi } from "@/services/invoicesApi";
 import { Patient } from "@/types";
 import { Doctor } from "@/services/doctorsApi";
 import { User } from "@/services/usersApi";
@@ -130,60 +132,96 @@ export default function DashboardPage() {
   const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
   const hasLoadedInitialDataRef = useRef(false);
 
-  useEffect(() => {
-    // Note: session and permissions are handled by DashboardLayout
-  }, []);
+  // Permission-based gating for API requests and UI sections
+  const {
+    hasAccess,
+    initialized: permissionsInitialized,
+    loading: permissionsLoading,
+  } = usePermissions();
 
-  useEffect(() => {
-    // Initial data fetch logic
-    if (isAuthenticated && !hasLoadedInitialDataRef.current) {
-      // Only fetch on initial authentication, not on every re-render
-      dispatch(fetchAdmissions({}));
-      dispatch(fetchBilling());
-      dispatch(fetchPatients({}));
-      // Note: fetchDoctors removed - doctors are now fetched once in dashboard layout
-      fetchPaymentTotals();
-      fetchDashboardInsights();
+  const canAccessIpd = Boolean(
+    permissionsInitialized && !permissionsLoading && (hasAccess("/admissions") || hasAccess("/ipd-workspace"))
+  );
+  const canAccessBilling = Boolean(
+    permissionsInitialized && !permissionsLoading && hasAccess("/billing")
+  );
+  const canAccessPatients = Boolean(
+    permissionsInitialized && !permissionsLoading && (hasAccess("/patients") || hasAccess("/opd"))
+  );
+  const canAccessAnalytics = Boolean(
+    permissionsInitialized && !permissionsLoading && hasAccess("/analytics")
+  );
 
-      // Mark initial load as complete
-      hasLoadedInitialDataRef.current = true;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
-
-  const fetchPaymentTotals = async () => {
+  const fetchPaymentTotals = useCallback(async (hasAnalytics: boolean, hasBilling: boolean) => {
     try {
-      // Use analytics API to get revenue totals - much more efficient!
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(today.getFullYear() - 1);
+      if (hasAnalytics) {
+        // Use analytics API when analytics module is enabled
+        const today = new Date();
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(today.getFullYear() - 1);
 
-      const revenueData = await analyticsApi.revenue({
-        start_date: oneYearAgo.toISOString().split("T")[0],
-        end_date: today.toISOString().split("T")[0],
-        granularity: "monthly", // Use monthly to get aggregated totals
-      });
+        const revenueData = await analyticsApi.revenue({
+          start_date: oneYearAgo.toISOString().split("T")[0],
+          end_date: today.toISOString().split("T")[0],
+          granularity: "monthly",
+        });
 
-      // Sum up all collected and outstanding amounts
-      const collected = revenueData.data.reduce(
-        (sum, point) => sum + point.collected_amount,
-        0
-      );
-      const pending = revenueData.data.reduce(
-        (sum, point) => sum + point.outstanding_amount,
-        0
-      );
+        const collected = revenueData.data.reduce(
+          (sum, point) => sum + point.collected_amount,
+          0
+        );
+        const pending = revenueData.data.reduce(
+          (sum, point) => sum + point.outstanding_amount,
+          0
+        );
 
-      setTotalCollected(collected);
-      setTotalPending(pending);
+        setTotalCollected(collected);
+        setTotalPending(pending);
+      } else if (hasBilling) {
+        // Fallback to billing invoices when analytics module is disabled but billing is enabled
+        const res = await invoicesApi.list({
+          page: 1,
+          page_size: 100,
+        });
+
+        const collected = res.items.reduce(
+          (sum, inv) => sum + (Number(inv.paid_amount) || 0),
+          0
+        );
+        const pending = res.items.reduce((sum, inv) => {
+          const tot = Number(inv.total_amount) || 0;
+          const paid = Number(inv.paid_amount) || 0;
+          return sum + Math.max(0, tot - paid);
+        }, 0);
+
+        setTotalCollected(collected);
+        setTotalPending(pending);
+
+        const todayStr = new Date().toISOString().split("T")[0];
+        const todayInvoices = res.items.filter((inv) => (inv.invoice_date || "").startsWith(todayStr));
+        const todayCollected = todayInvoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
+        const todayInvoiced = todayInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
+        const todayOutstanding = Math.max(0, todayInvoiced - todayCollected);
+
+        setDailyRevenue({
+          today: {
+            collected: todayCollected,
+            outstanding: todayOutstanding,
+            invoiced: todayInvoiced,
+          },
+          yesterday: {
+            collected: 0,
+            outstanding: 0,
+            invoiced: 0,
+          },
+        });
+      }
     } catch (err) {
       console.error("Failed to fetch payment totals:", err);
-      // Keep using default values (0) if fetch fails
-      // This won't break the app, just won't show totals until API is available
     }
-  };
+  }, []);
 
-  const fetchDashboardInsights = async () => {
+  const fetchDashboardInsights = useCallback(async () => {
     setInsightsLoading(true);
     try {
       const today = new Date();
@@ -278,23 +316,73 @@ export default function DashboardPage() {
     } finally {
       setInsightsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Initial data fetch logic - wait for permissions to be resolved before dispatching
+    if (isAuthenticated && permissionsInitialized && !permissionsLoading && !hasLoadedInitialDataRef.current) {
+      if (canAccessIpd) {
+        dispatch(fetchAdmissions({}));
+      }
+      if (canAccessBilling) {
+        dispatch(fetchBilling());
+      }
+      if (canAccessPatients) {
+        dispatch(fetchPatients({}));
+      }
+
+      if (canAccessBilling || canAccessAnalytics) {
+        fetchPaymentTotals(canAccessAnalytics, canAccessBilling);
+      }
+
+      if (canAccessAnalytics) {
+        fetchDashboardInsights();
+      } else {
+        setInsightsLoading(false);
+      }
+
+      // Mark initial load as complete
+      hasLoadedInitialDataRef.current = true;
+    }
+  }, [
+    isAuthenticated,
+    permissionsInitialized,
+    permissionsLoading,
+    canAccessIpd,
+    canAccessBilling,
+    canAccessPatients,
+    canAccessAnalytics,
+    dispatch,
+    fetchPaymentTotals,
+    fetchDashboardInsights,
+  ]);
 
   const refreshDashboard = async () => {
     setDashboardRefreshing(true);
     try {
-      // Refresh core datasets used on dashboard
-      dispatch(fetchAdmissions({}));
-      dispatch(fetchBilling());
-      dispatch(fetchPatients({}));
-      // Note: fetchDoctors removed - doctors are now cached and don't need refresh
-      // If doctors update, components should manually invalidate via Redux dispatch
+      const promises: Promise<any>[] = [];
+      if (canAccessIpd) {
+        promises.push(dispatch(fetchAdmissions({})).unwrap().catch(() => {}));
+      }
+      if (canAccessBilling) {
+        promises.push(dispatch(fetchBilling()).unwrap().catch(() => {}));
+      }
+      if (canAccessPatients) {
+        promises.push(dispatch(fetchPatients({})).unwrap().catch(() => {}));
+      }
+      if (canAccessBilling || canAccessAnalytics) {
+        promises.push(fetchPaymentTotals(canAccessAnalytics, canAccessBilling));
+      }
+      if (canAccessAnalytics) {
+        promises.push(fetchDashboardInsights());
+      }
 
-      // Refresh analytics-derived numbers
-      await Promise.all([fetchPaymentTotals(), fetchDashboardInsights()]);
+      await Promise.all(promises);
 
-      // Trigger analytics panel to reload its internal analytics APIs
-      setAnalyticsRefreshSignal((s) => s + 1);
+      // Trigger analytics panel to reload if analytics is enabled
+      if (canAccessAnalytics) {
+        setAnalyticsRefreshSignal((s) => s + 1);
+      }
     } catch (err) {
       console.error("Failed to refresh dashboard:", err);
     } finally {
@@ -385,217 +473,249 @@ export default function DashboardPage() {
             </button>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <EnhancedStatCard
-              label="Total patients"
-              value={totalPatientsCount}
-              hint="Registered patients"
-              icon={HeartPulse}
-              tone="sky"
-              insights={appointmentInsights ? [
-                {
-                  label: "Appointments today",
-                  value: appointmentInsights.today,
-                  trend: appointmentInsights.today > 0 ? "up" : "neutral",
-                },
-                {
-                  label: "Completed",
-                  value: appointmentInsights.completed,
-                  trend: appointmentInsights.completed > 0 ? "up" : "neutral",
-                },
-              ] : undefined}
-              loading={insightsLoading}
-            />
-            <EnhancedStatCard
-              label="Active admissions"
-              value={activeAdmissions}
-              hint={`${admittedCount} total admissions`}
-              icon={BedDouble}
-              tone="emerald"
-              insights={bedOccupancy ? [
-                {
-                  label: "Beds occupied",
-                  value: `${bedOccupancy.occupied}/${bedOccupancy.total}`,
-                  trend: bedOccupancy.occupancy > 80 ? "up" : bedOccupancy.occupancy < 50 ? "down" : "neutral",
-                },
-                {
-                  label: "Occupancy rate",
-                  value: `${bedOccupancy.occupancy}%`,
-                  trend: bedOccupancy.occupancy > 80 ? "up" : "neutral",
-                },
-              ] : undefined}
-              loading={insightsLoading}
-            />
-            <EnhancedStatCard
-              label="Pending billing"
-              value={currency(totalPending)}
-              hint="Outstanding invoices"
-              icon={Coins}
-              tone="amber"
-              insights={[
-                {
-                  label: "Total collected",
-                  value: currency(totalCollected),
-                  trend: totalCollected > 0 ? "up" : "neutral",
-                },
-              ]}
-              loading={false}
-            />
-            <DailyRevenueCard data={dailyRevenue} loading={insightsLoading} />
+            {canAccessPatients && (
+              <EnhancedStatCard
+                label="Total patients"
+                value={totalPatientsCount}
+                hint="Registered patients"
+                icon={HeartPulse}
+                tone="sky"
+                insights={appointmentInsights ? [
+                  {
+                    label: "Appointments today",
+                    value: appointmentInsights.today,
+                    trend: appointmentInsights.today > 0 ? "up" : "neutral",
+                  },
+                  {
+                    label: "Completed",
+                    value: appointmentInsights.completed,
+                    trend: appointmentInsights.completed > 0 ? "up" : "neutral",
+                  },
+                ] : undefined}
+                loading={insightsLoading && canAccessAnalytics}
+              />
+            )}
+            {canAccessIpd && (
+              <EnhancedStatCard
+                label="Active admissions"
+                value={activeAdmissions}
+                hint={`${admittedCount} total admissions`}
+                icon={BedDouble}
+                tone="emerald"
+                insights={bedOccupancy ? [
+                  {
+                    label: "Beds occupied",
+                    value: `${bedOccupancy.occupied}/${bedOccupancy.total}`,
+                    trend: bedOccupancy.occupancy > 80 ? "up" : bedOccupancy.occupancy < 50 ? "down" : "neutral",
+                  },
+                  {
+                    label: "Occupancy rate",
+                    value: `${bedOccupancy.occupancy}%`,
+                    trend: bedOccupancy.occupancy > 80 ? "up" : "neutral",
+                  },
+                ] : undefined}
+                loading={insightsLoading && canAccessAnalytics}
+              />
+            )}
+            {canAccessBilling && (
+              <EnhancedStatCard
+                label="Pending billing"
+                value={currency(totalPending)}
+                hint="Outstanding invoices"
+                icon={Coins}
+                tone="amber"
+                insights={[
+                  {
+                    label: "Total collected",
+                    value: currency(totalCollected),
+                    trend: totalCollected > 0 ? "up" : "neutral",
+                  },
+                ]}
+                loading={false}
+              />
+            )}
+            {(canAccessBilling || canAccessAnalytics) && (
+              <DailyRevenueCard data={dailyRevenue} loading={insightsLoading && canAccessAnalytics} />
+            )}
           </div>
 
           {/* Quick Actions - Enhanced for Hospital Staff */}
           <div className="card p-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {/* Patient Management */}
-              <button
-                onClick={() => {
-                  router.push("/patients?action=add");
-                }}
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
-              >
-                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-transform group-hover:scale-110 group-hover:bg-sky-200">
-                  <HeartPulse className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">Add Patient</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Register new</p>
-              </button>
+              {hasAccess("/patients") && (
+                <button
+                  onClick={() => {
+                    router.push("/patients?action=add");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-transform group-hover:scale-110 group-hover:bg-sky-200">
+                    <HeartPulse className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Add Patient</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Register new</p>
+                </button>
+              )}
 
               {/* Appointment Booking */}
-              <button
-                onClick={() => {
-                  router.push("/opd?action=appointment&tab=appointments");
-                }}
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
-              >
-                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
-                  <CalendarPlus className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">Book Appointment</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Schedule visit</p>
-              </button>
+              {hasAccess("/opd") && (
+                <button
+                  onClick={() => {
+                    router.push("/opd?action=appointment&tab=appointments");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
+                    <CalendarPlus className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Book Appointment</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Schedule visit</p>
+                </button>
+              )}
 
               {/* OPD Visit */}
-              <button
-                onClick={() => {
-                  router.push("/opd?action=opd&tab=opd");
-                }}
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
-              >
-                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 group-hover:bg-blue-200">
-                  <Stethoscope className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">OPD Visit</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Walk-in patient</p>
-              </button>
+              {hasAccess("/opd") && (
+                <button
+                  onClick={() => {
+                    router.push("/opd?action=opd&tab=opd");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 group-hover:bg-blue-200">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">OPD Visit</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Walk-in patient</p>
+                </button>
+              )}
 
               {/* Lab Booking */}
-              <button
-                onClick={() => {
-                  router.push("/lab-bookings?action=add");
-                }}
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
-              >
-                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition-transform group-hover:scale-110 group-hover:bg-purple-200">
-                  <Beaker className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">Lab Booking</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Test request</p>
-              </button>
+              {hasAccess("/lab-bookings") && (
+                <button
+                  onClick={() => {
+                    router.push("/lab-bookings?action=add");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition-transform group-hover:scale-110 group-hover:bg-purple-200">
+                    <Beaker className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Lab Booking</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Test request</p>
+                </button>
+              )}
 
               {/* Billing */}
-              <button
-                onClick={() => {
-                  router.push("/billing");
-                }}
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
-              >
-                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 transition-transform group-hover:scale-110 group-hover:bg-amber-200">
-                  <CreditCard className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">Billing</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Invoices & payments</p>
-              </button>
+              {hasAccess("/billing") && (
+                <button
+                  onClick={() => {
+                    router.push("/billing");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 transition-transform group-hover:scale-110 group-hover:bg-amber-200">
+                    <CreditCard className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Billing</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">Invoices & payments</p>
+                </button>
+              )}
 
               {/* Admissions */}
-              <button
-                onClick={() => {
-                  router.push("/admissions?action=add&tab=admissions");
-                }}
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
-              >
-                <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
-                  <BedDouble className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">Admit Patient</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">IPD admission</p>
-              </button>
+              {hasAccess("/admissions") && (
+                <button
+                  onClick={() => {
+                    router.push("/admissions?action=add&tab=admissions");
+                  }}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
+                >
+                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
+                    <BedDouble className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Admit Patient</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">IPD admission</p>
+                </button>
+              )}
             </div>
 
             {/* Additional Quick Links */}
             <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
-              <button
-                onClick={() => {
-                  router.push("/queue");
-                }}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-              >
-                <LayoutList className="h-4 w-4" />
-                <span>View Queue</span>
-              </button>
-              <button
-                onClick={() => {
-                  router.push("/patients");
-                }}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-              >
-                <Users2 className="h-4 w-4" />
-                <span>All Patients</span>
-              </button>
-              <button
-                onClick={() => {
-                  router.push("/analytics");
-                }}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-              >
-                <BarChart3 className="h-4 w-4" />
-                <span>Analytics</span>
-              </button>
-              <button
-                onClick={() => {
-                  router.push("/labs");
-                }}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-              >
-                <Beaker className="h-4 w-4" />
-                <span>Lab Catalog</span>
-              </button>
+              {hasAccess("/queue") && (
+                <button
+                  onClick={() => {
+                    router.push("/queue");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <LayoutList className="h-4 w-4" />
+                  <span>View Queue</span>
+                </button>
+              )}
+              {hasAccess("/patients") && (
+                <button
+                  onClick={() => {
+                    router.push("/patients");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <Users2 className="h-4 w-4" />
+                  <span>All Patients</span>
+                </button>
+              )}
+              {hasAccess("/analytics") && (
+                <button
+                  onClick={() => {
+                    router.push("/analytics");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Analytics</span>
+                </button>
+              )}
+              {hasAccess("/labs") && (
+                <button
+                  onClick={() => {
+                    router.push("/labs");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  <Beaker className="h-4 w-4" />
+                  <span>Lab Catalog</span>
+                </button>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-            <div className="card p-3 xl:col-span-2">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-slate-900">Recent admissions</p>
-                <span className="text-xs text-slate-500">Latest 5</span>
+            {canAccessIpd && (
+              <div className="card p-3 xl:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-slate-900">Recent admissions</p>
+                  <span className="text-xs text-slate-500">Latest 5</span>
+                </div>
+                <RecentAdmissionsList
+                  admissions={recentAdmissions}
+                  onAdmissionClick={(admissionId) => {
+                    setSelectedAdmissionId(admissionId);
+                    setShowAdmissionDetailModal(true);
+                  }}
+                  onViewAll={() => {
+                    router.push("/admissions?tab=admissions");
+                  }}
+                />
               </div>
-              <RecentAdmissionsList
-                admissions={recentAdmissions}
-                onAdmissionClick={(admissionId) => {
-                  setSelectedAdmissionId(admissionId);
-                  setShowAdmissionDetailModal(true);
-                }}
-                onViewAll={() => {
-                  router.push("/admissions?tab=admissions");
-                }}
-              />
-            </div>
+            )}
 
-            <div className="card p-3">
-              <DashboardBillingList
-                statusFilter={dashboardBillingFilter}
-                onStatusFilterChange={setDashboardBillingFilter}
-              />
-            </div>
+            {canAccessBilling && (
+              <div className={`card p-3 ${canAccessIpd ? "" : "xl:col-span-3"}`}>
+                <DashboardBillingList
+                  statusFilter={dashboardBillingFilter}
+                  onStatusFilterChange={setDashboardBillingFilter}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

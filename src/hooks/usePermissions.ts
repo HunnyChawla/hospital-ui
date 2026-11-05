@@ -19,7 +19,7 @@ export function usePermissions() {
    */
   const hasAccess = useMemo(() => {
     return (screenPath: string): boolean => {
-      if (!initialized) return true; // Assume true while loading to avoid flickering
+      if (!initialized) return false;
 
       // Platform owner has access to all screens
       if (userRole === "platform_owner") return true;

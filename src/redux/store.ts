@@ -56,6 +56,11 @@ export const store = configureStore({
     clinicPanel: clinicPanelReducer,
     vaccines: vaccinesReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+      immutableCheck: false,
+    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
