@@ -10,9 +10,14 @@ import { fetchMyPermissions, hydratePermissions } from "@/redux/permissionsSlice
 import { fetchWards } from "@/redux/wardsSlice";
 import { fetchBeds } from "@/redux/bedsSlice";
 import { store } from "@/redux/store";
+import dynamic from "next/dynamic";
 import { TopBar } from "@/components/layout/TopBar";
 import { Footer } from "@/components/layout/Footer";
-import { PatientDetailView } from "@/components/patients/PatientDetailView";
+
+const PatientDetailView = dynamic(
+  () => import("@/components/patients/PatientDetailView").then((mod) => mod.PatientDetailView),
+  { ssr: false }
+);
 import { usePermissions } from "@/hooks/usePermissions";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";
@@ -184,6 +189,11 @@ export default function DashboardLayout({
   // Handle redirection to default screen if root (/) is not the intended start page
   useEffect(() => {
     if (permissionsInitialized && !permissionsLoading && isAuthenticated && pathname === "/") {
+      if (userRole === "platform_owner") {
+        router.push("/tenants");
+        return;
+      }
+
       const defaultScreen = userPermissions?.default_screen;
 
       // If root is not in allowed screens but they have a default screen, go there
@@ -191,7 +201,7 @@ export default function DashboardLayout({
         router.push(defaultScreen);
       }
     }
-  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userPermissions, allowedScreens, router]);
+  }, [permissionsInitialized, permissionsLoading, isAuthenticated, pathname, userRole, userPermissions, allowedScreens, router]);
 
   useEffect(() => {
     // If consent is required, do NOT fetch domain data yet
@@ -210,26 +220,29 @@ export default function DashboardLayout({
         }
       }
 
-      // Fetch doctors once if not already loaded
-      if (doctors.list.length === 0 && !doctors.loading) {
-        dispatch(fetchDoctors());
-      }
+      // Fetch hospital domain entities only for hospital users (skip for platform owner)
+      if (userRole !== "platform_owner") {
+        // Fetch doctors once if not already loaded
+        if (doctors.list.length === 0 && !doctors.loading) {
+          dispatch(fetchDoctors());
+        }
 
-      // Fetch wards once if not already loaded
-      if (wards.list.length === 0 && !wards.loading) {
-        dispatch(fetchWards());
-      }
+        // Fetch wards once if not already loaded
+        if (wards.list.length === 0 && !wards.loading) {
+          dispatch(fetchWards());
+        }
 
-      // Fetch beds once if not already loaded
-      if (beds.list.length === 0 && !beds.loading) {
-        dispatch(fetchBeds());
+        // Fetch beds once if not already loaded
+        if (beds.list.length === 0 && !beds.loading) {
+          dispatch(fetchBeds());
+        }
       }
 
       setIsCheckingAuth(false);
     };
     fetchData();
     // Re-run when consentRequired transitions to false so domain data is fetched
-  }, [consentRequired, dispatch]);
+  }, [consentRequired, dispatch, userRole]);
 
   // Listen for user changes (create/update) to refresh doctors cache
   useEffect(() => {

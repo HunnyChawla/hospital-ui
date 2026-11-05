@@ -1,41 +1,14 @@
 "use client";
 
 import {
-  Activity,
-  BedDouble,
-  Beaker,
-  CreditCard,
-  Home,
-  LayoutList,
-  Users2,
-  Users,
-  Stethoscope,
-  FlaskConical,
-  BarChart3,
-  UserCog,
-  Package,
-  FileText,
   ChevronLeft,
   ChevronRight,
-  Radio,
-  Eye,
-  MonitorPlay,
-  Building2,
-  CalendarDays,
-  Shield,
-  ShieldCheck,
-  Monitor,
-  Link as LinkIcon,
-  LayoutTemplate,
-  Settings,
-  IdCard,
-  Scale,
-  UserX,
-  Gauge,
+  ChevronDown,
   LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -45,53 +18,26 @@ import { Tooltip } from "@/components/common/Tooltip";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
-import { PANEL_PATHS, resolvePanelPathForUser } from "@/utils/panelRouting";
+import { useFeatureFlags, useAbdmFlags } from "@/hooks/useFeatureFlags";
+import { resolvePanelPathForUser } from "@/utils/panelRouting";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { getTodayDateLocal, getPastDateLocal } from "@/utils/format";
+import {
+  buildNavigationGroups,
+  ResolvedNavGroup,
+  NavItemConfig,
+} from "@/config/navigationGroups";
 
-
-// Icon mapping from string names to Lucide components
-const iconMap: Record<string, LucideIcon> = {
-  Home,
-  BarChart3,
-  Users2,
-  Users,
-  Activity,
-  MonitorPlay,
-  BedDouble,
-  FlaskConical,
-  Beaker,
-  Package,
-  CalendarDays,
-  CreditCard,
-  FileText,
-  Stethoscope,
-  Eye,
-  UserCog,
-  Building2,
-  Shield,
-  LayoutList,
-  LayoutTemplate,
-  Radio,
-  Monitor,
-  Settings,
-  IdCard,
-  UserX,
-  Gauge,
-  Link: LinkIcon,
-};
-
-// Loading skeleton for navigation items
+// Loading skeleton for expanded navigation items
 const NavLoadingSkeleton = () => (
-  <div className="space-y-1">
-    {[1, 2, 3, 4, 5].map((i) => (
+  <div className="space-y-2">
+    {[1, 2, 3, 4, 5, 6].map((i) => (
       <div
         key={i}
         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 animate-pulse"
       >
         <div className="h-5 w-5 rounded bg-slate-200" />
-        <div className="h-4 w-24 rounded bg-slate-200" />
+        <div className="h-4 w-28 rounded bg-slate-200" />
       </div>
     ))}
   </div>
@@ -99,8 +45,8 @@ const NavLoadingSkeleton = () => (
 
 // Loading skeleton for collapsed sidebar
 const NavLoadingSkeletonCollapsed = () => (
-  <div className="space-y-0.5">
-    {[1, 2, 3, 4, 5].map((i) => (
+  <div className="space-y-1.5">
+    {[1, 2, 3, 4, 5, 6].map((i) => (
       <div
         key={i}
         className="flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl animate-pulse"
@@ -111,14 +57,141 @@ const NavLoadingSkeletonCollapsed = () => (
   </div>
 );
 
+interface CollapsedGroupFlyoutProps {
+  group: ResolvedNavGroup;
+  pathname: string;
+  onNavClick: () => void;
+}
+
+/**
+ * Floating Flyout Popover for collapsed sidebar
+ */
+function CollapsedGroupFlyout({ group, pathname, onNavClick }: CollapsedGroupFlyoutProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isAnyChildActive = group.items.some((i) => {
+    const normalized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    return normalized === i.href;
+  });
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Clamp top to avoid rendering off-screen
+    const top = Math.min(rect.top, window.innerHeight - 320);
+    setCoords({ top: Math.max(10, top), left: rect.right + 10 });
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 150);
+  };
+
+  const GroupIcon = group.icon;
+
+  return (
+    <div className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <button
+        type="button"
+        aria-label={group.label}
+        className={clsx(
+          "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all relative",
+          isAnyChildActive
+            ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
+            : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
+        )}
+      >
+        <GroupIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+        {group.totalBadge && group.totalBadge > 0 ? (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
+            {group.totalBadge}
+          </span>
+        ) : null}
+      </button>
+
+      {isOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed z-[9999] w-56 rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+          style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
+          onMouseEnter={() => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          }}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-100 mb-1">
+            <GroupIcon className="h-4 w-4 text-sky-600" />
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              {group.label}
+            </span>
+          </div>
+          <div className="max-h-72 overflow-y-auto space-y-0.5 scrollbar-thin">
+            {group.items.map((item) => {
+              const ItemIcon = item.icon;
+              const normalized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+              const isActive = normalized === item.href;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    setIsOpen(false);
+                    onNavClick();
+                  }}
+                  className={clsx(
+                    "flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-xs transition",
+                    isActive
+                      ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-xs"
+                      : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
+                  )}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <ItemIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {item.badge ? (
+                    <span
+                      className={clsx(
+                        "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold",
+                        isActive ? "bg-white text-teal-600" : "bg-rose-500 text-white"
+                      )}
+                    >
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { hospitalName } = useTenant();
-  const { isDesktopCollapsed, isMobileMenuOpen, isMobile, closeMobileSidebar, toggleDesktopSidebar } = useSidebar();
+  const {
+    isDesktopCollapsed,
+    isMobileMenuOpen,
+    isMobile,
+    closeMobileSidebar,
+    toggleDesktopSidebar,
+  } = useSidebar();
   const dispatch = useAppDispatch();
   const doctors = useAppSelector((state) => state.doctors.list);
-  const { screenDetails, userRole, initialized, loading } = usePermissions();
+  const { screenDetails, allowedScreens, userRole, initialized, loading } = usePermissions();
+  const { enabled: abdmEnabled } = useAbdmFlags();
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Group accordion open/close state
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (userRole === "doctor" && doctors.length === 0) {
@@ -126,119 +199,54 @@ export function Sidebar() {
     }
   }, [userRole, doctors.length, dispatch]);
 
-  // Build navigation items from permissions
-  const navItems = useMemo(() => {
-    // If permissions not loaded, return empty array (skeleton will be shown)
-    if (!initialized || loading || screenDetails.length === 0) {
-      return [];
-    }
-
-    // Map screen details to nav items with icon components
-    let items = screenDetails.map((screen) => ({
-      label: screen.label,
-      href: screen.path,
-      icon: iconMap[screen.icon] || Home,
-    }));
-
-    // Ensure Day Care is in the navigation items fallback
-    if (!items.find((i) => i.href === "/day-care") && ["admin", "receptionist", "nurse", "doctor", "platform_owner"].includes(userRole || "")) {
-      items.push({ label: "Day Care Surgery", href: "/day-care", icon: Activity });
-    }
-
-    // Ensure IPD Workspace is in the navigation items fallback
-    if (!items.find((i) => i.href === "/ipd-workspace") && ["admin", "receptionist", "nurse", "examiner", "doctor", "platform_owner"].includes(userRole || "")) {
-      items.push({ label: "IPD Patients", href: "/ipd-workspace", icon: BedDouble });
-    }
-
-    // Platform Owner only screens
-    const platformOwnerScreens = [
-      "/screens",
-      "/tenants",
-      "/rate-limits",
-      "/feature-flags",
-      "/platform-billing",
-      "/terms-conditions",
-      "/platform-patient-management",
-      "/api-permissions",
-      "/session-policies",
-    ];
-
-    if (userRole !== "platform_owner") {
-      items = items.filter((i) => !platformOwnerScreens.includes(i.href));
-    }
-
-    // Add Platform Owner screens if not present
-    if (userRole === "platform_owner") {
-      if (!items.find((i) => i.href === "/api-permissions")) {
-        items.push({ label: "API Permissions", href: "/api-permissions", icon: Shield });
-      }
-      if (!items.find((i) => i.href === "/screens")) {
-        items.push({ label: "Screens", href: "/screens", icon: Monitor });
-      }
-      if (!items.find((i) => i.href === "/tenants")) {
-        items.push({ label: "Tenants", href: "/tenants", icon: Building2 });
-      }
-      if (!items.find((i) => i.href === "/rate-limits")) {
-        items.push({ label: "Rate Limits", href: "/rate-limits", icon: Gauge });
-      }
-      if (!items.find((i) => i.href === "/feature-flags")) {
-        items.push({ label: "Feature Flags", href: "/feature-flags", icon: Settings });
-      }
-      if (!items.find((i) => i.href === "/platform-billing")) {
-        items.push({ label: "Platform Billing", href: "/platform-billing", icon: FileText });
-      }
-      if (!items.find((i) => i.href === "/terms-conditions")) {
-        items.push({ label: "Terms & Privacy", href: "/terms-conditions", icon: Scale });
-      }
-      if (!items.find((i) => i.href === "/platform-patient-management")) {
-        items.push({ label: "Patient Data Cleanup", href: "/platform-patient-management", icon: UserX });
-      }
-      if (!items.find((i) => i.href === "/session-policies")) {
-        items.push({ label: "Session Policies", href: "/session-policies", icon: ShieldCheck });
-      }
-    }
-
-    // Admin & Platform Owner screens
-    const adminScreens = ["/optometrist-mappings", "/examiner-mappings", "/panel-config"];
-    if (userRole === "admin" || userRole === "platform_owner") {
-      if (!items.find((i) => i.href === "/optometrist-mappings")) {
-        items.push({ label: "Optometrist Mappings", href: "/optometrist-mappings", icon: LinkIcon });
-      }
-      if (!items.find((i) => i.href === "/examiner-mappings")) {
-        items.push({ label: "Examiner Mappings", href: "/examiner-mappings", icon: LinkIcon });
-      }
-      if (!items.find((i) => i.href === "/panel-config")) {
-        items.push({ label: "Panel Configuration", href: "/panel-config", icon: Settings });
-      }
-    }
-
-    return items;
-  }, [screenDetails, initialized, loading, userRole]);
-
   // Panel filter: each doctor/examiner sees exactly one panel entry
-  // (resolver shared with the layout gate so the two cannot drift)
   const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");
   const clinicPanelEnabled = (clinicPanelFlags?.enabled as boolean) ?? false;
 
-  const filteredNavItems = useMemo(() => {
-    if (userRole !== "doctor" && userRole !== "examiner") return navItems;
-
+  const resolvedDoctorPanelPath = useMemo(() => {
+    if (userRole !== "doctor" && userRole !== "examiner" && userRole !== "optometrist") {
+      return null;
+    }
     const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
     const currentDoctor = doctors.find((d) => d.user_id === userId);
-    const mine = resolvePanelPathForUser(userRole, currentDoctor?.specialization, clinicPanelEnabled);
+    return resolvePanelPathForUser(userRole, currentDoctor?.specialization, clinicPanelEnabled);
+  }, [userRole, doctors, clinicPanelEnabled]);
 
-    return navItems.filter((item) => {
-      if (!(PANEL_PATHS as readonly string[]).includes(item.href)) return true;
-      return item.href === mine;
+  // Build navigation groups from permissions
+  const navigationData = useMemo(() => {
+    if (!initialized || loading) {
+      return { standaloneDashboard: null, groups: [] };
+    }
+
+    return buildNavigationGroups({
+      screenDetails,
+      userRole,
+      allowedScreens,
+      resolvedDoctorPanelPath,
+      pendingLabCount: pendingCount,
+      abdmEnabled,
     });
-  }, [navItems, userRole, doctors, clinicPanelEnabled]);
+  }, [
+    initialized,
+    loading,
+    screenDetails,
+    userRole,
+    allowedScreens,
+    resolvedDoctorPanelPath,
+    pendingCount,
+    abdmEnabled,
+  ]);
 
+  // Fetch pending lab count if lab bookings screen is enabled
   const hasLabBookings = useMemo(() => {
-    return filteredNavItems.some((item) => item.href === "/lab-bookings");
-  }, [filteredNavItems]);
+    return (
+      allowedScreens.includes("/lab-bookings") ||
+      screenDetails.some((s) => s.path === "/lab-bookings")
+    );
+  }, [allowedScreens, screenDetails]);
 
   useEffect(() => {
-    if (!hasLabBookings) return;
+    if (!hasLabBookings || userRole === "platform_owner") return;
 
     const fetchPendingCount = async () => {
       try {
@@ -247,7 +255,9 @@ export function Sidebar() {
           start_date: getPastDateLocal(2),
           end_date: today,
         });
-        const pendingVisitsCount = (res.items || []).filter((item) => item.pending_test_count > 0).length;
+        const pendingVisitsCount = (res.items || []).filter(
+          (item) => item.pending_test_count > 0
+        ).length;
         setPendingCount(pendingVisitsCount);
       } catch (error) {
         console.error("Failed to fetch pending lab tests count in sidebar", error);
@@ -256,7 +266,6 @@ export function Sidebar() {
 
     fetchPendingCount();
 
-    // Listen for booking creation/cancellation/update
     const handleBookingChanged = () => {
       fetchPendingCount();
     };
@@ -267,7 +276,52 @@ export function Sidebar() {
       window.removeEventListener("lab:booking:created", handleBookingChanged);
       window.removeEventListener("lab:booking:cancelled", handleBookingChanged);
     };
-  }, [hasLabBookings]);
+  }, [hasLabBookings, userRole]);
+
+  // Initialize and persist group expansion states
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let savedState: Record<string, boolean> = {};
+    try {
+      const stored = localStorage.getItem("cura_sidebar_groups");
+      if (stored) {
+        savedState = JSON.parse(stored);
+      }
+    } catch {
+      savedState = {};
+    }
+
+    // Auto-expand group that contains active route
+    const normalizedPath =
+      pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+
+    const initialMap: Record<string, boolean> = { ...savedState };
+
+    for (const group of navigationData.groups) {
+      if (!group.isStandalone) {
+        const hasActiveChild = group.items.some((i) => i.href === normalizedPath);
+        if (hasActiveChild) {
+          initialMap[group.id] = true;
+        } else if (initialMap[group.id] === undefined) {
+          // Default: Platform Owner groups open; for others, default first group open
+          initialMap[group.id] = userRole === "platform_owner";
+        }
+      }
+    }
+
+    setExpandedGroups(initialMap);
+  }, [pathname, navigationData.groups, userRole]);
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const updated = { ...prev, [groupId]: !prev[groupId] };
+      try {
+        localStorage.setItem("cura_sidebar_groups", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
 
   // Handle navigation click - close mobile drawer if on mobile
   const handleNavClick = () => {
@@ -276,10 +330,13 @@ export function Sidebar() {
     }
   };
 
-  // Render navigation content (shared between desktop and mobile)
+  const displayName = userRole === "platform_owner" ? "Platform Admin" : hospitalName;
+
+  // Render navigation content (shared between expanded desktop and mobile)
   const renderSidebarContent = (showCollapseButton: boolean = false) => (
     <>
-      <div className="mb-8 flex flex-shrink-0 items-center justify-between">
+      {/* Header with Logo */}
+      <div className="mb-6 flex flex-shrink-0 items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
             <Image
@@ -296,7 +353,9 @@ export function Sidebar() {
             <p className="text-base font-bold uppercase tracking-wide text-teal-600">
               CURA
             </p>
-            <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
+            <p className="text-lg font-semibold text-slate-900 truncate max-w-[150px]">
+              {displayName}
+            </p>
           </div>
         </div>
         {showCollapseButton && (
@@ -310,45 +369,169 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide min-h-0">
-        {(!initialized || loading) ? (
+      {/* Navigation Groups List */}
+      <nav className="flex-1 space-y-1.5 overflow-y-auto scrollbar-hide min-h-0 pr-1">
+        {!initialized || loading ? (
           <NavLoadingSkeleton />
         ) : (
-          filteredNavItems.map((item) => {
-            const Icon = item.icon;
-            const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-            const active = normalizedPathname === item.href;
+          <>
+            {/* Standalone Dashboard Link (if allowed) */}
+            {navigationData.standaloneDashboard && (
+              <div className="mb-2">
+                {(() => {
+                  const dash = navigationData.standaloneDashboard;
+                  const DashIcon = dash.icon;
+                  const normalizedPathname =
+                    pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+                  const active = normalizedPathname === dash.href;
 
-            const baseClassName = clsx(
-              "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-700 transition-all hover:bg-sky-50 hover:text-sky-700",
-              active ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white" : ""
-            );
+                  return (
+                    <Link
+                      href={dash.href}
+                      className={clsx(
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-slate-700 transition-all font-medium hover:bg-sky-50 hover:text-sky-700",
+                        active
+                          ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white"
+                          : ""
+                      )}
+                      onClick={handleNavClick}
+                    >
+                      <DashIcon className="h-5 w-5 shrink-0" />
+                      <span className="flex-1 text-left">{dash.label}</span>
+                    </Link>
+                  );
+                })()}
+              </div>
+            )}
 
-            if (!item.href) return null;
+            {/* Resolved Navigation Groups */}
+            {navigationData.groups.map((group) => {
+              const normalizedPathname =
+                pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={baseClassName}
-                onClick={handleNavClick}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.href === "/lab-bookings" && pendingCount > 0 && (
-                  <span className={clsx(
-                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shadow-sm transition-all",
-                    active ? "bg-white text-teal-600" : "bg-rose-500 text-white"
-                  )}>
-                    {pendingCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })
+              // If group is single-item standalone
+              if (group.isStandalone && group.standaloneItem) {
+                const item = group.standaloneItem;
+                const ItemIcon = item.icon;
+                const active = normalizedPathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={clsx(
+                      "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-slate-700 transition-all font-medium hover:bg-sky-50 hover:text-sky-700",
+                      active
+                        ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-md hover:from-sky-600 hover:to-teal-600 hover:text-white"
+                        : ""
+                    )}
+                    onClick={handleNavClick}
+                  >
+                    <ItemIcon className="h-5 w-5 shrink-0" />
+                    <span className="flex-1 text-left truncate">{item.label}</span>
+                    {item.badge ? (
+                      <span
+                        className={clsx(
+                          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold shadow-xs",
+                          active ? "bg-white text-teal-600" : "bg-rose-500 text-white"
+                        )}
+                      >
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              }
+
+              // Multi-Item Collapsible Accordion Group
+              const isExpanded = Boolean(expandedGroups[group.id]);
+              const GroupIcon = group.icon;
+              const hasActiveChild = group.items.some((i) => normalizedPathname === i.href);
+
+              return (
+                <div key={group.id} className="pt-0.5">
+                  {/* Group Header Button */}
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.id)}
+                    className={clsx(
+                      "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                      hasActiveChild
+                        ? "text-sky-700 bg-sky-50/70"
+                        : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <GroupIcon
+                        className={clsx(
+                          "h-4 w-4 shrink-0 transition-colors",
+                          hasActiveChild ? "text-sky-600" : "text-slate-500"
+                        )}
+                      />
+                      <span className="truncate text-xs font-bold uppercase tracking-wider">
+                        {group.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!isExpanded && group.totalBadge && group.totalBadge > 0 ? (
+                        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-xs">
+                          {group.totalBadge}
+                        </span>
+                      ) : null}
+                      <ChevronDown
+                        className={clsx(
+                          "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
+                          isExpanded ? "rotate-0" : "-rotate-90"
+                        )}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Collapsible Children List */}
+                  {isExpanded && (
+                    <div className="ml-4 pl-2.5 border-l border-slate-200/90 space-y-0.5 py-1 transition-all">
+                      {group.items.map((item) => {
+                        const ItemIcon = item.icon;
+                        const active = normalizedPathname === item.href;
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={clsx(
+                              "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all",
+                              active
+                                ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white font-semibold shadow-xs hover:text-white"
+                                : "text-slate-600 hover:bg-sky-50 hover:text-sky-700"
+                            )}
+                            onClick={handleNavClick}
+                          >
+                            <ItemIcon className="h-4 w-4 shrink-0" />
+                            <span className="flex-1 text-left truncate">{item.label}</span>
+                            {item.badge ? (
+                              <span
+                                className={clsx(
+                                  "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold shadow-xs",
+                                  active ? "bg-white text-teal-600" : "bg-rose-500 text-white"
+                                )}
+                              >
+                                {item.badge}
+                              </span>
+                            ) : null}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
         )}
       </nav>
 
+      {/* Systems Status Live Banner */}
       <div className="mt-auto flex-shrink-0 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 p-[1px] shadow-lg">
         <div className="rounded-[11px] bg-white px-4 py-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
@@ -364,8 +547,11 @@ export function Sidebar() {
     </>
   );
 
-  // Render collapsed sidebar with icons only
+  // Render collapsed sidebar (icons only with flyouts on hover)
   const renderCollapsedIcons = () => {
+    const normalizedPathname =
+      pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+
     return (
       <>
         {/* Expand Button */}
@@ -374,6 +560,7 @@ export function Sidebar() {
             <button
               onClick={toggleDesktopSidebar}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
+              title="Expand sidebar"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -382,7 +569,7 @@ export function Sidebar() {
 
         {/* Logo Icon Only */}
         <div className="mb-2 flex flex-shrink-0 items-center justify-center sm:mb-3 md:mb-4">
-          <Tooltip content="CURA" side="right">
+          <Tooltip content={displayName} side="right">
             <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm sm:h-10 sm:w-10 md:h-11 md:w-11">
               <Image
                 src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/cura-logo-v2.png`}
@@ -397,44 +584,75 @@ export function Sidebar() {
           </Tooltip>
         </div>
 
-        {/* Navigation Icons - Scrollable with dynamic sizing */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto scrollbar-hide min-h-0">
-          {(!initialized || loading) ? (
+        {/* Navigation Icons List */}
+        <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide min-h-0">
+          {!initialized || loading ? (
             <NavLoadingSkeletonCollapsed />
           ) : (
-            filteredNavItems.map((item) => {
-              const Icon = item.icon;
-              const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
-                ? pathname.slice(0, -1)
-                : pathname;
-              const active = normalizedPathname === item.href;
-
-              const iconButtonClass = clsx(
-                "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all",
-                active
-                  ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
-                  : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
-              );
-
-              if (!item.href) return null;
-
-              return (
-                <Tooltip key={item.href} content={item.label} side="right">
+            <>
+              {/* Standalone Dashboard Icon */}
+              {navigationData.standaloneDashboard && (
+                <Tooltip content={navigationData.standaloneDashboard.label} side="right">
                   <Link
-                    href={item.href}
-                    className={clsx(iconButtonClass, "relative")}
+                    href={navigationData.standaloneDashboard.href}
+                    className={clsx(
+                      "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all relative",
+                      normalizedPathname === navigationData.standaloneDashboard.href
+                        ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
+                        : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
+                    )}
                     onClick={handleNavClick}
                   >
-                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    {item.href === "/lab-bookings" && pendingCount > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
-                        {pendingCount}
-                      </span>
-                    )}
+                    {(() => {
+                      const DashIcon = navigationData.standaloneDashboard.icon;
+                      return <DashIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
+                    })()}
                   </Link>
                 </Tooltip>
-              );
-            })
+              )}
+
+              {/* Groups as Icons / Flyouts */}
+              {navigationData.groups.map((group) => {
+                // If single-item standalone: direct icon link with Tooltip
+                if (group.isStandalone && group.standaloneItem) {
+                  const item = group.standaloneItem;
+                  const ItemIcon = item.icon;
+                  const active = normalizedPathname === item.href;
+
+                  return (
+                    <Tooltip key={item.href} content={item.label} side="right">
+                      <Link
+                        href={item.href}
+                        className={clsx(
+                          "flex w-full h-8 sm:h-9 md:h-10 items-center justify-center rounded-xl transition-all relative",
+                          active
+                            ? "bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md"
+                            : "text-slate-700 hover:bg-sky-50 hover:text-sky-700"
+                        )}
+                        onClick={handleNavClick}
+                      >
+                        <ItemIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        {item.badge ? (
+                          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
+                            {item.badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </Tooltip>
+                  );
+                }
+
+                // Multi-Item Group: CollapsedGroupFlyout popover
+                return (
+                  <CollapsedGroupFlyout
+                    key={group.id}
+                    group={group}
+                    pathname={pathname}
+                    onNavClick={handleNavClick}
+                  />
+                );
+              })}
+            </>
           )}
         </nav>
 
@@ -454,18 +672,20 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar - Always visible, width changes based on isDesktopCollapsed */}
-      <aside className={clsx(
-        "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-hidden",
-        isDesktopCollapsed ? "w-16 px-2 py-8" : "w-64 px-6 py-8"
-      )}>
+      {/* Desktop Sidebar */}
+      <aside
+        className={clsx(
+          "glass fixed left-0 top-0 hidden h-screen flex-shrink-0 flex-col text-sm text-slate-700 transition-all duration-300 lg:flex overflow-hidden z-30",
+          isDesktopCollapsed ? "w-16 px-2 py-6" : "w-64 px-5 py-6"
+        )}
+      >
         {isDesktopCollapsed ? renderCollapsedIcons() : renderSidebarContent(true)}
       </aside>
 
-      {/* Mobile Drawer - Slides in from left */}
+      {/* Mobile Drawer */}
       <aside
         className={clsx(
-          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-6 py-8 text-sm text-slate-700 overflow-hidden",
+          "glass fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-shrink-0 flex-col px-5 py-6 text-sm text-slate-700 overflow-hidden",
           "transition-transform duration-300 ease-in-out lg:hidden",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
@@ -484,4 +704,3 @@ export function Sidebar() {
     </>
   );
 }
-

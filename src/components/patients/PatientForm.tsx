@@ -1036,94 +1036,99 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             </select>
           </label>
 
-          {/* ABHA ID */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">ABHA ID</span>
-              {!isAbhaLinked && abhaEnabled && (
-                <button
-                  type="button"
-                  onClick={() => setIsAbhaModalOpen(true)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 transition cursor-pointer"
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  <span>+ Link ABHA</span>
-                </button>
-              )}
-            </div>
-            {/* ABHA can only be linked through ABDM verification - read-only field */}
-            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 font-mono flex items-center justify-between min-h-[38px]">
-              <span className="truncate">{resolvedAbhaNum || "Not linked"}</span>
-              {resolvedAbhaNum && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigator.clipboard.writeText(resolvedAbhaNum);
-                    toast.success("ABHA ID copied to clipboard");
-                  }}
-                  className="text-slate-400 hover:text-slate-600 transition cursor-pointer ml-1.5 shrink-0"
-                  title="Copy ABHA ID"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            {abhaLinkError ? (
-              <span className="block text-xs text-rose-600">{abhaLinkError}</span>
-            ) : isAbhaVerified && resolvedAbhaNum ? (
-              <span className="text-xs text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                <span>Verified via ABDM</span>
-              </span>
-            ) : !resolvedAbhaNum && abhaEnabled ? (
-              <span className="text-xs text-slate-400">
-                Use &quot;+ Link ABHA&quot; to verify and attach.
-              </span>
-            ) : null}
-          </div>
+          {/* ABHA Integration Section (Only visible when ABDM is enabled) */}
+          {abhaEnabled && (
+            <>
+              {/* ABHA ID */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">ABHA ID</span>
+                  {!isAbhaLinked && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAbhaModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 transition cursor-pointer"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      <span>+ Link ABHA</span>
+                    </button>
+                  )}
+                </div>
+                {/* ABHA can only be linked through ABDM verification - read-only field */}
+                <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 font-mono flex items-center justify-between min-h-[38px]">
+                  <span className="truncate">{resolvedAbhaNum || "Not linked"}</span>
+                  {resolvedAbhaNum && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigator.clipboard.writeText(resolvedAbhaNum);
+                        toast.success("ABHA ID copied to clipboard");
+                      }}
+                      className="text-slate-400 hover:text-slate-600 transition cursor-pointer ml-1.5 shrink-0"
+                      title="Copy ABHA ID"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {abhaLinkError ? (
+                  <span className="block text-xs text-rose-600">{abhaLinkError}</span>
+                ) : isAbhaVerified && resolvedAbhaNum ? (
+                  <span className="text-xs text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span>Verified via ABDM</span>
+                  </span>
+                ) : !resolvedAbhaNum ? (
+                  <span className="text-xs text-slate-400">
+                    Use &quot;+ Link ABHA&quot; to verify and attach.
+                  </span>
+                ) : null}
+              </div>
 
-          {/* ABHA Address */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">ABHA Address</span>
-              {isAbhaLinked && abhaEnabled && (
-                <button
-                  type="button"
-                  onClick={() => setIsAbhaModalOpen(true)}
-                  className="text-xs text-sky-600 hover:text-sky-700 font-medium transition cursor-pointer"
-                >
-                  Change
-                </button>
-              )}
-            </div>
-            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 font-mono flex items-center justify-between min-h-[38px]">
-              <span className="truncate">{resolvedAbhaAddr || "Not linked"}</span>
-              {resolvedAbhaAddr && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigator.clipboard.writeText(resolvedAbhaAddr);
-                    toast.success("ABHA Address copied to clipboard");
-                  }}
-                  className="text-slate-400 hover:text-slate-600 transition cursor-pointer ml-1.5 shrink-0"
-                  title="Copy ABHA Address"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            {resolvedAbhaAddr ? (
-              <span className="text-xs text-slate-500 truncate block font-mono">
-                {resolvedAbhaAddr}
-              </span>
-            ) : (
-              <span className="text-xs text-slate-400">
-                PHR handle (@abdm)
-              </span>
-            )}
-          </div>
+              {/* ABHA Address */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">ABHA Address</span>
+                  {isAbhaLinked && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAbhaModalOpen(true)}
+                      className="text-xs text-sky-600 hover:text-sky-700 font-medium transition cursor-pointer"
+                    >
+                      Change
+                    </button>
+                  )}
+                </div>
+                <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 font-mono flex items-center justify-between min-h-[38px]">
+                  <span className="truncate">{resolvedAbhaAddr || "Not linked"}</span>
+                  {resolvedAbhaAddr && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigator.clipboard.writeText(resolvedAbhaAddr);
+                        toast.success("ABHA Address copied to clipboard");
+                      }}
+                      className="text-slate-400 hover:text-slate-600 transition cursor-pointer ml-1.5 shrink-0"
+                      title="Copy ABHA Address"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {resolvedAbhaAddr ? (
+                  <span className="text-xs text-slate-500 truncate block font-mono">
+                    {resolvedAbhaAddr}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-400">
+                    PHR handle (@abdm)
+                  </span>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Address */}
           <label className="space-y-1 md:col-span-3">

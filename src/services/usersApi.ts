@@ -9,7 +9,9 @@ export type UserRole =
   | "optometrist"
   | "examiner"
   | "lab_technician"
-  | "platform_owner";
+  | "platform_owner"
+  | "pharmacist"
+  | "pharmacy_manager";
 export type UserStatus = "active" | "inactive";
 
 export interface User {

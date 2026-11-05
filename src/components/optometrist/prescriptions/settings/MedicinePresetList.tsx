@@ -40,7 +40,7 @@ import {
     parseFrequencyToStructure,
     formatFrequencyString,
     calculateQuantity,
-} from "@/components/doctors/PrescriptionForm";
+} from "@/utils/prescriptionUtils";
 import { usePrescriptionSettings } from "@/hooks/usePrescriptionSettings";
 import {
     getTaperingFrequencyOptions,

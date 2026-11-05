@@ -215,6 +215,27 @@ function CompactActionButton({
   );
 }
 
+function formatDuration(minutes: number | null | undefined): string {
+  if (minutes == null || isNaN(minutes) || minutes < 0) return "-";
+  if (minutes < 1) return "< 1m";
+  const hrs = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hrs > 0) {
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+  }
+  return `${mins}m`;
+}
+
+function useCurrentTime(intervalMs: number = 60000): number | null {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
 // Visit List Row Component - compact horizontal display for list view
 function VisitListRow({
   visit,
@@ -243,6 +264,25 @@ function VisitListRow({
   const isDilating = visit.status === "dilation_in_progress";
   const dilationOverdue = isDilating && visit.dilation_started_at &&
     new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000);
+
+  const isCompleted = visit.status === "completed" || visit.status === "consultation_completed";
+  const isCancelled = visit.status === "cancelled" || visit.status === "no_show";
+
+  let totalTime: number | null = null;
+  if (visit.total_time_minutes != null) {
+    totalTime = visit.total_time_minutes;
+  } else if (isCompleted) {
+    const start = visit.checked_in_at ? new Date(visit.checked_in_at).getTime() : new Date(visit.created_at).getTime();
+    const end = visit.consultation_ended_at ? new Date(visit.consultation_ended_at).getTime() : new Date(visit.updated_at).getTime();
+    if (start && end && end >= start) {
+      totalTime = (end - start) / 60000;
+    }
+  }
+
+  const now = useCurrentTime();
+  const elapsedMinutes = (!isCompleted && !isCancelled && visit.checked_in_at && now != null)
+    ? Math.max(0, Math.round((now - new Date(visit.checked_in_at).getTime()) / 60000))
+    : null;
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm hover:border-slate-200 hover:shadow transition">
@@ -345,9 +385,29 @@ function VisitListRow({
         )}
       </div>
 
-      {/* Time - hidden on small screens */}
-      <div className="hidden lg:block min-w-[60px] text-xs text-slate-500">
-        {visit.checked_in_at ? new Date(visit.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
+      {/* Time & Served Duration - hidden on small screens */}
+      <div className="hidden lg:flex flex-col min-w-[110px] text-xs">
+        <span className="text-slate-600 font-medium">
+          {visit.checked_in_at ? new Date(visit.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
+        </span>
+        {isCompleted && totalTime != null && (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-0.5 w-fit"
+            title={`Total time to serve: ${formatDuration(totalTime)} (In: ${visit.checked_in_at ? new Date(visit.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'} • Done: ${visit.consultation_ended_at ? new Date(visit.consultation_ended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(visit.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+          >
+            <ClockIcon className="h-3 w-3 text-emerald-600 shrink-0" />
+            <span>Served in {formatDuration(totalTime)}</span>
+          </span>
+        )}
+        {!isCompleted && !isCancelled && elapsedMinutes != null && (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 mt-0.5 w-fit"
+            title={`Time in hospital: ${formatDuration(elapsedMinutes)}`}
+          >
+            <ClockIcon className="h-3 w-3 text-sky-500 shrink-0 animate-pulse" />
+            <span>In clinic: {formatDuration(elapsedMinutes)}</span>
+          </span>
+        )}
       </div>
 
       {/* Actions */}
@@ -401,6 +461,25 @@ function VisitCard({
   const dilationOverdue = isDilating && visit.dilation_started_at &&
     new Date() > new Date(new Date(visit.dilation_started_at).getTime() + (visit.dilation_duration_minutes || 0) * 60000);
 
+  const isCompleted = visit.status === "completed" || visit.status === "consultation_completed";
+  const isCancelled = visit.status === "cancelled" || visit.status === "no_show";
+
+  let totalTime: number | null = null;
+  if (visit.total_time_minutes != null) {
+    totalTime = visit.total_time_minutes;
+  } else if (isCompleted) {
+    const start = visit.checked_in_at ? new Date(visit.checked_in_at).getTime() : new Date(visit.created_at).getTime();
+    const end = visit.consultation_ended_at ? new Date(visit.consultation_ended_at).getTime() : new Date(visit.updated_at).getTime();
+    if (start && end && end >= start) {
+      totalTime = (end - start) / 60000;
+    }
+  }
+
+  const now = useCurrentTime();
+  const elapsedMinutes = (!isCompleted && !isCancelled && visit.checked_in_at && now != null)
+    ? Math.max(0, Math.round((now - new Date(visit.checked_in_at).getTime()) / 60000))
+    : null;
+
   return (
     <div className="relative flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm h-full hover:border-slate-200 hover:shadow-md transition-all">
       {/* Header: Token + Patient Info */}
@@ -431,6 +510,24 @@ function VisitCard({
             </span>
             {visit.checked_in_at && (
               <span>{new Date(visit.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            )}
+            {isCompleted && totalTime != null && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                title={`Served in ${formatDuration(totalTime)}`}
+              >
+                <ClockIcon className="h-3 w-3 text-emerald-600 shrink-0" />
+                <span>Served in {formatDuration(totalTime)}</span>
+              </span>
+            )}
+            {!isCompleted && !isCancelled && elapsedMinutes != null && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[11px] font-medium text-sky-700"
+                title={`Time in clinic: ${formatDuration(elapsedMinutes)}`}
+              >
+                <ClockIcon className="h-3 w-3 text-sky-500 shrink-0 animate-pulse" />
+                <span>In clinic: {formatDuration(elapsedMinutes)}</span>
+              </span>
             )}
           </div>
         </div>
@@ -1480,7 +1577,7 @@ export function OpdList({ doctorId, onPatientClick: externalOnPatientClick }: Op
             <div className="min-w-[80px] hidden md:block">Type</div>
             <div className="min-w-[140px]">Status</div>
             <div className="w-6 hidden lg:block"></div>
-            <div className="min-w-[60px] hidden lg:block">Time</div>
+            <div className="min-w-[110px] hidden lg:block">Time / Served</div>
             <div className="shrink-0 w-[140px] text-right">Actions</div>
           </div>
           {visits.map((visit) => (

@@ -932,7 +932,9 @@ export type UserRole =
   | "optometrist"
   | "examiner"
   | "lab_technician"
-  | "platform_owner";
+  | "platform_owner"
+  | "pharmacist"
+  | "pharmacy_manager";
 
 export type ScreenDetail = {
   path: string;

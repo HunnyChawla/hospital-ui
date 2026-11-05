@@ -7,17 +7,19 @@ import {
   updateUserPermissions,
   clearSelectedUserPermissions,
   fetchUsersWithPermissions,
+  fetchMyPermissions,
 } from "@/redux/permissionsSlice";
 import { Modal } from "@/components/common/Modal";
 import {
   ROLE_LABELS,
-  CATEGORY_LABELS,
 } from "@/constants/screens";
 import { screensApi, ScreenResponse } from "@/services/screensApi";
 import { toast } from "sonner";
-import { Check, X, Save, Lock } from "lucide-react";
+import { Check, X, Save, Lock, Power } from "lucide-react";
+import clsx from "clsx";
 import { UserRole } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
+import { groupScreensForPermissions } from "@/config/navigationGroups";
 
 // Screens that only platform owner can modify permissions for
 const PLATFORM_OWNER_ONLY_SCREENS = ["/tenants"];
@@ -118,6 +120,13 @@ export function UserPermissionModal({ userId, isOpen, onClose }: UserPermissionM
           additionalScreens: Array.from(additionalScreens),
         })
       ).unwrap();
+
+      // If updating the current user, refresh permissions immediately
+      const currentUserId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+      if (userId === currentUserId) {
+        await dispatch(fetchMyPermissions());
+      }
+
       toast.success("User permissions updated successfully");
       setHasChanges(false);
       // Refresh the users list to update the count
@@ -131,17 +140,10 @@ export function UserPermissionModal({ userId, isOpen, onClose }: UserPermissionM
     onClose();
   };
 
-  // Group screens by category dynamically
-  const screensByCategory = useMemo(() => {
-    return screens.reduce((acc, screen) => {
-      const category = screen.category || 'uncategorized';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(screen);
-      return acc;
-    }, {} as Record<string, ScreenResponse[]>);
-  }, [screens]);
+  // Group screens matching the sidebar navigation groups 1:1
+  const groupedScreens = useMemo(() => {
+    return groupScreensForPermissions(screens, isPlatformOwner);
+  }, [screens, isPlatformOwner]);
 
   const isScreenFromRole = (screenPath: string) => {
     return selectedUserPermissions?.role_screens.includes(screenPath) || false;
@@ -149,6 +151,30 @@ export function UserPermissionModal({ userId, isOpen, onClose }: UserPermissionM
 
   const isScreenEnabled = (screenPath: string) => {
     return isScreenFromRole(screenPath) || additionalScreens.has(screenPath);
+  };
+
+  // Toggle all modifiable additional screens in an entire section
+  const toggleEntireSection = (sectionScreens: ScreenResponse[]) => {
+    const modifiableNonRoleScreens = sectionScreens.filter(
+      (s) => canModifyScreen(s.path) && !isScreenFromRole(s.path)
+    );
+    if (modifiableNonRoleScreens.length === 0) return;
+
+    const allEnabled = modifiableNonRoleScreens.every((s) => additionalScreens.has(s.path));
+
+    setAdditionalScreens((prev) => {
+      const next = new Set(prev);
+      if (allEnabled) {
+        // Revoke all additional screens in this section
+        modifiableNonRoleScreens.forEach((s) => next.delete(s.path));
+      } else {
+        // Enable all additional screens in this section
+        modifiableNonRoleScreens.forEach((s) => next.add(s.path));
+      }
+      return next;
+    });
+
+    setHasChanges(true);
   };
 
   return (
@@ -206,61 +232,98 @@ export function UserPermissionModal({ userId, isOpen, onClose }: UserPermissionM
             </div>
           ) : (
             <div className="space-y-4">
-              {Object.entries(screensByCategory).map(([category, screens]) => (
-                <div key={category} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h4 className="mb-3 text-sm font-semibold text-slate-700">
-                    {CATEGORY_LABELS[category] || category}
-                  </h4>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {screens.map((screen) => {
-                      const fromRole = isScreenFromRole(screen.path);
-                      const enabled = isScreenEnabled(screen.path);
-                      const isRestricted = isRestrictedScreen(screen.path);
-                      const canModify = canModifyScreen(screen.path);
-                      const isDisabled = fromRole || !canModify;
+              {groupedScreens.map((group) => {
+                const modifiableNonRoleScreens = group.screens.filter(
+                  (s) => canModifyScreen(s.path) && !isScreenFromRole(s.path)
+                );
+                const allEnabled =
+                  modifiableNonRoleScreens.length > 0 &&
+                  modifiableNonRoleScreens.every((s) => additionalScreens.has(s.path));
+                const GroupIcon = group.icon;
 
-                      return (
+                return (
+                  <div key={group.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <GroupIcon className="h-4 w-4 text-sky-600" />
+                        <h4 className="text-sm font-semibold text-slate-800">
+                          {group.label}
+                        </h4>
+                      </div>
+
+                      {modifiableNonRoleScreens.length > 0 && (
                         <button
-                          key={screen.path}
-                          onClick={() => toggleAdditionalScreen(screen.path)}
-                          disabled={isDisabled}
-                          title={!canModify ? "Only Platform Owner can modify this permission" : undefined}
-                          className={`flex items-center justify-between rounded-lg border p-2.5 text-left transition ${enabled
-                            ? fromRole
-                              ? "border-sky-200 bg-sky-50 cursor-default"
-                              : "border-emerald-200 bg-emerald-50"
-                            : "border-slate-200 bg-white hover:bg-slate-50"
-                            } ${isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                          type="button"
+                          onClick={() => toggleEntireSection(group.screens)}
+                          className={clsx(
+                            "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition border cursor-pointer",
+                            allEnabled
+                              ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                              : "bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100"
+                          )}
                         >
-                          <div className="flex items-center gap-2">
-                            {fromRole && <Lock className="h-3 w-3 text-sky-500" />}
-                            {isRestricted && !isPlatformOwner && !fromRole && (
-                              <Lock className="h-3 w-3 text-slate-400" />
-                            )}
-                            <span className="text-sm font-medium text-slate-700">
-                              {screen.label}
-                            </span>
-                          </div>
-                          <span
-                            className={`flex h-5 w-5 items-center justify-center rounded-full ${enabled
-                              ? fromRole
-                                ? "bg-sky-500 text-white"
-                                : "bg-emerald-500 text-white"
-                              : "bg-slate-200 text-slate-400"
-                              }`}
-                          >
-                            {enabled ? (
-                              <Check className="h-3 w-3" />
-                            ) : (
-                              <X className="h-3 w-3" />
-                            )}
-                          </span>
+                          <Power className="h-3 w-3" />
+                          {allEnabled ? "Revoke Additional" : "Grant Additional"}
                         </button>
-                      );
-                    })}
+                      )}
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.screens.map((screen) => {
+                        const fromRole = isScreenFromRole(screen.path);
+                        const enabled = isScreenEnabled(screen.path);
+                        const isRestricted = isRestrictedScreen(screen.path);
+                        const canModify = canModifyScreen(screen.path);
+                        const isDisabled = fromRole || !canModify;
+
+                        return (
+                          <button
+                            key={screen.path}
+                            onClick={() => toggleAdditionalScreen(screen.path)}
+                            disabled={isDisabled}
+                            title={!canModify ? "Only Platform Owner can modify this permission" : undefined}
+                            className={clsx(
+                              "flex items-center justify-between rounded-lg border p-2.5 text-left transition",
+                              enabled
+                                ? fromRole
+                                  ? "border-sky-200 bg-sky-50 cursor-default"
+                                  : "border-emerald-200 bg-emerald-50 cursor-pointer"
+                                : "border-slate-200 bg-white hover:bg-slate-50 cursor-pointer",
+                              isDisabled && "opacity-60 cursor-not-allowed"
+                            )}
+                          >
+                            <div className="flex items-center gap-2 truncate pr-1">
+                              {fromRole && <Lock className="h-3 w-3 text-sky-500 shrink-0" />}
+                              {isRestricted && !isPlatformOwner && !fromRole && (
+                                <Lock className="h-3 w-3 text-slate-400 shrink-0" />
+                              )}
+                              <span className="text-sm font-medium text-slate-700 truncate">
+                                {screen.label}
+                              </span>
+                            </div>
+                            <span
+                              className={clsx(
+                                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white",
+                                enabled
+                                  ? fromRole
+                                    ? "bg-sky-500"
+                                    : "bg-emerald-500"
+                                  : "bg-slate-200 text-slate-400"
+                              )}
+                            >
+                              {enabled ? (
+                                <Check className="h-3 w-3 stroke-[3]" />
+                              ) : (
+                                <X className="h-3 w-3 stroke-[3]" />
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

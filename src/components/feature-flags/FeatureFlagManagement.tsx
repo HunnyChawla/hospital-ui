@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
     Settings,
     Save,
@@ -12,18 +12,24 @@ import {
     CheckCircle2,
     Shield,
     Layers,
-    ArrowRight,
     MessageSquare,
     Search,
     ChevronDown,
     X,
     Check,
+    RefreshCw,
+    KeyRound,
+    Pencil,
+    Sparkles,
+    AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
+import { abhaApi, type TenantAbdmConfigDto } from "@/services/abhaApi";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { tenantsApi, type Tenant } from "@/services/tenantsApi";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/utils/errorHandler";
 
-type AbdmMilestoneLevel = "none" | "m1" | "m2" | "m3";
 
 export function FeatureFlagManagement() {
     const { userRole } = usePermissions();
@@ -62,13 +68,34 @@ export function FeatureFlagManagement() {
         allow_edit_after_visit_completed: false,
     });
 
-    const [abdmMilestone, setAbdmMilestone] = useState<AbdmMilestoneLevel>("none");
+    const [isAbdmEnabled, setIsAbdmEnabled] = useState<boolean>(false);
     const [autoInviteUnlinked, setAutoInviteUnlinked] = useState<boolean>(false);
     const [useBlackSmsForOtp, setUseBlackSmsForOtp] = useState<boolean>(false);
 
     const [clinicPanelFlags, setClinicPanelFlags] = useState({
         enabled: false,
     });
+
+    // ABDM Facility & Token Management State
+    const [abdmConfig, setAbdmConfig] = useState<TenantAbdmConfigDto | null>(null);
+    const [loadingAbdmConfig, setLoadingAbdmConfig] = useState<boolean>(false);
+
+    // Onboarding Modal State
+    const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
+    const [onboardHipId, setOnboardHipId] = useState("");
+    const [onboardHipName, setOnboardHipName] = useState("");
+    const [onboardCallbackUrl, setOnboardCallbackUrl] = useState("");
+    const [isOnboarding, setIsOnboarding] = useState(false);
+
+    // Token Rotation Modal State
+    const [isRotateModalOpen, setIsRotateModalOpen] = useState(false);
+    const [isRotating, setIsRotating] = useState(false);
+
+    // Edit Details Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editHipId, setEditHipId] = useState("");
+    const [editHipName, setEditHipName] = useState("");
+    const [isEditing, setIsEditing] = useState(false);
 
     // Close dropdown on click outside
     useEffect(() => {
@@ -233,17 +260,11 @@ export function FeatureFlagManagement() {
                 allow_edit_after_visit_completed: allFlags.prescription.allow_edit_after_visit_completed as boolean,
             });
         }
-        if (allFlags?.abdm?.milestone) {
-            const raw = String(allFlags.abdm.milestone).trim().toLowerCase();
-            if (raw === "m3") setAbdmMilestone("m3");
-            else if (raw === "m2") setAbdmMilestone("m2");
-            else if (raw === "m1") setAbdmMilestone("m1");
-            else setAbdmMilestone("none");
-        } else if (allFlags?.abha?.enabled) {
-            setAbdmMilestone("m1");
-        } else {
-            setAbdmMilestone("none");
-        }
+        const abdmActive =
+            allFlags?.abdm?.enabled === true ||
+            allFlags?.abha?.enabled === true ||
+            (allFlags?.abdm?.milestone != null && String(allFlags.abdm.milestone).toLowerCase() !== "none");
+        setIsAbdmEnabled(abdmActive);
         if (allFlags?.abdm?.m2_auto_invite_unlinked !== undefined) {
             setAutoInviteUnlinked(Boolean(allFlags.abdm.m2_auto_invite_unlinked));
         } else {
@@ -269,19 +290,120 @@ export function FeatureFlagManagement() {
         updateFlags({ feature: 'prescription', flags: prescriptionFlags });
     };
 
+    const fetchAbdmConfig = useCallback(async () => {
+        if (!selectedTenantId) return;
+        try {
+            setLoadingAbdmConfig(true);
+            const cfg = await abhaApi.getConfig(selectedTenantId);
+            setAbdmConfig(cfg);
+        } catch {
+            setAbdmConfig(null);
+        } finally {
+            setLoadingAbdmConfig(false);
+        }
+    }, [selectedTenantId]);
+
+    useEffect(() => {
+        fetchAbdmConfig();
+    }, [fetchAbdmConfig]);
+
+    const openOnboardModal = () => {
+        setOnboardHipId(abdmConfig?.hip_id || "");
+        setOnboardHipName(abdmConfig?.hip_name || selectedTenant?.name || "");
+        setOnboardCallbackUrl(typeof window !== "undefined" ? window.location.origin : "");
+        setIsOnboardModalOpen(true);
+    };
+
+    const openEditModal = () => {
+        setEditHipId(abdmConfig?.hip_id || "");
+        setEditHipName(abdmConfig?.hip_name || selectedTenant?.name || "");
+        setIsEditModalOpen(true);
+    };
+
+    const handleOnboardSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedTenantId || !onboardHipId.trim() || !onboardHipName.trim()) {
+            toast.error("Facility ID and Name are required.");
+            return;
+        }
+        try {
+            setIsOnboarding(true);
+            const res = await abhaApi.onboardTenant({
+                tenant_id: selectedTenantId,
+                hip_id: onboardHipId.trim(),
+                hip_name: onboardHipName.trim(),
+                callback_url: onboardCallbackUrl.trim() || null,
+                milestone: "m3",
+            });
+            setAbdmConfig(res);
+            setIsAbdmEnabled(true);
+            setIsOnboardModalOpen(false);
+            toast.success("Facility onboarded! ABDM enabled & bridge routing synced.");
+            await refetch();
+        } catch (err: any) {
+            const msg = getErrorMessage(err) || "Failed to onboard tenant";
+            toast.error(msg);
+        } finally {
+            setIsOnboarding(false);
+        }
+    };
+
+    const handleRotateToken = async () => {
+        if (!selectedTenantId) return;
+        try {
+            setIsRotating(true);
+            await abhaApi.rotateTenantToken(selectedTenantId);
+            toast.success("ABDM token rotated successfully. Outbound calls now carry the new JWT.");
+            setIsRotateModalOpen(false);
+            await fetchAbdmConfig();
+        } catch (err: any) {
+            const msg = getErrorMessage(err) || "Failed to rotate token";
+            toast.error(msg);
+        } finally {
+            setIsRotating(false);
+        }
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedTenantId || !editHipId.trim() || !editHipName.trim()) {
+            toast.error("Facility ID and Name are required.");
+            return;
+        }
+        try {
+            setIsEditing(true);
+            const res = await abhaApi.updateConfig({
+                hip_id: editHipId.trim(),
+                hip_name: editHipName.trim(),
+            }, selectedTenantId);
+            setAbdmConfig(res);
+            setIsEditModalOpen(false);
+            toast.success("ABDM facility configuration updated.");
+        } catch (err: any) {
+            const msg = getErrorMessage(err) || "Failed to update configuration";
+            toast.error(msg);
+        } finally {
+            setIsEditing(false);
+        }
+    };
+
     const handleSaveAbdm = () => {
-        // Save milestone level in abdm and sync with legacy abha feature flag
+        if (isPlatformOwner && isAbdmEnabled && !abdmConfig?.hip_id) {
+            openOnboardModal();
+            return;
+        }
         updateFlags({
             feature: 'abdm',
             flags: {
-                milestone: abdmMilestone,
-                m2_auto_invite_unlinked: autoInviteUnlinked,
+                enabled: isAbdmEnabled,
+                milestone: isAbdmEnabled ? "m3" : "none",
+                auto_invite_unlinked: autoInviteUnlinked,
                 use_black_sms_for_otp: useBlackSmsForOtp,
             }
         });
         updateFlags({
             feature: 'abha',
-            flags: { enabled: abdmMilestone !== "none" }
+            flags: { enabled: isAbdmEnabled }
         });
     };
 
@@ -302,38 +424,15 @@ export function FeatureFlagManagement() {
         await refetch();
     };
 
-    // Milestone active helpers
-    const isM1Active = abdmMilestone === "m1" || abdmMilestone === "m2" || abdmMilestone === "m3";
-    const isM2Active = abdmMilestone === "m2" || abdmMilestone === "m3";
-    const isM3Active = abdmMilestone === "m3";
-
-    // Cascading milestone toggle handlers
-    const handleToggleM1 = (checked: boolean) => {
-        if (!checked) {
-            // Disabling M1 unchecks M2 and M3
-            setAbdmMilestone("none");
-        } else {
-            setAbdmMilestone("m1");
-        }
-    };
-
-    const handleToggleM2 = (checked: boolean) => {
+    const handleToggleAbdm = (checked: boolean) => {
         if (checked) {
-            // Enabling M2 automatically enables M1
-            setAbdmMilestone("m2");
+            if (isPlatformOwner && !abdmConfig?.hip_id) {
+                openOnboardModal();
+                return;
+            }
+            setIsAbdmEnabled(true);
         } else {
-            // Disabling M2 falls back to M1 (and unchecks M3)
-            setAbdmMilestone("m1");
-        }
-    };
-
-    const handleToggleM3 = (checked: boolean) => {
-        if (checked) {
-            // Enabling M3 automatically enables M2 and M1
-            setAbdmMilestone("m3");
-        } else {
-            // Disabling M3 falls back to M2
-            setAbdmMilestone("m2");
+            setIsAbdmEnabled(false);
         }
     };
 
@@ -673,237 +772,243 @@ export function FeatureFlagManagement() {
                 </div>
             </div>
 
-            {/* ABDM Milestone Integration Card */}
+            {/* ABDM Integration Card */}
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                         <div className="flex items-center gap-2">
                             <Shield className="h-5 w-5 text-indigo-600" />
-                            <h2 className="text-lg font-semibold text-slate-900">ABDM Integration Milestones</h2>
+                            <h2 className="text-lg font-semibold text-slate-900">ABDM Integration</h2>
                         </div>
                         <p className="text-sm text-slate-500 mt-1">
-                            Configure Ayushman Bharat Digital Mission capability tiers (M1, M2, M3) with cumulative dependencies
+                            Ayushman Bharat Digital Mission (ABDM) integration for ABHA identity, HIP care context linking, and HIU health records
                         </p>
                     </div>
                     <div>
-                        {abdmMilestone === "none" && (
+                        {isAbdmEnabled ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                ABDM Active
+                            </span>
+                        ) : (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                                 ABDM Disabled
-                            </span>
-                        )}
-                        {abdmMilestone === "m1" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                                Milestone 1: ABHA Identity
-                            </span>
-                        )}
-                        {abdmMilestone === "m2" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                                Milestone 2: HIP Data Exchange
-                            </span>
-                        )}
-                        {abdmMilestone === "m3" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                Milestone 3: Full ABDM (HIP + HIU)
                             </span>
                         )}
                     </div>
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* Dependency Rule Banner */}
-                    <div className="rounded-lg bg-indigo-50/60 border border-indigo-100 p-3.5 text-xs text-indigo-900 flex items-start gap-3">
-                        <Layers className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                        <div>
-                            <span className="font-semibold text-indigo-950">Cumulative Tier Rule: </span>
-                            Higher milestones require and automatically activate preceding tiers (<span className="font-medium">M1 &rarr; M2 &rarr; M3</span>).
-                            Unchecking a base tier automatically cascades and turns off subsequent levels.
+                    {/* Facility & ABDM Bridge Connectivity Status */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Building2 className="h-4 w-4 text-slate-500" />
+                                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        ABDM Facility &amp; Bridge Status
+                                    </span>
+                                    {loadingAbdmConfig ? (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                            <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                                            Checking Status...
+                                        </span>
+                                    ) : abdmConfig?.has_bridge_token ? (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                            Active Service JWT
+                                        </span>
+                                    ) : abdmConfig?.hip_id ? (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                            Configured (Legacy Key)
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                            Not Configured
+                                        </span>
+                                    )}
+                                </div>
+                                {abdmConfig?.hip_id ? (
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-700">
+                                        <span className="font-semibold text-slate-900">{abdmConfig.hip_name || "Facility"}</span>
+                                        <span className="text-slate-400">•</span>
+                                        <span className="font-mono text-xs bg-white px-2 py-0.5 rounded border border-slate-200 text-indigo-700 font-semibold">
+                                            HIP ID: {abdmConfig.hip_id}
+                                        </span>
+                                        {abdmConfig.updated_at && (
+                                            <>
+                                                <span className="text-slate-400">•</span>
+                                                <span className="text-xs text-slate-500">
+                                                    Updated {new Date(abdmConfig.updated_at).toLocaleDateString()}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-slate-500">
+                                        This tenant has not been onboarded with a facility HIP ID on the ABDM Bridge yet.
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 shrink-0">
+                                {abdmConfig?.hip_id ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={openEditModal}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5 text-slate-500" />
+                                            Edit Details
+                                        </button>
+                                        {isPlatformOwner && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsRotateModalOpen(true)}
+                                                disabled={isRotating}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors shadow-2xs cursor-pointer"
+                                            >
+                                                <KeyRound className="h-3.5 w-3.5 text-amber-700" />
+                                                Rotate Token
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={openOnboardModal}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-2xs cursor-pointer"
+                                    >
+                                        <Sparkles className="h-3.5 w-3.5" />
+                                        Setup ABDM Facility
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        {/* Milestone 1 (M1) */}
-                        <div className={`rounded-xl border p-4.5 transition-all ${
-                            isM1Active
-                                ? "border-sky-300 bg-sky-50/30 shadow-xs"
+                        {/* Master ABDM Toggle */}
+                        <div className={`rounded-xl border p-5 transition-all ${
+                            isAbdmEnabled
+                                ? "border-emerald-300 bg-emerald-50/20 shadow-xs"
                                 : "border-slate-200 bg-white hover:border-slate-300"
                         }`}>
                             <label className="flex items-start gap-4 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={isM1Active}
-                                    onChange={(e) => handleToggleM1(e.target.checked)}
-                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500"
+                                    checked={isAbdmEnabled}
+                                    onChange={(e) => handleToggleAbdm(e.target.checked)}
+                                    className="mt-1 h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
                                 />
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-md ${isM1Active ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-500"}`}>
-                                            <IdCard className="h-4 w-4" />
+                                        <div className={`p-1.5 rounded-md ${isAbdmEnabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                                            <Shield className="h-4 w-4" />
                                         </div>
-                                        <span className="font-semibold text-slate-900">
-                                            Milestone 1 (M1): ABHA Identity &amp; Patient Intake
+                                        <span className="font-semibold text-slate-900 text-base">
+                                            Enable ABDM Integration
                                         </span>
-                                        <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium ml-auto">
-                                            Base Tier
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                                        Patient ABHA creation (Aadhaar OTP / Bio), ABHA verification, Scan &amp; Share counter QR intake, and demographic synchronization during registration and OPD visits.
-                                    </p>
-                                </div>
-                            </label>
-                        </div>
-
-                        {/* Milestone 2 (M2) */}
-                        <div className={`rounded-xl border p-4.5 transition-all ${
-                            isM2Active
-                                ? "border-indigo-300 bg-indigo-50/30 shadow-xs"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}>
-                            <label className="flex items-start gap-4 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={isM2Active}
-                                    onChange={(e) => handleToggleM2(e.target.checked)}
-                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                                />
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-md ${isM2Active ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
-                                            <Share2 className="h-4 w-4" />
-                                        </div>
-                                        <span className="font-semibold text-slate-900">
-                                            Milestone 2 (M2): HIP Care Context Linking &amp; Health Data Sharing
-                                        </span>
-                                        <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium ml-auto border border-indigo-100">
-                                            Requires M1
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                                        Health Information Provider (HIP) capabilities: User-initiated care context discovery, OTP link confirmation, patient consent management, and encrypted FHIR diagnostic/OPD/discharge record sharing.
-                                    </p>
-                                </div>
-                            </label>
-                        </div>
-
-                        {/* Milestone 3 (M3) */}
-                        <div className={`rounded-xl border p-4.5 transition-all ${
-                            isM3Active
-                                ? "border-emerald-300 bg-emerald-50/30 shadow-xs"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}>
-                            <label className="flex items-start gap-4 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={isM3Active}
-                                    onChange={(e) => handleToggleM3(e.target.checked)}
-                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
-                                />
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-md ${isM3Active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                                            <FileText className="h-4 w-4" />
-                                        </div>
-                                        <span className="font-semibold text-slate-900">
-                                            Milestone 3 (M3): HIU Records Requester &amp; External Viewing
-                                        </span>
-                                        <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium ml-auto border border-emerald-100">
-                                            Requires M1 &amp; M2
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                                        Health Information User (HIU) capabilities: Doctors can create consent requests to fetch and review patients&#39; external longitudinal health records from hospitals across India.
-                                    </p>
-                                </div>
-                            </label>
-                        </div>
-
-                        {/* Auto-Invite Unlinked Patients via SMS (M2 Requirement 7) */}
-                        <div className={`rounded-xl border p-4.5 transition-all ${
-                            autoInviteUnlinked
-                                ? "border-indigo-300 bg-indigo-50/40 shadow-xs"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}>
-                            <label className="flex items-start gap-4 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={autoInviteUnlinked}
-                                    onChange={(e) => setAutoInviteUnlinked(e.target.checked)}
-                                    disabled={!isM2Active}
-                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                                />
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-md ${autoInviteUnlinked ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
-                                            <MessageSquare className="h-4 w-4" />
-                                        </div>
-                                        <span className="font-semibold text-slate-900">
-                                            Auto-Invite Unlinked Patients via SMS (Deep-Link SMS)
-                                        </span>
-                                        <span className={`text-xs px-2 py-0.5 rounded-md font-medium ml-auto border ${
-                                            autoInviteUnlinked
+                                        <span className={`text-xs px-2.5 py-0.5 rounded-md font-medium ml-auto border ${
+                                            isAbdmEnabled
                                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                                 : "bg-slate-100 text-slate-600 border-slate-200"
                                         }`}>
-                                            {autoInviteUnlinked ? "Active (Auto-Send)" : "Default: Manual On-Demand"}
+                                            {isAbdmEnabled ? "Activated (M1 + M2 + M3)" : "Disabled (Default)"}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                                        When enabled, new health records for patients with a registered mobile number but no ABHA address will automatically queue an ABDM deep-link SMS (<code className="text-indigo-800 bg-indigo-100/60 px-1 py-0.5 rounded font-mono text-[11px]">sms/notify2</code>). When disabled (recommended default for privacy), staff can still send SMS invitations on demand from the Care Context panel.
+                                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                                        When enabled, all ABDM features are activated for this hospital: patient ABHA creation &amp; verification (M1), hospital care context linking &amp; health data sharing (M2), and HIU external health record viewing (M3). When disabled, all ABDM-related activities and screens remain hidden.
                                     </p>
-                                    {!isM2Active && (
-                                        <p className="text-xs text-amber-600 mt-1 font-medium">
-                                            Requires ABDM Milestone 2 (M2) or higher to be active.
-                                        </p>
-                                    )}
                                 </div>
                             </label>
                         </div>
 
-                        {/* Black SMS Gateway for OTP (Alternative to ABDM Gateway) */}
-                        <div className={`rounded-xl border p-4.5 transition-all ${
-                            useBlackSmsForOtp
-                                ? "border-amber-300 bg-amber-50/40 shadow-xs"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}>
-                            <label className="flex items-start gap-4 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={useBlackSmsForOtp}
-                                    onChange={(e) => setUseBlackSmsForOtp(e.target.checked)}
-                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
-                                />
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-md ${useBlackSmsForOtp ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                                            <MessageSquare className="h-4 w-4" />
+                        {/* Optional Sub-options (Only available when ABDM is enabled) */}
+                        {isAbdmEnabled && (
+                            <div className="space-y-3 pl-4 border-l-2 border-indigo-100 mt-2">
+                                {/* Auto-Invite Unlinked Patients via SMS */}
+                                <div className={`rounded-xl border p-4 transition-all ${
+                                    autoInviteUnlinked
+                                        ? "border-indigo-300 bg-indigo-50/40 shadow-xs"
+                                        : "border-slate-200 bg-white hover:border-slate-300"
+                                }`}>
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={autoInviteUnlinked}
+                                            onChange={(e) => setAutoInviteUnlinked(e.target.checked)}
+                                            className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`p-1.5 rounded-md ${autoInviteUnlinked ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
+                                                    <MessageSquare className="h-4 w-4" />
+                                                </div>
+                                                <span className="font-semibold text-slate-900 text-sm">
+                                                    Auto-Invite Unlinked Patients via SMS (Deep-Link SMS)
+                                                </span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ml-auto border ${
+                                                    autoInviteUnlinked
+                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                        : "bg-slate-100 text-slate-600 border-slate-200"
+                                                }`}>
+                                                    {autoInviteUnlinked ? "Active (Auto-Send)" : "Manual On-Demand"}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                                When enabled, new health records for patients with a mobile number but no ABHA address automatically queue an ABDM deep-link SMS.
+                                            </p>
                                         </div>
-                                        <span className="font-semibold text-slate-900">
-                                            Use Black SMS Gateway for OTP
-                                        </span>
-                                        <span className={`text-xs px-2 py-0.5 rounded-md font-medium ml-auto border ${
-                                            useBlackSmsForOtp
-                                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                : "bg-slate-100 text-slate-600 border-slate-200"
-                                        }`}>
-                                            {useBlackSmsForOtp ? "Active (Black SMS Gateway)" : "Default: ABDM Gateway"}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                                        When enabled, user-initiated linking generates and delivers OTPs via the Black SMS Gateway and validates them internally. When disabled, OTP sending and verification use the ABDM Gateway.
-                                    </p>
+                                    </label>
                                 </div>
-                            </label>
-                        </div>
+
+                                {/* Black SMS Gateway for OTP */}
+                                <div className={`rounded-xl border p-4 transition-all ${
+                                    useBlackSmsForOtp
+                                        ? "border-amber-300 bg-amber-50/40 shadow-xs"
+                                        : "border-slate-200 bg-white hover:border-slate-300"
+                                }`}>
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={useBlackSmsForOtp}
+                                            onChange={(e) => setUseBlackSmsForOtp(e.target.checked)}
+                                            className="mt-1 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`p-1.5 rounded-md ${useBlackSmsForOtp ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                                                    <MessageSquare className="h-4 w-4" />
+                                                </div>
+                                                <span className="font-semibold text-slate-900 text-sm">
+                                                    Use Black SMS Gateway for OTP
+                                                </span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ml-auto border ${
+                                                    useBlackSmsForOtp
+                                                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                        : "bg-slate-100 text-slate-600 border-slate-200"
+                                                }`}>
+                                                    {useBlackSmsForOtp ? "Active (Black SMS)" : "ABDM Gateway"}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                                When enabled, user-initiated linking generates and delivers OTPs via Black SMS Gateway and validates them internally.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Save Button */}
                     <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
                         <div className="text-xs text-slate-500">
-                            Current active setting for tenant: <strong className="text-slate-700 capitalize">{abdmMilestone === "none" ? "None (Disabled)" : abdmMilestone.toUpperCase()}</strong>
+                            Current active setting for tenant: <strong className="text-slate-700">{isAbdmEnabled ? "Enabled (Full ABDM)" : "Disabled"}</strong>
                         </div>
                         <button
                             onClick={handleSaveAbdm}
@@ -918,7 +1023,7 @@ export function FeatureFlagManagement() {
                             ) : (
                                 <>
                                     <Save className="h-4 w-4" />
-                                    Save ABDM Milestone
+                                    Save ABDM Settings
                                 </>
                             )}
                         </button>
@@ -985,6 +1090,253 @@ export function FeatureFlagManagement() {
                     Additional feature configurations will appear here as they become available
                 </p>
             </div>
+
+            {/* Modal: Onboard Tenant ABDM */}
+            {isOnboardModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+                        <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 px-6 py-5 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-700/60 rounded-xl">
+                                    <Sparkles className="h-5 w-5 text-indigo-200" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-semibold">Onboard ABDM Facility</h3>
+                                    <p className="text-xs text-indigo-200 mt-0.5">
+                                        Auto-configure ABDM Bridge SQLite routing and mint Tenant Service JWT
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsOnboardModalOpen(false)}
+                                className="rounded-lg p-1.5 text-indigo-300 hover:text-white hover:bg-white/10 transition-colors"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleOnboardSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Facility HIP ID <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. IN0610090730"
+                                    value={onboardHipId}
+                                    onChange={(e) => setOnboardHipId(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                />
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    National Health Authority Registry HIP Identifier (must match registry credentials).
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Facility Name <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. City Care Hospital"
+                                    value={onboardHipName}
+                                    onChange={(e) => setOnboardHipName(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                />
+                            </div>
+
+
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Inbound Callback URL <span className="text-slate-400 font-normal">(Optional)</span>
+                                </label>
+                                <input
+                                    type="url"
+                                    placeholder="e.g. https://hms.example.com"
+                                    value={onboardCallbackUrl}
+                                    onChange={(e) => setOnboardCallbackUrl(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                />
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    The base URL where ABDM Bridge forwards inbound callbacks (defaults to HMS backend).
+                                </p>
+                            </div>
+
+                            <div className="rounded-lg bg-indigo-50/70 border border-indigo-100 p-3 text-xs text-indigo-900">
+                                <strong>Security note:</strong> A Tenant Service JWT signed by HMS will be minted and stored in PostgreSQL. The ABDM Bridge SQLite database will be updated with the active JTI to permit outbound proxy requests.
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsOnboardModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isOnboarding}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+                                >
+                                    {isOnboarding ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Onboarding...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check className="h-3.5 w-3.5" />
+                                            Mint Token &amp; Onboard
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Rotate ABDM Token */}
+            {isRotateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+                        <div className="bg-amber-500/10 border-b border-amber-200/80 px-6 py-4 flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 rounded-xl text-amber-700">
+                                <KeyRound className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-slate-900">Rotate ABDM Service Token</h3>
+                                <p className="text-xs text-slate-600">Immediate revocation of existing token</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-700">
+                                Are you sure you want to rotate the ABDM token for facility{" "}
+                                <strong className="text-slate-900">{abdmConfig?.hip_name || selectedTenant?.name}</strong> (HIP ID:{" "}
+                                <code className="text-xs font-mono font-bold text-indigo-700">{abdmConfig?.hip_id}</code>)?
+                            </p>
+
+                            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 space-y-1.5">
+                                <div className="font-semibold flex items-center gap-1.5">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
+                                    What happens upon rotation:
+                                </div>
+                                <ul className="list-disc pl-4 space-y-0.5 text-amber-800">
+                                    <li>HMS backend immediately mints a fresh Tenant Service JWT.</li>
+                                    <li>The ABDM Bridge SQLite registry is updated with a new active JTI and min_iat timestamp.</li>
+                                    <li>Any previously issued tokens for this tenant are permanently invalidated.</li>
+                                </ul>
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRotateModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleRotateToken}
+                                    disabled={isRotating}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+                                >
+                                    {isRotating ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Rotating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RefreshCw className="h-3.5 w-3.5" />
+                                            Confirm Rotate
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Edit ABDM Facility Details */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+                        <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Pencil className="h-4 w-4 text-indigo-600" />
+                                <h3 className="text-base font-semibold text-slate-900">Edit ABDM Facility Details</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Facility HIP ID <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editHipId}
+                                    onChange={(e) => setEditHipId(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Facility Name <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editHipName}
+                                    onChange={(e) => setEditHipName(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                />
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isEditing}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+                                >
+                                    {isEditing ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        "Save Details"
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
