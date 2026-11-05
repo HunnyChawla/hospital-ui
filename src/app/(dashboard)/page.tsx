@@ -1,347 +1,273 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { StatCard } from "@/components/common/StatCard";
-import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
-import { Section } from "@/components/common/Section";
-import { PatientTable } from "@/components/patients/PatientTable";
-import { PatientFormModal } from "@/components/patients/PatientFormModal";
-import { DoctorTable } from "@/components/doctors/DoctorTable";
-import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
-import { ConsultationFeeFormModal } from "@/components/doctors/ConsultationFeeFormModal";
-import { OpdForm } from "@/components/opd/OpdForm";
-import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
-import { AppointmentsList } from "@/components/opd/AppointmentsList";
-import { OpdList } from "@/components/opd/OpdList";
-import { OpdFormModal } from "@/components/opd/OpdFormModal";
-import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormModal";
-import { LabBookingsList } from "@/components/lab-bookings/LabBookingsList";
-import { LabTechnicianPanel } from "@/components/lab-technician/LabTechnicianPanel";
-import { ManageIPD } from "@/components/ipd/ManageIPD";
-import { AdmissionFormModal } from "@/components/ipd/AdmissionFormModal";
-import { BillingManagement, type BillingStatusFilter } from "@/components/billing/BillingManagement";
-import { LabTestsPanel } from "@/components/lab-tests/LabTestsPanel";
-import { ServicesPanel } from "@/components/services/ServicesPanel";
-import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
-import { QueueBoard } from "@/components/queue/QueueBoard";
-import { UserTable } from "@/components/users/UserTable";
-import { UserFormModal } from "@/components/users/UserFormModal";
-import { DailyRevenueCard } from "@/components/dashboard/DailyRevenueCard";
-import { DashboardBillingList } from "@/components/dashboard/DashboardBillingList";
-import { RecentAdmissionsList } from "@/components/dashboard/RecentAdmissionsList";
-import { AdmissionDetailModal } from "@/components/ipd/AdmissionDetailModal";
-import { MRDPanel } from "@/components/mrd/MRDPanel";
-import { useTenant } from "@/hooks/useTenant";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
+import { DashboardCustomizer } from "@/components/dashboard/DashboardCustomizer";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatDate } from "@/utils/format";
-import { analyticsApi } from "@/services/analyticsApi";
-import { invoicesApi } from "@/services/invoicesApi";
-import { Patient } from "@/types";
-import { Doctor } from "@/services/doctorsApi";
-import { User } from "@/services/usersApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchAdmissions } from "@/redux/admissionsSlice";
 import { fetchBilling } from "@/redux/billingSlice";
 import { fetchPatients } from "@/redux/patientsSlice";
-import { fetchTenant } from "@/redux/tenantSlice";
-import { currency } from "@/utils/format";
-import {
-  Activity,
-  AlertTriangle,
-  BedDouble,
-  HeartPulse,
-  LayoutList,
-  Stethoscope,
-  CalendarPlus,
-  Calendar,
-  Beaker,
-  Users2,
-  CreditCard,
-  BarChart3,
-  RefreshCw,
-  Coins,
-  X,
-} from "lucide-react";
-
-
-
-function BillingSection() {
-  const [searchBox, setSearchBox] = useState<React.ReactNode>(null);
-  const [filterBox, setFilterBox] = useState<React.ReactNode>(null);
-  const [statusFilter, setStatusFilter] = useState<BillingStatusFilter>("all");
-
-  return (
-    <div className="grid gap-3">
-      <Section
-        id="billing"
-        title="Billing & Receipts"
-        description="Manage invoices and payment receipts for patients."
-        action={
-          <div className="flex items-center gap-3">
-            {searchBox}
-            {filterBox}
-          </div>
-        }
-      >
-        <BillingManagement
-          renderSearchInHeader={setSearchBox}
-          renderFilterInHeader={setFilterBox}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-        />
-      </Section>
-    </div>
-  );
-}
+import { analyticsApi } from "@/services/analyticsApi";
+import { invoicesApi } from "@/services/invoicesApi";
+import { getTenantIdForApi } from "@/utils/auth";
 
 export default function DashboardPage() {
-  const router = useRouter();
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((s) => s.auth);
-  const tenant = useAppSelector((s) => s.tenant);
-  const patients = useAppSelector((s) => s.patients.list);
-  const admissions = useAppSelector((s) => s.admissions.list);
-  const queue = useAppSelector((s) => s.queue.entries);
-  // Removed activeSection state - using route-based navigation instead
-  const [showPatientModal, setShowPatientModal] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
-  const [showDoctorModal, setShowDoctorModal] = useState(false);
-  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
-  const [showConsultationFeeModal, setShowConsultationFeeModal] = useState(false);
-  const [selectedDoctorForFees, setSelectedDoctorForFees] = useState<Doctor | null>(null);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [showOpdModal, setShowOpdModal] = useState(false);
-  const [showLabBookingModal, setShowLabBookingModal] = useState(false);
-  const [showAdmissionModal, setShowAdmissionModal] = useState(false);
-  const [dashboardBillingFilter, setDashboardBillingFilter] = useState<"pending" | "paid">("pending");
-  const [showAdmissionDetailModal, setShowAdmissionDetailModal] = useState(false);
-  const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | null>(null);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const {
+    activeWidgets,
+    allConfiguredWidgets,
+    loading: layoutLoading,
+    isEditing,
+    setIsEditing,
+    updateLayout,
+    resetToHospitalDefaults,
+    scope,
+    hasTenantOverride,
+  } = useDashboardLayout();
+
+  const { hasAccess, initialized: permissionsInitialized, loading: permissionsLoading } =
+    usePermissions();
+
+  // Screen permission helpers
+  const canAccessIpd = Boolean(
+    permissionsInitialized &&
+      !permissionsLoading &&
+      (hasAccess("/admissions") || hasAccess("/ipd-workspace"))
+  );
+  const canAccessBilling = Boolean(
+    permissionsInitialized && !permissionsLoading && hasAccess("/billing")
+  );
+  const canAccessPatients = Boolean(
+    permissionsInitialized &&
+      !permissionsLoading &&
+      (hasAccess("/patients") || hasAccess("/opd"))
+  );
+  const canAccessAnalytics = Boolean(
+    permissionsInitialized && !permissionsLoading && hasAccess("/analytics")
+  );
+
+  // Listen for open-dashboard-customizer event or ?customize=true URL parameter
+  useEffect(() => {
+    const handleOpenCustomizer = () => {
+      setIsEditing(true);
+    };
+
+    window.addEventListener("open-dashboard-customizer", handleOpenCustomizer);
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("customize") === "true") {
+        setIsEditing(true);
+        // Clean URL query param cleanly without reload
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("open-dashboard-customizer", handleOpenCustomizer);
+    };
+  }, [setIsEditing]);
+
+  // Analytics & Summary states
   const [totalCollected, setTotalCollected] = useState(0);
   const [totalPending, setTotalPending] = useState(0);
-  const [bedOccupancy, setBedOccupancy] = useState<{ occupied: number; total: number; occupancy: number } | null>(null);
-  const [appointmentInsights, setAppointmentInsights] = useState<{ today: number; completed: number; scheduled: number } | null>(null);
+  const [bedOccupancy, setBedOccupancy] = useState<{
+    occupied: number;
+    total: number;
+    occupancy: number;
+  } | null>(null);
+  const [appointmentInsights, setAppointmentInsights] = useState<{
+    today: number;
+    completed: number;
+    scheduled: number;
+  } | null>(null);
   const [dailyRevenue, setDailyRevenue] = useState<{
     today: { collected: number; outstanding: number; invoiced: number };
     yesterday: { collected: number; outstanding: number; invoiced: number };
   } | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
-  const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
   const hasLoadedInitialDataRef = useRef(false);
 
-  // Permission-based gating for API requests and UI sections
-  const {
-    hasAccess,
-    initialized: permissionsInitialized,
-    loading: permissionsLoading,
-  } = usePermissions();
+  // Fetch payment totals
+  const fetchPaymentTotals = useCallback(
+    async (hasAnalytics: boolean, hasBillingPermission: boolean) => {
+      try {
+        if (hasAnalytics) {
+          const today = new Date();
+          const oneYearAgo = new Date();
+          oneYearAgo.setFullYear(today.getFullYear() - 1);
 
-  const canAccessIpd = Boolean(
-    permissionsInitialized && !permissionsLoading && (hasAccess("/admissions") || hasAccess("/ipd-workspace"))
-  );
-  const canAccessBilling = Boolean(
-    permissionsInitialized && !permissionsLoading && hasAccess("/billing")
-  );
-  const canAccessPatients = Boolean(
-    permissionsInitialized && !permissionsLoading && (hasAccess("/patients") || hasAccess("/opd"))
-  );
-  const canAccessAnalytics = Boolean(
-    permissionsInitialized && !permissionsLoading && hasAccess("/analytics")
+          const revenueData = await analyticsApi.revenue({
+            start_date: oneYearAgo.toISOString().split("T")[0],
+            end_date: today.toISOString().split("T")[0],
+            granularity: "monthly",
+          });
+
+          const collected = revenueData.data.reduce(
+            (sum, point) => sum + point.collected_amount,
+            0
+          );
+          const pending = revenueData.data.reduce(
+            (sum, point) => sum + point.outstanding_amount,
+            0
+          );
+
+          setTotalCollected(collected);
+          setTotalPending(pending);
+        } else if (hasBillingPermission) {
+          const tenantId =
+            typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+          const [pendingInvoices, paidInvoices] = await Promise.all([
+            invoicesApi.list({
+              page: 1,
+              page_size: 100,
+              status: "pending",
+              tenant_id: getTenantIdForApi(tenantId),
+            }),
+            invoicesApi.list({
+              page: 1,
+              page_size: 100,
+              status: "paid",
+              tenant_id: getTenantIdForApi(tenantId),
+            }),
+          ]);
+
+          const pending = (pendingInvoices.items || []).reduce(
+            (sum, inv) => sum + (inv.balance_amount || inv.total_amount || 0),
+            0
+          );
+          const collected = (paidInvoices.items || []).reduce(
+            (sum, inv) => sum + (inv.paid_amount || inv.total_amount || 0),
+            0
+          );
+
+          setTotalPending(pending);
+          setTotalCollected(collected);
+        }
+      } catch (err) {
+        console.error("Failed to fetch payment totals:", err);
+      }
+    },
+    []
   );
 
-  const fetchPaymentTotals = useCallback(async (hasAnalytics: boolean, hasBilling: boolean) => {
-    try {
-      if (hasAnalytics) {
-        // Use analytics API when analytics module is enabled
+  // Fetch dashboard insights (bed occupancy, appointments, daily revenue)
+  const fetchDashboardInsights = useCallback(
+    async (hasAnalytics: boolean) => {
+      if (!hasAnalytics) {
+        setInsightsLoading(false);
+        return;
+      }
+
+      setInsightsLoading(true);
+      try {
         const today = new Date();
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(today.getFullYear() - 1);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
 
-        const revenueData = await analyticsApi.revenue({
-          start_date: oneYearAgo.toISOString().split("T")[0],
-          end_date: today.toISOString().split("T")[0],
-          granularity: "monthly",
-        });
+        const todayStr = today.toISOString().split("T")[0];
+        const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-        const collected = revenueData.data.reduce(
-          (sum, point) => sum + point.collected_amount,
-          0
-        );
-        const pending = revenueData.data.reduce(
-          (sum, point) => sum + point.outstanding_amount,
-          0
-        );
-
-        setTotalCollected(collected);
-        setTotalPending(pending);
-      } else if (hasBilling) {
-        // Fallback to billing invoices when analytics module is disabled but billing is enabled
-        const res = await invoicesApi.list({
-          page: 1,
-          page_size: 100,
-        });
-
-        const collected = res.items.reduce(
-          (sum, inv) => sum + (Number(inv.paid_amount) || 0),
-          0
-        );
-        const pending = res.items.reduce((sum, inv) => {
-          const tot = Number(inv.total_amount) || 0;
-          const paid = Number(inv.paid_amount) || 0;
-          return sum + Math.max(0, tot - paid);
-        }, 0);
-
-        setTotalCollected(collected);
-        setTotalPending(pending);
-
-        const todayStr = new Date().toISOString().split("T")[0];
-        const todayInvoices = res.items.filter((inv) => (inv.invoice_date || "").startsWith(todayStr));
-        const todayCollected = todayInvoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
-        const todayInvoiced = todayInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
-        const todayOutstanding = Math.max(0, todayInvoiced - todayCollected);
-
-        setDailyRevenue({
-          today: {
-            collected: todayCollected,
-            outstanding: todayOutstanding,
-            invoiced: todayInvoiced,
-          },
-          yesterday: {
-            collected: 0,
-            outstanding: 0,
-            invoiced: 0,
-          },
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch payment totals:", err);
-    }
-  }, []);
-
-  const fetchDashboardInsights = useCallback(async () => {
-    setInsightsLoading(true);
-    try {
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      const todayStr = today.toISOString().split("T")[0];
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-      // Fetch bed occupancy
-      try {
-        const bedData = await analyticsApi.bedOccupancy({
-          start_date: todayStr,
-          end_date: todayStr,
-          granularity: "daily",
-        });
-        const todayBedData = bedData.data[0];
-        if (todayBedData) {
-          setBedOccupancy({
-            occupied: Math.round(todayBedData.avg_occupied_beds),
-            total: todayBedData.total_beds,
-            occupancy: Math.round(todayBedData.occupancy_pct),
-          });
+        // Bed occupancy
+        if (canAccessIpd) {
+          try {
+            const bedData = await analyticsApi.bedOccupancy({
+              start_date: todayStr,
+              end_date: todayStr,
+              granularity: "daily",
+            });
+            const todayBedData = bedData.data[0];
+            if (todayBedData) {
+              setBedOccupancy({
+                occupied: Math.round(todayBedData.avg_occupied_beds),
+                total: todayBedData.total_beds,
+                occupancy: Math.round(todayBedData.occupancy_pct),
+              });
+            }
+          } catch (e) {
+            console.error("Bed occupancy fetch error:", e);
+          }
         }
-      } catch (err) {
-        console.error("Failed to fetch bed occupancy:", err);
-      }
 
-      // Fetch appointment summary for today
-      try {
-        const appointmentData = await analyticsApi.appointmentSummary({
-          start_date: todayStr,
-          end_date: todayStr,
-          granularity: "daily",
-        });
-        const todayAppointmentData = appointmentData.data[0];
-        if (todayAppointmentData) {
-          setAppointmentInsights({
-            today: todayAppointmentData.scheduled + todayAppointmentData.confirmed,
-            completed: todayAppointmentData.completed,
-            scheduled: todayAppointmentData.scheduled,
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch appointment summary:", err);
-      }
-
-      // Fetch daily revenue (today and yesterday in one batch)
-      try {
-        const [todayRevenueResponse, yesterdayRevenueResponse] = await Promise.all([
-          analyticsApi.revenue({
+        // Appointments summary
+        try {
+          const appointmentData = await analyticsApi.appointmentSummary({
             start_date: todayStr,
             end_date: todayStr,
             granularity: "daily",
-          }),
-          analyticsApi.revenue({
-            start_date: yesterdayStr,
-            end_date: yesterdayStr,
-            granularity: "daily",
-          }),
-        ]);
+          });
+          const todayAppointmentData = appointmentData.data[0];
+          if (todayAppointmentData) {
+            setAppointmentInsights({
+              today:
+                todayAppointmentData.scheduled + todayAppointmentData.confirmed,
+              completed: todayAppointmentData.completed,
+              scheduled: todayAppointmentData.scheduled,
+            });
+          }
+        } catch (e) {
+          console.error("Appointment summary fetch error:", e);
+        }
 
-        const todayData = todayRevenueResponse.data[0] || {
-          collected_amount: 0,
-          outstanding_amount: 0,
-          invoiced_amount: 0,
-        };
+        // Revenue comparison
+        try {
+          const [todayRev, yesterdayRev] = await Promise.all([
+            analyticsApi.revenue({
+              start_date: todayStr,
+              end_date: todayStr,
+              granularity: "daily",
+            }),
+            analyticsApi.revenue({
+              start_date: yesterdayStr,
+              end_date: yesterdayStr,
+              granularity: "daily",
+            }),
+          ]);
 
-        const yesterdayData = yesterdayRevenueResponse.data[0] || {
-          collected_amount: 0,
-          outstanding_amount: 0,
-          invoiced_amount: 0,
-        };
-
-        setDailyRevenue({
-          today: {
-            collected: todayData.collected_amount,
-            outstanding: todayData.outstanding_amount,
-            invoiced: todayData.invoiced_amount,
-          },
-          yesterday: {
-            collected: yesterdayData.collected_amount,
-            outstanding: yesterdayData.outstanding_amount,
-            invoiced: yesterdayData.invoiced_amount,
-          },
-        });
+          setDailyRevenue({
+            today: {
+              collected: todayRev.data[0]?.collected_amount || 0,
+              outstanding: todayRev.data[0]?.outstanding_amount || 0,
+              invoiced: todayRev.data[0]?.invoiced_amount || 0,
+            },
+            yesterday: {
+              collected: yesterdayRev.data[0]?.collected_amount || 0,
+              outstanding: yesterdayRev.data[0]?.outstanding_amount || 0,
+              invoiced: yesterdayRev.data[0]?.invoiced_amount || 0,
+            },
+          });
+        } catch (e) {
+          console.error("Daily revenue fetch error:", e);
+        }
       } catch (err) {
-        console.error("Failed to fetch daily revenue:", err);
-      }
-    } catch (err) {
-      console.error("Failed to fetch dashboard insights:", err);
-    } finally {
-      setInsightsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Initial data fetch logic - wait for permissions to be resolved before dispatching
-    if (isAuthenticated && permissionsInitialized && !permissionsLoading && !hasLoadedInitialDataRef.current) {
-      if (canAccessIpd) {
-        dispatch(fetchAdmissions({}));
-      }
-      if (canAccessBilling) {
-        dispatch(fetchBilling());
-      }
-      if (canAccessPatients) {
-        dispatch(fetchPatients({}));
-      }
-
-      if (canAccessBilling || canAccessAnalytics) {
-        fetchPaymentTotals(canAccessAnalytics, canAccessBilling);
-      }
-
-      if (canAccessAnalytics) {
-        fetchDashboardInsights();
-      } else {
+        console.error("Failed to fetch dashboard insights:", err);
+      } finally {
         setInsightsLoading(false);
       }
+    },
+    [canAccessIpd]
+  );
 
-      // Mark initial load as complete
+  // Initial load
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      permissionsInitialized &&
+      !permissionsLoading &&
+      !hasLoadedInitialDataRef.current
+    ) {
+      if (canAccessIpd) dispatch(fetchAdmissions({}));
+      if (canAccessBilling) dispatch(fetchBilling());
+      if (canAccessPatients) dispatch(fetchPatients({}));
+
+      fetchPaymentTotals(canAccessAnalytics, canAccessBilling);
+      fetchDashboardInsights(canAccessAnalytics);
+
       hasLoadedInitialDataRef.current = true;
     }
   }, [
@@ -357,32 +283,19 @@ export default function DashboardPage() {
     fetchDashboardInsights,
   ]);
 
+  // Refresh handler
   const refreshDashboard = async () => {
     setDashboardRefreshing(true);
     try {
       const promises: Promise<any>[] = [];
-      if (canAccessIpd) {
-        promises.push(dispatch(fetchAdmissions({})).unwrap().catch(() => {}));
-      }
-      if (canAccessBilling) {
-        promises.push(dispatch(fetchBilling()).unwrap().catch(() => {}));
-      }
-      if (canAccessPatients) {
-        promises.push(dispatch(fetchPatients({})).unwrap().catch(() => {}));
-      }
-      if (canAccessBilling || canAccessAnalytics) {
-        promises.push(fetchPaymentTotals(canAccessAnalytics, canAccessBilling));
-      }
-      if (canAccessAnalytics) {
-        promises.push(fetchDashboardInsights());
-      }
+      if (canAccessIpd) promises.push(dispatch(fetchAdmissions({})).unwrap());
+      if (canAccessBilling) promises.push(dispatch(fetchBilling()).unwrap());
+      if (canAccessPatients) promises.push(dispatch(fetchPatients({})).unwrap());
+
+      promises.push(fetchPaymentTotals(canAccessAnalytics, canAccessBilling));
+      promises.push(fetchDashboardInsights(canAccessAnalytics));
 
       await Promise.all(promises);
-
-      // Trigger analytics panel to reload if analytics is enabled
-      if (canAccessAnalytics) {
-        setAnalyticsRefreshSignal((s) => s + 1);
-      }
     } catch (err) {
       console.error("Failed to refresh dashboard:", err);
     } finally {
@@ -390,403 +303,34 @@ export default function DashboardPage() {
     }
   };
 
-  // Redirect hash-based navigation to route-based navigation
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace("#", "");
-      if (!hash) return;
-
-      // Map hash routes to new route-based paths
-      const routeMap: Record<string, string> = {
-        dashboard: "/",
-        analytics: "/analytics",
-        patients: "/patients",
-        doctors: "/doctors",
-        opd: "/opd",
-        "lab-bookings": "/lab-bookings",
-        "lab-technician": "/lab-technician",
-        admissions: "/admissions",
-        billing: "/billing",
-        labs: "/labs",
-        services: "/services",
-        queue: "/queue",
-        users: "/users",
-        mrd: "/mrd",
-        lookup: "/patients", // legacy lookup hash
-      };
-
-      const targetRoute = routeMap[hash];
-      if (targetRoute) {
-        // Remove hash and navigate to route
-        window.history.replaceState(null, "", window.location.pathname);
-        router.push(targetRoute);
-      }
-    };
-
-    // Check for hash on mount
-    if (window.location.hash) {
-      handleHashChange();
-    }
-
-    // Listen for hash changes
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [router]);
-
-  const totalPatientsCount = useAppSelector((s) => s.patients.pagination?.total) ?? patients.length;
-  const admittedCount = admissions.length;
-  const totalQueue = queue.length;
-  // Use actual invoice totals instead of old billing records
-  const revenue = totalCollected;
-  const pendingBills = totalPending;
-  const activeAdmissions = useMemo(
-    () => admissions.filter((a) => a.status === "admitted").length,
-    [admissions]
-  );
-  const recentAdmissions = useMemo(
-    () =>
-      [...admissions]
-        .sort((a, b) => (b.admission_date || "").localeCompare(a.admission_date || ""))
-        .slice(0, 5),
-    [admissions]
-  );
-
-  // Show nothing while checking auth
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   return (
-    <div className="grid gap-3">
-      {/* Dashboard Section - Only show dashboard content */}
-      <div className="grid gap-3">
-        <div className="grid gap-3">
-          <div className="flex justify-end">
-            <button
-              onClick={() => refreshDashboard()}
-              disabled={dashboardRefreshing}
-              className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 disabled:opacity-50"
-              aria-label="Refresh dashboard"
-              title={dashboardRefreshing ? "Refreshing..." : "Refresh dashboard"}
-            >
-              <RefreshCw className={`h-4 w-4 ${dashboardRefreshing ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {canAccessPatients && (
-              <EnhancedStatCard
-                label="Total patients"
-                value={totalPatientsCount}
-                hint="Registered patients"
-                icon={HeartPulse}
-                tone="sky"
-                insights={appointmentInsights ? [
-                  {
-                    label: "Appointments today",
-                    value: appointmentInsights.today,
-                    trend: appointmentInsights.today > 0 ? "up" : "neutral",
-                  },
-                  {
-                    label: "Completed",
-                    value: appointmentInsights.completed,
-                    trend: appointmentInsights.completed > 0 ? "up" : "neutral",
-                  },
-                ] : undefined}
-                loading={insightsLoading && canAccessAnalytics}
-              />
-            )}
-            {canAccessIpd && (
-              <EnhancedStatCard
-                label="Active admissions"
-                value={activeAdmissions}
-                hint={`${admittedCount} total admissions`}
-                icon={BedDouble}
-                tone="emerald"
-                insights={bedOccupancy ? [
-                  {
-                    label: "Beds occupied",
-                    value: `${bedOccupancy.occupied}/${bedOccupancy.total}`,
-                    trend: bedOccupancy.occupancy > 80 ? "up" : bedOccupancy.occupancy < 50 ? "down" : "neutral",
-                  },
-                  {
-                    label: "Occupancy rate",
-                    value: `${bedOccupancy.occupancy}%`,
-                    trend: bedOccupancy.occupancy > 80 ? "up" : "neutral",
-                  },
-                ] : undefined}
-                loading={insightsLoading && canAccessAnalytics}
-              />
-            )}
-            {canAccessBilling && (
-              <EnhancedStatCard
-                label="Pending billing"
-                value={currency(totalPending)}
-                hint="Outstanding invoices"
-                icon={Coins}
-                tone="amber"
-                insights={[
-                  {
-                    label: "Total collected",
-                    value: currency(totalCollected),
-                    trend: totalCollected > 0 ? "up" : "neutral",
-                  },
-                ]}
-                loading={false}
-              />
-            )}
-            {(canAccessBilling || canAccessAnalytics) && (
-              <DailyRevenueCard data={dailyRevenue} loading={insightsLoading && canAccessAnalytics} />
-            )}
-          </div>
-
-          {/* Quick Actions - Enhanced for Hospital Staff */}
-          <div className="card p-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {/* Patient Management */}
-              {hasAccess("/patients") && (
-                <button
-                  onClick={() => {
-                    router.push("/patients?action=add");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-sky-50/30 p-3 text-center transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-transform group-hover:scale-110 group-hover:bg-sky-200">
-                    <HeartPulse className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Add Patient</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Register new</p>
-                </button>
-              )}
-
-              {/* Appointment Booking */}
-              {hasAccess("/opd") && (
-                <button
-                  onClick={() => {
-                    router.push("/opd?action=appointment&tab=appointments");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
-                    <CalendarPlus className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Book Appointment</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Schedule visit</p>
-                </button>
-              )}
-
-              {/* OPD Visit */}
-              {hasAccess("/opd") && (
-                <button
-                  onClick={() => {
-                    router.push("/opd?action=opd&tab=opd");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-blue-50/30 p-3 text-center transition-all hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 group-hover:bg-blue-200">
-                    <Stethoscope className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">OPD Visit</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Walk-in patient</p>
-                </button>
-              )}
-
-              {/* Lab Booking */}
-              {hasAccess("/lab-bookings") && (
-                <button
-                  onClick={() => {
-                    router.push("/lab-bookings?action=add");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-purple-50/30 p-3 text-center transition-all hover:border-purple-300 hover:shadow-lg hover:shadow-purple-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 transition-transform group-hover:scale-110 group-hover:bg-purple-200">
-                    <Beaker className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Lab Booking</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Test request</p>
-                </button>
-              )}
-
-              {/* Billing */}
-              {hasAccess("/billing") && (
-                <button
-                  onClick={() => {
-                    router.push("/billing");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-amber-50/30 p-3 text-center transition-all hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 transition-transform group-hover:scale-110 group-hover:bg-amber-200">
-                    <CreditCard className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Billing</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Invoices & payments</p>
-                </button>
-              )}
-
-              {/* Admissions */}
-              {hasAccess("/admissions") && (
-                <button
-                  onClick={() => {
-                    router.push("/admissions?action=add&tab=admissions");
-                  }}
-                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-slate-200 bg-gradient-to-br from-white to-emerald-50/30 p-3 text-center transition-all hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100"
-                >
-                  <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110 group-hover:bg-emerald-200">
-                    <BedDouble className="h-5 w-5" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">Admit Patient</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">IPD admission</p>
-                </button>
-              )}
-            </div>
-
-            {/* Additional Quick Links */}
-            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
-              {hasAccess("/queue") && (
-                <button
-                  onClick={() => {
-                    router.push("/queue");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <LayoutList className="h-4 w-4" />
-                  <span>View Queue</span>
-                </button>
-              )}
-              {hasAccess("/patients") && (
-                <button
-                  onClick={() => {
-                    router.push("/patients");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <Users2 className="h-4 w-4" />
-                  <span>All Patients</span>
-                </button>
-              )}
-              {hasAccess("/analytics") && (
-                <button
-                  onClick={() => {
-                    router.push("/analytics");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Analytics</span>
-                </button>
-              )}
-              {hasAccess("/labs") && (
-                <button
-                  onClick={() => {
-                    router.push("/labs");
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                >
-                  <Beaker className="h-4 w-4" />
-                  <span>Lab Catalog</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-            {canAccessIpd && (
-              <div className="card p-3 xl:col-span-2">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-slate-900">Recent admissions</p>
-                  <span className="text-xs text-slate-500">Latest 5</span>
-                </div>
-                <RecentAdmissionsList
-                  admissions={recentAdmissions}
-                  onAdmissionClick={(admissionId) => {
-                    setSelectedAdmissionId(admissionId);
-                    setShowAdmissionDetailModal(true);
-                  }}
-                  onViewAll={() => {
-                    router.push("/admissions?tab=admissions");
-                  }}
-                />
-              </div>
-            )}
-
-            {canAccessBilling && (
-              <div className={`card p-3 ${canAccessIpd ? "" : "xl:col-span-3"}`}>
-                <DashboardBillingList
-                  statusFilter={dashboardBillingFilter}
-                  onStatusFilterChange={setDashboardBillingFilter}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* All other sections have been moved to route-based pages */}
-
-      <PatientFormModal
-        isOpen={showPatientModal}
-        onClose={() => {
-          setShowPatientModal(false);
-          setEditingPatient(null);
-        }}
-        defaultValues={editingPatient ?? undefined}
+    <div className="space-y-4">
+      {/* Auto-Reflowing Dynamic Dashboard Grid */}
+      <DashboardGrid
+        widgets={activeWidgets}
+        isEditing={false}
+        onCustomizeClick={() => setIsEditing(true)}
+        onRefreshClick={refreshDashboard}
+        isRefreshing={dashboardRefreshing}
+        insightsLoading={insightsLoading}
+        dailyRevenue={dailyRevenue}
+        appointmentInsights={appointmentInsights}
+        bedOccupancy={bedOccupancy}
+        totalCollected={totalCollected}
+        totalPending={totalPending}
       />
 
-      <DoctorFormModal
-        isOpen={showDoctorModal}
-        onClose={() => {
-          setShowDoctorModal(false);
-          setEditingDoctor(null);
-        }}
-        defaultValues={editingDoctor ?? undefined}
-      />
-
-      <ConsultationFeeFormModal
-        isOpen={showConsultationFeeModal}
-        onClose={() => {
-          setShowConsultationFeeModal(false);
-          setSelectedDoctorForFees(null);
-        }}
-        doctorId={selectedDoctorForFees?.id || ""}
-      />
-
-      <AppointmentFormModal
-        isOpen={showAppointmentModal}
-        onClose={() => setShowAppointmentModal(false)}
-      />
-
-      <OpdFormModal
-        isOpen={showOpdModal}
-        onClose={() => setShowOpdModal(false)}
-      />
-
-      <LabBookingFormModal
-        isOpen={showLabBookingModal}
-        onClose={() => setShowLabBookingModal(false)}
-      />
-
-      <AdmissionFormModal
-        isOpen={showAdmissionModal}
-        onClose={() => setShowAdmissionModal(false)}
-      />
-
-      {selectedAdmissionId && (
-        <AdmissionDetailModal
-          isOpen={showAdmissionDetailModal}
-          onClose={() => {
-            setShowAdmissionDetailModal(false);
-            setSelectedAdmissionId(null);
-          }}
-          admissionId={selectedAdmissionId}
-        />
-      )}
-
-      <UserFormModal
-        isOpen={showUserModal}
-        onClose={() => {
-          setShowUserModal(false);
-          setEditingUser(null);
-        }}
-        defaultValues={editingUser ?? undefined}
+      {/* Staff Personal Customizer Drawer */}
+      <DashboardCustomizer
+        open={isEditing}
+        onClose={() => setIsEditing(false)}
+        configuredWidgets={allConfiguredWidgets}
+        onSave={updateLayout}
+        onReset={resetToHospitalDefaults}
+        scope={scope}
+        hasTenantOverride={hasTenantOverride}
       />
     </div>
   );

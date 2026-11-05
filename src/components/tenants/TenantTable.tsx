@@ -163,8 +163,10 @@ export function TenantTable({
     };
 
     window.addEventListener("tenant:updated", handleTenantUpdated);
+    window.addEventListener("tenant-updated", handleTenantUpdated);
     return () => {
       window.removeEventListener("tenant:updated", handleTenantUpdated);
+      window.removeEventListener("tenant-updated", handleTenantUpdated);
     };
   }, [fetchTenants, logoUrls]);
 

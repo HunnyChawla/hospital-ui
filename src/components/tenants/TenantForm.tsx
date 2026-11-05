@@ -50,8 +50,44 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: defaultValues
+      ? {
+          name: defaultValues.name,
+          subdomain: defaultValues.subdomain,
+          plan: defaultValues.plan || "",
+          status: defaultValues.status,
+          license_valid_till: defaultValues.license_valid_till
+            ? defaultValues.license_valid_till.split("T")[0]
+            : "",
+          address: defaultValues.address || "",
+          city: defaultValues.city || "",
+          state: defaultValues.state || "",
+          pincode: defaultValues.pincode || "",
+          email: defaultValues.email || "",
+          website: defaultValues.website || "",
+          phone_no: defaultValues.phone_no || "",
+        }
+      : {
+          name: "",
+          subdomain: "",
+          plan: "basic",
+          status: "active",
+          license_valid_till: "",
+          address: "",
+          city: "",
+          state: "",
+          pincode: "",
+          email: "",
+          website: "",
+          phone_no: "",
+        },
+  });
+
+  const selectedPlan = watch("plan");
 
   // Load existing logo for edit mode
   useEffect(() => {
@@ -68,6 +104,27 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
         });
     }
   }, [defaultValues]);
+
+  // Fetch fresh tenant from API when editing to ensure latest plan and data are reflected
+  useEffect(() => {
+    if (defaultValues?.id) {
+      tenantsApi
+        .getById(defaultValues.id)
+        .then((fresh) => {
+          if (fresh?.plan) {
+            setValue("plan", fresh.plan);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [defaultValues?.id, setValue]);
+
+  // Sync plan value when availablePlans finish loading
+  useEffect(() => {
+    if (defaultValues?.plan) {
+      setValue("plan", defaultValues.plan);
+    }
+  }, [availablePlans, defaultValues?.plan, setValue]);
 
   useEffect(() => {
     if (defaultValues) {
@@ -288,9 +345,18 @@ export function TenantForm({ defaultValues, onSuccess }: TenantFormProps) {
           <span className="text-slate-600">Plan</span>
           <select
             {...register("plan")}
+            value={selectedPlan ?? ""}
+            onChange={(e) => setValue("plan", (e.target.value as TenantPlan) || "")}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 capitalize"
           >
             <option value="">No Plan</option>
+            {/* If current plan is not yet loaded in availablePlans, keep it present so browser doesn't reset to No Plan */}
+            {selectedPlan &&
+              !availablePlans.some((p) => p.code === selectedPlan) && (
+                <option value={selectedPlan}>
+                  {selectedPlan.replace(/_/g, " ")} {selectedPlan === "custom" ? "" : "(Custom)"}
+                </option>
+              )}
             {availablePlans.length > 0 ? (
               availablePlans.map((p) => (
                 <option key={p.code} value={p.code}>

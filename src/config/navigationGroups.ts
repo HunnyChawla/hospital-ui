@@ -120,6 +120,7 @@ export const PLATFORM_OWNER_SCREENS: readonly string[] = [
   "/feature-flags",
   "/api-permissions",
   "/screens",
+  "/dashboard-config",
   "/terms-conditions",
   "/platform-patient-management",
 ] as const;
@@ -149,6 +150,7 @@ export const PLATFORM_OWNER_GROUPS: NavGroupDefinition[] = [
       { path: "/feature-flags", label: "Feature Flags", icon: Settings },
       { path: "/api-permissions", label: "API Permissions", icon: Shield },
       { path: "/screens", label: "Screens", icon: Monitor },
+      { path: "/dashboard-config", label: "Dashboard Settings", icon: LayoutDashboard },
       { path: "/platform-patient-management", label: "Patient Data Cleanup", icon: UserX },
     ],
   },
@@ -261,6 +263,7 @@ export const HOSPITAL_GROUPS: NavGroupDefinition[] = [
       { path: "/doctors", label: "Doctors", icon: Stethoscope },
       { path: "/doctor-groups", label: "Doctor Groups", icon: Users },
       { path: "/permissions", label: "Permissions", icon: Shield },
+      { path: "/dashboard-config", label: "Dashboard Settings", icon: LayoutDashboard },
       { path: "/master-data", label: "Master Data", icon: Package },
       { path: "/services", label: "Service Master", icon: Package },
       { path: "/abdm-settings", label: "ABDM Settings", icon: ShieldCheck },

@@ -1,6 +1,18 @@
 "use client";
 
-import { Search, UserCircle2, LogOut, User, Plus, ChevronDown, Menu, Key, Laptop } from "lucide-react";
+import {
+  Search,
+  UserCircle2,
+  LogOut,
+  User,
+  Plus,
+  ChevronDown,
+  Menu,
+  Key,
+  Laptop,
+  SlidersHorizontal,
+  LayoutDashboard,
+} from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -13,6 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { patientsApi } from "@/services/patientsApi";
 import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/utils/format";
 import { MaskedValue } from "@/components/common/MaskedValue";
 import { useAbhaFlags } from "@/hooks/useFeatureFlags";
@@ -53,6 +66,12 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showActiveSessionsModal, setShowActiveSessionsModal] = useState(false);
   const { enabled: abhaEnabled } = useAbhaFlags();
+  const { hasAccess, userRole } = usePermissions();
+
+  const canAccessDashboardConfig =
+    hasAccess("/dashboard-config") ||
+    userRole === "admin" ||
+    userRole === "platform_owner";
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -364,45 +383,89 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
 
         {/* Profile Dropdown */}
         {showProfileDropdown && (
-          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
-            <div className="border-b border-slate-100 px-4 py-3">
+          <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-slate-200 bg-white shadow-xl animate-in fade-in-50 zoom-in-95 duration-100">
+            <div className="border-b border-slate-100 px-4 py-3 bg-slate-50/50 rounded-t-xl">
               <p className="text-xs font-semibold text-slate-900 truncate">
                 {fullName || user?.role?.replace("_", " ") || "Admin"}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">{hospitalName}</p>
+              <p className="mt-0.5 text-xs text-slate-500 truncate">{hospitalName}</p>
               {tenant?.license_valid_till && licenseExpiryInfo && (
                 <p className={`mt-1 text-[10px] ${licenseExpiryInfo.textColor} font-medium`}>
                   License expires: {formatDate(tenant.license_valid_till)}
                 </p>
               )}
             </div>
-            <button
-              onClick={() => {
-                setShowActiveSessionsModal(true);
-                setShowProfileDropdown(false);
-              }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
-            >
-              <Laptop className="h-4 w-4" />
-              Active Sessions
-            </button>
-            <button
-              onClick={() => {
-                setShowChangePasswordModal(true);
-                setShowProfileDropdown(false);
-              }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
-            >
-              <Key className="h-4 w-4" />
-              Change Password
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-rose-50 hover:text-rose-600"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </button>
+
+            {/* Dashboard Customization & Settings */}
+            <div className="border-b border-slate-100 py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileDropdown(false);
+                  if (typeof window !== "undefined") {
+                    if (window.location.pathname === "/") {
+                      window.dispatchEvent(new CustomEvent("open-dashboard-customizer"));
+                    } else {
+                      router.push("/?customize=true");
+                    }
+                  }
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+              >
+                <SlidersHorizontal className="h-4 w-4 text-slate-400 shrink-0" />
+                <span>Customize Dashboard</span>
+              </button>
+
+              {canAccessDashboardConfig && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileDropdown(false);
+                    router.push("/dashboard-config");
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+                >
+                  <LayoutDashboard className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span>Dashboard Settings</span>
+                </button>
+              )}
+            </div>
+
+            <div className="py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowActiveSessionsModal(true);
+                  setShowProfileDropdown(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+              >
+                <Laptop className="h-4 w-4 text-slate-400 shrink-0" />
+                <span>Active Sessions</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePasswordModal(true);
+                  setShowProfileDropdown(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 cursor-pointer text-left"
+              >
+                <Key className="h-4 w-4 text-slate-400 shrink-0" />
+                <span>Change Password</span>
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 py-1">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50 cursor-pointer text-left"
+              >
+                <LogOut className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
