@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   },
   trailingSlash: true,
   experimental: {
+    turbopackFileSystemCacheForDev: false,
     optimizePackageImports: [
       "lucide-react",
       "@headlessui/react",

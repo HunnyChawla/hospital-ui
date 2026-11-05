@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 
 export type TenantStatus = "active" | "inactive" | "suspended";
-export type TenantPlan = "basic" | "standard" | "premium";
+export type TenantPlan = "basic" | "standard" | "premium" | "ultra" | "custom" | string;
 
 export interface Tenant {
   id: string;

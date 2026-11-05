@@ -13,6 +13,7 @@ import {
   UserPlus,
   CalendarClock,
   UserX,
+  Sliders,
 } from "lucide-react";
 import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
@@ -20,7 +21,10 @@ import { getErrorMessage } from "@/utils/errorHandler";
 
 interface TenantTableProps {
   statusFilter?: TenantStatus;
+  search?: string;
+  onClearSearch?: () => void;
   onEditClick?: (tenant: Tenant) => void;
+  onPlanConfigClick?: (tenant: Tenant) => void;
   onShiftConfigClick?: (tenant: Tenant) => void;
   onCreateUserClick?: (tenant: Tenant) => void;
   onExtendLicenseClick?: (tenant: Tenant) => void;
@@ -28,7 +32,10 @@ interface TenantTableProps {
 
 export function TenantTable({
   statusFilter,
+  search,
+  onClearSearch,
   onEditClick,
+  onPlanConfigClick,
   onShiftConfigClick,
   onCreateUserClick,
   onExtendLicenseClick,
@@ -49,6 +56,7 @@ export function TenantTable({
         page: currentPage,
         page_size: pageSize,
         status: statusFilter,
+        search: search?.trim() || undefined,
       });
       setTenants(response.items);
       setTotalPages(response.total_pages);
@@ -61,7 +69,7 @@ export function TenantTable({
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, statusFilter]);
+  }, [currentPage, pageSize, statusFilter, search]);
 
   // Fetch logos for tenants
   useEffect(() => {
@@ -128,7 +136,7 @@ export function TenantTable({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter]);
+  }, [statusFilter, search]);
 
   useEffect(() => {
     fetchTenants();
@@ -189,14 +197,18 @@ export function TenantTable({
 
   const getPlanColor = (plan: string | null) => {
     switch (plan) {
+      case "ultra":
+        return "bg-purple-100 text-purple-800 border border-purple-200";
       case "premium":
-        return "bg-amber-50 text-amber-700";
+        return "bg-amber-100 text-amber-800 border border-amber-200";
       case "standard":
-        return "bg-sky-50 text-sky-700";
+        return "bg-sky-100 text-sky-800 border border-sky-200";
       case "basic":
-        return "bg-slate-50 text-slate-700";
+        return "bg-slate-100 text-slate-700 border border-slate-200";
+      case "custom":
+        return "bg-emerald-100 text-emerald-800 border border-emerald-200";
       default:
-        return "bg-slate-50 text-slate-500";
+        return "bg-slate-100 text-slate-600 border border-slate-200";
     }
   };
 
@@ -234,15 +246,36 @@ export function TenantTable({
         <tbody className="divide-y divide-slate-100 bg-white">
           {tenants.length === 0 ? (
             <tr>
-              <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                No tenants found
+              <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                    <Building2 className="h-6 w-6" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">
+                    {search ? `No tenants found matching "${search}"` : "No tenants found"}
+                  </p>
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClearSearch?.();
+                      }}
+                      className="mt-1 text-xs font-semibold text-sky-600 hover:text-sky-700 hover:underline cursor-pointer"
+                    >
+                      Clear search
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ) : (
             tenants.map((tenant) => (
               <tr
                 key={tenant.id}
-                className="hover:bg-sky-50/50 transition"
+                onClick={() => onEditClick?.(tenant)}
+                className="hover:bg-sky-50/50 cursor-pointer transition"
+                title="Click to view or edit tenant"
               >
                 <td className="px-4 py-3">
                   {logoUrls[tenant.id] ? (
@@ -310,6 +343,16 @@ export function TenantTable({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        onPlanConfigClick?.(tenant);
+                      }}
+                      className="flex items-center justify-center rounded-lg bg-indigo-600 p-2 text-white transition hover:bg-indigo-700 shadow-xs"
+                      title="Manage Subscription Plan & Modules"
+                    >
+                      <Sliders className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         onExtendLicenseClick?.(tenant);
                       }}
                       className="flex items-center justify-center rounded-lg bg-amber-500 p-2 text-white transition hover:bg-amber-600"
@@ -363,7 +406,7 @@ export function TenantTable({
             <span className="font-semibold text-slate-900">
               {Math.min(currentPage * pageSize, total)}
             </span>{" "}
-            of <span className="font-semibold text-slate-900">{total}</span> tenants
+            of <span className="font-semibold text-slate-900">{total}</span> {search ? "matching tenants" : "tenants"}
           </div>
           <div className="flex items-center gap-2">
             <button

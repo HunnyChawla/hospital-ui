@@ -223,26 +223,30 @@ export default function DashboardLayout({
       // Fetch hospital domain entities only for hospital users (skip for platform owner)
       if (userRole !== "platform_owner") {
         // Fetch doctors once if not already loaded
-        if (doctors.list.length === 0 && !doctors.loading) {
+        if (doctors.list.length === 0 && !doctors.loading && !doctors.error) {
           dispatch(fetchDoctors());
         }
 
-        // Fetch wards once if not already loaded
-        if (wards.list.length === 0 && !wards.loading) {
-          dispatch(fetchWards());
-        }
+        // Only fetch wards and beds if user has access to IPD and permissions are loaded
+        if (permissionsInitialized && !permissionsLoading) {
+          const canAccessIpd = hasAccess("/admissions") || hasAccess("/ipd-workspace") || hasAccess("/day-care");
+          if (canAccessIpd) {
+            if (wards.list.length === 0 && !wards.loading && !wards.error) {
+              dispatch(fetchWards());
+            }
 
-        // Fetch beds once if not already loaded
-        if (beds.list.length === 0 && !beds.loading) {
-          dispatch(fetchBeds());
+            if (beds.list.length === 0 && !beds.loading && !beds.error) {
+              dispatch(fetchBeds());
+            }
+          }
         }
       }
 
       setIsCheckingAuth(false);
     };
     fetchData();
-    // Re-run when consentRequired transitions to false so domain data is fetched
-  }, [consentRequired, dispatch, userRole]);
+    // Re-run when consentRequired transitions to false or permissions resolve so domain data is fetched safely
+  }, [consentRequired, dispatch, userRole, permissionsInitialized, permissionsLoading, hasAccess, doctors.list.length, doctors.loading, doctors.error, wards.list.length, wards.loading, wards.error, beds.list.length, beds.loading, beds.error, userDetails]);
 
   // Listen for user changes (create/update) to refresh doctors cache
   useEffect(() => {
