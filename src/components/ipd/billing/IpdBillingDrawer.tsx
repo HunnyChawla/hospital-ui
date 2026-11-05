@@ -262,7 +262,7 @@ export function IpdBillingDrawer({
                     </div>
                     <p className="text-[11px] text-slate-300">
                       {account.patient_uhid ? `UHID: ${account.patient_uhid} • ` : ""}
-                      {account.ward_name} (Bed {account.bed_number || "-"}) • Dr. {account.doctor_name || "-"}
+                      {account.ward_name} (Bed {account.bed_number || "-"}) • {account.doctor_name ? (account.doctor_name.startsWith("Dr.") || account.doctor_name.startsWith("Dr ") ? account.doctor_name : `Dr. ${account.doctor_name}`) : "-"}
                     </p>
                   </div>
                 </div>

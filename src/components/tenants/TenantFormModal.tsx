@@ -19,6 +19,7 @@ export function TenantFormModal({ isOpen, onClose, defaultValues }: TenantFormMo
       size="lg"
     >
       <TenantForm
+        key={defaultValues?.id || "new"}
         defaultValues={defaultValues}
         onSuccess={() => {
           onClose();

@@ -219,6 +219,7 @@ export default function TenantsPage() {
           onClose={handleClosePlanModal}
           tenant={planTenant}
           onSuccess={() => {
+            window.dispatchEvent(new CustomEvent("tenant:updated", { detail: { tenantId: planTenant.id } }));
             window.dispatchEvent(new CustomEvent("tenant-updated", { detail: { tenantId: planTenant.id } }));
           }}
         />
