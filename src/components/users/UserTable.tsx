@@ -82,6 +82,10 @@ export function UserTable({ onUserClick, onEditClick, roleFilter }: UserTablePro
         return "bg-indigo-50 text-indigo-700";
       case "examiner":
         return "bg-teal-50 text-teal-700";
+      case "pharmacist":
+        return "bg-teal-50 text-teal-700";
+      case "pharmacy_manager":
+        return "bg-cyan-50 text-cyan-700";
       case "lab_technician":
         return "bg-rose-50 text-rose-700";
       default:

@@ -28,6 +28,7 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { formatDate as formatDateUtil } from "@/utils/format";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 
 interface MRDDocumentListProps {
   patientId?: string;
@@ -78,6 +79,7 @@ export function MRDDocumentList({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const { enabled: abdmEnabled } = useAbdmFlags();
 
   const limit = 20;
 
@@ -435,12 +437,16 @@ export function MRDDocumentList({
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Category
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  Care Context
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  ABHA Sync
-                </th>
+                {abdmEnabled && (
+                  <>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                      Care Context
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                      ABHA Sync
+                    </th>
+                  </>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
                   File Info
                 </th>
@@ -481,12 +487,16 @@ export function MRDDocumentList({
                       {CATEGORY_LABELS[document.category] || document.category}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {renderCareContextBadge(document)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {renderAbhaLinkBadge(document)}
-                  </td>
+                  {abdmEnabled && (
+                    <>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {renderCareContextBadge(document)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {renderAbhaLinkBadge(document)}
+                      </td>
+                    </>
+                  )}
                   <td className="px-4 py-3">
                     <div className="text-xs text-slate-600">
                       <p>{formatFileSize(document.file_size)}</p>

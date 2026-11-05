@@ -4,8 +4,25 @@ import { getTenantIdForApi } from "@/utils/auth";
 export interface TenantAbdmConfigDto {
   hip_id?: string | null;
   hip_name?: string | null;
+  has_bridge_token?: boolean;
   updated_at?: string | null;
   updated_by?: string | null;
+}
+
+export interface TenantAbdmOnboardDto {
+  tenant_id: string;
+  hip_id: string;
+  hip_name: string;
+  callback_url?: string | null;
+  milestone?: string;
+}
+
+export interface TenantAbdmRotateResponse {
+  status: string;
+  tenant_id: string;
+  hip_id: string;
+  active_jti: string;
+  updated_at: string;
 }
 
 export interface AbhaProfileDto {
@@ -248,6 +265,20 @@ export const abhaApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     const response = await apiClient.put<TenantAbdmConfigDto>("/abha/config", config, { params });
+    return response.data;
+  },
+
+  async onboardTenant(req: TenantAbdmOnboardDto): Promise<TenantAbdmConfigDto> {
+    const response = await apiClient.post<TenantAbdmConfigDto>("/abha/admin/onboard-tenant", req);
+    return response.data;
+  },
+
+  async rotateTenantToken(tenantId: string): Promise<TenantAbdmRotateResponse> {
+    const response = await apiClient.post<TenantAbdmRotateResponse>(
+      "/abha/admin/rotate-token",
+      null,
+      { params: { tenant_id: tenantId } }
+    );
     return response.data;
   },
 

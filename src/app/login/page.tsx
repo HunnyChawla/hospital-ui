@@ -146,7 +146,12 @@ function LoginForm() {
       if (returnUrl) {
         navigateToDestination(returnUrl);
       } else {
-        router.push("/");
+        const storedRole = typeof window !== "undefined" ? localStorage.getItem("role") : null;
+        if (storedRole === "platform_owner") {
+          router.push("/tenants");
+        } else {
+          router.push("/");
+        }
       }
     }
   }, [isAuthenticated, router, searchParams, pendingConflictSessions]);
@@ -216,7 +221,8 @@ function LoginForm() {
       }
 
       const returnUrl = getTargetReturnUrl();
-      const defaultScreen = returnUrl || "/";
+      const fallbackScreen = response.role === "platform_owner" ? "/tenants" : "/";
+      const defaultScreen = returnUrl || fallbackScreen;
 
       // 2. If active sessions exist on other devices/profiles, IMMEDIATELY show review modal
       if (response.other_active_sessions && response.other_active_sessions.length > 0) {

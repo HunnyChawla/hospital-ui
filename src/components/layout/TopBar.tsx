@@ -15,6 +15,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useSidebar } from "@/hooks/useSidebar";
 import { formatDate } from "@/utils/format";
 import { MaskedValue } from "@/components/common/MaskedValue";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 const PatientFormModal = dynamic(
   () => import("@/components/patients/PatientFormModal").then((mod) => mod.PatientFormModal),
@@ -51,6 +52,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
   const { toggleMobileSidebar, isMobile } = useSidebar();
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showActiveSessionsModal, setShowActiveSessionsModal] = useState(false);
+  const { enabled: abhaEnabled } = useAbhaFlags();
 
   // Use userDetails from Redux (fetched once after login)
   const fullName = userDetails?.full_name || null;
@@ -295,7 +297,7 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
                                 <span>{patient.age} years</span>
                               </>
                             )}
-                            {(patient.abhaAddress || patient.abhaNumber) && (
+                            {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                               <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                                 <MaskedValue
                                   type={patient.abhaAddress ? "abha_address" : "abha_number"}

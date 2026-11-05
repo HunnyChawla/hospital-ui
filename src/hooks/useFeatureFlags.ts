@@ -144,13 +144,38 @@ export function usePrescriptionPermissions(options?: {
 }
 
 /**
- * Convenience hook for ABHA integration feature flags
+ * Convenience hook for ABDM integration feature flags
  */
-export function useAbhaFlags() {
-    const { featureFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags('abha');
+export function useAbdmFlags() {
+    const { allFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags();
+
+    const isAbdmEnabled =
+        allFlags?.abdm?.enabled === true ||
+        (allFlags?.abdm?.milestone != null && String(allFlags.abdm.milestone).toLowerCase() !== "none") ||
+        allFlags?.abha?.enabled === true;
 
     return {
-        enabled: (featureFlags?.enabled as boolean) ?? false,
+        enabled: isAbdmEnabled,
+        autoInviteUnlinked: (allFlags?.abdm?.auto_invite_unlinked as boolean) ?? false,
+        isLoading,
+        updateFlags: (flags: FeatureFlagUpdate) => updateFlags({ feature: 'abdm', flags }),
+        isUpdating,
+    };
+}
+
+/**
+ * Convenience hook for ABHA integration feature flags (synced with ABDM)
+ */
+export function useAbhaFlags() {
+    const { allFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags();
+
+    const isEnabled =
+        allFlags?.abdm?.enabled === true ||
+        allFlags?.abha?.enabled === true ||
+        (allFlags?.abdm?.milestone != null && String(allFlags.abdm.milestone).toLowerCase() !== "none");
+
+    return {
+        enabled: isEnabled,
         isLoading,
         updateFlags: (flags: FeatureFlagUpdate) => updateFlags({ feature: 'abha', flags }),
         isUpdating,

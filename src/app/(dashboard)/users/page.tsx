@@ -4,7 +4,7 @@ import { useState } from "react";
 import { UserTable } from "@/components/users/UserTable";
 import { UserFormModal } from "@/components/users/UserFormModal";
 import { User, UserRole } from "@/services/usersApi";
-import { Users2, UserCog, Stethoscope, HeartPulse, ClipboardList, Eye, FlaskConical } from "lucide-react";
+import { Users2, UserCog, Stethoscope, HeartPulse, ClipboardList, Eye, FlaskConical, Pill } from "lucide-react";
 
 export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
@@ -31,6 +31,8 @@ export default function UsersPage() {
     { value: "admin", label: "Admin", icon: UserCog },
     { value: "doctor", label: "Doctor", icon: Stethoscope },
     { value: "nurse", label: "Nurse", icon: HeartPulse },
+    { value: "pharmacist", label: "Pharmacist", icon: Pill },
+    { value: "pharmacy_manager", label: "Pharmacy Manager", icon: Pill },
     { value: "receptionist", label: "Receptionist", icon: ClipboardList },
     { value: "optometrist", label: "Optometrist", icon: Eye },
     { value: "examiner", label: "Examiner", icon: ClipboardList },

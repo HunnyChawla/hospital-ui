@@ -200,6 +200,8 @@ export function UserForm({ defaultValues, onSuccess }: UserFormProps) {
             <option value="doctor">Doctor</option>
             <option value="nurse">Nurse</option>
             <option value="receptionist">Receptionist</option>
+            <option value="pharmacist">Pharmacist</option>
+            <option value="pharmacy_manager">Pharmacy Manager</option>
             <option value="optometrist">Optometrist</option>
             <option value="examiner">Examiner</option>
             <option value="lab_technician">Lab Technician</option>

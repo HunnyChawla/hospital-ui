@@ -27,6 +27,7 @@ import {
     useManualLinkCareContext,
 } from "@/hooks/queries/useHealthRecord";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 import type {
     AbdmLinkStatus,
     Episode,
@@ -214,11 +215,13 @@ function EpisodeRow({
 
     const isLinking = linkCareContext.isPending && linkCareContext.variables === episode.id;
     const abdmStatus = episode.abdm_link_status ?? "unlinked";
+    const { enabled: abdmEnabled } = useAbdmFlags();
     const canRetryLink =
-        abdmStatus === "failed" ||
+        abdmEnabled &&
+        (abdmStatus === "failed" ||
         abdmStatus === "unlinked" ||
         abdmStatus === "no_abha" ||
-        abdmStatus === "sms_sent";
+        abdmStatus === "sms_sent");
 
     const getActionLabel = () => {
         switch (abdmStatus) {

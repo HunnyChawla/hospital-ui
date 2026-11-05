@@ -1076,37 +1076,39 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     )}
                   </div>
 
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <AbhaStatusBadge
-                      abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId)}
-                      abhaAddress={patient.abhaAddress}
-                      abhaVerified={patient.abhaVerified}
-                      showEnrollButton={abhaEnabled}
-                      onEnrollClick={() => setIsAbhaModalOpen(true)}
-                      size="sm"
-                    />
-                    {abhaEnabled && Boolean(resolveAbhaNumber(patient.abhaNumber, patient.abhaId) || patient.abhaAddress) && (
-                      <button
-                        type="button"
-                        onClick={() => setIsAbhaSyncModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
-                        title="Fetch latest profile data from ABHA and update database"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        <span>Sync ABHA Profile</span>
-                      </button>
-                    )}
-                    {resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
-                      <button
-                        type="button"
-                        onClick={() => setIsCardDownloadModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 hover:bg-sky-100 transition-colors"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        <span>Download Card</span>
-                      </button>
-                    )}
-                  </div>
+                  {abhaEnabled && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <AbhaStatusBadge
+                        abhaNumber={resolveAbhaNumber(patient.abhaNumber, patient.abhaId)}
+                        abhaAddress={patient.abhaAddress}
+                        abhaVerified={patient.abhaVerified}
+                        showEnrollButton={abhaEnabled}
+                        onEnrollClick={() => setIsAbhaModalOpen(true)}
+                        size="sm"
+                      />
+                      {Boolean(resolveAbhaNumber(patient.abhaNumber, patient.abhaId) || patient.abhaAddress) && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAbhaSyncModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                          title="Fetch latest profile data from ABHA and update database"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          <span>Sync ABHA Profile</span>
+                        </button>
+                      )}
+                      {resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
+                        <button
+                          type="button"
+                          onClick={() => setIsCardDownloadModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 hover:bg-sky-100 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span>Download Card</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {(patient.address || patient.city || patient.state || patient.pincode) && (
                     <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
@@ -1156,7 +1158,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 { id: "billing", label: "Billing", tooltip: "Invoices and payments", icon: CreditCard },
                 { id: "tests", label: "Labs", tooltip: "Lab test bookings and prescriptions", icon: TestTube },
                 { id: "record", label: "Records", tooltip: "Health record & encounter timeline", icon: FileText },
-                { id: "abdm_records", label: "ABDM", tooltip: "ABDM external health records (HIU)", icon: ShieldCheck },
+                ...(abhaEnabled ? [{ id: "abdm_records", label: "ABDM", tooltip: "ABDM external health records (HIU)", icon: ShieldCheck }] : []),
                 { id: "immunisation", label: "Vaccines", tooltip: "Immunisation & vaccine doses", icon: Syringe },
                 { id: "documents", label: "MRD", tooltip: "Medical records & documents", icon: FolderOpen },
               ].map((tab) => (
@@ -1936,7 +1938,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                 </div>
               )}
 
-              {activeTab === "abdm_records" && (
+              {activeTab === "abdm_records" && abhaEnabled && (
                 <AbdmHiuConsentPanel
                   patientId={patient.id}
                   patientName={patient.name}

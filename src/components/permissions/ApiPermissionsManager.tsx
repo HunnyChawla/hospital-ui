@@ -32,6 +32,8 @@ const MANAGED_ROLES: RoleDef[] = [
   { key: "optometrist", label: "Optometrist", shortLabel: "Optom" },
   { key: "examiner", label: "Examiner", shortLabel: "Exam" },
   { key: "lab_technician", label: "Lab Technician", shortLabel: "Lab" },
+  { key: "pharmacist", label: "Pharmacist", shortLabel: "Pharm" },
+  { key: "pharmacy_manager", label: "Pharmacy Manager", shortLabel: "PhMgr" },
   { key: "counsellor", label: "Counsellor", shortLabel: "Couns" },
 ];
 

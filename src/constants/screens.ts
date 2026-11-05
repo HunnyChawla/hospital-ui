@@ -12,6 +12,8 @@ export const ALL_ROLES: UserRole[] = [
   "examiner",
   "lab_technician",
   "platform_owner",
+  "pharmacist",
+  "pharmacy_manager",
 ];
 
 /**
@@ -26,6 +28,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   examiner: "Examiner",
   lab_technician: "Lab Technician",
   platform_owner: "Platform Owner",
+  pharmacist: "Pharmacist",
+  pharmacy_manager: "Pharmacy Manager",
 };
 
 /**
