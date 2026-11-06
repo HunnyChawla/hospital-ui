@@ -2,11 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { platformBillingApi } from "@/services/platformBillingApi";
-import { Quote, QuoteStatus } from "@/types/platformBilling";
+import { Quote } from "@/types/platformBilling";
 import { QuotesTable } from "@/components/platform-billing/QuotesTable";
 import { CreateQuoteModal } from "@/components/platform-billing/CreateQuoteModal";
+import { EditQuoteModal } from "@/components/platform-billing/EditQuoteModal";
+import { SendBillingEmailModal } from "@/components/platform-billing/SendBillingEmailModal";
+import { generateQuotePdf } from "@/utils/platformBillingPdf";
 import { toast } from "sonner";
-import { FileText, Plus, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function PlatformQuotesPage() {
@@ -14,8 +17,21 @@ export default function PlatformQuotesPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<QuoteStatus | undefined>(undefined);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [quoteToEdit, setQuoteToEdit] = useState<Quote | null>(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [quoteToEmail, setQuoteToEmail] = useState<Quote | null>(null);
+
+  const handleEdit = (quote: Quote) => {
+    setQuoteToEdit(quote);
+    setIsEditOpen(true);
+  };
+
+  const handleSendEmail = (quote: Quote) => {
+    setQuoteToEmail(quote);
+    setIsEmailModalOpen(true);
+  };
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true);
@@ -23,7 +39,6 @@ export default function PlatformQuotesPage() {
       const res = await platformBillingApi.quotes.list({
         page: currentPage,
         page_size: 10,
-        status: statusFilter,
       });
       setQuotes(res.items);
       setTotalPages(res.total_pages);
@@ -33,66 +48,28 @@ export default function PlatformQuotesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, statusFilter]);
+  }, [currentPage]);
 
   useEffect(() => {
     fetchQuotes();
   }, [fetchQuotes]);
 
-  const handleSend = async (id: string) => {
-    try {
-      await platformBillingApi.quotes.send(id);
-      toast.success("Quote marked as SENT to hospital");
-      fetchQuotes();
-    } catch (err) {
-      toast.error("Failed to send quote");
-    }
-  };
-
-  const handleAccept = async (id: string) => {
-    try {
-      await platformBillingApi.quotes.accept(id);
-      toast.success("Quote accepted successfully");
-      fetchQuotes();
-    } catch (err) {
-      toast.error("Failed to accept quote");
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    try {
-      await platformBillingApi.quotes.reject(id);
-      toast.success("Quote marked as rejected");
-      fetchQuotes();
-    } catch (err) {
-      toast.error("Failed to reject quote");
-    }
-  };
-
   const handleDownload = async (id: string) => {
     try {
-      const blob = await platformBillingApi.quotes.downloadPdf(id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      // Get the correct quote number to name the file cleanly
-      const match = quotes.find((q) => q.id === id);
-      link.download = match ? `${match.quote_number}.pdf` : `quote_${id}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      let quote = quotes.find((q) => q.id === id);
+      if (!quote || !quote.line_items || quote.line_items.length === 0) {
+        quote = await platformBillingApi.quotes.getById(id);
+      }
+      if (!quote) {
+        toast.error("Quote not found");
+        return;
+      }
+      await generateQuotePdf(quote);
+      toast.success("Quote PDF generated successfully");
     } catch (err) {
-      toast.error("Failed to download quote PDF");
+      toast.error("Failed to generate quote PDF");
     }
   };
-
-  const filterTabs: { label: string; value: QuoteStatus | undefined }[] = [
-    { label: "All Quotes", value: undefined },
-    { label: "Draft", value: "draft" },
-    { label: "Sent", value: "sent" },
-    { label: "Accepted", value: "accepted" },
-    { label: "Rejected", value: "rejected" },
-    { label: "Expired", value: "expired" },
-  ];
 
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
@@ -118,36 +95,13 @@ export default function PlatformQuotesPage() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="-mb-px flex gap-6" aria-label="Tabs">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab.label}
-              onClick={() => {
-                setStatusFilter(tab.value);
-                setCurrentPage(1);
-              }}
-              className={`border-b-2 py-4 px-1 text-sm font-medium transition ${
-                statusFilter === tab.value
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
       {/* Table */}
       <QuotesTable
         quotes={quotes}
         loading={loading}
-        onSend={handleSend}
-        onAccept={handleAccept}
-        onReject={handleReject}
         onDownload={handleDownload}
+        onEdit={handleEdit}
+        onSendEmail={handleSendEmail}
       />
 
       {/* Pagination */}
@@ -202,6 +156,29 @@ export default function PlatformQuotesPage() {
       <CreateQuoteModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
+        onSuccess={fetchQuotes}
+      />
+
+      {/* Edit Modal */}
+      <EditQuoteModal
+        isOpen={isEditOpen}
+        quote={quoteToEdit}
+        onClose={() => {
+          setIsEditOpen(false);
+          setQuoteToEdit(null);
+        }}
+        onSuccess={fetchQuotes}
+      />
+
+      {/* Send Email Modal */}
+      <SendBillingEmailModal
+        isOpen={isEmailModalOpen}
+        type="quote"
+        document={quoteToEmail}
+        onClose={() => {
+          setIsEmailModalOpen(false);
+          setQuoteToEmail(null);
+        }}
         onSuccess={fetchQuotes}
       />
     </div>

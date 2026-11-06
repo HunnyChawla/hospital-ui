@@ -2,24 +2,22 @@
 
 import { Quote } from "@/types/platformBilling";
 import { formatDate } from "@/utils/format";
-import { FileText, Send, CheckCircle, XCircle, Download, Loader2 } from "lucide-react";
+import { FileText, Download, Loader2, Pencil, Mail, CheckCircle2 } from "lucide-react";
 
 interface QuotesTableProps {
   quotes: Quote[];
   loading: boolean;
-  onSend: (id: string) => void;
-  onAccept: (id: string) => void;
-  onReject: (id: string) => void;
   onDownload: (id: string) => void;
+  onEdit?: (quote: Quote) => void;
+  onSendEmail?: (quote: Quote) => void;
 }
 
 export function QuotesTable({
   quotes,
   loading,
-  onSend,
-  onAccept,
-  onReject,
   onDownload,
+  onEdit,
+  onSendEmail,
 }: QuotesTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -73,39 +71,62 @@ export function QuotesTable({
           <tbody className="divide-y divide-slate-200">
             {quotes.map((quote) => (
               <tr key={quote.id} className="hover:bg-slate-50">
-                <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-900">{quote.quote_number}</td>
-                <td className="px-6 py-4">{quote.tenant_name}</td>
+                <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-900">
+                  {quote.quote_number}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-slate-900">{quote.tenant_name}</span>
+                      {!quote.tenant_id && (
+                        <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                          Prospect
+                        </span>
+                      )}
+                    </div>
+                    {quote.gst_number && (
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        GST: {quote.gst_number}
+                      </span>
+                    )}
+                    {quote.sent_to_email && (
+                      <span className="text-[11px] text-emerald-600 flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 className="h-3 w-3" /> Emailed to {quote.sent_to_email}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="whitespace-nowrap px-6 py-4">{formatDate(quote.valid_until)}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-right font-semibold text-slate-950">₹{quote.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-center">{getStatusBadge(quote.status)}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-right font-semibold text-slate-950">
+                  ₹
+                  {quote.total_amount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
+                <td className="whitespace-nowrap px-6 py-4 text-center">
+                  {getStatusBadge(quote.status)}
+                </td>
                 <td className="whitespace-nowrap px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    {quote.status === "draft" && (
+                  <div className="flex justify-end gap-1.5">
+                    {onSendEmail && (
                       <button
-                        onClick={() => onSend(quote.id)}
-                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-sky-600 hover:bg-sky-50"
-                        title="Send to hospital"
+                        onClick={() => onSendEmail(quote)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-sky-600 hover:bg-sky-50 transition"
+                        title={quote.status === "sent" ? "Resend Quote Email" : "Send Quote Email"}
                       >
-                        <Send className="h-3.5 w-3.5" /> Send
+                        <Mail className="h-3.5 w-3.5" />
+                        {quote.status === "sent" ? "Resend" : "Send"}
                       </button>
                     )}
-                    {quote.status === "sent" && (
-                      <>
-                        <button
-                          onClick={() => onAccept(quote.id)}
-                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
-                          title="Accept quote"
-                        >
-                          <CheckCircle className="h-3.5 w-3.5" /> Accept
-                        </button>
-                        <button
-                          onClick={() => onReject(quote.id)}
-                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
-                          title="Reject quote"
-                        >
-                          <XCircle className="h-3.5 w-3.5" /> Reject
-                        </button>
-                      </>
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(quote)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50"
+                        title="Edit quote"
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
                     )}
                     <button
                       onClick={() => onDownload(quote.id)}

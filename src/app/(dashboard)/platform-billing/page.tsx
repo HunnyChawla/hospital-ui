@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, Receipt, ShieldAlert, Award, FileCheck, ArrowRight, ShieldCheck } from "lucide-react";
+import { FileText, Receipt, ShieldAlert, Award, FileCheck, ArrowRight, ShieldCheck, Mail } from "lucide-react";
 import { platformBillingApi } from "@/services/platformBillingApi";
 import { useAppSelector } from "@/redux/hooks";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ export default function PlatformBillingDashboard() {
     invoices: 0,
     receipts: 0,
     agreements: 0,
+    templates: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -29,11 +30,12 @@ export default function PlatformBillingDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const [qRes, iRes, rRes, aRes] = await Promise.all([
+        const [qRes, iRes, rRes, aRes, tRes] = await Promise.all([
           platformBillingApi.quotes.list({ page_size: 1 }),
           platformBillingApi.invoices.list({ page_size: 1 }),
           platformBillingApi.receipts.list({ page_size: 1 }),
           platformBillingApi.agreements.list({ page_size: 1 }),
+          platformBillingApi.emailTemplates.list(),
         ]);
 
         setStats({
@@ -41,6 +43,7 @@ export default function PlatformBillingDashboard() {
           invoices: iRes.total || 0,
           receipts: rRes.total || 0,
           agreements: aRes.total || 0,
+          templates: tRes.length || 0,
         });
       } catch (err) {
         console.error("Failed to load statistics:", err);
@@ -95,6 +98,16 @@ export default function PlatformBillingDashboard() {
       bgLight: "bg-violet-50 border-violet-100",
       textColor: "text-violet-700",
       link: "/platform-billing/agreements",
+    },
+    {
+      title: "Email Settings & Templates",
+      description: "Configure SMTP server details, outgoing sender identity (contact@technesian.com), and custom AWS-style HTML templates.",
+      count: stats.templates,
+      icon: Mail,
+      color: "from-amber-500 to-orange-600",
+      bgLight: "bg-amber-50 border-amber-100",
+      textColor: "text-amber-700",
+      link: "/platform-billing/emails",
     },
   ];
 

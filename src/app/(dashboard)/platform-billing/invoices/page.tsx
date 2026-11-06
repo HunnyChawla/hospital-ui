@@ -6,6 +6,8 @@ import { PlatformInvoice, PlatformInvoiceStatus } from "@/types/platformBilling"
 import { InvoicesTable } from "@/components/platform-billing/InvoicesTable";
 import { CreateInvoiceModal } from "@/components/platform-billing/CreateInvoiceModal";
 import { CreateReceiptModal } from "@/components/platform-billing/CreateReceiptModal";
+import { SendBillingEmailModal } from "@/components/platform-billing/SendBillingEmailModal";
+import { generateInvoicePdf } from "@/utils/platformBillingPdf";
 import { toast } from "sonner";
 import { Plus, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +22,8 @@ export default function PlatformInvoicesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<PlatformInvoice | null>(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [invoiceToEmail, setInvoiceToEmail] = useState<PlatformInvoice | null>(null);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
@@ -43,14 +47,9 @@ export default function PlatformInvoicesPage() {
     fetchInvoices();
   }, [fetchInvoices]);
 
-  const handleSend = async (id: string) => {
-    try {
-      await platformBillingApi.invoices.send(id);
-      toast.success("Invoice sent to hospital successfully");
-      fetchInvoices();
-    } catch (err) {
-      toast.error("Failed to send invoice");
-    }
+  const handleSendEmail = (invoice: PlatformInvoice) => {
+    setInvoiceToEmail(invoice);
+    setIsEmailModalOpen(true);
   };
 
   const handleLogPayment = (invoice: PlatformInvoice) => {
@@ -60,16 +59,18 @@ export default function PlatformInvoicesPage() {
 
   const handleDownload = async (id: string) => {
     try {
-      const blob = await platformBillingApi.invoices.downloadPdf(id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const match = invoices.find((inv) => inv.id === id);
-      link.download = match ? `${match.invoice_number}.pdf` : `invoice_${id}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      let invoice = invoices.find((inv) => inv.id === id);
+      if (!invoice || !invoice.line_items || invoice.line_items.length === 0) {
+        invoice = await platformBillingApi.invoices.getById(id);
+      }
+      if (!invoice) {
+        toast.error("Invoice not found");
+        return;
+      }
+      await generateInvoicePdf(invoice);
+      toast.success("Invoice PDF generated successfully");
     } catch (err) {
-      toast.error("Failed to download invoice PDF");
+      toast.error("Failed to generate invoice PDF");
     }
   };
 
@@ -132,7 +133,7 @@ export default function PlatformInvoicesPage() {
       <InvoicesTable
         invoices={invoices}
         loading={loading}
-        onSend={handleSend}
+        onSendEmail={handleSendEmail}
         onLogPayment={handleLogPayment}
         onDownload={handleDownload}
       />
@@ -200,6 +201,18 @@ export default function PlatformInvoicesPage() {
         }}
         onSuccess={fetchInvoices}
         selectedInvoice={activeInvoice}
+      />
+
+      {/* Send Email Modal */}
+      <SendBillingEmailModal
+        isOpen={isEmailModalOpen}
+        type="invoice"
+        document={invoiceToEmail}
+        onClose={() => {
+          setIsEmailModalOpen(false);
+          setInvoiceToEmail(null);
+        }}
+        onSuccess={fetchInvoices}
       />
     </div>
   );

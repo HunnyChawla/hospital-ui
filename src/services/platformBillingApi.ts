@@ -15,6 +15,15 @@ import {
   QuoteStatus,
   PlatformInvoiceStatus,
   AgreementStatus,
+  PlatformEmailSettings,
+  UpdatePlatformEmailSettingsRequest,
+  TestEmailResponse,
+  PlatformEmailTemplate,
+  CreateEmailTemplateRequest,
+  UpdateEmailTemplateRequest,
+  SendBillingEmailRequest,
+  EmailPreviewRequest,
+  EmailPreviewResponse,
 } from "@/types/platformBilling";
 
 export interface PaginatedResponse<T> {
@@ -88,6 +97,16 @@ export const platformBillingApi = {
       return response.data;
     },
 
+    async sendEmail(id: string, data: SendBillingEmailRequest): Promise<Quote> {
+      const response = await apiClient.post<Quote>(`/platform/quotes/${id}/send-email`, data);
+      return response.data;
+    },
+
+    async previewEmail(id: string, data?: EmailPreviewRequest): Promise<EmailPreviewResponse> {
+      const response = await apiClient.post<EmailPreviewResponse>(`/platform/quotes/${id}/email-preview`, data || {});
+      return response.data;
+    },
+
     async accept(id: string): Promise<Quote> {
       const response = await apiClient.post<Quote>(`/platform/quotes/${id}/accept`);
       return response.data;
@@ -146,6 +165,19 @@ export const platformBillingApi = {
 
     async send(id: string): Promise<PlatformInvoice> {
       const response = await apiClient.post<PlatformInvoice>(`/platform/invoices/${id}/send`);
+      return response.data;
+    },
+
+    async sendEmail(id: string, data: SendBillingEmailRequest): Promise<PlatformInvoice> {
+      const response = await apiClient.post<PlatformInvoice>(`/platform/invoices/${id}/send-email`, data);
+      return response.data;
+    },
+
+    async previewEmail(id: string, data?: EmailPreviewRequest): Promise<EmailPreviewResponse> {
+      const response = await apiClient.post<EmailPreviewResponse>(
+        `/platform/invoices/${id}/email-preview`,
+        data || {}
+      );
       return response.data;
     },
 
@@ -250,6 +282,52 @@ export const platformBillingApi = {
         responseType: "blob",
       });
       return response.data;
+    },
+  },
+
+  emailSettings: {
+    async get(): Promise<PlatformEmailSettings> {
+      const response = await apiClient.get<PlatformEmailSettings>("/platform/email-settings");
+      return response.data;
+    },
+
+    async update(data: UpdatePlatformEmailSettingsRequest): Promise<PlatformEmailSettings> {
+      const response = await apiClient.put<PlatformEmailSettings>("/platform/email-settings", data);
+      return response.data;
+    },
+
+    async test(email: string): Promise<TestEmailResponse> {
+      const response = await apiClient.post<TestEmailResponse>("/platform/email-settings/test", {
+        to_email: email,
+      });
+      return response.data;
+    },
+  },
+
+  emailTemplates: {
+    async list(templateType?: string): Promise<PlatformEmailTemplate[]> {
+      const query = templateType ? `?template_type=${templateType}` : "";
+      const response = await apiClient.get<PlatformEmailTemplate[]>(`/platform/email-templates${query}`);
+      return response.data;
+    },
+
+    async getById(id: string): Promise<PlatformEmailTemplate> {
+      const response = await apiClient.get<PlatformEmailTemplate>(`/platform/email-templates/${id}`);
+      return response.data;
+    },
+
+    async create(data: CreateEmailTemplateRequest): Promise<PlatformEmailTemplate> {
+      const response = await apiClient.post<PlatformEmailTemplate>("/platform/email-templates", data);
+      return response.data;
+    },
+
+    async update(id: string, data: UpdateEmailTemplateRequest): Promise<PlatformEmailTemplate> {
+      const response = await apiClient.put<PlatformEmailTemplate>(`/platform/email-templates/${id}`, data);
+      return response.data;
+    },
+
+    async delete(id: string): Promise<void> {
+      await apiClient.delete(`/platform/email-templates/${id}`);
     },
   },
 };

@@ -20,7 +20,12 @@ export interface QuoteLineItemResponse {
 }
 
 export interface CreateQuoteRequest {
-  tenant_id: string;
+  tenant_id?: string | null;
+  hospital_name?: string;
+  hospital_address?: string;
+  hospital_email?: string;
+  hospital_phone?: string;
+  gst_number?: string;
   line_items: QuoteLineItemRequest[];
   valid_until?: string; // YYYY-MM-DD
   tax_rate?: number; // GST percentage
@@ -29,6 +34,12 @@ export interface CreateQuoteRequest {
 }
 
 export interface UpdateQuoteRequest {
+  tenant_id?: string | null;
+  hospital_name?: string;
+  hospital_address?: string;
+  hospital_email?: string;
+  hospital_phone?: string;
+  gst_number?: string;
   line_items?: QuoteLineItemRequest[];
   valid_until?: string;
   tax_rate?: number;
@@ -39,8 +50,13 @@ export interface UpdateQuoteRequest {
 export interface Quote {
   id: string;
   quote_number: string;
-  tenant_id: string;
+  tenant_id: string | null;
   tenant_name: string;
+  hospital_name?: string | null;
+  hospital_address?: string | null;
+  hospital_email?: string | null;
+  hospital_phone?: string | null;
+  gst_number?: string | null;
   status: QuoteStatus;
   valid_until: string;
   subtotal: number;
@@ -53,6 +69,8 @@ export interface Quote {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  sent_to_email?: string | null;
+  last_sent_at?: string | null;
   line_items: QuoteLineItemResponse[];
 }
 
@@ -73,7 +91,11 @@ export interface InvoiceLineItemResponse {
 }
 
 export interface CreatePlatformInvoiceRequest {
-  tenant_id: string;
+  tenant_id?: string | null;
+  hospital_name?: string;
+  hospital_address?: string;
+  hospital_email?: string;
+  hospital_phone?: string;
   quote_id?: string | null;
   line_items: InvoiceLineItemRequest[];
   invoice_date?: string;
@@ -85,6 +107,10 @@ export interface CreatePlatformInvoiceRequest {
 }
 
 export interface UpdatePlatformInvoiceRequest {
+  hospital_name?: string;
+  hospital_address?: string;
+  hospital_email?: string;
+  hospital_phone?: string;
   line_items?: InvoiceLineItemRequest[];
   due_date?: string;
   tax_rate?: number;
@@ -96,8 +122,12 @@ export interface UpdatePlatformInvoiceRequest {
 export interface PlatformInvoice {
   id: string;
   invoice_number: string;
-  tenant_id: string;
+  tenant_id: string | null;
   tenant_name: string;
+  hospital_name?: string | null;
+  hospital_address?: string | null;
+  hospital_email?: string | null;
+  hospital_phone?: string | null;
   quote_id: string | null;
   status: PlatformInvoiceStatus;
   invoice_date: string;
@@ -114,12 +144,14 @@ export interface PlatformInvoice {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  sent_to_email?: string | null;
+  last_sent_at?: string | null;
   line_items: InvoiceLineItemResponse[];
 }
 
 export interface CreateReceiptRequest {
   platform_invoice_id: string;
-  tenant_id: string;
+  tenant_id?: string | null;
   amount: number;
   payment_method: PaymentMethod;
   payment_date?: string;
@@ -182,4 +214,90 @@ export interface Agreement {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+}
+
+export interface PlatformEmailSettings {
+  id: string;
+  smtp_host: string | null;
+  smtp_port: number;
+  smtp_username: string | null;
+  is_password_set: boolean;
+  use_tls: boolean;
+  use_ssl: boolean;
+  from_email: string;
+  from_name: string;
+  reply_to: string | null;
+  bcc_all: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
+}
+
+export interface UpdatePlatformEmailSettingsRequest {
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_username?: string;
+  smtp_password?: string;
+  use_tls?: boolean;
+  use_ssl?: boolean;
+  from_email?: string;
+  from_name?: string;
+  reply_to?: string;
+  bcc_all?: string;
+}
+
+export interface TestEmailResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface PlatformEmailTemplate {
+  id: string;
+  name: string;
+  template_type: "quote" | "invoice" | "receipt" | "custom";
+  subject: string;
+  body_html: string;
+  body_text?: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
+export interface CreateEmailTemplateRequest {
+  name: string;
+  template_type: string;
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  is_default?: boolean;
+}
+
+export interface UpdateEmailTemplateRequest {
+  name?: string;
+  template_type?: string;
+  subject?: string;
+  body_html?: string;
+  body_text?: string;
+  is_default?: boolean;
+}
+
+export interface SendBillingEmailRequest {
+  recipient_email: string;
+  cc_emails?: string[];
+  subject?: string;
+  template_id?: string;
+  custom_message?: string;
+  attach_pdf: boolean;
+}
+
+export interface EmailPreviewRequest {
+  template_id?: string;
+  custom_message?: string;
+}
+
+export interface EmailPreviewResponse {
+  subject: string;
+  html_content: string;
+  text_content: string;
 }

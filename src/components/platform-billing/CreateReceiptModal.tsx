@@ -73,7 +73,7 @@ export function CreateReceiptModal({
   // Load pre-selected invoice
   useEffect(() => {
     if (isOpen && selectedInvoice) {
-      setValue("tenant_id", selectedInvoice.tenant_id);
+      setValue("tenant_id", selectedInvoice.tenant_id || "");
       setValue("platform_invoice_id", selectedInvoice.id);
       
       const balance = selectedInvoice.total_amount - selectedInvoice.paid_amount;
@@ -120,8 +120,9 @@ export function CreateReceiptModal({
   const onSubmit = async (values: CreateReceiptRequest) => {
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: CreateReceiptRequest = {
         ...values,
+        tenant_id: selectedInvoice ? (selectedInvoice.tenant_id || undefined) : (values.tenant_id || undefined),
         amount: Number(values.amount),
       };
       await platformBillingApi.receipts.create(payload);
@@ -148,24 +149,36 @@ export function CreateReceiptModal({
         )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">
-              Hospital Tenant <span className="text-rose-500">*</span>
-            </span>
-            <select
-              {...register("tenant_id", { required: "Hospital is required" })}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
-              disabled={loadingTenants || !!selectedInvoice}
-            >
-              <option value="">Select a hospital...</option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            {errors.tenant_id && <p className="text-xs text-rose-500">{errors.tenant_id.message}</p>}
-          </label>
+          {selectedInvoice ? (
+            <div className="space-y-1">
+              <span className="text-sm font-medium text-slate-700">Hospital Entity</span>
+              <input
+                type="text"
+                value={selectedInvoice.tenant_name}
+                disabled
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700 font-medium"
+              />
+            </div>
+          ) : (
+            <label className="space-y-1">
+              <span className="text-sm font-medium text-slate-700">
+                Hospital Tenant <span className="text-rose-500">*</span>
+              </span>
+              <select
+                {...register("tenant_id", { required: selectedInvoice ? false : "Hospital is required" })}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400 text-sm"
+                disabled={loadingTenants || !!selectedInvoice}
+              >
+                <option value="">Select a hospital...</option>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              {errors.tenant_id && <p className="text-xs text-rose-500">{errors.tenant_id.message}</p>}
+            </label>
+          )}
 
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">
