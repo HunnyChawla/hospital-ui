@@ -12,10 +12,20 @@
     // CONFIGURATION
     // ================================================
 
+    function getDefaultApiUrl() {
+        if (typeof window !== 'undefined' && window.location) {
+            var hostname = window.location.hostname;
+            if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+                return '/api';
+            }
+        }
+        return 'http://localhost:8080';
+    }
+
     var CONFIG = {
         POLL_INTERVAL: 5000,  // Poll every 5 seconds
         CLOCK_INTERVAL: 1000, // Update clock every second
-        DEFAULT_API_URL: 'http://localhost:8080',  // Will be updated from /config endpoint
+        DEFAULT_API_URL: getDefaultApiUrl(),  // Smart default based on environment
         API_URL: null,        // Will be set after loading config
         TTS_API_URL: null,    // Will be set after loading config (from TTS_API_URL env)
         ANNOUNCEMENT_DEBUG: true  // Set to false to silence announcement debug logs
@@ -124,7 +134,8 @@
 
     function getApiUrl() {
         // Use runtime config if available, otherwise fall back to localStorage or default
-        return CONFIG.API_URL || getItem('tv_api_url') || CONFIG.DEFAULT_API_URL;
+        var url = CONFIG.API_URL || getItem('tv_api_url') || CONFIG.DEFAULT_API_URL;
+        return url ? url.replace(/\/$/, '') : '';
     }
 
     function getAuthToken() {
@@ -218,27 +229,53 @@
     // CONFIG LOADING
     // ================================================
 
+    function applyConfig(response) {
+        if (response && response.apiBaseUrl) {
+            CONFIG.API_URL = response.apiBaseUrl;
+            CONFIG.DEFAULT_API_URL = response.apiBaseUrl;
+        }
+        if (response && response.ttsApiUrl) {
+            CONFIG.TTS_API_URL = response.ttsApiUrl;
+            announcementDebug('CONFIG', 'TTS API URL loaded: ' + response.ttsApiUrl);
+        } else {
+            announcementDebug('CONFIG', 'TTS API URL not set — announcement audio disabled');
+        }
+    }
+
     function loadConfig(callback) {
-        // Try to load config from /config endpoint
+        // Try relative 'config' endpoint first (works both on root / and subpaths like /tv-legacy/)
         ajax({
             method: 'GET',
-            url: '/config',
+            url: 'config',
             success: function (response) {
-                if (response && response.apiBaseUrl) {
-                    CONFIG.API_URL = response.apiBaseUrl;
-                    CONFIG.DEFAULT_API_URL = response.apiBaseUrl;
-                }
-                if (response && response.ttsApiUrl) {
-                    CONFIG.TTS_API_URL = response.ttsApiUrl;
-                    announcementDebug('CONFIG', 'TTS API URL loaded: ' + response.ttsApiUrl);
-                } else {
-                    announcementDebug('CONFIG', 'TTS API URL not set — announcement audio disabled');
-                }
+                applyConfig(response);
                 callback && callback();
             },
             error: function () {
-                // If config endpoint fails, use defaults
-                callback && callback();
+                // Fallback to /tv-legacy/config if running behind reverse proxy
+                ajax({
+                    method: 'GET',
+                    url: '/tv-legacy/config',
+                    success: function (response) {
+                        applyConfig(response);
+                        callback && callback();
+                    },
+                    error: function () {
+                        // Fallback to root /config
+                        ajax({
+                            method: 'GET',
+                            url: '/config',
+                            success: function (response) {
+                                applyConfig(response);
+                                callback && callback();
+                            },
+                            error: function () {
+                                // If config endpoint fails, use defaults
+                                callback && callback();
+                            }
+                        });
+                    }
+                });
             }
         });
     }
@@ -391,19 +428,30 @@
                 qrSessionCode = response.session_code;
                 qrExpiryTime = new Date(response.expires_at).getTime();
 
-                // Set image source
-                imgEl.src = response.qr_image_url;
+                // Set image source with fallback on error
+                var qrSrc = response.qr_image_url;
                 imgEl.onload = function () {
                     loadingEl.style.display = 'none';
                     imgEl.style.display = 'inline-block';
                 };
+                imgEl.onerror = function () {
+                    // Fallback to relative QR image endpoint if absolute URL failed (e.g. mixed content / internal IP)
+                    var relativeQrUrl = apiUrl + '/auth/tv/qr/' + qrSessionCode;
+                    if (imgEl.src !== relativeQrUrl && imgEl.src !== window.location.origin + relativeQrUrl) {
+                        imgEl.src = relativeQrUrl;
+                    } else {
+                        loadingEl.innerHTML = '<span style="color: red;">Failed to load QR image.<br>Please use password login or refresh.</span>';
+                        console.error('Failed to load QR image from: ' + qrSrc);
+                    }
+                };
+                imgEl.src = qrSrc;
 
                 // Start polling
                 startQRPolling();
                 startQRTimer();
             },
             error: function (response) {
-                loadingEl.innerHTML = 'Error generating QR code.<br>Please try again.';
+                loadingEl.innerHTML = '<span style="color: red;">Error generating QR code.<br>Please try again or use password login.</span>';
                 console.error('QR Init Error:', response);
             }
         });

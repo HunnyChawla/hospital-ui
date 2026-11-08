@@ -65,7 +65,19 @@ var server = http.createServer(function (req, res) {
     // Parse URL
     var urlPath = req.url.split('?')[0];
 
-    // Handle config endpoint
+    // Handle trailing slash redirect for subpath if proxy forwards without stripping
+    if (urlPath === '/tv-legacy') {
+        res.writeHead(301, { 'Location': '/tv-legacy/' });
+        res.end();
+        return;
+    }
+
+    // Strip /tv-legacy prefix if present (fallback for proxies that do not strip prefix)
+    if (urlPath.indexOf('/tv-legacy/') === 0) {
+        urlPath = urlPath.substring('/tv-legacy'.length);
+    }
+
+    // Handle config endpoint (supports both /config and /tv-legacy/config)
     if (urlPath === '/config') {
         res.writeHead(200, {
             'Content-Type': 'application/json',
