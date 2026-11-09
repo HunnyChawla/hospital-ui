@@ -16,6 +16,7 @@ on:
       - pre-develop
       - sandbox
       - main
+  workflow_dispatch:
 
 jobs:
   ci:
