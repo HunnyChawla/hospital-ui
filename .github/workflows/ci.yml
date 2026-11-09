@@ -1,0 +1,25 @@
+name: CI Validation
+
+on:
+  push:
+    branches:
+      - dev
+      - pre-develop
+      - sandbox
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - dev
+      - pre-develop
+      - sandbox
+      - main
+
+jobs:
+  ci:
+    name: Run Next.js CI
+    uses: TechnesianLabs/ci-cd-templates/.github/workflows/nextjs-ci.yml@main
+    with:
+      node-version: '20'

@@ -121,6 +121,7 @@ export const PLATFORM_OWNER_SCREENS: readonly string[] = [
   "/api-permissions",
   "/screens",
   "/dashboard-config",
+  "/master-data",
   "/terms-conditions",
   "/platform-patient-management",
 ] as const;
@@ -151,6 +152,7 @@ export const PLATFORM_OWNER_GROUPS: NavGroupDefinition[] = [
       { path: "/api-permissions", label: "API Permissions", icon: Shield },
       { path: "/screens", label: "Screens", icon: Monitor },
       { path: "/dashboard-config", label: "Dashboard Settings", icon: LayoutDashboard },
+      { path: "/master-data", label: "Master Data", icon: Package },
       { path: "/platform-patient-management", label: "Patient Data Cleanup", icon: UserX },
     ],
   },
