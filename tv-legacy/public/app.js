@@ -357,6 +357,7 @@
     };
 
     window.handleLogout = function () {
+        disconnectSSE();
         removeItem('tv_auth_token');
         removeItem('tv_user_id');
         removeItem('tv_tenant_id');
@@ -428,17 +429,17 @@
                 qrSessionCode = response.session_code;
                 qrExpiryTime = new Date(response.expires_at).getTime();
 
-                // Set image source with fallback on error
-                var qrSrc = response.qr_image_url;
+                // Set image source with fallback on error (prevents timeout on wrong host IP in response.qr_image_url)
+                var directQrUrl = apiUrl.replace(/\/$/, '') + '/auth/tv/qr/' + qrSessionCode;
+                var qrSrc = response.qr_image_url || directQrUrl;
                 imgEl.onload = function () {
                     loadingEl.style.display = 'none';
                     imgEl.style.display = 'inline-block';
                 };
                 imgEl.onerror = function () {
-                    // Fallback to relative QR image endpoint if absolute URL failed (e.g. mixed content / internal IP)
-                    var relativeQrUrl = apiUrl + '/auth/tv/qr/' + qrSessionCode;
-                    if (imgEl.src !== relativeQrUrl && imgEl.src !== window.location.origin + relativeQrUrl) {
-                        imgEl.src = relativeQrUrl;
+                    // Fallback to direct QR image endpoint if absolute URL failed (e.g. mixed content / internal IP)
+                    if (imgEl.src !== directQrUrl && imgEl.src !== window.location.origin + directQrUrl) {
+                        imgEl.src = directQrUrl;
                     } else {
                         loadingEl.innerHTML = '<span style="color: red;">Failed to load QR image.<br>Please use password login or refresh.</span>';
                         console.error('Failed to load QR image from: ' + qrSrc);
@@ -604,7 +605,7 @@
         }
     }
 
-    function setConnectionStatus(status) {
+    function setConnectionStatus(status, mode) {
         var dot = document.getElementById('status-dot');
         var text = document.getElementById('status-text');
 
@@ -613,14 +614,19 @@
         dot.className = '';
 
         if (status === 'connected') {
-            dot.className = 'status-connected';
-            text.innerHTML = 'Live';
+            if (mode === 'polling') {
+                dot.className = 'status-polling';
+                text.innerHTML = 'Live (Polling)';
+            } else {
+                dot.className = 'status-connected';
+                text.innerHTML = 'Live (SSE Stream)';
+            }
         } else if (status === 'connecting') {
             dot.className = 'status-connecting';
             text.innerHTML = 'Connecting...';
         } else {
             dot.className = 'status-error';
-            text.innerHTML = 'Error';
+            text.innerHTML = 'Connection Error';
         }
     }
 
@@ -669,8 +675,8 @@
                     setSelectedDoctorId(doctors[0].id);
                 }
 
-                // Start polling
-                startPolling();
+                // Connect queues (via SSE stream if supported, otherwise polling)
+                connectQueues();
             },
             error: function (response, status) {
                 var selector = document.getElementById('doctor-selector');
@@ -696,10 +702,210 @@
             previousDocQueue = [];
             // Reset announcement state for new doctor context
             resetAnnouncementState();
-            // Fetch immediately
-            fetchQueues();
+            // Connect immediately
+            connectQueues();
         }
     };
+
+    // ================================================
+    // SSE STREAM & POLLING MANAGEMENT
+    // ================================================
+
+    var sseOptometristController = null;
+    var sseDoctorController = null;
+    var isSseActive = false;
+
+    function isSSESupported() {
+        return (typeof window.EventSource !== 'undefined') ||
+               (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined');
+    }
+
+    function isHeartbeatMessage(data) {
+        if (!data || data === null || data === undefined) return true;
+        if (data.type === 'heartbeat' || data.type === 'ping' || data.type === 'keepalive') return true;
+        if (typeof data === 'object' && !Array.isArray(data)) {
+            if (Object.keys(data).length === 0) return true;
+            if (data.timestamp && !data.patient_id && !data.visit_id && !data.id && !data.queue && !data.items && !data.data && !data.entries && !data.slots) return true;
+        }
+        return false;
+    }
+
+    function disconnectSSE() {
+        if (sseOptometristController) {
+            try {
+                if (sseOptometristController.abort) sseOptometristController.abort();
+                if (sseOptometristController.close) sseOptometristController.close();
+            } catch (e) {}
+            sseOptometristController = null;
+        }
+        if (sseDoctorController) {
+            try {
+                if (sseDoctorController.abort) sseDoctorController.abort();
+                if (sseDoctorController.close) sseDoctorController.close();
+            } catch (e) {}
+            sseDoctorController = null;
+        }
+        isSseActive = false;
+    }
+
+    function connectStream(url, onMessage, onError) {
+        var token = getAuthToken();
+        if (typeof window.fetch !== 'undefined' && typeof window.ReadableStream !== 'undefined' && typeof AbortController !== 'undefined') {
+            var controller = new AbortController();
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'text/event-stream',
+                    'Authorization': 'Bearer ' + token
+                },
+                signal: controller.signal
+            }).then(function (response) {
+                if (!response.ok) {
+                    onError && onError(new Error('HTTP error ' + response.status));
+                    return;
+                }
+                if (!response.body) {
+                    onError && onError(new Error('ReadableStream not supported'));
+                    return;
+                }
+                var reader = response.body.getReader();
+                var decoder = new TextDecoder();
+                var buffer = '';
+
+                function readChunk() {
+                    reader.read().then(function (result) {
+                        if (result.done) {
+                            return;
+                        }
+                        buffer += decoder.decode(result.value, { stream: true });
+                        var parts = buffer.split('\n\n');
+                        buffer = parts.pop() || '';
+
+                        for (var i = 0; i < parts.length; i++) {
+                            var part = parts[i];
+                            var lines = part.split('\n');
+                            var eventName = 'message';
+                            var currentData = [];
+                            for (var j = 0; j < lines.length; j++) {
+                                var line = lines[j];
+                                if (line.indexOf('event: ') === 0) {
+                                    eventName = line.slice(7).trim();
+                                } else if (line.indexOf('data: ') === 0) {
+                                    currentData.push(line.slice(6));
+                                }
+                            }
+                            if (eventName === 'heartbeat' || eventName === 'ping' || eventName === 'keepalive') {
+                                continue;
+                            }
+                            if (currentData.length > 0) {
+                                var dataStr = currentData.join('\n');
+                                try {
+                                    var parsed = JSON.parse(dataStr);
+                                    if (!isHeartbeatMessage(parsed)) {
+                                        onMessage(parsed);
+                                    }
+                                } catch (e) {
+                                    if (!isHeartbeatMessage(dataStr)) {
+                                        onMessage(dataStr);
+                                    }
+                                }
+                            }
+                        }
+                        readChunk();
+                    }).catch(function (err) {
+                        if (err.name !== 'AbortError') {
+                            onError && onError(err);
+                        }
+                    });
+                }
+
+                readChunk();
+            }).catch(function (err) {
+                if (err.name !== 'AbortError') {
+                    onError && onError(err);
+                }
+            });
+            return controller;
+        } else if (typeof window.EventSource !== 'undefined') {
+            var es = new EventSource(url);
+            es.onmessage = function (event) {
+                try {
+                    var parsed = JSON.parse(event.data);
+                    onMessage(parsed);
+                } catch (e) {
+                    onMessage(event.data);
+                }
+            };
+            es.onerror = function (err) {
+                onError && onError(err);
+            };
+            return es;
+        } else {
+            onError && onError(new Error('SSE not supported'));
+            return null;
+        }
+    }
+
+    function connectQueues() {
+        var doctorId = getSelectedDoctorId();
+        if (!doctorId) return;
+
+        disconnectSSE();
+
+        if (isSSESupported()) {
+            if (queuePollTimeout) {
+                clearTimeout(queuePollTimeout);
+                queuePollTimeout = null;
+            }
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+
+            setConnectionStatus('connecting');
+
+            var apiUrl = getApiUrl();
+            var optUrl = apiUrl + '/opd/eye-hospital/optometrist-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned';
+            var docUrl = apiUrl + '/opd/eye-hospital/group-queue/' + doctorId + '/stream?status=awaiting_optometrist,optometrist_assigned,optometrist_investigation_in_progress,optometrist_investigation_completed,awaiting_doctor,doctor_assigned,consultation_in_progress,dilation_in_progress,dilation_completed,consultation_completed,completed,no_show,checked_in,scheduled';
+
+            var sseFailed = false;
+            function handleStreamError(err) {
+                announcementDebug('SSE', 'Stream connection error/closed: ' + (err ? err.message : 'Unknown error'));
+                if (!sseFailed && isSseActive) {
+                    sseFailed = true;
+                    disconnectSSE();
+                    announcementDebug('SSE', 'Falling back to polling mode');
+                    startPolling();
+                }
+            }
+
+            isSseActive = true;
+            sseOptometristController = connectStream(optUrl, function (data) {
+                if (isHeartbeatMessage(data)) return;
+                var patients = parseQueueResponse(data);
+                renderOptometristQueue(patients);
+                updateOptometristStats(patients);
+                checkForNewAssignments(patients, previousOptQueue, 'optometrist');
+                previousOptQueue = patients;
+                setConnectionStatus('connected', 'sse');
+                updateLastUpdateTime();
+            }, handleStreamError);
+
+            sseDoctorController = connectStream(docUrl, function (data) {
+                if (isHeartbeatMessage(data)) return;
+                var patients = parseQueueResponse(data);
+                renderDoctorQueue(patients);
+                updateDoctorStats(patients);
+                checkForNewAssignments(patients, previousDocQueue, 'doctor');
+                previousDocQueue = patients;
+                setConnectionStatus('connected', 'sse');
+                updateLastUpdateTime();
+            }, handleStreamError);
+        } else {
+            announcementDebug('SSE', 'SSE not supported by browser — using polling mode');
+            startPolling();
+        }
+    }
 
     var queuePollErrors = 0;
     var queuePollTimeout = null;
@@ -746,7 +952,7 @@
                 updateOptometristStats(patients);
                 checkForNewAssignments(patients, previousOptQueue, 'optometrist');
                 previousOptQueue = patients;
-                setConnectionStatus('connected');
+                setConnectionStatus('connected', 'polling');
                 updateLastUpdateTime();
                 scheduleNextQueuePoll(baseInterval);
             },
@@ -777,7 +983,7 @@
                 updateDoctorStats(patients);
                 checkForNewAssignments(patients, previousDocQueue, 'doctor');
                 previousDocQueue = patients;
-                setConnectionStatus('connected');
+                setConnectionStatus('connected', 'polling');
                 updateLastUpdateTime();
             },
             error: function (response, status) {
@@ -1427,6 +1633,10 @@
     // ================================================
 
     window.onbeforeunload = function () {
+        disconnectSSE();
+        if (queuePollTimeout) {
+            clearTimeout(queuePollTimeout);
+        }
         if (pollInterval) {
             clearInterval(pollInterval);
         }
