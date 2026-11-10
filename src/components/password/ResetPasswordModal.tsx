@@ -74,23 +74,38 @@ export function ResetPasswordModal({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Reset User Password" size="sm">
-            <div className="space-y-5">
+        <Modal
+            isOpen={isOpen}
+            onClose={handleClose}
+            title={
+                <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700 shrink-0">
+                        <Lock className="h-4 w-4" />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold text-slate-900">Reset User Password</h2>
+                        <p className="text-xs text-slate-500">Issue a new credential for {userName}</p>
+                    </div>
+                </div>
+            }
+            size="sm"
+        >
+            <div className="space-y-4">
                 {/* User Info Banner */}
-                <div className="flex items-center gap-3 rounded-xl border border-sky-100 bg-sky-50 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100">
+                <div className="flex items-center gap-3 rounded-xl border border-sky-100 bg-sky-50/70 p-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100">
                         <User className="h-5 w-5 text-sky-600" />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-slate-900">{userName}</p>
+                        <p className="text-sm font-semibold text-slate-900">{userName}</p>
                         <p className="text-xs text-slate-500">The user will be required to change this password on next login</p>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-5">
+                <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-4">
                     {/* New Password */}
                     <div className="space-y-1.5">
-                        <label className="block text-sm font-medium text-slate-700">
+                        <label className="block text-xs font-semibold text-slate-700">
                             New Password <span className="text-rose-500">*</span>
                         </label>
                         <div className="relative">
@@ -109,13 +124,14 @@ export function ResetPasswordModal({
                                         return res.isValid || res.errors[0];
                                     },
                                 })}
-                                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-10 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
                                 placeholder="Enter new password"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowNewPassword(!showNewPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                aria-label={showNewPassword ? "Hide password" : "Show password"}
                             >
                                 {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
@@ -131,7 +147,7 @@ export function ResetPasswordModal({
 
                     {/* Confirm New Password */}
                     <div className="space-y-1.5">
-                        <label className="block text-sm font-medium text-slate-700">
+                        <label className="block text-xs font-semibold text-slate-700">
                             Confirm Password <span className="text-rose-500">*</span>
                         </label>
                         <div className="relative">
@@ -144,13 +160,14 @@ export function ResetPasswordModal({
                                     validate: (value) =>
                                         value === newPassword || "Passwords do not match",
                                 })}
-                                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                                className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-10 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
                                 placeholder="Confirm password"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                             >
                                 {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
@@ -161,21 +178,21 @@ export function ResetPasswordModal({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 pt-2 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={handleClose}
-                            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                            className="min-h-[44px] rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-5 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {isSubmitting ? (
-                                <span className="flex items-center gap-2">
+                                <span className="flex items-center justify-center gap-2">
                                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
