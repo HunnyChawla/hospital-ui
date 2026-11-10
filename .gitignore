@@ -44,6 +44,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# AI Agent skill directories
-.agents/
 
