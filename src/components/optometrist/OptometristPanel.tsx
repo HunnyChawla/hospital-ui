@@ -81,10 +81,17 @@ export function OptometristPanel() {
   const [selectedPatientUhid, setSelectedPatientUhid] = useState<string>("");
   const [currentVisitId, setCurrentVisitId] = useState<string | undefined>(undefined);
   const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
-  const [optometristUser, setOptometristUser] = useState<{ full_name: string } | null>(null);
+  const authUserDetails = useAppSelector((state) => state.auth.userDetails);
+  const [optometristUser, setOptometristUser] = useState<{ full_name: string } | null>(() => {
+    return authUserDetails?.full_name ? { full_name: authUserDetails.full_name } : null;
+  });
 
-  // Fetch optometrist user details
+  // Keep optometristUser in sync with userDetails from Redux, or fetch if not present
   useEffect(() => {
+    if (authUserDetails?.full_name) {
+      setOptometristUser({ full_name: authUserDetails.full_name });
+      return;
+    }
     if (userId) {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId);
@@ -100,7 +107,7 @@ export function OptometristPanel() {
           });
         });
     }
-  }, [userId]);
+  }, [userId, authUserDetails?.full_name]);
 
   // Determine if user is a doctor
   const isDoctor = userRole === "doctor";
@@ -114,19 +121,15 @@ export function OptometristPanel() {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       optometristVisitsApi.getById(currentVisitId, tenantId || undefined)
         .then((visit) => {
-          if (visit.optometrist_id) {
-            setOptometristIdForVisit(visit.optometrist_id);
-          } else {
-            console.warn("Optometrist ID not found in visit details, setting to empty");
-            setOptometristIdForVisit("");
-          }
+          const targetOptId = visit.optometrist_id || "";
+          setOptometristIdForVisit((prev) => (prev === targetOptId ? prev : targetOptId));
         })
         .catch((err) => {
           console.error("Failed to fetch visit details for optometrist ID", err);
-          setOptometristIdForVisit("");
+          setOptometristIdForVisit((prev) => (prev === "" ? prev : ""));
         });
     } else {
-      setOptometristIdForVisit("");
+      setOptometristIdForVisit((prev) => (prev === "" ? prev : ""));
     }
   }, [currentVisitId, isDoctor]);
 

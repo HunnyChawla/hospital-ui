@@ -186,6 +186,8 @@ export function Sidebar() {
   } = useSidebar();
   const dispatch = useAppDispatch();
   const doctors = useAppSelector((state) => state.doctors.list);
+  const doctorsLoading = useAppSelector((state) => state.doctors.loading);
+  const doctorsInitialized = useAppSelector((state) => state.doctors.initialized);
   const { screenDetails, allowedScreens, userRole, initialized, loading } = usePermissions();
   const { enabled: abdmEnabled } = useAbdmFlags();
   const [pendingCount, setPendingCount] = useState(0);
@@ -194,10 +196,10 @@ export function Sidebar() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (userRole === "doctor" && doctors.length === 0) {
+    if (userRole === "doctor" && !doctorsInitialized && !doctorsLoading) {
       dispatch(fetchDoctors());
     }
-  }, [userRole, doctors.length, dispatch]);
+  }, [userRole, doctorsInitialized, doctorsLoading, dispatch]);
 
   // Panel filter: each doctor/examiner sees exactly one panel entry
   const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");

@@ -6,12 +6,14 @@ type WardsState = {
   list: Ward[];
   loading: boolean;
   error: string | null;
+  initialized: boolean;
 };
 
 const initialState: WardsState = {
   list: [],
   loading: false,
   error: null,
+  initialized: false,
 };
 
 export const fetchWards = createAsyncThunk("wards/fetch", async () => {
@@ -38,10 +40,12 @@ const wardsSlice = createSlice({
         state.loading = false;
         state.list = action.payload;
         state.error = null;
+        state.initialized = true;
       })
       .addCase(fetchWards.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch wards";
+        state.initialized = true;
       });
   },
 });

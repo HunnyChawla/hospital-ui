@@ -141,7 +141,13 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
-  const { isAuthenticated, userDetails, consentRequired } = useAppSelector((s) => s.auth);
+  const {
+    isAuthenticated,
+    userDetails,
+    userDetailsLoading,
+    userDetailsInitialized,
+    consentRequired,
+  } = useAppSelector((s) => s.auth);
   const tenant = useAppSelector((s) => s.tenant);
   const doctors = useAppSelector((s) => s.doctors);
   const wards = useAppSelector((s) => s.wards);
@@ -212,8 +218,8 @@ export default function DashboardLayout({
 
     // Domain data fetching on mount or once consent is accepted
     const fetchData = async () => {
-      // Fetch user details only if not already loaded
-      if (typeof window !== "undefined" && !userDetails) {
+      // Fetch user details only if not already loaded or in flight
+      if (typeof window !== "undefined" && !userDetails && !userDetailsInitialized && !userDetailsLoading) {
         const userId = localStorage.getItem("user_id");
         if (userId) {
           dispatch(fetchUserDetails(userId));
@@ -222,8 +228,8 @@ export default function DashboardLayout({
 
       // Fetch hospital domain entities only for hospital users (skip for platform owner)
       if (userRole !== "platform_owner") {
-        // Fetch doctors once if not already loaded
-        if (doctors.list.length === 0 && !doctors.loading && !doctors.error) {
+        // Fetch doctors once if not already loaded or in flight
+        if (!doctors.initialized && !doctors.loading) {
           dispatch(fetchDoctors());
         }
 
@@ -231,11 +237,11 @@ export default function DashboardLayout({
         if (permissionsInitialized && !permissionsLoading) {
           const canAccessIpd = hasAccess("/admissions") || hasAccess("/ipd-workspace") || hasAccess("/day-care");
           if (canAccessIpd) {
-            if (wards.list.length === 0 && !wards.loading && !wards.error) {
+            if (!wards.initialized && !wards.loading) {
               dispatch(fetchWards());
             }
 
-            if (beds.list.length === 0 && !beds.loading && !beds.error) {
+            if (!beds.initialized && !beds.loading) {
               dispatch(fetchBeds());
             }
           }
@@ -245,8 +251,24 @@ export default function DashboardLayout({
       setIsCheckingAuth(false);
     };
     fetchData();
-    // Re-run when consentRequired transitions to false or permissions resolve so domain data is fetched safely
-  }, [consentRequired, dispatch, userRole, permissionsInitialized, permissionsLoading, hasAccess, doctors.list.length, doctors.loading, doctors.error, wards.list.length, wards.loading, wards.error, beds.list.length, beds.loading, beds.error, userDetails]);
+    // Re-run when consentRequired transitions to false, permissions resolve, or slice states update safely
+  }, [
+    consentRequired,
+    dispatch,
+    userRole,
+    permissionsInitialized,
+    permissionsLoading,
+    hasAccess,
+    doctors.initialized,
+    doctors.loading,
+    wards.initialized,
+    wards.loading,
+    beds.initialized,
+    beds.loading,
+    userDetails,
+    userDetailsInitialized,
+    userDetailsLoading,
+  ]);
 
   // Listen for user changes (create/update) to refresh doctors cache
   useEffect(() => {

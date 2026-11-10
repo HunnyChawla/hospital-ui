@@ -31,6 +31,7 @@ export function AppointmentForm({
   const patients = useAppSelector((s) => s.patients.list);
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
+  const doctorsInitialized = useAppSelector((s) => s.doctors.initialized);
 
   // Only active doctors should be selectable for appointments
   const activeDoctors = useMemo(() => {
@@ -57,10 +58,10 @@ export function AppointmentForm({
   const justSelectedRef = useRef(false);
 
   useEffect(() => {
-    if (doctors.length === 0 && !doctorsLoading) {
+    if (!doctorsInitialized && !doctorsLoading) {
       dispatch(fetchDoctors());
     }
-  }, [dispatch, doctors.length, doctorsLoading]);
+  }, [dispatch, doctorsInitialized, doctorsLoading]);
 
   // Save selected doctor to local storage
   useEffect(() => {

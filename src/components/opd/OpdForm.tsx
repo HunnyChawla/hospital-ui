@@ -31,6 +31,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
   const queue = useAppSelector((s) => s.queue.entries);
   const doctors = useAppSelector((s) => s.doctors.list);
   const doctorsLoading = useAppSelector((s) => s.doctors.loading);
+  const doctorsInitialized = useAppSelector((s) => s.doctors.initialized);
 
   // Only active doctors should be selectable for new visits
   const activeDoctors = useMemo(() => {
@@ -104,10 +105,10 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
 
   // Fetch doctors on mount
   useEffect(() => {
-    if (doctors.length === 0 && !doctorsLoading) {
+    if (!doctorsInitialized && !doctorsLoading) {
       dispatch(fetchDoctors());
     }
-  }, [dispatch, doctors.length, doctorsLoading]);
+  }, [dispatch, doctorsInitialized, doctorsLoading]);
 
 
   // Dropdown search effect

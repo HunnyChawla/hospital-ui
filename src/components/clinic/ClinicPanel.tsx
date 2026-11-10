@@ -42,6 +42,7 @@ import { FullscreenContainerProvider } from "@/context/FullscreenContainerContex
 import { ExaminationViewProvider } from "@/context/ExaminationViewContext";
 import { usersApi } from "@/services/usersApi";
 import { getTenantIdForApi } from "@/utils/auth";
+import { useAppSelector } from "@/redux/hooks";
 import { Footer } from "@/components/layout/Footer";
 
 const USER_HIDDEN_KEYS_STORAGE = "clinic_panel_hidden_tabs";
@@ -98,7 +99,10 @@ function ClinicPanelInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [panelUser, setPanelUser] = useState<{ full_name: string } | null>(null);
+  const authUserDetails = useAppSelector((state) => state.auth.userDetails);
+  const [panelUser, setPanelUser] = useState<{ full_name: string } | null>(() => {
+    return authUserDetails?.full_name ? { full_name: authUserDetails.full_name } : null;
+  });
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(async () => {
@@ -127,8 +131,12 @@ function ClinicPanelInner() {
     };
   }, []);
 
-  // Fetch user details for panel header
+  // Sync user details for panel header from Redux or fetch as fallback
   useEffect(() => {
+    if (authUserDetails?.full_name) {
+      setPanelUser({ full_name: authUserDetails.full_name });
+      return;
+    }
     if (userId) {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId);
@@ -140,7 +148,7 @@ function ClinicPanelInner() {
           console.error("Failed to fetch user details for clinic panel header:", error);
         });
     }
-  }, [userId]);
+  }, [userId, authUserDetails?.full_name]);
 
   const toggleHiddenKey = useCallback((key: string) => {
     setUserHiddenKeys((prev) => {

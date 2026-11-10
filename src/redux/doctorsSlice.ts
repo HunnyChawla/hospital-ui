@@ -5,12 +5,14 @@ type DoctorsState = {
   list: Doctor[];
   loading: boolean;
   error: string | null;
+  initialized: boolean;
 };
 
 const initialState: DoctorsState = {
   list: [],
   loading: false,
   error: null,
+  initialized: false,
 };
 
 export const fetchDoctors = createAsyncThunk("doctors/fetch", async () => {
@@ -72,10 +74,12 @@ const doctorsSlice = createSlice({
         state.loading = false;
         state.list = action.payload;
         state.error = null;
+        state.initialized = true;
       })
       .addCase(fetchDoctors.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch doctors";
+        state.initialized = true;
       })
       .addCase(createDoctor.pending, (state) => {
         state.loading = true;

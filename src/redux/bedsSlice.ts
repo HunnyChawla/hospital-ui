@@ -6,12 +6,14 @@ type BedsState = {
   list: Bed[];
   loading: boolean;
   error: string | null;
+  initialized: boolean;
 };
 
 const initialState: BedsState = {
   list: [],
   loading: false,
   error: null,
+  initialized: false,
 };
 
 export const fetchBeds = createAsyncThunk("beds/fetch", async () => {
@@ -38,10 +40,12 @@ const bedsSlice = createSlice({
         state.loading = false;
         state.list = action.payload;
         state.error = null;
+        state.initialized = true;
       })
       .addCase(fetchBeds.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch beds";
+        state.initialized = true;
       });
   },
 });

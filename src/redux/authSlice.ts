@@ -12,6 +12,9 @@ type AuthState = {
     full_name: string;
     email: string;
   } | null;
+  userDetailsLoading: boolean;
+  userDetailsInitialized: boolean;
+  userDetailsError: string | null;
   token: string | null;
   loading: boolean;
   error: string | null;
@@ -24,6 +27,9 @@ type AuthState = {
 const initialState: AuthState = {
   user: null,
   userDetails: null,
+  userDetailsLoading: false,
+  userDetailsInitialized: false,
+  userDetailsError: null,
   token: null,
   loading: false,
   error: null,
@@ -298,6 +304,7 @@ const authSlice = createSlice({
             full_name: action.payload.full_name,
             email: action.payload.email,
           };
+          state.userDetailsInitialized = true;
         }
       })
       .addCase(login.rejected, (state, action) => {
@@ -327,6 +334,7 @@ const authSlice = createSlice({
             full_name: action.payload.full_name,
             email: action.payload.email,
           };
+          state.userDetailsInitialized = true;
         }
       })
       .addCase(completeLogin.rejected, (state, action) => {
@@ -334,12 +342,27 @@ const authSlice = createSlice({
         state.error = action.error.message || "Failed to complete login";
         state.isAuthenticated = false;
       })
+      .addCase(fetchUserDetails.pending, (state) => {
+        state.userDetailsLoading = true;
+        state.userDetailsError = null;
+      })
       .addCase(fetchUserDetails.fulfilled, (state, action) => {
+        state.userDetailsLoading = false;
         state.userDetails = action.payload;
+        state.userDetailsInitialized = true;
+        state.userDetailsError = null;
+      })
+      .addCase(fetchUserDetails.rejected, (state, action) => {
+        state.userDetailsLoading = false;
+        state.userDetailsInitialized = true;
+        state.userDetailsError = action.error.message || "Failed to fetch user details";
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.userDetails = null;
+        state.userDetailsLoading = false;
+        state.userDetailsInitialized = false;
+        state.userDetailsError = null;
         state.token = null;
         state.isAuthenticated = false;
         state.error = null;

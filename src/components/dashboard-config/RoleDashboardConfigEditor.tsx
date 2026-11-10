@@ -192,13 +192,12 @@ export function RoleDashboardConfigEditor() {
   useEffect(() => {
     if (isPlatformOwner) {
       tenantsApi.list({ page: 1, page_size: 100 }).then((res) => {
-        setTenants(res.items || []);
-        if (!selectedTenantId && res.items.length > 0) {
-          setSelectedTenantId(res.items[0].id);
-        }
+        const items = res.items || [];
+        setTenants(items);
+        setSelectedTenantId((prev) => (prev ? prev : (items.length > 0 ? items[0].id : "")));
       }).catch(console.error);
     }
-  }, [isPlatformOwner, selectedTenantId]);
+  }, [isPlatformOwner]);
 
   // Load configuration for selected scope & role
   const loadConfig = useCallback(async () => {

@@ -15,6 +15,8 @@ export const useDoctorPanel = () => {
   // Get current doctor from localStorage and Redux
   const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
   const doctors = useAppSelector((state) => state.doctors.list);
+  const doctorsLoading = useAppSelector((state) => state.doctors.loading);
+  const doctorsInitialized = useAppSelector((state) => state.doctors.initialized);
   const currentDoctor = doctors.find((d) => d.user_id === userId);
 
   // Doctor panel state
@@ -29,10 +31,10 @@ export const useDoctorPanel = () => {
 
   // Fetch doctors on mount if not already loaded
   useEffect(() => {
-    if (doctors.length === 0) {
+    if (!doctorsInitialized && !doctorsLoading) {
       dispatch(fetchDoctors());
     }
-  }, [dispatch, doctors.length]);
+  }, [dispatch, doctorsInitialized, doctorsLoading]);
 
   // Fetch today's schedule when doctor is identified
   useEffect(() => {
