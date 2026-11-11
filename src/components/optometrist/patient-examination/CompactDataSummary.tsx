@@ -257,6 +257,25 @@ export function VisionSummary({ record }: { record: any }) {
                     </span>
                 </div>
             </div>
+
+            {/* Color Vision Summary (if recorded) */}
+            {(record.od_color_vision || record.os_color_vision) && (
+                <div className="col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-slate-400 font-semibold uppercase text-[10px]">Color Vision:</span>
+                    <div className="flex gap-3">
+                        {record.od_color_vision && (
+                            <span className="text-slate-700">
+                                <strong className="text-blue-900">OD:</strong> {record.od_color_vision === "NORMAL" ? "Normal" : `Abnormal (${record.od_color_vision_plates || ""})`}
+                            </span>
+                        )}
+                        {record.os_color_vision && (
+                            <span className="text-slate-700">
+                                <strong className="text-green-900">OS:</strong> {record.os_color_vision === "NORMAL" ? "Normal" : `Abnormal (${record.os_color_vision_plates || ""})`}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -656,6 +675,20 @@ export function MergedVisionSummary({
                     <div className="flex justify-between">
                         <span className="text-slate-600"><span className="font-medium text-blue-900">OD:</span> {formatVA(visionRecord.od_ucva_distance)}</span>
                         <span className="text-slate-600"><span className="font-medium text-green-900">OS:</span> {formatVA(visionRecord.os_ucva_distance)}</span>
+                    </div>
+                </div>
+            )}
+
+            {hasVision && (visionRecord.od_color_vision || visionRecord.os_color_vision) && (
+                <div className="pb-1.5 border-b border-dashed border-slate-200/50">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">Color Vision</span>
+                    <div className="flex justify-between">
+                        <span className="text-slate-600">
+                            <span className="font-medium text-blue-900">OD:</span> {visionRecord.od_color_vision === "NORMAL" ? "Normal" : `Abnormal (${visionRecord.od_color_vision_plates || ""})`}
+                        </span>
+                        <span className="text-slate-600">
+                            <span className="font-medium text-green-900">OS:</span> {visionRecord.os_color_vision === "NORMAL" ? "Normal" : `Abnormal (${visionRecord.os_color_vision_plates || ""})`}
+                        </span>
                     </div>
                 </div>
             )}

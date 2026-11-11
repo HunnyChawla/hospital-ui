@@ -16,11 +16,17 @@ export interface ExamVisionData {
   od_va_with_current_specs?: string | null;
   od_near_ucva?: string | null;
   od_near_with_current_specs?: string | null;
+  od_color_vision?: string | null;
+  od_color_vision_plates?: string | null;
+  od_color_vision_deficiency?: string | null;
   os_ucva_distance?: string | null;
   os_ph_va?: string | null;
   os_va_with_current_specs?: string | null;
   os_near_ucva?: string | null;
   os_near_with_current_specs?: string | null;
+  os_color_vision?: string | null;
+  os_color_vision_plates?: string | null;
+  os_color_vision_deficiency?: string | null;
   notes?: string | null;
 }
 

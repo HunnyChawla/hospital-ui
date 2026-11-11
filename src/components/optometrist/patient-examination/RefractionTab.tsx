@@ -333,6 +333,7 @@ export function RefractionTab({
     [visitSource, visitId]
   ) as any | undefined;
   const hasExistingForVisit = !!visitCombined || !!visitOD || !!visitOS;
+  const showForm = isAdding || !hasExistingForVisit;
 
   const displayCombined = visitCombined || latestCombined;
   const latestOD: any = latestPerEyeOD || (displayCombined ? { ...displayCombined.od, recorded_at: displayCombined.recorded_at } : undefined);
@@ -586,6 +587,21 @@ export function RefractionTab({
     }
   };
 
+  // Keyboard shortcut: Ctrl+S saves refraction
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === "s" || e.key === "S") && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (showForm) {
+          handleSubmit();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showForm, formData, isSubmitting]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -599,13 +615,13 @@ export function RefractionTab({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!isAdding && (
+          {!showForm && hasExistingForVisit && (
             <button
               onClick={() => setIsAdding(true)}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+              className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-sky-700 transition"
             >
-              <Plus className="h-4 w-4" />
-              {hasExistingForVisit ? "Edit Refraction" : "Add Refraction"}
+              <Plus className="h-3.5 w-3.5" />
+              Edit Refraction
             </button>
           )}
           <button
@@ -613,13 +629,13 @@ export function RefractionTab({
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
             title="Configure Quick Buttons"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Current Visit Refraction Display - Only show when there's data for THIS visit */}
-      {!isAdding && hasExistingForVisit && (
+      {/* Current Visit Refraction Display - Only show when there's data for THIS visit and not editing */}
+      {!showForm && hasExistingForVisit && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-slate-900">
             This Visit&apos;s Refraction
@@ -846,7 +862,7 @@ export function RefractionTab({
       )}
 
       {/* Refraction History - Last 5 Visits */}
-      {!isAdding && (
+      {!showForm && (
         <RefractionHistorySection
           patientId={patientId}
           currentVisitId={visitId}
@@ -854,7 +870,7 @@ export function RefractionTab({
       )}
 
       {/* Add/Edit Refraction Form */}
-      {isAdding && (
+      {showForm && (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Form Header with Actions */}
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -1266,43 +1282,22 @@ export function RefractionTab({
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-5 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-sky-700 transition disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4" />
+                    <Save className="h-3.5 w-3.5" />
                     Save Both Eyes
                   </>
                 )}
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!isAdding && !latestOD && !latestOS && (
-        <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12 text-center">
-          <Eye className="mx-auto h-12 w-12 text-slate-400" />
-          <h4 className="mt-4 text-lg font-semibold text-slate-900">
-            No Refraction Recorded
-          </h4>
-          <p className="mt-2 text-sm text-slate-600">
-            Click &quot;Add Refraction&quot; to enter subjective refraction values for
-            both eyes.
-          </p>
-          <button
-            onClick={() => setIsAdding(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 transition"
-          >
-            <Plus className="h-4 w-4" />
-            Add Refraction
-          </button>
         </div>
       )}
 

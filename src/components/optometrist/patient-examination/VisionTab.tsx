@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Save, Eye, X, RotateCcw, Plus, Copy, Settings } from "lucide-react";
+import { Loader2, Save, Eye, X, RotateCcw, Plus, Copy, Settings, Check } from "lucide-react";
 import { VisionRecord, CreateVisionRequest } from "@/types";
 import { useAppDispatch } from "@/redux/hooks";
 import { addVisionRecord, updateVisionRecord } from "@/redux/optometryDataSlice";
@@ -12,7 +12,7 @@ import { useVisionSettings } from "@/hooks/useVisionSettings";
 import { VisionSettingsModal } from "./VisionSettingsModal";
 
 // Import shared components
-import { VASelector } from "../shared";
+import { VASelector, ColorVisionInput } from "../shared";
 import { VisionHistorySection } from "./VisionHistorySection";
 
 interface VisionTabProps {
@@ -31,6 +31,9 @@ interface VisionFormValues {
     od_va_with_current_specs: string;
     od_near_ucva: string;
     od_near_with_current_specs: string;
+    od_color_vision: string;
+    od_color_vision_plates: string;
+    od_color_vision_deficiency: string;
 
     // Left Eye (OS)
     os_ucva_distance: string;
@@ -38,6 +41,9 @@ interface VisionFormValues {
     os_va_with_current_specs: string;
     os_near_ucva: string;
     os_near_with_current_specs: string;
+    os_color_vision: string;
+    os_color_vision_plates: string;
+    os_color_vision_deficiency: string;
 
     notes: string;
 }
@@ -48,11 +54,17 @@ const initialFormData: VisionFormValues = {
     od_va_with_current_specs: "",
     od_near_ucva: "",
     od_near_with_current_specs: "",
+    od_color_vision: "",
+    od_color_vision_plates: "",
+    od_color_vision_deficiency: "",
     os_ucva_distance: "",
     os_ph_va: "",
     os_va_with_current_specs: "",
     os_near_ucva: "",
     os_near_with_current_specs: "",
+    os_color_vision: "",
+    os_color_vision_plates: "",
+    os_color_vision_deficiency: "",
     notes: "",
 };
 
@@ -79,6 +91,7 @@ export function VisionTab({
     );
 
     const hasExistingForVisit = !!currentVisitRecord;
+    const showForm = isEditing || !hasExistingForVisit;
 
     const { register, handleSubmit, reset, setValue, watch } = useForm<VisionFormValues>({
         defaultValues: initialFormData,
@@ -99,11 +112,17 @@ export function VisionTab({
             setValue("od_va_with_current_specs", currentVisitRecord.od_va_with_current_specs || "");
             setValue("od_near_ucva", currentVisitRecord.od_near_ucva || "");
             setValue("od_near_with_current_specs", currentVisitRecord.od_near_with_current_specs || "");
+            setValue("od_color_vision", currentVisitRecord.od_color_vision || "");
+            setValue("od_color_vision_plates", currentVisitRecord.od_color_vision_plates || "");
+            setValue("od_color_vision_deficiency", currentVisitRecord.od_color_vision_deficiency || "");
             setValue("os_ucva_distance", currentVisitRecord.os_ucva_distance || "");
             setValue("os_ph_va", currentVisitRecord.os_ph_va || "");
             setValue("os_va_with_current_specs", currentVisitRecord.os_va_with_current_specs || "");
             setValue("os_near_ucva", currentVisitRecord.os_near_ucva || "");
             setValue("os_near_with_current_specs", currentVisitRecord.os_near_with_current_specs || "");
+            setValue("os_color_vision", currentVisitRecord.os_color_vision || "");
+            setValue("os_color_vision_plates", currentVisitRecord.os_color_vision_plates || "");
+            setValue("os_color_vision_deficiency", currentVisitRecord.os_color_vision_deficiency || "");
             setValue("notes", currentVisitRecord.notes || "");
         } else {
             reset(initialFormData);
@@ -120,7 +139,20 @@ export function VisionTab({
         setValue("os_va_with_current_specs", formValues.od_va_with_current_specs);
         setValue("os_near_ucva", formValues.od_near_ucva);
         setValue("os_near_with_current_specs", formValues.od_near_with_current_specs);
+        setValue("os_color_vision", formValues.od_color_vision);
+        setValue("os_color_vision_plates", formValues.od_color_vision_plates);
+        setValue("os_color_vision_deficiency", formValues.od_color_vision_deficiency);
         toast.success("Copied OD values to OS");
+    };
+
+    const setBothEyesNormal = () => {
+        setValue("od_color_vision", "NORMAL");
+        setValue("od_color_vision_plates", "14/14");
+        setValue("od_color_vision_deficiency", "");
+        setValue("os_color_vision", "NORMAL");
+        setValue("os_color_vision_plates", "14/14");
+        setValue("os_color_vision_deficiency", "");
+        toast.success("Both eyes marked as Normal Color Vision");
     };
 
     const onSubmit = async (data: VisionFormValues) => {
@@ -154,6 +186,21 @@ export function VisionTab({
             setIsSubmitting(false);
         }
     };
+
+    // Keyboard shortcut: Ctrl+S saves vision form
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.key === "s" || e.key === "S") && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (showForm) {
+                    handleSubmit(onSubmit)();
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [showForm, handleSubmit, onSubmit]);
 
     // Format VA value for display
     const formatVA = (value: string | null | undefined) => {
@@ -238,13 +285,13 @@ export function VisionTab({
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {!isEditing && (
+                    {!showForm && hasExistingForVisit && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+                            className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-sky-700 transition"
                         >
-                            <Plus className="h-4 w-4" />
-                            {hasExistingForVisit ? "Edit Vision" : "Add Vision"}
+                            <Plus className="h-3.5 w-3.5" />
+                            Edit Vision
                         </button>
                     )}
                     <button
@@ -252,13 +299,13 @@ export function VisionTab({
                         className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
                         title="Configure Vision Settings"
                     >
-                        <Settings className="h-5 w-5" />
+                        <Settings className="h-4 w-4" />
                     </button>
                 </div>
             </div>
 
-            {/* This Visit's Vision - Only show if data exists for current visit */}
-            {!isEditing && hasExistingForVisit && currentVisitRecord && (
+            {/* This Visit's Vision - Only show if data exists for current visit and not editing */}
+            {!showForm && hasExistingForVisit && currentVisitRecord && (
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h4 className="mb-4 text-base font-semibold text-slate-900">
                         This Visit&apos;s Vision
@@ -303,6 +350,28 @@ export function VisionTab({
                                         </div>
                                     </div>
                                 </div>
+                                {/* Color Vision */}
+                                {(currentVisitRecord.od_color_vision || currentVisitRecord.od_color_vision_plates) && (
+                                    <div className="border-t border-blue-200 pt-2">
+                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Color Vision</p>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className={clsx(
+                                                "inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[11px]",
+                                                currentVisitRecord.od_color_vision === "NORMAL"
+                                                    ? "bg-emerald-100 text-emerald-800"
+                                                    : "bg-amber-100 text-amber-900"
+                                            )}>
+                                                {currentVisitRecord.od_color_vision === "NORMAL" ? "Normal" : "Abnormal"}
+                                                {currentVisitRecord.od_color_vision_plates && ` (${currentVisitRecord.od_color_vision_plates})`}
+                                            </span>
+                                            {currentVisitRecord.od_color_vision_deficiency && (
+                                                <span className="font-semibold text-slate-600">
+                                                    {currentVisitRecord.od_color_vision_deficiency.replace(/_/g, " ")}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -345,6 +414,28 @@ export function VisionTab({
                                         </div>
                                     </div>
                                 </div>
+                                {/* Color Vision */}
+                                {(currentVisitRecord.os_color_vision || currentVisitRecord.os_color_vision_plates) && (
+                                    <div className="border-t border-green-200 pt-2">
+                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Color Vision</p>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className={clsx(
+                                                "inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[11px]",
+                                                currentVisitRecord.os_color_vision === "NORMAL"
+                                                    ? "bg-emerald-100 text-emerald-800"
+                                                    : "bg-amber-100 text-amber-900"
+                                            )}>
+                                                {currentVisitRecord.os_color_vision === "NORMAL" ? "Normal" : "Abnormal"}
+                                                {currentVisitRecord.os_color_vision_plates && ` (${currentVisitRecord.os_color_vision_plates})`}
+                                            </span>
+                                            {currentVisitRecord.os_color_vision_deficiency && (
+                                                <span className="font-semibold text-slate-600">
+                                                    {currentVisitRecord.os_color_vision_deficiency.replace(/_/g, " ")}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -359,7 +450,7 @@ export function VisionTab({
             )}
 
             {/* Add/Edit Vision Form */}
-            {isEditing && (
+            {showForm && (
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                         {/* Form Header with Actions */}
@@ -505,6 +596,52 @@ export function VisionTab({
                                 </div>
                             </div>
 
+                            {/* Color Vision Section */}
+                            <div className="border-t border-slate-200 pt-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h5 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
+                                            Color Vision (Ishihara / HRR)
+                                        </h5>
+                                        <p className="text-xs text-slate-500">Record color vision screening for both eyes</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={setBothEyesNormal}
+                                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-xs"
+                                        title="Quickly set Normal (14/14) for both eyes"
+                                    >
+                                        <Check className="h-3.5 w-3.5" />
+                                        Both Eyes (OU) Normal
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <ColorVisionInput
+                                        status={formValues.od_color_vision}
+                                        onStatusChange={(v) => setValue("od_color_vision", v)}
+                                        plates={formValues.od_color_vision_plates}
+                                        onPlatesChange={(v) => setValue("od_color_vision_plates", v)}
+                                        deficiency={formValues.od_color_vision_deficiency}
+                                        onDeficiencyChange={(v) => setValue("od_color_vision_deficiency", v)}
+                                        peerStatus={formValues.os_color_vision}
+                                        colorScheme="blue"
+                                        eyeLabel="OD (Right Eye)"
+                                    />
+
+                                    <ColorVisionInput
+                                        status={formValues.os_color_vision}
+                                        onStatusChange={(v) => setValue("os_color_vision", v)}
+                                        plates={formValues.os_color_vision_plates}
+                                        onPlatesChange={(v) => setValue("os_color_vision_plates", v)}
+                                        deficiency={formValues.os_color_vision_deficiency}
+                                        onDeficiencyChange={(v) => setValue("os_color_vision_deficiency", v)}
+                                        peerStatus={formValues.od_color_vision}
+                                        colorScheme="green"
+                                        eyeLabel="OS (Left Eye)"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Notes */}
                             <div className="border-t border-slate-200 pt-6">
                                 <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -534,16 +671,16 @@ export function VisionTab({
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || loading}
-                                    className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition disabled:opacity-50"
+                                    className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-5 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-sky-700 transition disabled:opacity-50"
                                 >
                                     {isSubmitting ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                             Saving...
                                         </>
                                     ) : (
                                         <>
-                                            <Save className="h-4 w-4" />
+                                            <Save className="h-3.5 w-3.5" />
                                             Save Vision Record
                                         </>
                                     )}
@@ -554,28 +691,8 @@ export function VisionTab({
                 </form>
             )}
 
-            {/* Empty State */}
-            {!isEditing && !hasExistingForVisit && (
-                <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12 text-center">
-                    <Eye className="mx-auto h-12 w-12 text-slate-400" />
-                    <h4 className="mt-4 text-lg font-semibold text-slate-900">
-                        No Vision Recorded
-                    </h4>
-                    <p className="mt-2 text-sm text-slate-600">
-                        Click &quot;Add Vision&quot; to record distance and near visual acuity for both eyes.
-                    </p>
-                    <button
-                        onClick={() => setIsEditing(true)}
-                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 transition"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add Vision
-                    </button>
-                </div>
-            )}
-
             {/* Vision History - Last 5 Visits */}
-            {!isEditing && (
+            {!showForm && (
                 <VisionHistorySection
                     patientId={patientId}
                     currentVisitId={visitId}

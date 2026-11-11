@@ -425,7 +425,7 @@ export type OphthalmicSurgeryRecord = {
   id: string;
   patient_id: string;
   surgery_name: string;
-  eye: "OD" | "OS" | "OU";
+  eye: "RE" | "LE" | "BE" | "GE" | "OD" | "OS" | "OU";
   surgery_date: string | null;
   hospital_name: string | null;
   surgeon_name: string | null;
@@ -454,7 +454,7 @@ export type DrugAllergyRecord = {
 // Optometry Prescriptions
 export type OptometryPrescriptionItem = {
   id?: string;
-  eye: "OD" | "OS";
+  eye: "OD" | "OS" | "RE" | "LE";
   sphere: number;
   cylinder: number | null;
   axis: number | null;
@@ -549,6 +549,7 @@ export type OptometryPrescription = {
   followup_date?: string | null;
   plan_of_action?: string | null;
   remarks?: string | null;
+  specs_prescription_source?: "dry" | "dilated" | "current_glass" | null;
   lens_type?: string | null;
   vision_type?: string | null;
   lens_material?: string | null;
@@ -839,6 +840,9 @@ export interface VisionRecord {
   od_va_with_current_specs?: string | null;
   od_near_ucva?: string | null;
   od_near_with_current_specs?: string | null;
+  od_color_vision?: "NORMAL" | "ABNORMAL" | string | null;
+  od_color_vision_plates?: string | null;
+  od_color_vision_deficiency?: string | null;
 
   // Left Eye (OS)
   os_ucva_distance?: string | null;
@@ -846,6 +850,9 @@ export interface VisionRecord {
   os_va_with_current_specs?: string | null;
   os_near_ucva?: string | null;
   os_near_with_current_specs?: string | null;
+  os_color_vision?: "NORMAL" | "ABNORMAL" | string | null;
+  os_color_vision_plates?: string | null;
+  os_color_vision_deficiency?: string | null;
 
   notes?: string | null;
 
@@ -866,6 +873,9 @@ export interface CreateVisionRequest {
   od_va_with_current_specs?: string | null;
   od_near_ucva?: string | null;
   od_near_with_current_specs?: string | null;
+  od_color_vision?: "NORMAL" | "ABNORMAL" | string | null;
+  od_color_vision_plates?: string | null;
+  od_color_vision_deficiency?: string | null;
 
   // Left Eye (OS)
   os_ucva_distance?: string | null;
@@ -873,6 +883,9 @@ export interface CreateVisionRequest {
   os_va_with_current_specs?: string | null;
   os_near_ucva?: string | null;
   os_near_with_current_specs?: string | null;
+  os_color_vision?: "NORMAL" | "ABNORMAL" | string | null;
+  os_color_vision_plates?: string | null;
+  os_color_vision_deficiency?: string | null;
 
   notes?: string | null;
 }
@@ -912,6 +925,11 @@ export interface CurrentSpecsRecord {
   measured_by?: MeasuredBy | null;
   is_comfortable?: boolean | null;
   remarks?: string | null;
+
+  // Visit context (when displayed in summary / previous visit fallback)
+  is_previous_visit?: boolean;
+  visit_date?: string | null;
+  visit_number?: string | null;
 
   recorded_at: string;
   created_at: string;

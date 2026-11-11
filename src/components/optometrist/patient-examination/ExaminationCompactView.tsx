@@ -499,7 +499,7 @@ export function ExaminationCompactView({
     return (
         <div className="space-y-3 pb-5">
             {/* Progress Header */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-3">
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm rounded-xl border border-slate-200 shadow-xs p-3">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5">
@@ -514,10 +514,10 @@ export function ExaminationCompactView({
                         <button
                             onClick={() => setUseMergedVisionView(!useMergedVisionView)}
                             className={clsx(
-                                "flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold shadow-sm transition-all duration-200 border bg-white",
+                                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition border",
                                 useMergedVisionView
-                                    ? "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100"
-                                    : "text-slate-700 border-slate-200 hover:bg-slate-50"
+                                    ? "bg-sky-50 text-sky-700 border-sky-300 shadow-xs"
+                                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                             )}
                             title={useMergedVisionView ? "Switch to separate sections" : "Switch to merged vision & refraction"}
                         >
@@ -537,16 +537,16 @@ export function ExaminationCompactView({
                                 <path d="M3 9h18" />
                                 <path d="M9 21V9" />
                             </svg>
-                            <span>{useMergedVisionView ? "Merged" : "Tabbed"}</span>
+                            <span>{useMergedVisionView ? "Merged Sheet" : "Separate Tabs"}</span>
                         </button>
                         <span className="text-xs font-bold text-sky-600 ml-1">{progressPercent}%</span>
                     </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden mb-2">
+                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2">
                     <div
-                        className="h-full bg-gradient-to-r from-sky-500 to-emerald-500 rounded-full transition-all duration-500 ease-out"
+                        className="h-full bg-sky-600 rounded-full transition-all duration-300 ease-out"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>

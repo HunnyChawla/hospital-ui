@@ -129,10 +129,12 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
             visitData.refraction.od_dilated_pinhole, visitData.refraction.os_dilated_pinhole
         ].some(hasValue) : false;
 
-        const refractionDryVisible = hasDryRefractionData && (!activeSections || activeSections.includes("Refraction (Dry)"));
-        const refractionDilatedVisible = hasDilatedRefractionData && (!activeSections || activeSections.includes("Refraction (Dilated)"));
-        const glassesRxVisible = (prescription.items?.length || 0) > 0 && (!activeSections || activeSections.includes("Glasses Rx"));
-        const opticalSpecsVisible = !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (!activeSections || activeSections.includes("Optical Specs"));
+        // Only print the single doctor-selected spectacles power. Raw dry/dilated refraction tables are suppressed.
+        const refractionDryVisible = false;
+        const refractionDilatedVisible = false;
+        const hasSelectedSpecs = !!prescription.specs_prescription_source && (prescription.items?.length || 0) > 0;
+        const glassesRxVisible = hasSelectedSpecs && (!activeSections || activeSections.includes("Glasses Rx"));
+        const opticalSpecsVisible = hasSelectedSpecs && !!(prescription.lens_type || prescription.vision_type || prescription.lens_material || (prescription.coatings && prescription.coatings.length > 0)) && (!activeSections || activeSections.includes("Optical Specs"));
 
         const totalItemsScore = medicineCount + adviceCount + complaintsCount + (surgeriesCount * 1.5) +
             (visionTableVisible ? 3 : 0) + (refractionDryVisible ? 3 : 0) + (refractionDilatedVisible ? 3 : 0) + (glassesRxVisible ? 3 : 0) + (opticalSpecsVisible ? 2 : 0);
@@ -282,6 +284,23 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         IOP Method: {visitData.iop.measurement_method} ({formatTime(visitData.iop.measurement_time)})
                                     </p>
                                 )}
+                                {!!(visitData?.vision?.od_color_vision || visitData?.vision?.os_color_vision) && (
+                                    <div className="mt-1 text-[11px] text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center justify-between">
+                                        <span className="font-semibold text-slate-500 uppercase text-[9px] tracking-wider">Color Vision:</span>
+                                        <div className="flex gap-3">
+                                            {visitData.vision.od_color_vision && (
+                                                <span>
+                                                    <strong>Right:</strong> {visitData.vision.od_color_vision === "NORMAL" ? "Normal" : `Abnormal (${visitData.vision.od_color_vision_plates || ""}${visitData.vision.od_color_vision_deficiency ? `, ${visitData.vision.od_color_vision_deficiency.replace(/_/g, " ")}` : ""})`}
+                                                </span>
+                                            )}
+                                            {visitData.vision.os_color_vision && (
+                                                <span>
+                                                    <strong>Left:</strong> {visitData.vision.os_color_vision === "NORMAL" ? "Normal" : `Abnormal (${visitData.vision.os_color_vision_plates || ""}${visitData.vision.os_color_vision_deficiency ? `, ${visitData.vision.os_color_vision_deficiency.replace(/_/g, " ")}` : ""})`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : null;
@@ -413,9 +432,20 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                 <div className="bg-slate-50 p-1 rounded-sm border border-slate-100">
                                     <Glasses className={`${isExtremelyCompact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} text-sky-700 shrink-0`} />
                                 </div>
-                                <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
-                                    Glasses Rx
-                                </span>
+                                <div className="flex flex-col">
+                                    <span className={`font-bold uppercase tracking-tight text-slate-900 leading-tight ${isExtremelyCompact ? "text-[8px]" : "text-[10px]"}`}>
+                                        Glasses Rx
+                                    </span>
+                                    {prescription.specs_prescription_source && (
+                                        <span className={`text-slate-500 font-semibold uppercase tracking-tight ${isExtremelyCompact ? "text-[6px]" : "text-[7.5px]"}`}>
+                                            {prescription.specs_prescription_source === "dry"
+                                                ? "(Dry Refraction)"
+                                                : prescription.specs_prescription_source === "dilated"
+                                                    ? "(Dilated)"
+                                                    : "(Current Glasses)"}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <table className="w-full text-xs border-collapse border border-slate-300">
@@ -430,7 +460,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {prescription.items?.filter(i => i.eye === 'OD').map((item, idx) => (
+                                        {prescription.items?.filter(i => i.eye === 'OD' || i.eye === 'RE').map((item, idx) => (
                                             <tr key={`od-${idx}`}>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Right</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere, true)}</td>
@@ -440,7 +470,7 @@ export const DoctorPrescriptionPrint = forwardRef<HTMLDivElement, DoctorPrescrip
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.visual_acuity)}</td>
                                             </tr>
                                         ))}
-                                        {prescription.items?.filter(i => i.eye === 'OS').map((item, idx) => (
+                                        {prescription.items?.filter(i => i.eye === 'OS' || i.eye === 'LE').map((item, idx) => (
                                             <tr key={`os-${idx}`}>
                                                 <td className={`border border-slate-300 ${cellPadding} font-bold text-center`}>Left</td>
                                                 <td className={`border border-slate-300 ${cellPadding} text-center`}>{formatVal(item.sphere, true)}</td>

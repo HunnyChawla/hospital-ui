@@ -147,14 +147,14 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
 
   if (!showPatientCard) {
     return (
-      <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-slate-200/60 bg-gradient-to-br from-slate-50 to-slate-100/50 p-12 backdrop-blur-sm">
-        <div className="text-center animate-in fade-in zoom-in-95 duration-500">
-          <div className="mx-auto mb-4 h-20 w-20 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 p-5 shadow-lg">
-            <Eye className="h-full w-full text-slate-400" />
+      <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white p-8">
+        <div className="text-center max-w-sm">
+          <div className="mx-auto mb-3 h-12 w-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+            <Eye className="h-6 w-6" />
           </div>
-          <h3 className="mt-4 text-lg font-bold text-slate-700">No Patient Selected</h3>
-          <p className="mt-2 text-sm text-slate-500 max-w-xs mx-auto">
-            Select a patient from the queue to begin examination
+          <h3 className="text-sm font-bold text-slate-800">No Patient Selected</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Select an assigned patient from the queue to start or review the examination.
           </p>
         </div>
       </div>
@@ -162,48 +162,65 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-500 scrollbar-hide">
-      <div className="relative z-30 border-b border-slate-200/60 bg-gradient-to-r from-sky-50 via-blue-50/50 to-teal-50 px-3 py-2 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/30">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs scrollbar-hide">
+      {/* Patient Header - Clean Clinical Context Strip */}
+      <div className="relative z-20 border-b border-slate-200 bg-white px-3 py-1.5 flex-shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700 border border-sky-200">
               <Eye className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h2
                   onClick={() => setShowPatientDetail(true)}
-                  className="truncate text-sm font-bold text-slate-900 sm:text-base cursor-pointer hover:text-sky-600 hover:underline transition-all"
-                  title="View Patient Details"
+                  className="truncate text-sm font-bold text-slate-900 cursor-pointer hover:text-sky-600 transition"
+                  title="View complete patient record"
                 >
-                  {patientName || "Patient Details"}
+                  {patientName || "Patient Examination"}
                 </h2>
+                {activeQueuePatient?.token_number && (
+                  <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                    <span className="text-[8px] uppercase tracking-wider text-slate-400 font-semibold">TKN</span>
+                    <span className="text-sky-700">
+                      {typeof activeQueuePatient.token_number === "number" && activeQueuePatient.token_number < 10
+                        ? `0${activeQueuePatient.token_number}`
+                        : activeQueuePatient.token_number}
+                    </span>
+                  </span>
+                )}
+                {patientUhid && (
+                  <span className="text-[11px] font-mono text-slate-500 font-medium">
+                    ({patientUhid})
+                  </span>
+                )}
                 {visitType && (
-                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${visitType.toLowerCase().includes('emergency')
-                    ? "bg-red-100 text-red-700 uppercase tracking-wider"
-                    : visitType.toLowerCase() === 'walk_in'
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-blue-100 text-blue-700"
-                    }`}>
-                    {visitType.toLowerCase().includes('emergency') ? visitType.replace(/_/g, " ") : visitType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                  <span
+                    className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
+                      visitType.toLowerCase().includes("emergency")
+                        ? "bg-rose-50 text-rose-700 border-rose-200 uppercase tracking-wide"
+                        : visitType.toLowerCase() === "walk_in"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-blue-50 text-blue-700 border-blue-200"
+                    }`}
+                  >
+                    {visitType.replace(/_/g, " ")}
                   </span>
                 )}
               </div>
-              <p className="truncate text-xs font-medium text-slate-600">
-                {patientUhid || patientId}
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 items-center gap-1.5">
-            {/* View Mode Toggle Buttons */}
-            <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+          <div className="flex flex-shrink-0 items-center gap-2">
+            {/* View Mode Segmented Control */}
+            <div className="flex items-center rounded-md bg-slate-100 p-0.5 border border-slate-200/80">
               <button
                 onClick={() => setViewMode("tabs")}
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all ${viewMode === "tabs"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100"
-                  }`}
+                className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition ${
+                  viewMode === "tabs"
+                    ? "bg-white text-slate-900 shadow-xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
                 title="Tabs View"
               >
                 <LayoutGrid className="h-3 w-3" />
@@ -211,22 +228,24 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
               </button>
               <button
                 onClick={() => setViewMode("single")}
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all ${viewMode === "single"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                title="Single View"
+                className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition ${
+                  viewMode === "single"
+                    ? "bg-white text-slate-900 shadow-xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="Single View (All Accordions)"
               >
                 <LayoutList className="h-3 w-3" />
                 <span className="hidden sm:inline">Single</span>
               </button>
               <button
                 onClick={() => setViewMode("compact")}
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-all ${viewMode === "compact"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                title="Compact View"
+                className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition ${
+                  viewMode === "compact"
+                    ? "bg-white text-slate-900 shadow-xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="Compact Overview"
               >
                 <LayoutDashboard className="h-3 w-3" />
                 <span className="hidden sm:inline">Compact</span>
@@ -245,9 +264,8 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
                 doctorName={doctorName}
                 isCompleted={isCompleted}
               />
-
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {visitId && visitData && !isCompleted && (
                   <DilationTimer
                     visitId={visitId}
@@ -266,10 +284,10 @@ export const OptometristActivePatientCard: React.FC<OptometristActivePatientCard
             )}
             <button
               onClick={onClose}
-              className="group rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition-all hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 hover:scale-105 active:scale-95"
-              title="Clear selection"
+              className="rounded-md border border-slate-200 bg-white p-1 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition"
+              title="Clear active patient"
             >
-              <X className="h-4 w-4 transition-transform group-hover:rotate-90" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>

@@ -56,7 +56,7 @@ interface RefractionHistorySectionProps {
 export function RefractionHistorySection({
     patientId,
     currentVisitId,
-    initialExpanded = true,
+    initialExpanded = false,
 }: RefractionHistorySectionProps) {
     const [loading, setLoading] = useState(true);
     const [historyRecords, setHistoryRecords] = useState<RefractionHistoryItem[]>([]);
@@ -222,29 +222,29 @@ export function RefractionHistorySection({
             <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 transition group"
+                className="w-full flex items-center justify-between px-4 py-2.5 sm:px-5 sm:py-3 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 transition group"
             >
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-100 text-amber-600">
-                        <History className="h-5 w-5" />
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-amber-100 text-amber-600">
+                        <History className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
                     <div className="text-left">
-                        <h4 className="text-base font-semibold text-slate-900">
+                        <h4 className="text-sm sm:text-base font-semibold text-slate-900">
                             Refraction History
                         </h4>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-xs sm:text-sm text-slate-500">
                             Last {historyRecords.length} previous visit{historyRecords.length !== 1 ? "s" : ""}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 sm:px-3 sm:py-1 text-xs font-semibold text-amber-700">
                         {historyRecords.length} Record{historyRecords.length !== 1 ? "s" : ""}
                     </span>
                     {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-slate-400 group-hover:text-slate-600 transition" />
+                        <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600 transition" />
                     ) : (
-                        <ChevronDown className="h-5 w-5 text-slate-400 group-hover:text-slate-600 transition" />
+                        <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600 transition" />
                     )}
                 </div>
             </button>

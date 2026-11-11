@@ -182,6 +182,35 @@ export function EditableVisionCard({
                   </div>
                 )}
               </div>
+              {(data.od_color_vision || data.od_color_vision_plates) && (
+                <>
+                  <p className="text-xs font-medium text-blue-700 border-b border-blue-200 pb-1 mt-2">Color Vision</p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Status:</span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                        data.od_color_vision === "NORMAL"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {data.od_color_vision === "NORMAL" ? "Normal" : "Abnormal"}
+                      </span>
+                    </div>
+                    {data.od_color_vision_plates && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Plates Read:</span>
+                        <span className="font-medium">{data.od_color_vision_plates}</span>
+                      </div>
+                    )}
+                    {data.od_color_vision_deficiency && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Deficiency:</span>
+                        <span className="font-medium capitalize">{data.od_color_vision_deficiency.replace(/_/g, " ").toLowerCase()}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -225,6 +254,35 @@ export function EditableVisionCard({
                   </div>
                 )}
               </div>
+              {(data.os_color_vision || data.os_color_vision_plates) && (
+                <>
+                  <p className="text-xs font-medium text-green-700 border-b border-green-200 pb-1 mt-2">Color Vision</p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Status:</span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                        data.os_color_vision === "NORMAL"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {data.os_color_vision === "NORMAL" ? "Normal" : "Abnormal"}
+                      </span>
+                    </div>
+                    {data.os_color_vision_plates && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Plates Read:</span>
+                        <span className="font-medium">{data.os_color_vision_plates}</span>
+                      </div>
+                    )}
+                    {data.os_color_vision_deficiency && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Deficiency:</span>
+                        <span className="font-medium capitalize">{data.os_color_vision_deficiency.replace(/_/g, " ").toLowerCase()}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

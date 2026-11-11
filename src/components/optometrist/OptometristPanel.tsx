@@ -471,27 +471,27 @@ export function OptometristPanel() {
   return (
     <ExaminationViewProvider>
       <FullscreenContainerProvider containerRef={containerRef as React.RefObject<HTMLDivElement>}>
-        <div ref={containerRef} className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 overflow-hidden text-slate-900 scrollbar-hide">
-          <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-1.5 sm:space-y-2 px-2 sm:px-3 py-1.5 sm:py-2 scrollbar-hide">
-            {/* Header */}
-            <div className="flex items-center justify-between py-1 flex-shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
+        <div ref={containerRef} className="h-screen flex flex-col bg-slate-50 overflow-hidden text-slate-900 scrollbar-hide">
+          <div className="flex flex-1 flex-col min-h-0 overflow-hidden space-y-1.5 px-2.5 sm:px-3 py-1.5 scrollbar-hide">
+            {/* Header - Compact Clinical Top Bar */}
+            <div className="flex items-center justify-between py-0.5 flex-shrink-0">
               <div className="min-w-0 flex-1 flex items-center gap-2 sm:gap-3">
-                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
-                  <Eye className="h-4 w-4 text-white" />
+                <div className="hidden sm:flex h-7 w-7 items-center justify-center rounded-lg bg-sky-600 text-white shadow-xs">
+                  <Eye className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm sm:text-base font-bold text-slate-800 truncate">
+                  <p className="text-sm font-bold text-slate-900 truncate leading-tight">
                     {optometristUser?.full_name || "Optometrist"}
                   </p>
                   {selectedDoctor && !isDoctor && (
-                    <div className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
-                      <span>Assigned to:</span>
+                    <div className="text-[11px] text-slate-500 hidden sm:flex items-center gap-1 leading-tight">
+                      <span>Doctor:</span>
                       {doctorMappings.length > 1 ? (
                         <div className="relative">
                           <select
                             value={selectedDoctor.doctor_id}
                             onChange={(e) => setSelectedDoctor(e.target.value)}
-                            className="appearance-none bg-white border border-slate-200 rounded-md px-2 py-0.5 pr-6 text-xs font-medium text-slate-700 hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 cursor-pointer transition-all"
+                            className="appearance-none bg-white border border-slate-200 rounded px-1.5 py-0.5 pr-5 text-[11px] font-medium text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
                           >
                             {doctorMappings.map((mapping) => (
                               <option key={mapping.doctor_id} value={mapping.doctor_id}>
@@ -499,131 +499,128 @@ export function OptometristPanel() {
                               </option>
                             ))}
                           </select>
-                          <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                          <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
                         </div>
                       ) : (
-                        <span className="font-medium text-slate-700">{selectedDoctor.doctor_name}</span>
+                        <span className="font-semibold text-slate-700">{selectedDoctor.doctor_name}</span>
                       )}
                     </div>
                   )}
                 </div>
 
-
-
                 {/* Live Queue Connection Status */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 ml-1">
                   {connectionStatus === "connected" && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-green-500 px-2.5 py-1 shadow-md shadow-emerald-500/30 animate-in fade-in zoom-in-95 duration-300">
-                      <div className="relative">
-                        <Wifi className="h-3 w-3 text-white" />
-                        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
-                      </div>
-                      <span className="text-xs font-semibold text-white hidden sm:inline">Live</span>
+                    <div className="flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                      <span className="text-[11px] font-semibold text-emerald-700">Live</span>
                     </div>
                   )}
                   {(connectionStatus === "connecting" || connectionStatus === "reconnecting") && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 px-2.5 py-1 shadow-md shadow-amber-400/30">
-                      <Loader2 className="h-3 w-3 text-white animate-spin" />
-                      <span className="text-xs font-semibold text-white hidden sm:inline">
+                    <div className="flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5">
+                      <Loader2 className="h-3 w-3 text-amber-600 animate-spin" />
+                      <span className="text-[11px] font-semibold text-amber-700">
                         {connectionStatus === "reconnecting" ? "Reconnecting" : "Connecting"}
                       </span>
                     </div>
                   )}
                   {(connectionStatus === "error" || connectionStatus === "disconnected") && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-500 px-2.5 py-1 shadow-md shadow-rose-500/30">
-                      <WifiOff className="h-3 w-3 text-white" />
-                      <span className="text-xs font-semibold text-white hidden sm:inline">Offline</span>
+                    <div className="flex items-center gap-1 rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5">
+                      <WifiOff className="h-3 w-3 text-rose-600" />
+                      <span className="text-[11px] font-semibold text-rose-700">Offline</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <button
-                onClick={handleRefresh}
-                className="group rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
-                title="Refresh schedule"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 transition-transform group-hover:rotate-180 ${panelLoading ? "animate-spin" : ""}`} />
-              </button>
-
-              {/* Settings Dropdown */}
-              <div className="relative">
+              <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                  className="group rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition-all hover:border-sky-400 hover:bg-sky-50 hover:text-sky-600 hover:shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
-                  title="View Settings"
+                  onClick={handleRefresh}
+                  className="rounded-lg border border-slate-200 bg-white h-7 w-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs flex-shrink-0"
+                  title="Refresh schedule"
                 >
-                  <Settings className={`h-3.5 w-3.5 transition-transform ${isSettingsOpen ? "rotate-90" : ""}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 ${panelLoading ? "animate-spin text-sky-600" : ""}`} />
                 </button>
 
-                {isSettingsOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setIsSettingsOpen(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="mb-2 px-2 py-1.5 border-b border-slate-100">
-                        <h3 className="text-sm font-semibold text-slate-900">View Settings</h3>
+                {/* Settings Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                    className="rounded-lg border border-slate-200 bg-white h-7 w-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs flex-shrink-0"
+                    title="View Settings"
+                  >
+                    <Settings className={`h-3.5 w-3.5 ${isSettingsOpen ? "rotate-90 text-sky-600" : ""}`} />
+                  </button>
+
+                  {isSettingsOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setIsSettingsOpen(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1.5 z-50 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                        <div className="mb-1 px-2 py-1 border-b border-slate-100">
+                          <h3 className="text-xs font-semibold text-slate-900">Workspace Settings</h3>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <button
+                            onClick={() => {
+                              setIsTabSettingsOpen(true);
+                              setIsSettingsOpen(false);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-sky-600 transition"
+                          >
+                            <div className="flex items-center gap-2">
+                              <LayoutTemplate className="h-3.5 w-3.5 text-slate-500" />
+                              <span>Customize Examination Tabs</span>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              toggleFullscreen();
+                              setIsSettingsOpen(false);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-sky-600 transition"
+                          >
+                            <div className="flex items-center gap-2">
+                              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-slate-500" /> : <Maximize2 className="h-3.5 w-3.5 text-slate-500" />}
+                              <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">F11</span>
+                          </button>
+
+                          <button
+                            onClick={() => toggleStats()}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-sky-600 transition"
+                          >
+                            <div className="flex items-center gap-2">
+                              <BarChart3 className="h-3.5 w-3.5 text-slate-500" />
+                              <span>Statistics Bar</span>
+                            </div>
+                            <div className={`h-4 w-7 rounded-full p-0.5 transition-colors ${preferences.statsVisible ? 'bg-sky-600' : 'bg-slate-200'}`}>
+                              <div className={`h-3 w-3 rounded-full bg-white shadow-xs transition-transform ${preferences.statsVisible ? 'translate-x-3' : 'translate-x-0'}`} />
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => toggleQueue()}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-sky-600 transition"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Users className="h-3.5 w-3.5 text-slate-500" />
+                              <span>Patient Queue Sidebar</span>
+                            </div>
+                            <div className={`h-4 w-7 rounded-full p-0.5 transition-colors ${preferences.queueVisible ? 'bg-sky-600' : 'bg-slate-200'}`}>
+                              <div className={`h-3 w-3 rounded-full bg-white shadow-xs transition-transform ${preferences.queueVisible ? 'translate-x-3' : 'translate-x-0'}`} />
+                            </div>
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="space-y-1">
-                        <button
-                          onClick={() => {
-                            setIsTabSettingsOpen(true);
-                            setIsSettingsOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <LayoutTemplate className="h-4 w-4" />
-                            <span>Customize Tabs</span>
-                          </div>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            toggleFullscreen();
-                            setIsSettingsOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                            <span>Fullscreen</span>
-                          </div>
-                          <span className="text-xs text-slate-400">F11</span>
-                        </button>
-
-                        <button
-                          onClick={() => toggleStats()}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" />
-                            <span>Statistics</span>
-                          </div>
-                          <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.statsVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
-                            <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.statsVisible ? 'translate-x-4' : 'translate-x-0'}`} />
-                          </div>
-                        </button>
-
-                        <button
-                          onClick={() => toggleQueue()}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            <span>Patient Queue</span>
-                          </div>
-                          <div className={`h-5 w-9 rounded-full p-1 transition-colors ${preferences.queueVisible ? 'bg-sky-500' : 'bg-slate-200'}`}>
-                            <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${preferences.queueVisible ? 'translate-x-4' : 'translate-x-0'}`} />
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 

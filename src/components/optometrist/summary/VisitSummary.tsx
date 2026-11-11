@@ -332,65 +332,77 @@ function VisitSummaryLayout({
         </div>
       )
     },
-    {
-      id: 'current_specs',
-      title: 'Current Specs / Glasses',
-      icon: <Glasses className="h-5 w-5 text-violet-600" />,
-      hasData: data.current_specs && data.current_specs.length > 0,
-      content: data.current_specs?.map((spec) => (
-        <div key={spec.id} className="rounded-lg bg-slate-50 p-4 mb-4 last:mb-0">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {spec.lens_type && (
-              <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-medium">
-                {spec.lens_type.replace(/_/g, " ")}
-              </span>
-            )}
-            {spec.usage && (
-              <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-                {spec.usage.replace(/_/g, " ")}
-              </span>
-            )}
-            {spec.measured_by && (
-              <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                Via: {spec.measured_by.replace(/_/g, " ")}
-              </span>
-            )}
-            {spec.is_comfortable !== null && (
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${spec.is_comfortable ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                {spec.is_comfortable ? 'Comfortable' : 'Issues Reported'}
-              </span>
-            )}
-          </div>
+    (() => {
+      const currentSpecsList = Array.isArray(data.current_specs)
+        ? data.current_specs
+        : data.current_specs
+        ? [data.current_specs]
+        : [];
+      return {
+        id: 'current_specs',
+        title: 'Current Specs / Glasses',
+        icon: <Glasses className="h-5 w-5 text-violet-600" />,
+        hasData: currentSpecsList.length > 0,
+        content: currentSpecsList.map((spec) => (
+          <div key={spec.id} className="rounded-lg bg-slate-50 p-4 mb-4 last:mb-0">
+            <div className="flex flex-wrap gap-2 mb-3">
+              {spec.is_previous_visit && (
+                <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-medium border border-amber-200">
+                  Previous Visit{spec.visit_date ? ` (${formatDate(spec.visit_date)})` : spec.recorded_at ? ` (${formatDate(spec.recorded_at)})` : ""}
+                </span>
+              )}
+              {spec.lens_type && (
+                <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-medium">
+                  {spec.lens_type.replace(/_/g, " ")}
+                </span>
+              )}
+              {spec.usage && (
+                <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                  {spec.usage.replace(/_/g, " ")}
+                </span>
+              )}
+              {spec.measured_by && (
+                <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                  Via: {spec.measured_by.replace(/_/g, " ")}
+                </span>
+              )}
+              {spec.is_comfortable !== null && (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${spec.is_comfortable ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {spec.is_comfortable ? 'Comfortable' : 'Issues Reported'}
+                </span>
+              )}
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-lg bg-white border border-slate-200 p-3">
-              <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Right Eye (OD)</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{formatDiopter(spec.od_sph)}</span></div>
-                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{formatDiopter(spec.od_cyl)}</span></div>
-                <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.od_axis ? spec.od_axis + "°" : "—"}</span></div>
-                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{formatDiopter(spec.od_add)}</span></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg bg-white border border-slate-200 p-3">
+                <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Right Eye (OD)</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{formatDiopter(spec.od_sph)}</span></div>
+                  <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{formatDiopter(spec.od_cyl)}</span></div>
+                  <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.od_axis ? spec.od_axis + "°" : "—"}</span></div>
+                  <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{formatDiopter(spec.od_add)}</span></div>
+                </div>
+              </div>
+              <div className="rounded-lg bg-white border border-slate-200 p-3">
+                <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Left Eye (OS)</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{formatDiopter(spec.os_sph)}</span></div>
+                  <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{formatDiopter(spec.os_cyl)}</span></div>
+                  <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.os_axis ? spec.os_axis + "°" : "—"}</span></div>
+                  <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{formatDiopter(spec.os_add)}</span></div>
+                </div>
               </div>
             </div>
-            <div className="rounded-lg bg-white border border-slate-200 p-3">
-              <h4 className="font-semibold text-slate-900 mb-2 text-sm border-b border-slate-100 pb-1">Left Eye (OS)</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-slate-500 text-xs">SPH:</span> <span className="font-medium">{formatDiopter(spec.os_sph)}</span></div>
-                <div><span className="text-slate-500 text-xs">CYL:</span> <span className="font-medium">{formatDiopter(spec.os_cyl)}</span></div>
-                <div><span className="text-slate-500 text-xs">AXIS:</span> <span className="font-medium">{spec.os_axis ? spec.os_axis + "°" : "—"}</span></div>
-                <div><span className="text-slate-500 text-xs">ADD:</span> <span className="font-medium">{formatDiopter(spec.os_add)}</span></div>
-              </div>
-            </div>
-          </div>
 
-          {spec.remarks && (
-            <p className="mt-3 text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 italic">
-              &quot;{spec.remarks}&quot;
-            </p>
-          )}
-        </div>
-      ))
-    },
+            {spec.remarks && (
+              <p className="mt-3 text-sm text-slate-600 bg-white p-2 rounded border border-slate-200 italic">
+                &quot;{spec.remarks}&quot;
+              </p>
+            )}
+          </div>
+        ))
+      };
+    })(),
     {
       id: 'ophthalmic_history',
       title: 'Ophthalmic History',
@@ -769,6 +781,35 @@ function VisitSummaryLayout({
                     )}
                   </div>
                 </div>
+                {(data.vision.od_color_vision || data.vision.od_color_vision_plates) && (
+                  <div>
+                    <p className="text-xs font-medium text-blue-700 mb-1">Color Vision</p>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600">Status:</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                          data.vision.od_color_vision === "NORMAL"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {data.vision.od_color_vision === "NORMAL" ? "Normal" : "Abnormal"}
+                        </span>
+                      </div>
+                      {data.vision.od_color_vision_plates && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Plates Read:</span>
+                          <span className="font-medium">{data.vision.od_color_vision_plates}</span>
+                        </div>
+                      )}
+                      {data.vision.od_color_vision_deficiency && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Deficiency:</span>
+                          <span className="font-medium capitalize">{data.vision.od_color_vision_deficiency.replace(/_/g, " ").toLowerCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="rounded-lg bg-green-50 p-4">
@@ -814,6 +855,35 @@ function VisitSummaryLayout({
                     )}
                   </div>
                 </div>
+                {(data.vision.os_color_vision || data.vision.os_color_vision_plates) && (
+                  <div>
+                    <p className="text-xs font-medium text-green-700 mb-1">Color Vision</p>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600">Status:</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                          data.vision.os_color_vision === "NORMAL"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {data.vision.os_color_vision === "NORMAL" ? "Normal" : "Abnormal"}
+                        </span>
+                      </div>
+                      {data.vision.os_color_vision_plates && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Plates Read:</span>
+                          <span className="font-medium">{data.vision.os_color_vision_plates}</span>
+                        </div>
+                      )}
+                      {data.vision.os_color_vision_deficiency && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Deficiency:</span>
+                          <span className="font-medium capitalize">{data.vision.os_color_vision_deficiency.replace(/_/g, " ").toLowerCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

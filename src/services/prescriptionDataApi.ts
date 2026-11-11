@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import { getTenantIdForApi } from "@/utils/auth";
+import type { CurrentSpecsRecord } from "@/types";
 
 export interface PrescriptionDataResponse {
   patient_id: string;
@@ -120,11 +121,17 @@ export interface PrescriptionDataResponse {
     od_va_with_current_specs: string;
     od_near_ucva: string;
     od_near_with_current_specs: string;
+    od_color_vision?: string | null;
+    od_color_vision_plates?: string | null;
+    od_color_vision_deficiency?: string | null;
     os_ucva_distance: string;
     os_ph_va: string;
     os_va_with_current_specs: string;
     os_near_ucva: string;
     os_near_with_current_specs: string;
+    os_color_vision?: string | null;
+    os_color_vision_plates?: string | null;
+    os_color_vision_deficiency?: string | null;
     notes: string | null;
     created_at: string;
     updated_at: string;
@@ -175,31 +182,7 @@ export interface PrescriptionDataResponse {
     created_by: string;
     updated_by: string | null;
   }>;
-  current_specs?: Array<{
-    id: string;
-    tenant_id: string;
-    patient_id: string;
-    optometrist_id: string;
-    visit_id: string;
-    od_sph: string;
-    od_cyl: string;
-    od_axis: number;
-    od_add: string;
-    os_sph: string;
-    os_cyl: string;
-    os_axis: number;
-    os_add: string;
-    lens_type: string;
-    usage: string;
-    measured_by: string;
-    is_comfortable: boolean;
-    remarks: string | null;
-    recorded_at: string;
-    created_at: string;
-    updated_at: string;
-    created_by: string;
-    updated_by: string | null;
-  }> | null;
+  current_specs?: CurrentSpecsRecord | CurrentSpecsRecord[] | null;
   address?: string | null;
   checked_in_at?: string | null;
 }

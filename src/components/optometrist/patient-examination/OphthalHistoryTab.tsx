@@ -24,7 +24,7 @@ interface OphthalHistoryTabProps {
   onRefresh: () => void;
 }
 
-type EyeType = "OD" | "OS" | "OU";
+type EyeType = "RE" | "LE" | "BE" | "GE" | "OD" | "OS" | "OU";
 
 interface SurgeryFormData {
   surgery_name: string;
@@ -39,7 +39,7 @@ interface SurgeryFormData {
 
 const initialFormData: SurgeryFormData = {
   surgery_name: "",
-  eye: "OD",
+  eye: "RE",
   surgery_year: "",
   surgery_month: "",
   surgeon_name: "",
@@ -245,10 +245,13 @@ export function OphthalHistoryTab({
   const getEyeLabel = (eye: string) => {
     switch (eye) {
       case "OD":
+      case "RE":
         return "Right Eye";
       case "OS":
+      case "LE":
         return "Left Eye";
       case "OU":
+      case "BE":
         return "Both Eyes";
       default:
         return eye;
@@ -258,10 +261,13 @@ export function OphthalHistoryTab({
   const getEyeColor = (eye: string) => {
     switch (eye) {
       case "OD":
+      case "RE":
         return "bg-blue-100 text-blue-700 border-blue-200";
       case "OS":
+      case "LE":
         return "bg-green-100 text-green-700 border-green-200";
       case "OU":
+      case "BE":
         return "bg-purple-100 text-purple-700 border-purple-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
@@ -285,41 +291,36 @@ export function OphthalHistoryTab({
   };
 
   const leftContent = (
-    <div className="rounded-xl border border-slate-200/60 bg-white shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full">
-      <div className="p-4 space-y-3">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden h-full">
+      <div className="p-4 space-y-4">
         {/* Quick Select Surgeries */}
         <div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
             {filteredSurgeries.map((surgery) => {
               const isActive = activeSurgery === surgery;
-              const isOtherActive = activeSurgery && activeSurgery !== surgery;
               // Check if this surgery is already confirmed (in the ophthalmicHistory list)
               const isConfirmed = ophthalmicHistory.some(s =>
                 s.surgery_name.toLowerCase() === surgery.toLowerCase()
               );
-              const isDisabled = Boolean(isOtherActive);
 
               return (
                 <button
                   key={surgery}
                   type="button"
                   onClick={() => handleSurgeryButtonClick(surgery)}
-                  disabled={isDisabled}
                   className={clsx(
-                    "w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 text-left",
+                    "w-full rounded-lg border px-2.5 sm:px-3 py-2 text-xs font-semibold transition text-left cursor-pointer",
                     isActive
-                      ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-600 shadow-lg shadow-sky-500/30 scale-105"
-                      : isConfirmed && !isDisabled
-                        ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 shadow-sm"
-                        : isDisabled
-                          ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed pointer-events-none"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700 hover:shadow-md hover:scale-105 active:scale-95"
+                      ? "bg-sky-600 text-white border-sky-600 shadow-xs ring-2 ring-sky-500/20"
+                      : isConfirmed
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/60"
+                        : "bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-white hover:border-sky-300 hover:text-sky-700"
                   )}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <span className="truncate">{surgery}</span>
-                    {isConfirmed && !isActive && !isDisabled && (
-                      <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 ml-1" />
+                    {isConfirmed && !isActive && (
+                      <Check className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -329,7 +330,7 @@ export function OphthalHistoryTab({
 
           {/* Inline Form - appears below the grid */}
           {activeSurgery && filteredSurgeries.includes(activeSurgery) && (
-            <div className="mt-4">
+            <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
               <InlineSurgeryForm
                 surgeryText={activeSurgery}
                 onSave={handleSubmit}
@@ -342,30 +343,30 @@ export function OphthalHistoryTab({
         </div>
 
         {/* Custom Surgery Input */}
-        <div>
-          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <FileText className="h-4 w-4 text-sky-600" />
+        <div className="pt-2 border-t border-slate-100">
+          <label className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+            <FileText className="h-3.5 w-3.5 text-sky-600" />
             Custom Surgery
           </label>
-          <div className="flex gap-2.5">
+          <div className="flex gap-2">
             <input
               type="text"
               value={surgerySearch}
               onChange={(e) => setSurgerySearch(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" || ((e.key === "s" || e.key === "S") && (e.ctrlKey || e.metaKey))) {
                   e.preventDefault();
                   handleAddCustomSurgery();
                 }
               }}
-              className="flex-1 rounded-lg border border-slate-300 bg-white text-slate-900 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+              className="flex-1 rounded-lg border border-slate-300 bg-white text-slate-900 px-3.5 py-2 text-xs sm:text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition"
               placeholder="Type a custom surgery name if not listed above..."
             />
             <button
               type="button"
               onClick={handleAddCustomSurgery}
               disabled={!surgerySearch.trim()}
-              className="rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/30 hover:from-sky-700 hover:to-blue-700 hover:shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="rounded-lg bg-sky-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-sky-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add
             </button>
@@ -373,7 +374,7 @@ export function OphthalHistoryTab({
 
           {/* Custom Surgery Inline Form */}
           {activeSurgery && !filteredSurgeries.includes(activeSurgery) && (
-            <div className="mt-3">
+            <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <InlineSurgeryForm
                 surgeryText={activeSurgery}
                 onSave={handleSubmit}

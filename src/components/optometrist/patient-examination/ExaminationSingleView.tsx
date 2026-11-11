@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   Circle,
   History,
+  ChevronsUpDown,
+  LayoutGrid,
 } from "lucide-react";
 
 import {
@@ -151,6 +153,8 @@ export function ExaminationSingleView({
     hiddenTabs,
     toggleSection,
     isSectionCollapsed,
+    expandAllSections,
+    collapseAllSections,
     useMergedVisionView,
     setUseMergedVisionView,
   } = useExaminationViewContext();
@@ -231,6 +235,23 @@ export function ExaminationSingleView({
 
   // Avoid division by zero
   const progressPercent = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
+
+  // Track expanded/collapsed all state
+  const activeSectionIds = useMemo(() => {
+    return visibleSections.filter((s) => !hiddenTabs.includes(s.id)).map((s) => s.id);
+  }, [visibleSections, hiddenTabs]);
+
+  const allAreCollapsed = useMemo(() => {
+    return activeSectionIds.length > 0 && activeSectionIds.every((id) => isSectionCollapsed(id));
+  }, [activeSectionIds, isSectionCollapsed]);
+
+  const handleToggleExpandCollapseAll = () => {
+    if (allAreCollapsed) {
+      expandAllSections();
+    } else {
+      collapseAllSections(activeSectionIds);
+    }
+  };
 
   // Render content function maps section ID to component
   const renderSectionContent = (sectionId: string) => {
@@ -360,134 +381,134 @@ export function ExaminationSingleView({
   };
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Sticky Header with Progress, Quick Jump & Layout Toggle */}
-      <div className="sticky top-0 z-40 bg-gradient-to-r from-slate-50/95 via-sky-50/80 to-slate-50/95 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-3 mb-3">
-        {/* Progress Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs font-semibold text-slate-700">
-                {completedCount} of {totalSections} complete
-              </span>
+    <div className="flex flex-col h-full min-h-0 bg-slate-50/50">
+      {/* Compact Non-Overlapping Control & Progress Bar */}
+      <div className="flex-shrink-0 bg-white border-b border-slate-200/90 shadow-2xs z-20 px-2.5 py-1.5 sm:px-4 sm:py-2">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+          {/* Left: Progress Badge */}
+          <div className="flex items-center gap-1.5 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+            <span className="text-xs font-bold text-slate-700 whitespace-nowrap">
+              {completedCount}/{totalSections} done
+            </span>
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden hidden md:block">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
+            <span className="text-[11px] font-bold text-slate-500">{progressPercent}%</span>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Center: Quick Jump Carousel */}
+          <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 px-0.5">
+            {visibleSections.map((section) => {
+              if (hiddenTabs.includes(section.id)) return null;
+
+              const status = finalSectionStatuses[section.id as keyof typeof finalSectionStatuses] as SectionStatus;
+              const isComplete = status === "complete";
+              const isPartial = status === "partial";
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById(`section-${section.id}`);
+                    if (el) {
+                      if (isSectionCollapsed(section.id)) {
+                        toggleSection(section.id);
+                      }
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  }}
+                  className={clsx(
+                    "flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap transition border",
+                    isComplete
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100"
+                      : isPartial
+                      ? "bg-amber-50 text-amber-700 border-amber-200/80 hover:bg-amber-100"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-sky-700 hover:border-sky-300"
+                  )}
+                  title={`Jump to ${section.title}`}
+                >
+                  {isComplete ? (
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600 flex-shrink-0" />
+                  ) : isPartial ? (
+                    <Circle className="h-2 w-2 fill-amber-500 text-amber-500 flex-shrink-0" />
+                  ) : (
+                    <section.icon className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                  )}
+                  <span className="truncate max-w-[110px] sm:max-w-[130px]">{section.title}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Expand / Collapse All */}
+            <button
+              type="button"
+              onClick={handleToggleExpandCollapseAll}
+              className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+              title={allAreCollapsed ? "Expand all sections" : "Collapse all sections"}
+            >
+              <ChevronsUpDown className="h-3 w-3 text-slate-500 flex-shrink-0" />
+              <span className="hidden sm:inline">{allAreCollapsed ? "Expand All" : "Collapse All"}</span>
+            </button>
+
             {/* Layout Mode Toggle */}
             <button
+              type="button"
               onClick={() => setUseMergedVisionView(!useMergedVisionView)}
               className={clsx(
-                "flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold shadow-sm transition-all duration-200 border bg-white",
+                "flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition border shadow-2xs",
                 useMergedVisionView
-                  ? "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100"
-                  : "text-slate-700 border-slate-200 hover:bg-slate-50"
+                  ? "bg-sky-50 text-sky-700 border-sky-300"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
-              title={useMergedVisionView ? "Switch to separate sections" : "Switch to merged vision & refraction"}
+              title={useMergedVisionView ? "Switch to separate sections" : "Switch to merged vision & refraction sheet"}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3 w-3"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M3 9h18" />
-                <path d="M9 21V9" />
-              </svg>
-              <span>{useMergedVisionView ? "Merged" : "Tabbed"}</span>
+              <LayoutGrid className="h-3 w-3 flex-shrink-0" />
+              <span className="hidden sm:inline">{useMergedVisionView ? "Merged" : "Tabs"}</span>
             </button>
-            <span className="text-xs font-bold text-sky-600 ml-1">{progressPercent}%</span>
           </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden mb-2">
-          <div
-            className="h-full bg-gradient-to-r from-sky-500 to-emerald-500 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        {/* Quick Jump Links */}
-        <div className="flex flex-wrap gap-2">
-          {visibleSections.map((section) => {
-            // Skip if section is hidden
-            if (hiddenTabs.includes(section.id)) return null;
-
-            const status = finalSectionStatuses[section.id as keyof typeof finalSectionStatuses] as SectionStatus;
-            const isComplete = status === "complete";
-            const isPartial = status === "partial";
-
-            return (
-              <a
-                key={section.id}
-                href={`#section-${section.id}`}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all shadow-sm ${
-                  isComplete
-                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
-                    : isPartial
-                    ? "bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200"
-                    : "bg-white border border-slate-200 text-slate-600 hover:border-sky-300 hover:text-sky-600"
-                }`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById(`section-${section.id}`)?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  });
-                }}
-              >
-                {isComplete ? (
-                  <CheckCircle2 className="h-3 w-3" />
-                ) : isPartial ? (
-                  <Circle className="h-3 w-3 fill-current" />
-                ) : (
-                  <section.icon className="h-3 w-3" />
-                )}
-                <span>{section.title}</span>
-              </a>
-            );
-          })}
         </div>
       </div>
 
-      {visibleSections.map((section) => {
-        // Skip if section is hidden
-        if (hiddenTabs.includes(section.id)) return null;
+      {/* Scrollable Sections */}
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth p-2.5 sm:p-4 space-y-3.5">
+        {visibleSections.map((section) => {
+          if (hiddenTabs.includes(section.id)) return null;
 
-        const status = finalSectionStatuses[section.id as keyof typeof finalSectionStatuses] as SectionStatus;
+          const status = finalSectionStatuses[section.id as keyof typeof finalSectionStatuses] as SectionStatus;
 
-        return (
-          <div key={section.id} id={`section-${section.id}`} className="scroll-mt-24">
-            <SingleViewSection
-              id={section.id}
-              title={section.title}
-              icon={<section.icon className="h-5 w-5" />}
-              status={status}
-              isExpanded={!isSectionCollapsed(section.id)}
-              onToggle={() => toggleSection(section.id)}
-              colorScheme={section.colorScheme}
-            >
-              {renderSectionContent(section.id)}
-            </SingleViewSection>
-          </div>
-        );
-      })}
+          return (
+            <div key={section.id} id={`section-${section.id}`} className="scroll-mt-3">
+              <SingleViewSection
+                id={section.id}
+                title={section.title}
+                icon={<section.icon className="h-4.5 w-4.5" />}
+                status={status}
+                isExpanded={!isSectionCollapsed(section.id)}
+                onToggle={() => toggleSection(section.id)}
+                colorScheme={section.colorScheme}
+              >
+                {renderSectionContent(section.id)}
+              </SingleViewSection>
+            </div>
+          );
+        })}
 
-      {/* End of Examination Indicator */}
-      <div className="flex items-center justify-center py-8 opacity-60">
-        <div className="h-px bg-slate-300 w-24"></div>
-        <span className="mx-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
-          End of Examination
-        </span>
-        <div className="h-px bg-slate-300 w-24"></div>
+        {/* End of Examination Indicator */}
+        <div className="flex items-center justify-center py-6 opacity-60">
+          <div className="h-px bg-slate-200 w-20"></div>
+          <span className="mx-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+            End of Examination
+          </span>
+          <div className="h-px bg-slate-200 w-20"></div>
+        </div>
       </div>
     </div>
   );

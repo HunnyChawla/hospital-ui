@@ -10,6 +10,7 @@ import {
     Stethoscope
 } from "lucide-react";
 import type { PrescriptionDataResponse } from "@/services/prescriptionDataApi";
+import { EditableCurrentSpecsCard } from "./EditableCurrentSpecsCard";
 import { EditableRefractionCard } from "./EditableRefractionCard";
 import { EditableIOPCard } from "./EditableIOPCard";
 import { EditableVisionCard } from "./EditableVisionCard";
@@ -191,6 +192,16 @@ export function ExaminationSummarySection({
                 </section>
             )}
 
+            {/* Current Glasses - Editable */}
+            <EditableCurrentSpecsCard
+                data={data.current_specs}
+                patientId={patientId}
+                visitId={visitId}
+                optometristId={optometristId}
+                onSave={onDataChange || (() => {})}
+                isReadOnly={isReadOnly}
+            />
+
             {/* Refraction - Editable */}
             <EditableRefractionCard
                 data={data.refraction}
@@ -296,7 +307,7 @@ export function ExaminationSummarySection({
             )}
 
             {/* No Data State - Show only when ALL sections are empty */}
-            {!data.complaints?.length && !data.ar_data && !data.refraction && !data.iop && !data.vision && !data.medical_conditions?.length && !data.drug_allergies?.length && !data.ophthalmic_history?.length && (
+            {!data.complaints?.length && !data.ar_data && !data.current_specs && !data.refraction && !data.iop && !data.vision && !data.medical_conditions?.length && !data.drug_allergies?.length && !data.ophthalmic_history?.length && (
                 <div className="text-center py-8">
                     <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500">No examination data recorded yet</p>

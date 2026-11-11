@@ -7,7 +7,7 @@ interface ResizablePanelProps {
     leftContent: React.ReactNode;
     rightContent: React.ReactNode;
     bottomContent?: React.ReactNode; // Optional full-width bottom section
-    defaultLeftWidthPercent?: number; // percentage (e.g., 67 for 2/3)
+    defaultLeftWidthPercent?: number; // percentage (e.g., 65 for ~2/3)
     minLeftWidthPercent?: number; // percentage minimum
     maxLeftWidthPercent?: number; // percentage maximum
     storageKey?: string; // localStorage key for persistence
@@ -18,16 +18,16 @@ export function ResizablePanel({
     leftContent,
     rightContent,
     bottomContent,
-    defaultLeftWidthPercent = 67,
-    minLeftWidthPercent = 40,
-    maxLeftWidthPercent = 85,
+    defaultLeftWidthPercent = 65,
+    minLeftWidthPercent = 35,
+    maxLeftWidthPercent = 75,
     storageKey,
     className,
 }: ResizablePanelProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [leftWidthPercent, setLeftWidthPercent] = useState(defaultLeftWidthPercent);
     const [isDragging, setIsDragging] = useState(false);
-    const [isLargeScreen, setIsLargeScreen] = useState(true);
+    const [isCompact, setIsCompact] = useState(false);
 
     // Load saved width from localStorage on mount
     useEffect(() => {
@@ -42,15 +42,20 @@ export function ResizablePanel({
         }
     }, [storageKey, minLeftWidthPercent, maxLeftWidthPercent]);
 
-    // Check screen size for responsive behavior
+    // Use ResizeObserver on container to check actual container space rather than window width
     useEffect(() => {
-        const checkScreenSize = () => {
-            setIsLargeScreen(window.innerWidth >= 1024); // lg breakpoint
-        };
+        const el = containerRef.current;
+        if (!el) return;
 
-        checkScreenSize();
-        window.addEventListener("resize", checkScreenSize);
-        return () => window.removeEventListener("resize", checkScreenSize);
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                // If container is narrower than 768px, stack vertically for comfortable touch and reading
+                setIsCompact(entry.contentRect.width < 768);
+            }
+        });
+
+        observer.observe(el);
+        return () => observer.disconnect();
     }, []);
 
     // Save width to localStorage when it changes
@@ -75,6 +80,8 @@ export function ResizablePanel({
 
             const containerRect = containerRef.current.getBoundingClientRect();
             const containerWidth = containerRect.width;
+            if (containerWidth <= 0) return;
+
             const offsetX = clientX - containerRect.left;
             const newPercent = (offsetX / containerWidth) * 100;
 
@@ -137,75 +144,62 @@ export function ResizablePanel({
         };
     }, [isDragging, handleMouseMove, handleTouchMove, handleEnd]);
 
-    // Mobile/small screen layout - stacked vertically
-    if (!isLargeScreen) {
-        return (
-            <div className={clsx("flex flex-col gap-4", className)}>
-                <div>{leftContent}</div>
-                <div>{rightContent}</div>
-                {bottomContent && <div>{bottomContent}</div>}
-            </div>
-        );
-    }
-
-    // Desktop layout - resizable horizontal panels
     return (
-        <div className={clsx("flex flex-col gap-4 sm:gap-6", className)}>
-            <div
-                ref={containerRef}
-                className="flex gap-0 animate-in fade-in slide-in-from-bottom-2 duration-500 relative"
-            >
-                {/* Left Panel */}
-                <div
-                    style={{ width: `${leftWidthPercent}%` }}
-                    className="min-w-0 transition-none"
-                >
-                    {leftContent}
+        <div ref={containerRef} className={clsx("flex flex-col gap-3 w-full min-w-0", className)}>
+            {isCompact ? (
+                // Compact / stacked layout on narrow screens (< 768px)
+                <div className="flex flex-col gap-3.5 w-full min-w-0">
+                    <div className="w-full min-w-0">{leftContent}</div>
+                    <div className="w-full min-w-0">{rightContent}</div>
                 </div>
+            ) : (
+                // Side-by-side resizable horizontal layout on desktop/tablets (>= 768px)
+                <div className="flex gap-0 relative items-stretch w-full min-w-0">
+                    {/* Left Panel */}
+                    <div
+                        style={{ width: `${leftWidthPercent}%` }}
+                        className="min-w-0 transition-none pr-1.5"
+                    >
+                        {leftContent}
+                    </div>
 
-                {/* Drag Handle */}
-                <div
-                    onMouseDown={handleMouseDown}
-                    onTouchStart={handleTouchStart}
-                    className={clsx(
-                        "relative flex-shrink-0 w-4 group cursor-col-resize z-10",
-                        "flex items-center justify-center",
-                        isDragging && "bg-sky-100/50"
-                    )}
-                >
-                    {/* Visual drag indicator */}
+                    {/* Drag Handle */}
                     <div
+                        onMouseDown={handleMouseDown}
+                        onTouchStart={handleTouchStart}
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize panel columns"
+                        tabIndex={0}
                         className={clsx(
-                            "absolute inset-y-0 w-1 rounded-full transition-all duration-200",
-                            "bg-slate-200 group-hover:bg-sky-400 group-hover:w-1.5",
-                            isDragging && "bg-sky-500 w-1.5 shadow-lg shadow-sky-500/30"
-                        )}
-                    />
-                    {/* Grip dots */}
-                    <div
-                        className={clsx(
-                            "absolute flex flex-col gap-1 pointer-events-none",
-                            "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                            isDragging && "opacity-100"
+                            "relative flex-shrink-0 w-3 group cursor-col-resize z-10",
+                            "flex items-center justify-center select-none",
+                            isDragging && "bg-sky-50"
                         )}
                     >
-                        <div className="w-1 h-1 rounded-full bg-sky-500" />
-                        <div className="w-1 h-1 rounded-full bg-sky-500" />
-                        <div className="w-1 h-1 rounded-full bg-sky-500" />
+                        {/* Visual divider line */}
+                        <div
+                            className={clsx(
+                                "h-full w-1 rounded-full transition-colors duration-150",
+                                isDragging
+                                    ? "bg-sky-500"
+                                    : "bg-slate-200 group-hover:bg-slate-400"
+                            )}
+                        />
+                    </div>
+
+                    {/* Right Panel */}
+                    <div
+                        style={{ width: `${100 - leftWidthPercent}%` }}
+                        className="min-w-0 transition-none pl-1.5"
+                    >
+                        {rightContent}
                     </div>
                 </div>
-
-                {/* Right Panel */}
-                <div
-                    style={{ width: `${100 - leftWidthPercent}%` }}
-                    className="min-w-0 transition-none"
-                >
-                    {rightContent}
-                </div>
-            </div>
+            )}
 
             {/* Bottom Content (full width) */}
-            {bottomContent && <div>{bottomContent}</div>}
+            {bottomContent && <div className="w-full min-w-0">{bottomContent}</div>}
         </div>
     );
 }

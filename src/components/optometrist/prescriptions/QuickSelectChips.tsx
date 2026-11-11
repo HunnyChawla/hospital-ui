@@ -101,8 +101,8 @@ export function MedicineQuickChips({
                         className={clsx(
                             "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-150",
                             isAdded
-                                ? "bg-sky-500 border-sky-600 text-white shadow-md shadow-sky-500/20 cursor-default"
-                                : clsx("hover:scale-105 active:scale-95", colorMap[option.color])
+                                ? "bg-sky-600 border-sky-600 text-white shadow-xs cursor-default"
+                                : colorMap[option.color]
                         )}
                     >
                         <Icon className={clsx("h-3.5 w-3.5", isAdded ? "text-white" : "")} />

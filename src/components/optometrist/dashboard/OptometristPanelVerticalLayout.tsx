@@ -2,6 +2,7 @@
 
 import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import clsx from "clsx";
+import { Users } from "lucide-react";
 import { OptometristCollapsibleStatsSection } from "./OptometristCollapsibleStatsSection";
 import { OptometristCollapsibleQueueSection, type OptometristActionType } from "./OptometristCollapsibleQueueSection";
 import { OptometristActivePatientCard } from "@/components/optometrist/dashboard/OptometristActivePatientCard";
@@ -60,9 +61,9 @@ interface OptometristPanelVerticalLayoutProps {
 }
 
 const STORAGE_KEY = "optometry-queue-sidebar-width";
-const DEFAULT_QUEUE_WIDTH = 320; // pixels
-const MIN_QUEUE_WIDTH = 240;
-const MAX_QUEUE_WIDTH = 600; // Increased for better large screen utilization
+const DEFAULT_QUEUE_WIDTH = 290; // pixels
+const MIN_QUEUE_WIDTH = 220;
+const MAX_QUEUE_WIDTH = 480;
 
 const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVerticalLayoutProps> = ({
   stats,
@@ -91,14 +92,29 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
   doctorId,
   doctorName,
 }) => {
-  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const [isQueueExpanded, setIsQueueExpanded] = useState(true);
   const [queueWidth, setQueueWidth] = useState(DEFAULT_QUEUE_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedPatient = queuePatients.find(p => p.patient_id === selectedPatientId);
   const isCompleted = selectedPatient?.status === "completed" || selectedPatient?.status === "consultation_completed";
+
+  // Track viewport breakpoint for responsive overlay drawer vs inline sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 1024;
+      setIsMobileOrTablet(isMobile);
+      if (isMobile && selectedPatientId) {
+        setIsQueueExpanded(false);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [selectedPatientId]);
 
   // Load saved width from localStorage
   useEffect(() => {
@@ -232,91 +248,97 @@ const OptometristPanelVerticalLayoutComponent: React.FC<OptometristPanelVertical
           </OptometristActivePatientCard>
         </div>
 
-        {/* Queue Toggle Button (visible when sidebar is collapsed) */}
-        {queueVisible && !isQueueExpanded && (
+        {/* Queue Toggle Button (visible when sidebar is collapsed or on mobile/tablet) */}
+        {queueVisible && (!isQueueExpanded || isMobileOrTablet) && (
           <button
             onClick={() => setIsQueueExpanded(true)}
-            className="group flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-md transition-all hover:bg-sky-50 hover:border-sky-400 hover:text-sky-600 hover:scale-110 active:scale-95 z-20 relative animate-in fade-in slide-in-from-right-2 duration-300 ml-2"
-            title="Show patient queue"
+            className="group flex h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-xs transition hover:bg-sky-50 hover:border-sky-300 hover:text-sky-600 z-20 relative ml-1.5 self-start mt-0.5"
+            title="Open patient queue"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            <Users className="h-4 w-4" />
           </button>
         )}
 
-        {/* Drag Handle - Visible when queue is expanded */}
-        {queueVisible && isQueueExpanded && (
-          <div
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            className={clsx(
-              "relative flex-shrink-0 w-3 group cursor-col-resize z-10",
-              "flex items-center justify-center",
-              isDragging && "bg-sky-100/50"
-            )}
-          >
-            {/* Visual drag indicator */}
+        {/* Mobile / Tablet Responsive Drawer Overlay */}
+        {queueVisible && isQueueExpanded && isMobileOrTablet && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-2xs animate-in fade-in duration-150">
             <div
-              className={clsx(
-                "absolute inset-y-0 w-1 rounded-full transition-all duration-200",
-                "bg-slate-200 group-hover:bg-sky-400 group-hover:w-1.5",
-                isDragging && "bg-sky-500 w-1.5 shadow-lg shadow-sky-500/30"
-              )}
+              className="fixed inset-0"
+              onClick={() => setIsQueueExpanded(false)}
+              aria-hidden="true"
             />
-            {/* Grip dots */}
-            <div
-              className={clsx(
-                "absolute flex flex-col gap-1 pointer-events-none",
-                "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                isDragging && "opacity-100"
-              )}
-            >
-              <div className="w-1 h-1 rounded-full bg-sky-500" />
-              <div className="w-1 h-1 rounded-full bg-sky-500" />
-              <div className="w-1 h-1 rounded-full bg-sky-500" />
+            <div className="relative w-80 max-w-[85vw] h-full bg-white shadow-2xl z-10 flex flex-col animate-in slide-in-from-right duration-200">
+              <OptometristCollapsibleQueueSection
+                queuePatients={queuePatients}
+                activeFilter={queueFilter}
+                onFilterChange={onQueueFilterChange}
+                onSelectPatient={(id) => {
+                  onSelectPatient(id);
+                  setIsQueueExpanded(false); // auto-close drawer on selection on mobile/tablet
+                }}
+                selectedPatientId={selectedPatientId}
+                onAction={onAction}
+                updatingVisitId={updatingVisitId}
+                loading={queueLoading}
+                isVisible={true}
+                onToggle={() => setIsQueueExpanded(false)}
+                isDoctor={isDoctor}
+                optometristId={optometristId}
+              />
             </div>
           </div>
         )}
 
-        {/* Queue Sidebar - Right side with resizable width */}
-        <div
-          style={{ width: queueVisible && isQueueExpanded ? `${queueWidth}px` : 0 }}
-          className={clsx(
-            "flex-shrink-0 h-full min-h-0 transition-none",
-            !queueVisible || !isQueueExpanded ? "overflow-hidden" : ""
-          )}
-        >
-          {queueVisible && isQueueExpanded && (
-            <OptometristCollapsibleQueueSection
-              queuePatients={queuePatients}
-              activeFilter={queueFilter}
-              onFilterChange={onQueueFilterChange}
-              onSelectPatient={onSelectPatient}
-              selectedPatientId={selectedPatientId}
-              onAction={onAction}
-              updatingVisitId={updatingVisitId}
-              loading={queueLoading}
-              isVisible={true}
-              onToggle={() => setIsQueueExpanded(!isQueueExpanded)}
-              isDoctor={isDoctor}
-              optometristId={optometristId}
+        {/* Desktop Drag Handle - Visible when queue is expanded on desktop */}
+        {queueVisible && isQueueExpanded && !isMobileOrTablet && (
+          <div
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            className={clsx(
+              "relative flex-shrink-0 w-2.5 group cursor-col-resize z-10",
+              "flex items-center justify-center select-none",
+              isDragging && "bg-sky-50"
+            )}
+            title="Drag to resize queue sidebar"
+          >
+            {/* Visual drag divider */}
+            <div
+              className={clsx(
+                "absolute inset-y-0 w-0.5 transition-all duration-150",
+                "bg-slate-200 group-hover:bg-sky-400 group-hover:w-1",
+                isDragging && "bg-sky-500 w-1"
+              )}
             />
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Desktop Queue Sidebar - Right side with resizable width */}
+        {!isMobileOrTablet && (
+          <div
+            style={{ width: queueVisible && isQueueExpanded ? `${queueWidth}px` : 0 }}
+            className={clsx(
+              "flex-shrink-0 h-full min-h-0 transition-none",
+              !queueVisible || !isQueueExpanded ? "overflow-hidden" : ""
+            )}
+          >
+            {queueVisible && isQueueExpanded && (
+              <OptometristCollapsibleQueueSection
+                queuePatients={queuePatients}
+                activeFilter={queueFilter}
+                onFilterChange={onQueueFilterChange}
+                onSelectPatient={onSelectPatient}
+                selectedPatientId={selectedPatientId}
+                onAction={onAction}
+                updatingVisitId={updatingVisitId}
+                loading={queueLoading}
+                isVisible={true}
+                onToggle={() => setIsQueueExpanded(!isQueueExpanded)}
+                isDoctor={isDoctor}
+                optometristId={optometristId}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

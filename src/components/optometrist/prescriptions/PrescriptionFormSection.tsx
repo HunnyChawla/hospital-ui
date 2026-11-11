@@ -12,6 +12,7 @@ import {
     CheckCircle,
     AlertCircle,
     Eye,
+    Glasses,
     Clock,
     FileText,
     FileEdit,
@@ -222,7 +223,10 @@ export function PrescriptionFormSection({
     // Letterhead/page geometry is a hospital-level setting resolved once here and
     // shared by the read-only view and the print preview.
     const { layout: printLayout } = usePrescriptionPrintLayout();
-    const [showOpticalDetails, setShowOpticalDetails] = useState(false);
+    const [showOpticalDetails, setShowOpticalDetails] = useState(true);
+    const [showLensSpecs, setShowLensSpecs] = useState(false);
+    const [selectedSpecsSource, setSelectedSpecsSource] = useState<"dry" | "dilated" | "current_glass" | "none">("none");
+    const [specsItems, setSpecsItems] = useState<OptometryPrescriptionItem[]>([]);
     const [showCustomDate, setShowCustomDate] = useState(false);
     const [selectedFollowupDays, setSelectedFollowupDays] = useState<number | null>(null);
     const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
@@ -475,6 +479,20 @@ export function PrescriptionFormSection({
                         advice_items: existing.advice_items || [],
                     });
 
+                    // Set specs prescription source and items
+                    if (existing.specs_prescription_source) {
+                        setSelectedSpecsSource(existing.specs_prescription_source as any);
+                    } else if (existing.items && existing.items.length > 0) {
+                        setSelectedSpecsSource("dry");
+                    } else {
+                        setSelectedSpecsSource("none");
+                    }
+                    if (existing.items && existing.items.length > 0) {
+                        setSpecsItems(existing.items);
+                    } else {
+                        setSpecsItems([]);
+                    }
+
                     // Also fetch doctor signature if it belongs to a different doctor
                     if (existing.doctor_id && existing.doctor_id !== doctorId) {
                         try {
@@ -627,6 +645,15 @@ export function PrescriptionFormSection({
 
     const selectedCoatings = watch("coatings");
     const currentDiagnosis = watch("diagnosis");
+    const watchedLensType = watch("lens_type");
+    const watchedVisionType = watch("vision_type");
+    const watchedLensMaterial = watch("lens_material");
+    const hasActiveLensSpecs = Boolean(
+        watchedLensType ||
+        watchedVisionType ||
+        watchedLensMaterial ||
+        (selectedCoatings && selectedCoatings.length > 0)
+    );
 
     // Sync eye selection to diagnosis input field in real-time
     useEffect(() => {
@@ -1186,33 +1213,202 @@ export function PrescriptionFormSection({
         }
     };
 
-    // Helper to build items from examination data
-    const getRefractionItems = (): OptometryPrescriptionItem[] => {
+    const hasValue = (v: any) => v !== null && v !== undefined && v !== "";
+
+    // Dry Refraction items
+    const getDryRefractionItems = (): OptometryPrescriptionItem[] => {
         const items: OptometryPrescriptionItem[] = [];
         if (examinationData?.refraction) {
             const refr = examinationData.refraction;
             items.push({
                 eye: "OD",
-                sphere: parseFloat(refr.od_sphere) || 0,
-                cylinder: parseFloat(refr.od_cylinder) || null,
-                axis: refr.od_axis || null,
-                add_power: parseFloat(refr.od_add_power) || null,
-                visual_acuity: refr.od_visual_acuity_corrected || null,
+                sphere: parseFloat(String(refr.od_sphere || "0")) || 0,
+                cylinder: hasValue(refr.od_cylinder) ? parseFloat(String(refr.od_cylinder)) : null,
+                axis: hasValue(refr.od_axis) ? parseInt(String(refr.od_axis), 10) : null,
+                add_power: hasValue(refr.od_add_power) ? parseFloat(String(refr.od_add_power)) : null,
+                visual_acuity: refr.od_distance_bcva || refr.od_visual_acuity_corrected || null,
                 prism: null,
                 lens_type: null,
             });
             items.push({
                 eye: "OS",
-                sphere: parseFloat(refr.os_sphere) || 0,
-                cylinder: parseFloat(refr.os_cylinder) || null,
-                axis: refr.os_axis || null,
-                add_power: parseFloat(refr.os_add_power) || null,
-                visual_acuity: refr.os_visual_acuity_corrected || null,
+                sphere: parseFloat(String(refr.os_sphere || "0")) || 0,
+                cylinder: hasValue(refr.os_cylinder) ? parseFloat(String(refr.os_cylinder)) : null,
+                axis: hasValue(refr.os_axis) ? parseInt(String(refr.os_axis), 10) : null,
+                add_power: hasValue(refr.os_add_power) ? parseFloat(String(refr.os_add_power)) : null,
+                visual_acuity: refr.os_distance_bcva || refr.os_visual_acuity_corrected || null,
                 prism: null,
                 lens_type: null,
             });
         }
         return items;
+    };
+
+    // Dilated Refraction items
+    const getDilatedRefractionItems = (): OptometryPrescriptionItem[] => {
+        const items: OptometryPrescriptionItem[] = [];
+        if (examinationData?.refraction) {
+            const refr = examinationData.refraction;
+            items.push({
+                eye: "OD",
+                sphere: parseFloat(String(refr.od_dilated_sphere || "0")) || 0,
+                cylinder: hasValue(refr.od_dilated_cylinder) ? parseFloat(String(refr.od_dilated_cylinder)) : null,
+                axis: hasValue(refr.od_dilated_axis) ? parseInt(String(refr.od_dilated_axis), 10) : null,
+                add_power: hasValue(refr.od_add_power) ? parseFloat(String(refr.od_add_power)) : null,
+                visual_acuity: refr.od_dilated_visual_acuity || null,
+                prism: null,
+                lens_type: null,
+            });
+            items.push({
+                eye: "OS",
+                sphere: parseFloat(String(refr.os_dilated_sphere || "0")) || 0,
+                cylinder: hasValue(refr.os_dilated_cylinder) ? parseFloat(String(refr.os_dilated_cylinder)) : null,
+                axis: hasValue(refr.os_dilated_axis) ? parseInt(String(refr.os_dilated_axis), 10) : null,
+                add_power: hasValue(refr.os_add_power) ? parseFloat(String(refr.os_add_power)) : null,
+                visual_acuity: refr.os_dilated_visual_acuity || null,
+                prism: null,
+                lens_type: null,
+            });
+        }
+        return items;
+    };
+
+    // Current Glass / POG items
+    const getCurrentGlassItems = (): OptometryPrescriptionItem[] => {
+        const items: OptometryPrescriptionItem[] = [];
+        const specsRecord = Array.isArray(examinationData?.current_specs)
+            ? examinationData.current_specs[0]
+            : examinationData?.current_specs;
+
+        if (specsRecord) {
+            items.push({
+                eye: "OD",
+                sphere: parseFloat(String(specsRecord.od_sph || "0")) || 0,
+                cylinder: hasValue(specsRecord.od_cyl) ? parseFloat(String(specsRecord.od_cyl)) : null,
+                axis: hasValue(specsRecord.od_axis) ? parseInt(String(specsRecord.od_axis), 10) : null,
+                add_power: hasValue(specsRecord.od_add) ? parseFloat(String(specsRecord.od_add)) : null,
+                visual_acuity: examinationData?.vision?.od_va_with_current_specs || null,
+                prism: null,
+                lens_type: specsRecord.lens_type || null,
+            });
+            items.push({
+                eye: "OS",
+                sphere: parseFloat(String(specsRecord.os_sph || "0")) || 0,
+                cylinder: hasValue(specsRecord.os_cyl) ? parseFloat(String(specsRecord.os_cyl)) : null,
+                axis: hasValue(specsRecord.os_axis) ? parseInt(String(specsRecord.os_axis), 10) : null,
+                add_power: hasValue(specsRecord.os_add) ? parseFloat(String(specsRecord.os_add)) : null,
+                visual_acuity: examinationData?.vision?.os_va_with_current_specs || null,
+                prism: null,
+                lens_type: specsRecord.lens_type || null,
+            });
+        }
+        return items;
+    };
+
+    const hasDryRefractionData = examinationData?.refraction ? [
+        examinationData.refraction.od_sphere, examinationData.refraction.os_sphere,
+        examinationData.refraction.od_cylinder, examinationData.refraction.os_cylinder
+    ].some(hasValue) : false;
+
+    const hasDilatedRefractionData = examinationData?.refraction ? [
+        examinationData.refraction.od_dilated_sphere, examinationData.refraction.os_dilated_sphere,
+        examinationData.refraction.od_dilated_cylinder, examinationData.refraction.os_dilated_cylinder
+    ].some(hasValue) : false;
+
+    const currentSpecsRecord = Array.isArray(examinationData?.current_specs)
+        ? examinationData.current_specs[0]
+        : examinationData?.current_specs;
+
+    const hasCurrentGlassData = currentSpecsRecord ? [
+        currentSpecsRecord.od_sph, currentSpecsRecord.os_sph,
+        currentSpecsRecord.od_cyl, currentSpecsRecord.os_cyl
+    ].some(hasValue) : false;
+
+    const formatVal = (val: any, isDiopter: boolean = false): string => {
+        if (val === null || val === undefined || val === "") return "-";
+        const num = typeof val === "number" ? val : parseFloat(String(val));
+        if (isNaN(num)) return String(val);
+        return isDiopter && num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+    };
+
+    const getDrySummaryText = () => {
+        if (!hasDryRefractionData) return "Not recorded";
+        const r = examinationData?.refraction;
+        return `R: ${formatVal(r?.od_sphere, true)}/${formatVal(r?.od_cylinder, true)} | L: ${formatVal(r?.os_sphere, true)}/${formatVal(r?.os_cylinder, true)}`;
+    };
+
+    const getDilatedSummaryText = () => {
+        if (!hasDilatedRefractionData) return "Not recorded";
+        const r = examinationData?.refraction;
+        return `R: ${formatVal(r?.od_dilated_sphere, true)}/${formatVal(r?.od_dilated_cylinder, true)} | L: ${formatVal(r?.os_dilated_sphere, true)}/${formatVal(r?.os_dilated_cylinder, true)}`;
+    };
+
+    const getCurrentGlassSummaryText = () => {
+        if (!hasCurrentGlassData) return "Not recorded";
+        const s = currentSpecsRecord;
+        return `R: ${formatVal(s?.od_sph, true)}/${formatVal(s?.od_cyl, true)} | L: ${formatVal(s?.os_sph, true)}/${formatVal(s?.os_cyl, true)}`;
+    };
+
+    const handleSelectSpecsSource = async (source: "dry" | "dilated" | "current_glass" | "none") => {
+        let newItems: OptometryPrescriptionItem[] = [];
+        if (source === "dry") {
+            newItems = getDryRefractionItems();
+        } else if (source === "dilated") {
+            newItems = getDilatedRefractionItems();
+        } else if (source === "current_glass") {
+            newItems = getCurrentGlassItems();
+        } else {
+            newItems = [];
+        }
+
+        setSelectedSpecsSource(source);
+        setSpecsItems(newItems);
+
+        if (source !== "none") {
+            setShowOpticalDetails(true);
+        }
+
+        // Auto-save selection immediately so the doctor's choice is persisted
+        try {
+            const sourceVal = source === "none" ? null : source;
+            if (savedPrescription?.id) {
+                const updated = await optometryPrescriptionApi.update(savedPrescription.id, {
+                    specs_prescription_source: sourceVal,
+                    items: newItems,
+                });
+                setSavedPrescription(prev => prev ? {
+                    ...prev,
+                    specs_prescription_source: sourceVal,
+                    items: newItems
+                } : updated);
+                toast.success(
+                    source === "none"
+                        ? "Spectacles power cleared (will not print on prescription)"
+                        : `Selected ${source === "dry" ? "Dry Refraction" : source === "dilated" ? "Dilated Refraction" : "Current Glasses"} power (saved)`
+                );
+                onPrescriptionCreated?.();
+            } else {
+                const created = await optometryPrescriptionApi.create({
+                    patient_id: patientId,
+                    visit_id: visitId,
+                    optometrist_id: optometristId,
+                    doctor_id: doctorId,
+                    diagnosis: null,
+                    notes: null,
+                    items: newItems,
+                    specs_prescription_source: sourceVal,
+                });
+                setSavedPrescription(created);
+                toast.success(
+                    source === "none"
+                        ? "Spectacles power cleared (will not print on prescription)"
+                        : `Selected ${source === "dry" ? "Dry Refraction" : source === "dilated" ? "Dilated Refraction" : "Current Glasses"} power (saved)`
+                );
+                onPrescriptionCreated?.();
+            }
+        } catch (err) {
+            console.error("Auto-save on specs power selection error", err);
+        }
     };
 
     // Summary data for preview
@@ -1260,11 +1456,19 @@ export function PrescriptionFormSection({
 
         try {
             let result;
-            const items = getRefractionItems();
+            // Determine eyeglass prescription items and source
+            const specsToSave: OptometryPrescriptionItem[] = selectedSpecsSource !== "none" ? (
+                selectedSpecsSource === "dry" ? getDryRefractionItems() :
+                selectedSpecsSource === "dilated" ? getDilatedRefractionItems() :
+                selectedSpecsSource === "current_glass" ? getCurrentGlassItems() :
+                specsItems
+            ) : [];
 
-            if (data.lens_type && items.length > 0) {
-                items.forEach(item => item.lens_type = data.lens_type);
+            if (data.lens_type && specsToSave.length > 0) {
+                specsToSave.forEach(item => item.lens_type = data.lens_type);
             }
+
+            const specsSourceToSave = selectedSpecsSource !== "none" ? selectedSpecsSource : null;
 
             // Sanitize medicine items - remove empty strings
             const sanitizedMedicines = data.medicine_items.length > 0
@@ -1290,7 +1494,8 @@ export function PrescriptionFormSection({
                 result = await optometryPrescriptionApi.update(savedPrescription.id, {
                     diagnosis: formattedDiagnosis,
                     notes: null,
-                    items: items.length > 0 ? items : undefined,
+                    items: specsToSave,
+                    specs_prescription_source: specsSourceToSave,
                     followup_date: data.followup_date || null,
                     plan_of_action: data.plan_of_action || null,
                     remarks: data.remarks || null,
@@ -1314,7 +1519,8 @@ export function PrescriptionFormSection({
                     doctor_id: doctorId,
                     diagnosis: formattedDiagnosis,
                     notes: null,
-                    items: items,
+                    items: specsToSave,
+                    specs_prescription_source: specsSourceToSave,
                     followup_date: data.followup_date || undefined,
                     plan_of_action: data.plan_of_action || undefined,
                     remarks: data.remarks || undefined,
@@ -1554,9 +1760,10 @@ export function PrescriptionFormSection({
                                     doctor_name: savedPrescription.doctor_name || doctorName,
                                     patient_name: savedPrescription.patient_name || (patientDetails ? `${patientDetails.first_name} ${patientDetails.last_name || ""}`.trim() : ""),
                                     optometrist_name: savedPrescription.optometrist_name || (optometristDetails ? optometristDetails.full_name : ""),
-                                    items: (savedPrescription.items && savedPrescription.items.length > 0)
-                                        ? savedPrescription.items
-                                        : getRefractionItems()
+                                    specs_prescription_source: savedPrescription.specs_prescription_source ?? (selectedSpecsSource !== "none" ? selectedSpecsSource : null),
+                                    items: (savedPrescription.specs_prescription_source || selectedSpecsSource !== "none")
+                                        ? ((savedPrescription.items && savedPrescription.items.length > 0) ? savedPrescription.items : specsItems)
+                                        : []
                                 }}
                                 layout={printLayout}
                                 doctorSignature={doctorSignature}
@@ -2784,9 +2991,18 @@ export function PrescriptionFormSection({
                                         <div className="flex items-center gap-2">
                                             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Optical & Spectacles Advice</h3>
                                             <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-black text-slate-700">6</span>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 border border-slate-200 uppercase tracking-wider">Optional</span>
+                                            {selectedSpecsSource !== "none" ? (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800 border border-emerald-300 uppercase tracking-wider">
+                                                    <CheckCircle className="h-3 w-3 text-emerald-600" />
+                                                    {selectedSpecsSource === "dry" ? "Dry Power Selected" : selectedSpecsSource === "dilated" ? "Dilated Power Selected" : "Current Glass Selected"}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 border border-slate-200 uppercase tracking-wider">
+                                                    No Power Selected (Hidden on Rx)
+                                                </span>
+                                            )}
                                         </div>
-                                        <p className="text-xs text-slate-600 font-medium mt-0.5">Lens type, vision distance, material, and coatings</p>
+                                        <p className="text-xs text-slate-600 font-medium mt-0.5">Spectacles power selection, lens type, vision distance, material, and coatings</p>
                                     </div>
                                 </div>
                                 {showOpticalDetails ? (
@@ -2797,75 +3013,316 @@ export function PrescriptionFormSection({
                             </button>
 
                             {showOpticalDetails && (
-                                <div className="p-6 space-y-5 animate-in slide-in-from-top-2 duration-200">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Lens Type</label>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {LENS_TYPES.map((type) => (
-                                                        <label key={type} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all hover:border-slate-300">
-                                                            <input
-                                                                type="radio"
-                                                                value={type}
-                                                                {...register("lens_type")}
-                                                                className="h-4 w-4 text-slate-700 border-slate-300 focus:ring-slate-500"
-                                                            />
-                                                            <span className="text-sm font-medium text-slate-800">{type}</span>
-                                                        </label>
-                                                    ))}
+                                <div className="p-6 space-y-6 animate-in slide-in-from-top-2 duration-200">
+                                    {/* Spectacles Power Selection Section */}
+                                    <div className="rounded-2xl border-2 border-indigo-200/90 bg-gradient-to-br from-indigo-50/40 via-white to-sky-50/30 p-5 shadow-xs space-y-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-indigo-100 pb-3">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+                                                    <Glasses className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                                                        Spectacle Prescription Power
+                                                        <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full border border-indigo-200">
+                                                            Select 1 to print
+                                                        </span>
+                                                    </h4>
+                                                    <p className="text-xs text-slate-500 font-medium">
+                                                        Only the chosen power is printed on the prescription. Without selecting, no spectacle or refraction values will appear.
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Vision Distance</label>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {VISION_TYPES.map((type) => (
-                                                        <label key={type} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all hover:border-slate-300">
-                                                            <input
-                                                                type="radio"
-                                                                value={type}
-                                                                {...register("vision_type")}
-                                                                className="h-4 w-4 text-slate-700 border-slate-300 focus:ring-slate-500"
-                                                            />
-                                                            <span className="text-sm font-medium text-slate-800">{type}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                            {selectedSpecsSource !== "none" && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200 self-start sm:self-auto">
+                                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                                    Auto-Saved
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Lens Material</label>
-                                                <select
-                                                    {...register("lens_material")}
-                                                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 font-medium focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all shadow-sm hover:border-slate-300"
-                                                >
-                                                    <option value="">Select Material...</option>
-                                                    {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
-                                                </select>
-                                            </div>
 
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Coatings</label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {COATINGS.map((coating) => (
-                                                        <button
-                                                            key={coating}
-                                                            type="button"
-                                                            onClick={() => handleToggleCoating(coating)}
-                                                            className={clsx(
-                                                                "rounded-xl px-3.5 py-2 text-xs font-bold transition-all border shadow-2xs",
-                                                                selectedCoatings?.includes(coating)
-                                                                    ? "bg-slate-800 text-white border-slate-900 shadow-sm"
-                                                                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                                            )}
-                                                        >
-                                                            {coating}
-                                                        </button>
-                                                    ))}
+                                        {/* 4 Source Choices */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                            {/* None */}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSelectSpecsSource("none")}
+                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between cursor-pointer ${
+                                                    selectedSpecsSource === "none"
+                                                        ? "border-slate-800 bg-slate-900 text-white shadow-md ring-2 ring-slate-800/20"
+                                                        : "border-slate-200 bg-white hover:border-slate-400 text-slate-800 hover:bg-slate-50/60"
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-xs font-bold uppercase tracking-wider">None</span>
+                                                    {selectedSpecsSource === "none" && (
+                                                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                    )}
+                                                </div>
+                                                <p className={`text-[11px] leading-snug ${selectedSpecsSource === "none" ? "text-slate-300" : "text-slate-500"}`}>
+                                                    Do not print any glasses power or refraction
+                                                </p>
+                                            </button>
+
+                                            {/* Dry Refraction */}
+                                            <button
+                                                type="button"
+                                                disabled={!hasDryRefractionData}
+                                                onClick={() => handleSelectSpecsSource("dry")}
+                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between ${
+                                                    !hasDryRefractionData
+                                                        ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed text-slate-400"
+                                                        : selectedSpecsSource === "dry"
+                                                        ? "border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-600/20 cursor-pointer"
+                                                        : "border-indigo-200 bg-white hover:border-indigo-400 text-slate-900 hover:bg-indigo-50/40 cursor-pointer"
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Dry Refraction</span>
+                                                    {!hasDryRefractionData ? (
+                                                        <span className="text-[9px] font-semibold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Not recorded</span>
+                                                    ) : selectedSpecsSource === "dry" ? (
+                                                        <CheckCircle className="h-4 w-4 text-white" />
+                                                    ) : null}
+                                                </div>
+                                                <p className={`text-[11px] font-mono leading-tight ${selectedSpecsSource === "dry" ? "text-indigo-100" : "text-slate-600"}`}>
+                                                    {getDrySummaryText()}
+                                                </p>
+                                            </button>
+
+                                            {/* Dilated Refraction */}
+                                            <button
+                                                type="button"
+                                                disabled={!hasDilatedRefractionData}
+                                                onClick={() => handleSelectSpecsSource("dilated")}
+                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between ${
+                                                    !hasDilatedRefractionData
+                                                        ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed text-slate-400"
+                                                        : selectedSpecsSource === "dilated"
+                                                        ? "border-teal-600 bg-teal-600 text-white shadow-md shadow-teal-600/30 ring-2 ring-teal-600/20 cursor-pointer"
+                                                        : "border-teal-200 bg-white hover:border-teal-400 text-slate-900 hover:bg-teal-50/40 cursor-pointer"
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Dilated Refraction</span>
+                                                    {!hasDilatedRefractionData ? (
+                                                        <span className="text-[9px] font-semibold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Not recorded</span>
+                                                    ) : selectedSpecsSource === "dilated" ? (
+                                                        <CheckCircle className="h-4 w-4 text-white" />
+                                                    ) : null}
+                                                </div>
+                                                <p className={`text-[11px] font-mono leading-tight ${selectedSpecsSource === "dilated" ? "text-teal-100" : "text-slate-600"}`}>
+                                                    {getDilatedSummaryText()}
+                                                </p>
+                                            </button>
+
+                                            {/* Current Glass */}
+                                            <button
+                                                type="button"
+                                                disabled={!hasCurrentGlassData}
+                                                onClick={() => handleSelectSpecsSource("current_glass")}
+                                                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-200 flex flex-col justify-between ${
+                                                    !hasCurrentGlassData
+                                                        ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed text-slate-400"
+                                                        : selectedSpecsSource === "current_glass"
+                                                        ? "border-amber-600 bg-amber-600 text-white shadow-md shadow-amber-600/30 ring-2 ring-amber-600/20 cursor-pointer"
+                                                        : "border-amber-200 bg-white hover:border-amber-400 text-slate-900 hover:bg-amber-50/40 cursor-pointer"
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Current Glass</span>
+                                                    {!hasCurrentGlassData ? (
+                                                        <span className="text-[9px] font-semibold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Not recorded</span>
+                                                    ) : selectedSpecsSource === "current_glass" ? (
+                                                        <CheckCircle className="h-4 w-4 text-white" />
+                                                    ) : null}
+                                                </div>
+                                                <p className={`text-[11px] font-mono leading-tight ${selectedSpecsSource === "current_glass" ? "text-amber-100" : "text-slate-600"}`}>
+                                                    {getCurrentGlassSummaryText()}
+                                                </p>
+                                            </button>
+                                        </div>
+
+                                        {/* Live Values Table for Selected Power */}
+                                        {selectedSpecsSource !== "none" ? (
+                                            <div className="rounded-xl border border-indigo-200 bg-white p-3.5 shadow-xs space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                        Prescription Power Values to be Printed:
+                                                        <span className="text-indigo-600 font-extrabold">
+                                                            {selectedSpecsSource === "dry" ? "Dry Refraction" : selectedSpecsSource === "dilated" ? "Dilated Refraction" : "Current Glasses"}
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-[11px] text-slate-500 font-medium">
+                                                        Auto-persisted to prescription
+                                                    </span>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-xs border-collapse border border-slate-200 text-center">
+                                                        <thead>
+                                                            <tr className="bg-slate-50 text-slate-700 font-semibold">
+                                                                <th className="border border-slate-200 py-1.5 px-3">Eye</th>
+                                                                <th className="border border-slate-200 py-1.5 px-3">Sphere</th>
+                                                                <th className="border border-slate-200 py-1.5 px-3">Cylinder</th>
+                                                                <th className="border border-slate-200 py-1.5 px-3">Axis</th>
+                                                                <th className="border border-slate-200 py-1.5 px-3">Add</th>
+                                                                <th className="border border-slate-200 py-1.5 px-3">BCVA / VA</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {["OD", "OS"].map((eye) => {
+                                                                const item = specsItems.find(i => i.eye === eye || (eye === "OD" ? i.eye === "RE" : i.eye === "LE"));
+                                                                return (
+                                                                    <tr key={eye} className="hover:bg-slate-50/50">
+                                                                        <td className="border border-slate-200 py-1.5 px-3 font-bold text-slate-900">
+                                                                            {eye === "OD" ? "Right (OD)" : "Left (OS)"}
+                                                                        </td>
+                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
+                                                                            {formatVal(item?.sphere, true)}
+                                                                        </td>
+                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
+                                                                            {formatVal(item?.cylinder, true)}
+                                                                        </td>
+                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
+                                                                            {item?.axis ? `${item.axis}°` : "-"}
+                                                                        </td>
+                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
+                                                                            {formatVal(item?.add_power, true)}
+                                                                        </td>
+                                                                        <td className="border border-slate-200 py-1.5 px-3 font-mono font-medium">
+                                                                            {item?.visual_acuity || "-"}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-3 text-center">
+                                                <p className="text-xs text-slate-500 font-medium">
+                                                    Spectacles power is currently <strong className="text-slate-700">None</strong>. The prescription printout will not show any spectacles or raw refraction tables. Click on Dry, Dilated, or Current Glass above to include spectacles power.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Collapsible Lens Specifications & Coatings Section */}
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 overflow-hidden shadow-xs transition-all">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowLensSpecs(!showLensSpecs)}
+                                            className="w-full px-4 py-3 bg-gradient-to-r from-slate-100 via-slate-50 to-white hover:from-slate-200/70 hover:to-slate-50 flex items-center justify-between text-left transition-all"
+                                        >
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-700 text-white shadow-xs">
+                                                    <Settings className="h-3.5 w-3.5" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                                                            Lens Specifications & Coatings
+                                                        </span>
+                                                        <span className="text-[10px] font-medium text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                                                            Optional
+                                                        </span>
+                                                        {hasActiveLensSpecs && (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
+                                                                <CheckCircle className="h-2.5 w-2.5 text-emerald-600" />
+                                                                Details Added
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[11px] text-slate-500 font-medium">
+                                                        Lens type, vision distance, material, and surface coatings
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-semibold text-slate-500">
+                                                    {showLensSpecs ? "Hide Details" : "Show Details"}
+                                                </span>
+                                                {showLensSpecs ? (
+                                                    <ChevronUp className="h-4 w-4 text-slate-600" />
+                                                ) : (
+                                                    <ChevronDown className="h-4 w-4 text-slate-600" />
+                                                )}
+                                            </div>
+                                        </button>
+
+                                        {showLensSpecs && (
+                                            <div className="p-5 bg-white border-t border-slate-200 animate-in slide-in-from-top-2 duration-200">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Lens Type</label>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                {LENS_TYPES.map((type) => (
+                                                                    <label key={type} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all hover:border-slate-300">
+                                                                        <input
+                                                                            type="radio"
+                                                                            value={type}
+                                                                            {...register("lens_type")}
+                                                                            className="h-4 w-4 text-slate-700 border-slate-300 focus:ring-slate-500"
+                                                                        />
+                                                                        <span className="text-sm font-medium text-slate-800">{type}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Vision Distance</label>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                {VISION_TYPES.map((type) => (
+                                                                    <label key={type} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all hover:border-slate-300">
+                                                                        <input
+                                                                            type="radio"
+                                                                            value={type}
+                                                                            {...register("vision_type")}
+                                                                            className="h-4 w-4 text-slate-700 border-slate-300 focus:ring-slate-500"
+                                                                        />
+                                                                        <span className="text-sm font-medium text-slate-800">{type}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Lens Material</label>
+                                                            <select
+                                                                {...register("lens_material")}
+                                                                className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 font-medium focus:border-slate-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all shadow-sm hover:border-slate-300"
+                                                            >
+                                                                <option value="">Select Material...</option>
+                                                                {LENS_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wide">Coatings</label>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {COATINGS.map((coating) => (
+                                                                    <button
+                                                                        key={coating}
+                                                                        type="button"
+                                                                        onClick={() => handleToggleCoating(coating)}
+                                                                        className={clsx(
+                                                                            "rounded-xl px-3.5 py-2 text-xs font-bold transition-all border shadow-2xs",
+                                                                            selectedCoatings?.includes(coating)
+                                                                                ? "bg-slate-800 text-white border-slate-900 shadow-sm"
+                                                                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                                                        )}
+                                                                    >
+                                                                        {coating}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -3146,7 +3603,13 @@ export function PrescriptionFormSection({
                     onClose={() => {
                         setShowPrintPreview(false);
                     }}
-                    prescription={savedPrescription}
+                    prescription={{
+                        ...savedPrescription,
+                        specs_prescription_source: savedPrescription.specs_prescription_source ?? (selectedSpecsSource !== "none" ? selectedSpecsSource : null),
+                        items: (savedPrescription.specs_prescription_source || selectedSpecsSource !== "none")
+                            ? ((savedPrescription.items && savedPrescription.items.length > 0) ? savedPrescription.items : specsItems)
+                            : []
+                    }}
                     visitData={fullPrescriptionData || examinationData}
                     doctorSignature={doctorSignature}
                     plannedSurgeries={plannedSurgeries}

@@ -6,7 +6,7 @@ import type { OphthalmicSurgeryRecord } from "@/types";
 export interface CreateOphthalmicSurgeryRequest {
   patient_id: string;
   surgery_name: string;
-  eye: "OD" | "OS" | "OU";
+  eye: "RE" | "LE" | "BE" | "GE" | "OD" | "OS" | "OU";
   surgery_date?: string | null;
   hospital_name: string | null;
   surgeon_name: string | null;

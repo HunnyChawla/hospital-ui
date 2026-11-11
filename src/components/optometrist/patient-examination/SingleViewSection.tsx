@@ -115,13 +115,13 @@ export function SingleViewSection({
         type="button"
         onClick={onToggle}
         className={clsx(
-          "w-full flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4",
+          "w-full flex items-center justify-between px-3.5 py-2.5 sm:px-4 sm:py-3",
           "bg-gradient-to-r transition-colors",
           colors.header,
           "hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500/20"
         )}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Icon */}
           <div className={clsx("flex-shrink-0", colors.icon)}>
             {icon}
@@ -133,11 +133,11 @@ export function SingleViewSection({
           </h3>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Status Badge */}
           <div
             className={clsx(
-              "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+              "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 sm:py-1 text-xs font-semibold",
               statusStyle.badge
             )}
           >
@@ -154,9 +154,9 @@ export function SingleViewSection({
           {/* Expand/Collapse Icon */}
           <div className="text-slate-400">
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5" />
+              <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
             ) : (
-              <ChevronDown className="h-5 w-5" />
+              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </div>
         </div>
@@ -169,7 +169,7 @@ export function SingleViewSection({
           isExpanded ? "max-h-[5000px] opacity-100 overflow-visible" : "max-h-0 opacity-0 overflow-hidden"
         )}
       >
-        <div className="p-4 sm:p-6 border-t border-slate-100">
+        <div className="p-3 sm:p-4 border-t border-slate-100">
           {children}
         </div>
       </div>
@@ -194,7 +194,8 @@ export function getVisionStatus(visionRecords: any[], visitId: string): SectionS
     currentVisitRecord.od_va_with_current_specs ||
     currentVisitRecord.od_ph_va ||
     currentVisitRecord.od_near_ucva ||
-    currentVisitRecord.od_near_with_current_specs
+    currentVisitRecord.od_near_with_current_specs ||
+    currentVisitRecord.od_color_vision
   );
 
   const hasOS = !!(
@@ -202,7 +203,8 @@ export function getVisionStatus(visionRecords: any[], visitId: string): SectionS
     currentVisitRecord.os_va_with_current_specs ||
     currentVisitRecord.os_ph_va ||
     currentVisitRecord.os_near_ucva ||
-    currentVisitRecord.os_near_with_current_specs
+    currentVisitRecord.os_near_with_current_specs ||
+    currentVisitRecord.os_color_vision
   );
 
   if (hasOD && hasOS) return "complete";

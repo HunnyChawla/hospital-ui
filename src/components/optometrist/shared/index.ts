@@ -8,3 +8,4 @@ export { DurationSelector } from "./DurationSelector";
 export { VASelector } from "./VASelector";
 export { EyeSelector } from "./EyeSelector";
 export { ResizablePanel } from "./ResizablePanel";
+export { ColorVisionInput } from "./ColorVisionInput";

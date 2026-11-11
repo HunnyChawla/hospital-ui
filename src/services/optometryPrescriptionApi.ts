@@ -17,6 +17,7 @@ export interface CreateOptometryPrescriptionRequest {
   followup_date?: string | null;
   plan_of_action?: string | null;
   remarks?: string | null;
+  specs_prescription_source?: "dry" | "dilated" | "current_glass" | null;
   lens_type?: string | null;
   vision_type?: string | null;
   lens_material?: string | null;
@@ -35,6 +36,7 @@ export interface UpdateOptometryPrescriptionRequest {
   followup_date?: string | null;
   plan_of_action?: string | null;
   remarks?: string | null;
+  specs_prescription_source?: "dry" | "dilated" | "current_glass" | null;
   lens_type?: string | null;
   vision_type?: string | null;
   lens_material?: string | null;

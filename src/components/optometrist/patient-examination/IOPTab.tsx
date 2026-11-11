@@ -179,6 +179,7 @@ export function IOPTab({
   const visitOD = useMemo(() => (visitSource as any[]).find((r: any) => r.visit_id === visitId && r.eye === "OD"), [visitSource, visitId]) as any | undefined;
   const visitOS = useMemo(() => (visitSource as any[]).find((r: any) => r.visit_id === visitId && r.eye === "OS"), [visitSource, visitId]) as any | undefined;
   const hasExistingForVisit = !!visitCombined || !!visitOD || !!visitOS;
+  const showForm = isAdding || !hasExistingForVisit;
 
   useEffect(() => {
     if (!visitId) {
@@ -258,6 +259,25 @@ export function IOPTab({
     }
   };
 
+  // Keyboard shortcut: Ctrl+S saves IOP measurements
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === "s" || e.key === "S") && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (showForm) {
+          if (formData.od_pressure === null || formData.os_pressure === null) {
+            toast.error("Please enter IOP pressure values for both eyes");
+          } else {
+            handleSubmit();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showForm, formData, isSubmitting]);
+
   // Normalize and merge records to find the true latest per eye
   const latestRecords = useMemo(() => {
     const all: any[] = [...iopRecords];
@@ -315,33 +335,33 @@ export function IOPTab({
             Normal range: 10-21 mmHg
           </p>
         </div>
-        {!isAdding && (
+        {!showForm && hasExistingForVisit && (
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition"
+            className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-sky-700 transition"
           >
-            <Plus className="h-4 w-4" />
-            {hasExistingForVisit ? "Edit IOP" : "Add IOP"}
+            <Plus className="h-3.5 w-3.5" />
+            Edit IOP
           </button>
         )}
       </div>
 
-      {/* This Visit's IOP - Only show if data exists for current visit */}
-      {!isAdding && hasExistingForVisit && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 text-base font-semibold text-slate-900">
+      {/* This Visit's IOP - Only show if data exists for current visit and not currently editing */}
+      {!showForm && hasExistingForVisit && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+          <h4 className="mb-3 text-sm font-bold text-slate-800">
             This Visit&apos;s IOP
           </h4>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* OD */}
-            <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
+            <div className="rounded-xl border border-sky-200 bg-sky-50/20 p-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-blue-700">OD (Right)</span>
-                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="text-xs font-bold text-sky-700 uppercase tracking-wide">OD (Right)</span>
+                <div className="h-2 w-2 rounded-full bg-sky-500" />
               </div>
-              <p className="text-4xl font-bold text-slate-900">
+              <p className="text-3xl font-bold text-slate-900">
                 {visitCombined?.od_pressure ?? visitOD?.pressure ?? "—"}
-                <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
+                <span className="ml-1 text-sm font-normal text-slate-500">mmHg</span>
               </p>
               {(visitCombined?.od_pressure ?? visitOD?.pressure) != null && (
                 <div className="mt-2 flex items-center gap-2">
@@ -360,14 +380,14 @@ export function IOPTab({
             </div>
 
             {/* OS */}
-            <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-white p-4 shadow-sm">
+            <div className="rounded-xl border border-teal-200 bg-teal-50/20 p-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-green-700">OS (Left)</span>
-                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-xs font-bold text-teal-700 uppercase tracking-wide">OS (Left)</span>
+                <div className="h-2 w-2 rounded-full bg-teal-500" />
               </div>
-              <p className="text-4xl font-bold text-slate-900">
+              <p className="text-3xl font-bold text-slate-900">
                 {visitCombined?.os_pressure ?? visitOS?.pressure ?? "—"}
-                <span className="ml-1 text-lg font-normal text-slate-500">mmHg</span>
+                <span className="ml-1 text-sm font-normal text-slate-500">mmHg</span>
               </p>
               {(visitCombined?.os_pressure ?? visitOS?.pressure) != null && (
                 <div className="mt-2 flex items-center gap-2">
@@ -388,15 +408,15 @@ export function IOPTab({
         </div>
       )}
 
-      {/* Add IOP Form */}
-      {isAdding && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* Add / Edit IOP Form */}
+      {showForm && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
           {/* Form Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
             <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-sky-600" />
-              <h4 className="text-base font-semibold text-slate-900">
-                New IOP Measurement
+              <span className="h-2 w-2 rounded-full bg-sky-600" />
+              <h4 className="text-sm font-bold text-slate-900">
+                {hasExistingForVisit ? "Update IOP Measurement" : "Record Intraocular Pressure (IOP)"}
               </h4>
             </div>
             <div className="flex items-center gap-2">
@@ -544,16 +564,16 @@ export function IOPTab({
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting || formData.od_pressure === null || formData.os_pressure === null}
-                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-6 py-2 text-sm font-medium text-white shadow-sm hover:from-sky-600 hover:to-teal-600 transition disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-5 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-sky-700 transition disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4" />
+                    <Save className="h-3.5 w-3.5" />
                     Save IOP
                   </>
                 )}
@@ -563,28 +583,8 @@ export function IOPTab({
         </div>
       )}
 
-      {/* Empty State */}
-      {!isAdding && iopRecords.length === 0 && (
-        <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-12 text-center">
-          <Activity className="mx-auto h-12 w-12 text-slate-400" />
-          <h4 className="mt-4 text-lg font-semibold text-slate-900">
-            No IOP Recorded
-          </h4>
-          <p className="mt-2 text-sm text-slate-600">
-            Click &quot;Add IOP&quot; to record intraocular pressure.
-          </p>
-          <button
-            onClick={() => setIsAdding(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 transition"
-          >
-            <Plus className="h-4 w-4" />
-            Add IOP
-          </button>
-        </div>
-      )}
-
       {/* IOP History - Last 5 Visits */}
-      {!isAdding && (
+      {!showForm && (
         <IOPHistorySection
           patientId={patientId}
           currentVisitId={visitId}
