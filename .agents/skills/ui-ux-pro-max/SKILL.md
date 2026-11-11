@@ -36,13 +36,14 @@ For the full rule list per category (all 120 UX guidelines with rationale), read
 
 ## Running the search tool
 
-The search script lives inside this skill's own directory, not the project directory. Always invoke it by its full path — do not assume a particular working directory:
+The search tool can be run via Python if needed, or by directly reading the rich reference files in `references/quick-reference.md` and `references/pro-rules.md`:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max/scripts/search.py" "<query>" --domain <domain>
+python .agents/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain <domain>
 ```
 
-If `python` is not found, try `python3`, then `py -3`. Requires Python 3.x, no external dependencies (see README for install instructions if Python is missing).
+> [!TIP]
+> **Preferred in AI IDEs**: Instead of running shell search scripts, directly read the Markdown files in `references/` (`quick-reference.md`, `pro-rules.md`) to extract rules, palettes, and typography tokens without executing subprocesses.
 
 ## Workflow
 

@@ -212,28 +212,26 @@ Covers:
 - Museum-quality execution
 - Multi-page design systems
 
-## Utility Scripts
+## Utility Scripts & Tailwind v4 Theme Configuration
 
-**Python automation for component installation and configuration generation.**
+> [!IMPORTANT]
+> **Tailwind CSS v4 Configuration**:
+> In Tailwind CSS v4, `tailwind.config.js` is deprecated. Custom tokens, colors, and breakpoints must be configured directly in your global CSS file using the `@theme` directive:
+> ```css
+> @import "tailwindcss";
+>
+> @theme {
+>   --color-primary: var(--primary);
+>   --color-secondary: var(--secondary);
+>   --font-sans: 'Inter', system-ui, sans-serif;
+> }
+> ```
+> Do not generate `tailwind.config.js` in Tailwind v4 projects.
 
-### shadcn_add.py
-Add shadcn/ui components with dependency handling:
+### Component Installation (shadcn / Radix)
+When adding UI primitives, install the appropriate React component or Radix package directly into your project:
 ```bash
-python scripts/shadcn_add.py button card dialog
-```
-
-### tailwind_config_gen.py
-Generate tailwind.config.js with custom theme:
-```bash
-python scripts/tailwind_config_gen.py --colors brand:blue --fonts display:Inter
-```
-
-The generator refuses to create or replace a config when any sibling
-`tailwind.config.js`, `.cjs`, `.mjs`, or `.ts` file already exists. Review the
-reported config first, then pass `--force` only when the competing output is
-intentional:
-```bash
-python scripts/tailwind_config_gen.py --colors brand:blue --force
+npm install @radix-ui/react-dialog @radix-ui/react-dropdown-menu
 ```
 
 ## Best Practices
