@@ -9,6 +9,7 @@ import {
   Link as LinkIcon,
   AlertCircle,
   Stethoscope,
+  RefreshCw,
 } from "lucide-react";
 import { examinerMappingsApi, ExaminerDoctorMapping } from "@/services/examinerMappingsApi";
 import { doctorsApi, Doctor } from "@/services/doctorsApi";
@@ -24,6 +25,7 @@ export default function ExaminerMappingsPage() {
   const [examiners, setExaminers] = useState<User[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ExaminerDoctorMapping | null>(null);
@@ -33,8 +35,12 @@ export default function ExaminerMappingsPage() {
   const [selectedExaminerId, setSelectedExaminerId] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
       const apiTenantId = getTenantIdForApi(tenantId || undefined);
@@ -60,13 +66,21 @@ export default function ExaminerMappingsPage() {
       console.error("Failed to fetch data:", error);
       toast.error("Failed to load mappings");
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleRefresh = () => {
+    fetchData(true);
+  };
 
   const handleCreateMapping = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,13 +139,26 @@ export default function ExaminerMappingsPage() {
             consultation. A doctor with no mapping receives patients directly.
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 font-medium text-white shadow-sm transition-colors hover:bg-sky-700"
-        >
-          <Plus className="h-5 w-5" />
-          Add Mapping
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Refresh mappings"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 font-medium text-white shadow-sm transition-colors hover:bg-sky-700"
+          >
+            <Plus className="h-5 w-5" />
+            Add Mapping
+          </button>
+        </div>
       </div>
 
       {loading ? (
