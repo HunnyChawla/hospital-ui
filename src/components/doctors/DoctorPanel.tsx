@@ -28,6 +28,7 @@ import { prescriptionsApi } from "@/services/prescriptionsApi";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
 import { getErrorMessage } from "@/utils/errorHandler";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 type QueuePatient = {
   patient_id: string;
@@ -42,6 +43,7 @@ type QueuePatient = {
 export function DoctorPanel() {
   const router = useRouter();
   const { hasAccess } = usePermissions();
+  const { enabled: abhaEnabled } = useAbhaFlags();
 
   // Use our custom hook for doctor panel state
   const {
@@ -619,7 +621,7 @@ export function DoctorPanel() {
                 id: printVisitData.patient.id,
                 name: formatPatientName(printVisitData.patient),
                 mobile: printVisitData.patient.mobile,
-                healthId: printVisitData.patient.abha_id || "",
+                healthId: (abhaEnabled ? printVisitData.patient.abha_id : "") || "",
                 age: printVisitData.patient.date_of_birth
                   ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
                   : 0,

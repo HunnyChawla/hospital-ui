@@ -12,7 +12,9 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { Calendar, Search, User, Beaker, Plus, X, Receipt, Building2, Link2, Stethoscope } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
+import { AmountInput } from "@/components/common/AmountInput";
 import { currency, getTodayDateLocal, formatDate } from "@/utils/format";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface LabBookingFormProps {
   defaultPatientId?: string;
@@ -26,6 +28,7 @@ export function LabBookingForm({
   onOpenPatientModal
 }: LabBookingFormProps) {
   const patients = useAppSelector((s) => s.patients.list);
+  const { enabled: abhaEnabled } = useAbhaFlags();
 
   const [patientId, setPatientId] = useState(defaultPatientId || "");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -363,7 +366,11 @@ export function LabBookingForm({
                     setShowDropdown(true);
                   }
                 }}
-                placeholder="Search patient by name, mobile, UHID, or ABHA..."
+                placeholder={
+                  abhaEnabled
+                    ? "Search patient by name, mobile, UHID, or ABHA..."
+                    : "Search patient by name, mobile, or UHID..."
+                }
                 className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-20 py-2 outline-none focus:border-sky-400"
               />
               <button
@@ -397,7 +404,7 @@ export function LabBookingForm({
                           <span>{patient.mobile || "No Mobile"}</span>
                           <span>•</span>
                           <span>{patient.healthId}</span>
-                          {(patient.abhaAddress || patient.abhaNumber) && (
+                          {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                             <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                               ABHA: {patient.abhaAddress || patient.abhaNumber}
                             </span>
@@ -725,13 +732,13 @@ export function LabBookingForm({
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold text-slate-500">₹</span>
-                      <input
-                        type="number"
+                      <AmountInput
                         min="0"
-                        step="0.01"
+                        arrowStep={10}
                         value={st.customPrice ?? st.test.price}
-                        onChange={(e) => handlePriceChange(st.lab_test_id, e.target.value)}
-                        className="w-24 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                        onValueChange={(val) => handlePriceChange(st.lab_test_id, val)}
+                        wrapperClassName="w-28 shrink-0"
+                        className="w-full rounded-lg border border-slate-300 bg-white pl-2.5 pr-7 py-1 text-sm font-semibold text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                         title="Override test price"
                       />
                     </div>

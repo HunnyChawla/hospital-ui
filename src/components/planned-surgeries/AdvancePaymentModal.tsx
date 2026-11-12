@@ -6,6 +6,7 @@ import { X, CreditCard, IndianRupee, Printer, CheckCircle2, History, Loader2, Al
 import { useReactToPrint } from "react-to-print";
 import { useCollectSurgeryAdvance, useSurgeryPayments, useSurgeryPaymentSummary } from "@/hooks/queries/useSurgeryBilling";
 import { SurgeryPaymentReceiptPrint } from "./SurgeryPaymentReceiptPrint";
+import { AmountInput } from "@/components/common/AmountInput";
 import type { PlannedSurgery } from "@/types";
 
 interface AdvancePaymentModalProps {
@@ -292,16 +293,15 @@ export function AdvancePaymentModal({
                               </div>
                               <div className="relative">
                                 <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                <input
-                                  type="number"
-                                  step="0.01"
+                                <AmountInput
                                   min="1"
                                   max={pendingBalance !== null ? pendingBalance : undefined}
+                                  arrowStep={10}
                                   required
                                   value={amount}
-                                  onChange={(e) => setAmount(e.target.value)}
+                                  onValueChange={setAmount}
                                   placeholder="0.00"
-                                  className={`w-full rounded-xl border pl-9 pr-3 py-2.5 text-sm outline-none transition-colors focus:ring-2 ${
+                                  className={`w-full rounded-xl border pl-9 pr-8 py-2.5 text-sm outline-none transition-colors focus:ring-2 ${
                                     isExceedingBalance
                                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 bg-rose-50/30 text-rose-900"
                                       : "border-slate-200 focus:border-emerald-400 focus:ring-emerald-100"

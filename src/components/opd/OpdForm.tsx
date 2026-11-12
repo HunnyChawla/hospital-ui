@@ -16,6 +16,8 @@ import { doctorsApi, ConsultationFeeCalculation } from "@/services/doctorsApi";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
 import { currency } from "@/utils/format";
+import { AmountInput } from "@/components/common/AmountInput";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface OpdFormProps {
   defaultPatientId?: string;
@@ -26,6 +28,7 @@ interface OpdFormProps {
 
 export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess, onOpenPatientModal }: OpdFormProps = {} as OpdFormProps) {
   const dispatch = useAppDispatch();
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const createOpdVisit = useCreateOpdVisit();
   const patients = useAppSelector((s) => s.patients.list);
   const queue = useAppSelector((s) => s.queue.entries);
@@ -485,7 +488,11 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                       setShowDropdown(true);
                     }
                   }}
-                  placeholder="Search by name, mobile, UHID, or ABHA..."
+                  placeholder={
+                    abhaEnabled
+                      ? "Search by name, mobile, UHID, or ABHA..."
+                      : "Search by name, mobile, or UHID..."
+                  }
                   className="w-full rounded-lg border border-slate-200 bg-white pl-11 pr-12 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
                 <button
@@ -531,7 +538,7 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
                                 <span>{patient.healthId}</span>
                                 <span className="text-slate-300">•</span>
                                 <span>{patient.age}y, {patient.gender}</span>
-                                {(patient.abhaAddress || patient.abhaNumber) && (
+                                {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                                   <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                                     ABHA: {patient.abhaAddress || patient.abhaNumber}
                                   </span>
@@ -689,14 +696,15 @@ export function OpdForm({ defaultPatientId, hidePatientSearch = false, onSuccess
               )}
             </div>
             {selectedDoctor && (
-              <input
-                type="number"
-                step="0.01"
-                min="0"
+              <AmountInput
+                min={0}
+                arrowStep={10}
+                baseValue={consultationFee ? parseFloat(consultationFee) : 0}
                 value={feeOverride}
-                onChange={(e) => setFeeOverride(e.target.value)}
+                onValueChange={setFeeOverride}
                 placeholder="Override"
-                className="w-24 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                wrapperClassName="w-28 shrink-0"
+                className="w-full rounded-lg border border-slate-200 bg-white pl-2.5 pr-7 py-1.5 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               />
             )}
           </div>

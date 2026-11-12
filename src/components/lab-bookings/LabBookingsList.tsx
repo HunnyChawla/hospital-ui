@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/services/labBookingsApi";
-import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
+import { labTestsApi } from "@/services/labTestsApi";
 import { invoicesApi, Invoice } from "@/services/invoicesApi";
 import { patientsApi, formatPatientName } from "@/services/patientsApi";
 import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
@@ -12,7 +12,6 @@ import { SkeletonRow } from "../shared/SkeletonRow";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { InvoicePrint } from "../invoices/InvoicePrint";
-import { TestReportPrint } from "../lab-technician/TestReportPrint";
 import { InvoicePaymentReceiptPrint } from "../payments/InvoicePaymentReceiptPrint";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
 import { Modal } from "../common/Modal";
@@ -67,17 +66,6 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
   const [selectedBooking, setSelectedBooking] = useState<LabBookingWithPatient | null>(null);
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
-  const [printReportData, setPrintReportData] = useState<{
-    booking: LabBookingWithPatient;
-    patientName: string;
-    patientMobile?: string;
-    testResults: Array<{
-      test: LabBookingTest;
-      results: LabTestResult[];
-    }>;
-  } | null>(null);
-  const [shouldPrintReport, setShouldPrintReport] = useState(false);
-  const printReportRef = useRef<HTMLDivElement>(null);
 
   const handleDatePresetChange = (preset: "today" | "yesterday" | "3days" | "custom") => {
     setDatePreset(preset);
@@ -96,11 +84,6 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: printInvoiceData ? `Invoice_${printInvoiceData.invoice.invoice_number}` : "Invoice",
-  });
-
-  const handlePrintReport = useReactToPrint({
-    contentRef: printReportRef,
-    documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
   });
 
   const handlePrintPaymentReceipt = useReactToPrint({
@@ -736,19 +719,6 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
     }
   }, [printInvoiceData, shouldPrint, handlePrint]);
 
-  // Trigger print when printReportData is set and shouldPrintReport is true
-  useEffect(() => {
-    if (printReportData && shouldPrintReport && printReportRef.current) {
-      // Small delay to ensure DOM is updated
-      const timeoutId = setTimeout(() => {
-        handlePrintReport();
-        setShouldPrintReport(false);
-      }, 200);
-      return () => clearTimeout(timeoutId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printReportData, shouldPrintReport]);
-
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
@@ -1212,20 +1182,6 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
         </div>
       )}
 
-      {/* Hidden printable test report */}
-      {printReportData && (
-        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-          <div ref={printReportRef} className="print-content">
-            <TestReportPrint
-              booking={printReportData.booking}
-              patientName={printReportData.patientName}
-              patientMobile={printReportData.patientMobile}
-              testResults={printReportData.testResults}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Hidden printable payment receipt */}
       {printPaymentInvoiceId && (
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
@@ -1441,7 +1397,7 @@ export function LabBookingsList({ patientId }: LabBookingsListProps = {}) {
                 </p>
               ) : cancellingBooking.admission_id ? (
                 <p className="mt-2 text-xs text-rose-700">
-                  Note: Cancelling this booking will automatically cancel the corresponding charges posted in the patient's IPD billing ledger.
+                  Note: Cancelling this booking will automatically cancel the corresponding charges posted in the patient&apos;s IPD billing ledger.
                 </p>
               ) : null}
             </div>

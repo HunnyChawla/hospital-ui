@@ -10,6 +10,7 @@ import {
   useCollectSurgeryBalance,
 } from "@/hooks/queries/useSurgeryBilling";
 import { InvoicePrint } from "@/components/invoices/InvoicePrint";
+import { AmountInput } from "@/components/common/AmountInput";
 import type { PlannedSurgery } from "@/types";
 import type { Invoice } from "@/services/invoicesApi";
 
@@ -262,14 +263,14 @@ export function SurgeryInvoiceModal({
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                         Payment Amount (₹) *
                       </label>
-                      <input
-                        type="number"
-                        step="0.01"
+                      <AmountInput
+                        min="0.01"
                         max={summary.balance_due}
+                        arrowStep={10}
                         required
                         value={balanceAmount}
-                        onChange={(e) => setBalanceAmount(e.target.value)}
-                        className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                        onValueChange={setBalanceAmount}
+                        className="w-full rounded border border-slate-300 pl-2.5 pr-7 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
                       />
                     </div>
                     <div>

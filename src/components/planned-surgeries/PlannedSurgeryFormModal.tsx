@@ -18,6 +18,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { getTodayDateLocal, formatDate } from "@/utils/format";
 import { BodyPartPicker } from "./BodyPartPicker";
 import { BodyPartBadge } from "@/components/shared/BodyPartBadge";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface PlannedSurgeryFormModalProps {
     isOpen: boolean;
@@ -80,6 +81,7 @@ export function PlannedSurgeryFormModal({
     initialData,
 }: PlannedSurgeryFormModalProps) {
     const queryClient = useQueryClient();
+    const { enabled: abhaEnabled } = useAbhaFlags();
     const doctors = useAppSelector((s) => s.doctors.list);
     const activeDoctors = useMemo(() => {
         return doctors.filter((d) => d.is_active !== false && d.status !== "inactive");
@@ -547,7 +549,11 @@ export function PlannedSurgeryFormModal({
                                                 value={patientSearch}
                                                 onChange={(e) => setPatientSearch(e.target.value)}
                                                 onFocus={() => patientResults.length > 0 && setShowPatientDropdown(true)}
-                                                placeholder="Search patient by name, mobile, UHID, or ABHA..."
+                                                placeholder={
+                                                    abhaEnabled
+                                                        ? "Search patient by name, mobile, UHID, or ABHA..."
+                                                        : "Search patient by name, mobile, or UHID..."
+                                                }
                                                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                                             />
                                             {searchingPatients && (
@@ -574,7 +580,7 @@ export function PlannedSurgeryFormModal({
                                                                         • {patient.uhid}
                                                                     </span>
                                                                 )}
-                                                                {(patient.abha_address || patient.abha_number) && (
+                                                                {abhaEnabled && (patient.abha_address || patient.abha_number) && (
                                                                     <span className="rounded bg-teal-50 px-1.5 py-0.5 text-xs font-medium text-teal-700 border border-teal-200">
                                                                         ABHA: {patient.abha_address || patient.abha_number}
                                                                     </span>

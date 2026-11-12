@@ -10,6 +10,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { Calendar, User, Beaker, Check, AlertCircle, RefreshCw, FileText, ClipboardList, Eye, AlertTriangle, Edit2, Receipt, Building2 } from "lucide-react";
 import { currency, formatDate, getTodayDateLocal, getPastDateLocal } from "@/utils/format";
 import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
+import { AmountInput } from "@/components/common/AmountInput";
 
 export interface PrescribedLabBookingPanelProps {
   visitId?: string;
@@ -481,13 +482,13 @@ export function PrescribedLabBookingPanel({
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-xs font-bold text-slate-700">₹</span>
-                      <input
-                        type="number"
+                      <AmountInput
                         min="0"
-                        step="0.01"
+                        arrowStep={10}
                         value={priceOverrides[test.lab_test_id]}
-                        onChange={(e) => handlePriceChange(test.lab_test_id, e.target.value)}
-                        className="w-20 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-900 shadow-sm outline-none focus:border-amber-500"
+                        onValueChange={(val) => handlePriceChange(test.lab_test_id, val)}
+                        wrapperClassName="w-24 shrink-0"
+                        className="w-full rounded-md border border-amber-300 bg-white pl-2 pr-6 py-0.5 text-xs font-bold text-slate-900 shadow-sm outline-none focus:border-amber-500"
                         autoFocus
                       />
                     </div>

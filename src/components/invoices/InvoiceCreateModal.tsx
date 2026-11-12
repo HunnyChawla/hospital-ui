@@ -12,6 +12,7 @@ import { Search, User, X, Plus, Trash2, FileText, Smartphone, Bookmark } from "l
 import { useRef } from "react";
 import { Patient } from "@/types";
 import { TemplateFormModal } from "./TemplateFormModal";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface InvoiceCreateModalProps {
     isOpen: boolean;
@@ -28,6 +29,7 @@ interface LineItem {
 }
 
 export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreateModalProps) {
+    const { enabled: abhaEnabled } = useAbhaFlags();
     const [selectedPatientId, setSelectedPatientId] = useState<string>("");
     const [selectedPatientName, setSelectedPatientName] = useState<string>("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -408,7 +410,11 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                                         setShowDropdown(true);
                                     }
                                 }}
-                                placeholder="Search by name, mobile, UHID, or ABHA..."
+                                placeholder={
+                                    abhaEnabled
+                                        ? "Search by name, mobile, UHID, or ABHA..."
+                                        : "Search by name, mobile, or UHID..."
+                                }
                                 className="w-full rounded-lg border border-slate-200 bg-white pl-11 pr-12 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 placeholder:text-slate-400"
                             />
                             {selectedPatientId && (
@@ -452,7 +458,7 @@ export function InvoiceCreateModal({ isOpen, onClose, onSuccess }: InvoiceCreate
                                                             <span>{patient.healthId}</span>
                                                             <span className="text-slate-300">•</span>
                                                             <span>{patient.age}y, {patient.gender}</span>
-                                                            {(patient.abhaAddress || patient.abhaNumber) && (
+                                                            {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                                                                 <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                                                                     ABHA: {patient.abhaAddress || patient.abhaNumber}
                                                                 </span>

@@ -8,6 +8,7 @@ import { useCreateOpdVisit } from "@/hooks/queries/useOpdVisits";
 import { doctorsApi, ConsultationFeeCalculation } from "@/services/doctorsApi";
 import { toast } from "sonner";
 import { currency } from "@/utils/format";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Stethoscope, User, IndianRupee, CreditCard, Banknote, Smartphone, FileText, CheckCircle, Plus } from "lucide-react";
 
 interface Props {
@@ -202,14 +203,15 @@ export function CreateOpdFromAppointmentModal({ isOpen, onClose, appointment, do
                       <span className="text-sm text-slate-400">Not calculated</span>
                     )}
                   </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <AmountInput
+                    min={0}
+                    arrowStep={10}
+                    baseValue={consultationFee ? parseFloat(consultationFee) : 0}
                     value={feeOverride}
-                    onChange={(e) => setFeeOverride(e.target.value)}
+                    onValueChange={setFeeOverride}
                     placeholder="Override"
-                    className="w-20 rounded border border-slate-200 bg-white px-1.5 py-1 text-xs outline-none focus:border-sky-400"
+                    wrapperClassName="w-24 shrink-0"
+                    className="w-full rounded border border-slate-200 bg-white pl-1.5 pr-6 py-1 text-xs outline-none focus:border-sky-400"
                   />
                 </div>
               </div>

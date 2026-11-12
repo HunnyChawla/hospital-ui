@@ -9,6 +9,7 @@ import { LockedWhenFinalised } from "@/components/health-record/LockedWhenFinali
 import { AdviseAdmissionModal } from "../shared/AdviseAdmissionModal";
 import { ClinicStatusBadge } from "../shared/ClinicStatusBadge";
 import type { ClinicPanelMode } from "@/redux/clinicPanelSlice";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface ClinicActivePatientCardProps {
   patientId: string | null;
@@ -56,6 +57,7 @@ export function ClinicActivePatientCard({
   const [showPatientDetail, setShowPatientDetail] = useState(false);
   const [showAdviseModal, setShowAdviseModal] = useState(false);
   const { viewMode, setViewMode } = useExaminationViewPreference();
+  const { enabled: abhaEnabled } = useAbhaFlags();
 
   if (!patientId) {
     return (
@@ -114,7 +116,7 @@ export function ClinicActivePatientCard({
                 <p className="truncate text-xs font-medium text-slate-600">
                   {patientUhid || patientId}
                 </p>
-                {abhaVerified && (
+                {abhaEnabled && abhaVerified && (
                   <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 shadow-sm">
                     <ShieldCheck className="h-3 w-3 text-emerald-600" />
                     <span>ABHA Verified</span>

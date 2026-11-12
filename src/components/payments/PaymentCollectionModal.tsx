@@ -8,6 +8,7 @@ import { currency } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
+import { AmountInput } from "@/components/common/AmountInput";
 
 interface PaymentCollectionModalProps {
   isOpen: boolean;
@@ -125,15 +126,14 @@ export function PaymentCollectionModal({
           <span className="text-slate-600">
             Payment Amount <span className="text-rose-500">*</span>
           </span>
-          <input
-            type="number"
-            step="0.01"
+          <AmountInput
             min="0.01"
             max={balanceAmount}
+            arrowStep={10}
             value={paymentAmount}
-            onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+            onValueChange={(val) => setPaymentAmount(parseFloat(val) || 0)}
             autoComplete="off"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+            className="w-full rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-2 outline-none focus:border-sky-400"
             required
           />
           <p className="text-xs text-slate-500">Maximum: {currency(balanceAmount)}</p>

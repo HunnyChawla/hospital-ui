@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Modal } from "./Modal";
+import { AmountInput } from "./AmountInput";
 
 export interface CancellationDetails {
   reason: string;
@@ -196,15 +197,14 @@ export function CancellationRefundAcknowledgmentModal({
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
                     ₹
                   </span>
-                  <input
-                    type="number"
+                  <AmountInput
                     value={refundAmountInput}
-                    onChange={(e) => setRefundAmountInput(e.target.value)}
+                    onValueChange={setRefundAmountInput}
                     disabled={loading}
                     min={0}
                     max={refundableAmount}
-                    step="0.01"
-                    className={`w-full rounded-xl border py-2 pl-7 pr-3 text-sm text-slate-900 focus:outline-none focus:ring-1 disabled:opacity-50 ${refundError
+                    arrowStep={10}
+                    className={`w-full rounded-xl border py-2 pl-7 pr-8 text-sm text-slate-900 focus:outline-none focus:ring-1 disabled:opacity-50 ${refundError
                       ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500"
                       : "border-slate-300 focus:border-sky-500 focus:ring-sky-500"
                       }`}

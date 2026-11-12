@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, RotateCcw, AlertTriangle, CheckCircle2, IndianRupee, Loader2 } from "lucide-react";
 import { useSurgeryPayments, useRefundSurgeryPayment } from "@/hooks/queries/useSurgeryBilling";
+import { AmountInput } from "@/components/common/AmountInput";
 import type { PlannedSurgery, SurgeryPaymentEntry } from "@/types";
 
 interface RefundModalProps {
@@ -182,15 +183,14 @@ export function RefundModal({ isOpen, onClose, surgery }: RefundModalProps) {
                   </label>
                   <div className="relative">
                     <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input
-                      type="number"
-                      step="0.01"
+                    <AmountInput
                       min="1"
                       max={selectedPayment.amount}
+                      arrowStep={10}
                       required
                       value={refundAmount}
-                      onChange={(e) => setRefundAmount(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
+                      onValueChange={setRefundAmount}
+                      className="w-full rounded-lg border border-slate-300 pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
                     />
                   </div>
                 </div>

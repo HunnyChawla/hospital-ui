@@ -8,6 +8,7 @@ import { CreateAdmissionRequest, AdmissionType } from "@/services/admissionsApi"
 import { toast } from "sonner";
 import { currency } from "@/utils/format";
 import { CreditCard } from "lucide-react";
+import { AmountInput } from "@/components/common/AmountInput";
 
 export function AdmissionPanel() {
   const patients = useAppSelector((s) => s.patients.list);
@@ -152,13 +153,12 @@ export function AdmissionPanel() {
               <span className="text-slate-600 text-xs">
                 Advance Payment Amount <span className="text-rose-500">*</span>
               </span>
-              <input
-                type="number"
-                step="0.01"
+              <AmountInput
                 min="0.01"
+                arrowStep={10}
                 value={advancePaymentAmount}
-                onChange={(e) => setAdvancePaymentAmount(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+                onValueChange={setAdvancePaymentAmount}
+                className="w-full rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-2 text-sm outline-none focus:border-sky-400"
                 placeholder="0.00"
                 required={enableAdvancePayment}
               />

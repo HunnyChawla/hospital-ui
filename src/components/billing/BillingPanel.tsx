@@ -6,6 +6,7 @@ import { addCharge, fetchBilling } from "@/redux/billingSlice";
 import { currency } from "@/utils/format";
 import { nanoid } from "@reduxjs/toolkit";
 import { toast } from "sonner";
+import { AmountInput } from "@/components/common/AmountInput";
 
 export function BillingPanel() {
   const dispatch = useAppDispatch();
@@ -78,11 +79,12 @@ export function BillingPanel() {
           </label>
           <label className="space-y-1">
             <span className="text-slate-600">Amount</span>
-            <input
-              type="number"
+            <AmountInput
+              min="0"
+              arrowStep={10}
               value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+              onValueChange={(val) => setAmount(Number(val))}
+              className="w-full rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-2 outline-none focus:border-sky-400"
             />
           </label>
           <button

@@ -14,6 +14,8 @@ import { getTenantIdForApi } from "@/utils/auth";
 import { currency, getTodayDateLocal } from "@/utils/format";
 import { Calendar, Clock, Search, User, Stethoscope, Plus, BedDouble, PlusCircle, Loader2, X, CreditCard } from "lucide-react";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
+import { AmountInput } from "@/components/common/AmountInput";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface AdmissionFormProps {
   defaultPatientId?: string;
@@ -35,6 +37,7 @@ export function AdmissionForm({
   onSuccess,
 }: AdmissionFormProps) {
   const dispatch = useAppDispatch();
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const [patientId, setPatientId] = useState(defaultPatientId || "");
   const [doctorId, setDoctorId] = useState(defaultDoctorId || "");
   const [visitId, setVisitId] = useState(defaultVisitId || "");
@@ -419,7 +422,11 @@ export function AdmissionForm({
                     setShowDropdown(true);
                   }
                 }}
-                placeholder="Search patient by name, mobile, UHID, or ABHA"
+                placeholder={
+                  abhaEnabled
+                    ? "Search patient by name, mobile, UHID, or ABHA"
+                    : "Search patient by name, mobile, or UHID"
+                }
                 className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2 outline-none focus:border-sky-400"
               />
               {shouldShowDropdown && (
@@ -441,7 +448,7 @@ export function AdmissionForm({
                             <span>{p.mobile}</span>
                             <span>•</span>
                             <span>{p.healthId}</span>
-                            {(p.abhaAddress || p.abhaNumber) && (
+                            {abhaEnabled && (p.abhaAddress || p.abhaNumber) && (
                               <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                                 ABHA: {p.abhaAddress || p.abhaNumber}
                               </span>
@@ -791,13 +798,12 @@ export function AdmissionForm({
               <span className="text-slate-600">
                 Advance Payment Amount <span className="text-rose-500">*</span>
               </span>
-              <input
-                type="number"
-                step="0.01"
+              <AmountInput
                 min="0.01"
+                arrowStep={10}
                 value={advancePaymentAmount}
-                onChange={(e) => setAdvancePaymentAmount(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:border-sky-400"
+                onValueChange={setAdvancePaymentAmount}
+                className="w-full rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-2 outline-none focus:border-sky-400"
                 placeholder="0.00"
                 required={enableAdvancePayment}
               />

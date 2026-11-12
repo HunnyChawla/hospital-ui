@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
+import { AmountInput } from "@/components/common/AmountInput";
 import { serviceChargesApi, IpdPaymentItem } from "@/services/serviceChargesApi";
 import { formatCurrency } from "@/utils/format";
 import { useReactToPrint } from "react-to-print";
@@ -212,16 +213,15 @@ export function ReceiveAdvanceModal({
             </div>
             <div className="relative mt-1">
               <span className="absolute left-3 top-2 text-sm font-bold text-slate-400">₹</span>
-              <input
-                type="number"
+              <AmountInput
                 min="1"
-                step="0.01"
+                arrowStep={10}
                 required
                 autoComplete="off"
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full pl-7 pr-3 py-2 text-sm font-bold font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900"
+                onValueChange={setAmount}
+                className="w-full pl-7 pr-8 py-2 text-sm font-bold font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900"
               />
             </div>
           </div>

@@ -9,6 +9,7 @@ import { getTenantIdForApi } from "@/utils/auth";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorHandler";
 import { CreditCard, AlertCircle, CheckCircle2, BedDouble } from "lucide-react";
+import { AmountInput } from "@/components/common/AmountInput";
 
 interface DischargeFormProps {
   onSuccess?: () => void;
@@ -279,14 +280,13 @@ export function DischargeForm({ onSuccess, onSubmit, admissionId, admissionStatu
                       <span className="text-xs font-semibold text-slate-700">
                         Payment Amount <span className="text-rose-500">*</span>
                       </span>
-                      <input
-                        type="number"
+                      <AmountInput
                         min="0.01"
                         max={balanceDue}
-                        step="0.01"
+                        arrowStep={10}
                         value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono font-bold outline-none focus:border-sky-500"
+                        onValueChange={(val) => setPaymentAmount(parseFloat(val) || 0)}
+                        className="w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 py-1.5 text-xs font-mono font-bold outline-none focus:border-sky-500"
                         required
                       />
                     </label>

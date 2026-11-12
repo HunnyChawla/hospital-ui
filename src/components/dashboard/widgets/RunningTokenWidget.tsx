@@ -7,11 +7,9 @@ import {
   ExternalLink,
   Users,
   Activity,
-  ArrowRight,
   Clock,
   CheckCircle2,
   Stethoscope,
-  Radio,
 } from "lucide-react";
 import { DashboardWidget } from "./DashboardWidget";
 import { EmptyStateCard } from "@/components/common/EmptyStateCard";
@@ -192,27 +190,6 @@ export function RunningTokenWidget({
             )}
           />
           <span className="hidden sm:inline">{isLive ? "Live Sync" : "Connecting"}</span>
-        </div>
-      }
-      action={
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => router.push("/queue/tv-display")}
-            className="hidden lg:inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-sky-600 px-2 py-1 rounded-md hover:bg-slate-50 transition-colors"
-            title="Launch Fullscreen TV Display"
-          >
-            <Radio className="h-3.5 w-3.5" />
-            <span>TV Display</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/queue")}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100/80 transition-colors"
-          >
-            <span>Queue Board</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
         </div>
       }
     >

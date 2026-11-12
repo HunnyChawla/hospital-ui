@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
+import { AmountInput } from "@/components/common/AmountInput";
 import {
   serviceChargesApi,
   IpdBillingAccountResponse,
@@ -348,14 +349,14 @@ export function IpdDischargeSettlementModal({
               {/* Extra Invoice Discount Input */}
               <div className="flex justify-between items-center pt-1">
                 <span className="font-semibold text-slate-700">Additional Settlement Discount (₹):</span>
-                <input
-                  type="number"
+                <AmountInput
                   min="0"
-                  step="0.01"
+                  arrowStep={10}
                   placeholder="0.00"
                   value={invoiceDiscount}
-                  onChange={(e) => setInvoiceDiscount(e.target.value)}
-                  className="w-28 px-2 py-1 border border-slate-300 rounded text-right font-mono font-bold text-slate-900"
+                  onValueChange={setInvoiceDiscount}
+                  wrapperClassName="w-32 shrink-0"
+                  className="w-full pl-2 pr-7 py-1 border border-slate-300 rounded text-right font-mono font-bold text-slate-900 bg-white"
                 />
               </div>
 
