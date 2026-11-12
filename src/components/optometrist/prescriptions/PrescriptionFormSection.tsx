@@ -475,7 +475,10 @@ export function PrescriptionFormSection({
                         lens_material: existing.lens_material || "",
                         coatings: existing.coatings || [],
 
-                        medicine_items: existing.medicine_items || [],
+                        medicine_items: (existing.medicine_items || []).map((med) => ({
+                            ...med,
+                            applicable_eye: med.applicable_eye || "NA",
+                        })),
                         advice_items: existing.advice_items || [],
                     });
 
@@ -1012,7 +1015,7 @@ export function PrescriptionFormSection({
                 tapering_steps: template.medicine.tapering_steps
                     ? JSON.parse(JSON.stringify(template.medicine.tapering_steps))
                     : undefined,
-                applicable_eye: "BOTH",
+                applicable_eye: "NA",
             });
             // Track that this medicine has been added
             setAddedMedicineIds(prev => [...prev, id]);
@@ -1093,7 +1096,7 @@ export function PrescriptionFormSection({
             instructions,
             side_effects: sideEffects,
             update_master_side_effects: false,
-            applicable_eye: "BOTH",
+            applicable_eye: "NA",
         });
         setMedicineSearchQuery("");
         setMedicineSearchResults([]);
@@ -1197,7 +1200,7 @@ export function PrescriptionFormSection({
                     frequency: med.frequency,
                     duration: med.duration,
                     instructions: med.instructions || "",
-                    applicable_eye: med.applicable_eye || "BOTH",
+                    applicable_eye: med.applicable_eye || "NA",
                 });
             });
         }
@@ -2169,10 +2172,10 @@ export function PrescriptionFormSection({
                                                         {...register(`medicine_items.${index}.applicable_eye`)}
                                                         className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm hover:border-slate-300"
                                                     >
+                                                        <option value="NA">N/A</option>
                                                         <option value="BOTH">Both Eyes (OU)</option>
                                                         <option value="RIGHT">Right Eye (OD)</option>
                                                         <option value="LEFT">Left Eye (OS)</option>
-                                                        <option value="NA">N/A</option>
                                                     </select>
                                                 </div>
                                                 {(() => {
