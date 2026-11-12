@@ -379,16 +379,23 @@ export function buildNavigationGroups({
   // Track assigned screens to detect unassigned/other screens
   const assignedPaths = new Set<string>(["/"]);
   const resolvedGroups: ResolvedNavGroup[] = [];
+  const normalizedRole = userRole?.toLowerCase();
+  const isPanelRole =
+    normalizedRole === "doctor" ||
+    normalizedRole === "examiner" ||
+    normalizedRole === "optometrist";
 
   for (const groupDef of HOSPITAL_GROUPS) {
     const activeItems: NavItemConfig[] = [];
 
     for (const item of groupDef.items) {
-      // Check if this is a doctor/examiner panel path
+      // For doctor/examiner/optometrist, mark all panel paths as handled so
+      // non-selected panels never leak into "Other Modules", and only show
+      // their single resolved panel.
       if ((PANEL_PATHS as readonly string[]).includes(item.path)) {
-        // If doctor/examiner, only include their specific resolved panel
-        if (userRole === "doctor" || userRole === "examiner" || userRole === "optometrist") {
-          if (resolvedDoctorPanelPath && item.path !== resolvedDoctorPanelPath) {
+        if (isPanelRole) {
+          assignedPaths.add(item.path);
+          if (!resolvedDoctorPanelPath || item.path !== resolvedDoctorPanelPath) {
             continue;
           }
         }
@@ -439,7 +446,8 @@ export function buildNavigationGroups({
     if (
       !assignedPaths.has(screen.path) &&
       allowedSet.has(screen.path) &&
-      !PLATFORM_OWNER_SCREENS.includes(screen.path)
+      !PLATFORM_OWNER_SCREENS.includes(screen.path) &&
+      !(isPanelRole && (PANEL_PATHS as readonly string[]).includes(screen.path))
     ) {
       unassignedItems.push({
         href: screen.path,

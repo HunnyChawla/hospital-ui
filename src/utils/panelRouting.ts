@@ -4,7 +4,7 @@
  *
  * - optometrists always get the optometrist panel (/optometrist-panel)
  * - examiners always get the clinic panel (/clinic-panel)
- * - ophthalmologist doctors get the doctor panel (/doctor-panel)
+ * - ophthalmologist doctors get the optometrist panel (/optometrist-panel)
  * - other doctors get the clinic panel (/clinic-panel)
  */
 
@@ -12,16 +12,15 @@ export const PANEL_PATHS = ["/optometrist-panel", "/doctor-panel", "/clinic-pane
 
 export function resolvePanelPathForUser(
   role: string | null | undefined,
-  specialization: string | null | undefined,
-  clinicPanelEnabled: boolean = true
+  specialization: string | null | undefined
 ): string | null {
-  if (role === "optometrist") return "/optometrist-panel";
-  if (role === "examiner") return "/clinic-panel";
-  if (role !== "doctor") return null; // not panel-gated
+  const normalizedRole = role?.toLowerCase();
+  if (normalizedRole === "optometrist") return "/optometrist-panel";
+  if (normalizedRole === "examiner") return "/clinic-panel";
+  if (normalizedRole !== "doctor") return null; // not panel-gated
 
-  const isOphthalmologist = Boolean(
-    specialization && specialization.toLowerCase().includes("ophth")
-  );
-  if (isOphthalmologist) return "/doctor-panel";
-  return "/clinic-panel";
+  const normalizedSpec = specialization?.toLowerCase() ?? "";
+  const isEyeSpecialist =
+    normalizedSpec.includes("ophth") || normalizedSpec.includes("optom");
+  return isEyeSpecialist ? "/optometrist-panel" : "/clinic-panel";
 }

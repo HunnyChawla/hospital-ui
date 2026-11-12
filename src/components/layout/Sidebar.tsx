@@ -18,7 +18,7 @@ import { Tooltip } from "@/components/common/Tooltip";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchDoctors } from "@/redux/doctorsSlice";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useFeatureFlags, useAbdmFlags } from "@/hooks/useFeatureFlags";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 import { resolvePanelPathForUser } from "@/utils/panelRouting";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import { getTodayDateLocal, getPastDateLocal } from "@/utils/format";
@@ -195,24 +195,32 @@ export function Sidebar() {
   // Group accordion open/close state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  const normalizedRole = userRole?.toLowerCase() ?? null;
+
   useEffect(() => {
-    if (userRole === "doctor" && !doctorsInitialized && !doctorsLoading) {
+    if (normalizedRole === "doctor" && !doctorsInitialized && !doctorsLoading) {
       dispatch(fetchDoctors());
     }
-  }, [userRole, doctorsInitialized, doctorsLoading, dispatch]);
+  }, [normalizedRole, doctorsInitialized, doctorsLoading, dispatch]);
 
-  // Panel filter: each doctor/examiner sees exactly one panel entry
-  const { featureFlags: clinicPanelFlags } = useFeatureFlags("clinic_panel");
-  const clinicPanelEnabled = (clinicPanelFlags?.enabled as boolean) ?? false;
-
+  // Panel filter: each doctor/examiner/optometrist sees exactly one panel entry.
+  // For doctors, wait until the doctors list finishes its initial load so we
+  // do not prematurely resolve with an unknown specialization.
   const resolvedDoctorPanelPath = useMemo(() => {
-    if (userRole !== "doctor" && userRole !== "examiner" && userRole !== "optometrist") {
+    if (
+      normalizedRole !== "doctor" &&
+      normalizedRole !== "examiner" &&
+      normalizedRole !== "optometrist"
+    ) {
+      return null;
+    }
+    if (normalizedRole === "doctor" && !doctorsInitialized) {
       return null;
     }
     const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
     const currentDoctor = doctors.find((d) => d.user_id === userId);
-    return resolvePanelPathForUser(userRole, currentDoctor?.specialization, clinicPanelEnabled);
-  }, [userRole, doctors, clinicPanelEnabled]);
+    return resolvePanelPathForUser(normalizedRole, currentDoctor?.specialization);
+  }, [normalizedRole, doctorsInitialized, doctors]);
 
   // Build navigation groups from permissions
   const navigationData = useMemo(() => {
