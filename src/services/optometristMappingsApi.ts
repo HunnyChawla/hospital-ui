@@ -7,6 +7,7 @@ export interface OptometristDoctorMapping {
   doctor_id: string;
   doctor_name: string;
   optometrist_id: string;
+  optometrist_name?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
