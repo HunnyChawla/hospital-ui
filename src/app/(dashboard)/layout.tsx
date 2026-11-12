@@ -174,9 +174,9 @@ export default function DashboardLayout({
     if (!permissionsInitialized || permissionsLoading || !isAuthenticated)
       return { authorized: true, ownPanelPath: null };
 
-    // Panel routing: each doctor/examiner belongs on exactly one panel
+    // Panel routing: each doctor/examiner/optometrist belongs on their designated panel
     // (resolver shared with Sidebar so the two cannot drift)
-    if (userRole === "doctor" || userRole === "examiner") {
+    if (userRole === "doctor" || userRole === "examiner" || userRole === "optometrist") {
       const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
       const currentDoctor = doctors.list?.find((d) => d.user_id === userId);
       const mine = resolvePanelPathForUser(
