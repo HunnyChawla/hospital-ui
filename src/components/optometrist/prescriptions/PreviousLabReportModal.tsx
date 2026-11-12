@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2, FlaskConical, AlertCircle, Calendar, Lock, Printer, Download } from "lucide-react";
-import { useReactToPrint } from "react-to-print";
 import { labBookingsApi } from "@/services/labBookingsApi";
 import type { LabBooking } from "@/services/labBookingsApi";
 import type { LabTestResultItem } from "@/types";
 import { NormalRangeIndicator } from "@/components/doctors/shared/NormalRangeIndicator";
-import { TestReportPrint } from "@/components/lab-technician/TestReportPrint";
 import { MRDImage } from "@/components/lab-technician/TestResultsForm";
+import { printServerLabReportPdf } from "@/components/lab-technician/LabReportPdfModal";
 import { handleError } from "@/utils/errorHandler";
 
 interface PreviousLabReportModalProps {
@@ -26,19 +25,26 @@ export function PreviousLabReportModal({
     const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
+    const [printingPdf, setPrintingPdf] = useState(false);
     const [results, setResults] = useState<LabTestResultItem[]>([]);
 
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-    const printReportRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const handlePrintReport = useReactToPrint({
-        contentRef: printReportRef,
-        documentTitle: booking ? `LabReport_${booking.booking_number}` : "Lab_Report",
-    });
+    const handlePrintReport = async () => {
+        if (!booking?.id) return;
+        try {
+            setPrintingPdf(true);
+            await printServerLabReportPdf(booking.id);
+        } catch (error) {
+            handleError(error, { defaultMessage: "Failed to prepare PDF report for print" });
+        } finally {
+            setPrintingPdf(false);
+        }
+    };
 
     const handleDownloadPdf = async () => {
         if (!booking?.id) return;
@@ -248,10 +254,12 @@ export function PreviousLabReportModal({
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => handlePrintReport()}
-                            className="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border border-sky-200"
+                            disabled={printingPdf}
+                            onClick={handlePrintReport}
+                            className="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 disabled:opacity-50 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border border-sky-200"
                         >
-                            <Printer className="h-4 w-4" /> Print
+                            {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                            Print
                         </button>
                         <button
                             type="button"
@@ -287,51 +295,6 @@ export function PreviousLabReportModal({
                             src={previewImageUrl}
                             alt="Diagnostic Full View"
                             className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-white/10"
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Hidden Printable Report for react-to-print (bypasses parent modal clipping) */}
-            {booking && (
-                <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-                    <div ref={printReportRef} className="print-content">
-                        <TestReportPrint
-                            booking={booking}
-                            patientName={(booking as any).patient_name || booking.patient_id || "Patient"}
-                            patientMobile={(booking as any).patient_mobile || ""}
-                            testResults={results.map((r) => ({
-                                test: {
-                                    id: r.booking_item_id,
-                                    lab_test_id: r.booking_item_id,
-                                    test_name: r.test_name,
-                                    test_code: r.test_code,
-                                    price: 0,
-                                    is_prescribed: true,
-                                },
-                                results: (r.results || []).map((p) => ({
-                                    id: p.id,
-                                    booking_item_id: r.booking_item_id,
-                                    parameter_id: p.id,
-                                    parameter_name: p.parameter_name,
-                                    parameter_code: p.parameter_name,
-                                    unit: p.unit || "",
-                                    result_value: p.result_value || "",
-                                    result_numeric: p.result_numeric,
-                                    is_abnormal: Boolean(p.is_abnormal),
-                                    normal_min: p.normal_min,
-                                    normal_max: p.normal_max,
-                                    normal_text: p.normal_text,
-                                    notes: p.notes,
-                                    verified_by: p.verified_by,
-                                    verified_at: p.verified_at,
-                                    created_by: "",
-                                    created_at: "",
-                                    updated_at: "",
-                                    section_name: p.section_name || null,
-                                    parameter_type: p.parameter_type || "number",
-                                })),
-                            }))}
                         />
                     </div>
                 </div>

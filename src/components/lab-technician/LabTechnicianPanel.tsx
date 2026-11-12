@@ -1,265 +1,411 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useReactToPrint } from "react-to-print";
-import { labBookingsApi, LabBooking, BookingStatus, LabBookingTest } from "@/services/labBookingsApi";
-import { labTestsApi, LabTestResult } from "@/services/labTestsApi";
-import { patientsApi, formatPatientName } from "@/services/patientsApi";
-import { formatDate, currency, formatCurrencyForPDF, getTodayDateLocal } from "@/utils/format";
-import { Beaker, Calendar, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, FlaskConical, Eye, Lock, Download, List, Activity, Loader2 } from "lucide-react";
-import { SkeletonRow } from "../shared/SkeletonRow";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/utils/errorHandler";
-import { TestResultsForm } from "./TestResultsForm";
-import { TestResultsView } from "./TestResultsView";
-import { TestReportPrint } from "./TestReportPrint";
-import { PreviousLabReportModal } from "../optometrist/prescriptions/PreviousLabReportModal";
-import { useTenant } from "@/hooks/useTenant";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
-import { MaskedValue } from "@/components/common/MaskedValue";
+import { toast } from "sonner";
+import {
+  labBookingsApi,
+  type BookingStatus,
+  type LabBooking,
+} from "@/services/labBookingsApi";
 import { paymentsApi } from "@/services/paymentsApi";
-import { getTenantIdForApi } from "@/utils/auth";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useTenant } from "@/hooks/useTenant";
+import { useAppDispatch } from "@/redux/hooks";
 import { getPatientById } from "@/redux/patientsSlice";
+import { getTenantIdForApi } from "@/utils/auth";
+import { getErrorMessage } from "@/utils/errorHandler";
+import {
+  formatCurrencyForPDF,
+  formatDate,
+  getPastDateLocal,
+  getTodayDateLocal,
+} from "@/utils/format";
+import { CancellationRefundAcknowledgmentModal } from "@/components/common/CancellationRefundAcknowledgmentModal";
+import { LabReportPdfModal, printServerLabReportPdf } from "./LabReportPdfModal";
+import {
+  LabWorklistSidebar,
+  type DatePreset,
+  type EnrichedLabBooking,
+  type PendingSubFilter,
+  type WorklistTab,
+} from "./LabWorklistSidebar";
+import { LabReportWorkspace } from "./LabReportWorkspace";
+import {
+  formatBookingSubStatus,
+  useLabDraftStorage,
+} from "./useLabDraftStorage";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Download,
+  FileEdit,
+  FlaskConical,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 
-interface LabBookingWithPatient extends LabBooking {
-  patient_name?: string;
-  patient_mobile?: string;
-  patient_gender?: string;
-}
+const PAGE_SIZE = 15;
 
 export function LabTechnicianPanel() {
   const { tenant, hospitalName, logoDataUrl } = useTenant();
   const dispatch = useAppDispatch();
-  const patientsCache = useAppSelector((s) => s.patients.list);
-  const [bookings, setBookings] = useState<LabBookingWithPatient[]>([]);
+  const {
+    draftBookingIds,
+    loadBookingDraft,
+    saveBookingDraft,
+    clearBookingDraft,
+  } = useLabDraftStorage(tenant?.id);
+
+  const [draftBookingIdsRefCurrent, setDraftBookingIdsSnapshot] = useState<Set<string>>(new Set());
+  const draftBookingIdsRef = useRef<Set<string>>(draftBookingIds);
+  useEffect(() => {
+    draftBookingIdsRef.current = draftBookingIds;
+    setDraftBookingIdsSnapshot(draftBookingIds);
+  }, [draftBookingIds]);
+
+  // Queue & Filter State
+  const [bookings, setBookings] = useState<EnrichedLabBooking[]>([]);
   const [loading, setLoading] = useState(false);
+  const [kpiCounts, setKpiCounts] = useState<{
+    pending: number;
+    draft: number;
+    published: number;
+  }>({ pending: 0, draft: 0, published: 0 });
+  const [activeTab, setActiveTab] = useState<WorklistTab>("all");
+  const [pendingSubFilter, setPendingSubFilter] = useState<PendingSubFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [dateRangeError, setDateRangeError] = useState<string>("");
-  const [exporting, setExporting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [expandedBookings, setExpandedBookings] = useState<Set<string>>(new Set());
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
-  const [selectedTestForResults, setSelectedTestForResults] = useState<{
-    labBookingId: string;
-    bookingItemId: string;
-    testCode: string;
-    testName: string;
-    patientGender?: string;
-    patientId?: string;
-  } | null>(null);
-  const [selectedTestForView, setSelectedTestForView] = useState<{
-    labBookingId: string;
-    bookingItemId: string;
-    testCode: string;
-    testName: string;
-  } | null>(null);
-  const [testsWithResults, setTestsWithResults] = useState<Set<string>>(new Set()); // Track bookingItemId of tests with results
-  const [loadingResults, setLoadingResults] = useState<Set<string>>(new Set()); // Track which tests are loading results
+
+  // Selection & Mobile Drawer State
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [mobileShowWorkspace, setMobileShowWorkspace] = useState(false);
+
+  // Per-booking result progress cache (updated by workspace & bulk checks)
+  const [bookingResultProgress, setBookingResultProgress] = useState<
+    Record<string, { testsWithResults: number; totalTests: number }>
+  >({});
+
+  // Export, Preview & Cancellation State
+  const [exporting, setExporting] = useState(false);
   const [selectedReportBooking, setSelectedReportBooking] = useState<LabBooking | null>(null);
-  const [printReportData, setPrintReportData] = useState<{
-    booking: LabBookingWithPatient;
-    patientName: string;
-    patientMobile?: string;
-    testResults: Array<{
-      test: LabBookingTest;
-      results: LabTestResult[];
-    }>;
-  } | null>(null);
-  const [shouldPrintReport, setShouldPrintReport] = useState(false);
-  const printReportRef = useRef<HTMLDivElement>(null);
+
   const [showCancellationModal, setShowCancellationModal] = useState(false);
-  const [pendingCancellation, setPendingCancellation] = useState<{ bookingId: string; bookingNumber?: string; paymentAmount?: number } | null>(null);
+  const [pendingCancellation, setPendingCancellation] = useState<{
+    bookingId: string;
+    bookingNumber?: string;
+    paymentAmount?: number;
+  } | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  // Helper function to batch fetch patients and enrich bookings
-  const enrichBookingsWithPatients = async (bookingsList: LabBooking[]): Promise<LabBookingWithPatient[]> => {
-    // Extract unique patient IDs
-    const uniquePatientIds = Array.from(new Set(bookingsList.map((b) => b.patient_id)));
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    // Fetch all unique patients using Redux (checks cache first, only fetches if not cached)
-    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-    const patientResults = await Promise.all(
-      uniquePatientIds.map((patientId) =>
-        dispatch(getPatientById({ patientId, tenantId: tenantId || undefined })).unwrap()
-      )
-    );
-
-    // Create a map of patient ID to patient data
-    const patientsMap = new Map(
-      patientResults.map((p) => [p.id, p])
-    );
-
-    // Enrich bookings with patient data
-    return bookingsList.map((booking) => {
-      const patient = patientsMap.get(booking.patient_id);
-      if (patient) {
-        // Map gender to F/M format for API
-        const genderMap: Record<string, string> = {
-          "male": "M",
-          "Male": "M",
-          "female": "F",
-          "Female": "F",
-          "other": "M", // Default to M if other
-          "Other": "M",
-        };
-        const patientGender = genderMap[patient.gender] || "M";
-
-        return {
-          ...booking,
-          patient_name: patient.name,
-          patient_mobile: patient.mobile,
-          patient_gender: patientGender,
-        };
-      }
-      return {
-        ...booking,
-        patient_name: "Unknown",
-        patient_mobile: "",
-        patient_gender: undefined,
-      };
-    });
-  };
-
-
-  // Validate date range (max 3 months)
+  // Date range validation (max 3 months / 90 days)
   const validateDateRange = useCallback((start: string, end: string): string => {
     if (!start || !end) return "";
-    
-    const startDateObj = new Date(start);
-    const endDateObj = new Date(end);
-    
-    if (endDateObj < startDateObj) {
+    const startObj = new Date(start);
+    const endObj = new Date(end);
+    if (endObj < startObj) {
       return "End date must be after or equal to start date";
     }
-    
-    // Calculate difference in months
-    const monthsDiff = (endDateObj.getFullYear() - startDateObj.getFullYear()) * 12 + 
-                      (endDateObj.getMonth() - startDateObj.getMonth());
-    
-    if (monthsDiff > 3) {
-      return "Date range cannot exceed 3 months";
+    const diffDays = Math.round(
+      (endObj.getTime() - startObj.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (diffDays > 90) {
+      return "Date range cannot exceed 3 months (90 days)";
     }
-    
     return "";
   }, []);
 
-  // Update validation when dates change
   useEffect(() => {
     if (startDate && endDate) {
-      const error = validateDateRange(startDate, endDate);
-      setDateRangeError(error);
+      setDateRangeError(validateDateRange(startDate, endDate));
     } else {
       setDateRangeError("");
     }
   }, [startDate, endDate, validateDateRange]);
 
-  // Calculate max date for end date (3 months from start date, minus 1 day to ensure it's exactly 3 months, but not beyond today)
   const getMaxEndDate = useCallback((): string => {
     if (!startDate) return getTodayDateLocal();
-    const startDateObj = new Date(startDate);
-    const maxDate = new Date(startDateObj);
-    maxDate.setMonth(maxDate.getMonth() + 3);
-    // Subtract 1 day to ensure the range is at most 3 months (not more than 3 months)
-    maxDate.setDate(maxDate.getDate() - 1);
+    const maxDate = new Date(startDate);
+    maxDate.setDate(maxDate.getDate() + 90);
     const today = new Date(getTodayDateLocal());
-    // Return the earlier of: calculated max date or today
     return maxDate <= today ? maxDate.toISOString().split("T")[0] : getTodayDateLocal();
   }, [startDate]);
 
-  // Calculate min date for start date (3 months before end date, plus 1 day to ensure it's exactly 3 months)
   const getMinStartDate = useCallback((): string => {
     if (!endDate) return "";
-    const endDateObj = new Date(endDate);
-    const minDate = new Date(endDateObj);
-    minDate.setMonth(minDate.getMonth() - 3);
-    // Add 1 day to ensure the range is at most 3 months (not more than 3 months)
-    minDate.setDate(minDate.getDate() + 1);
+    const minDate = new Date(endDate);
+    minDate.setDate(minDate.getDate() - 90);
     return minDate.toISOString().split("T")[0];
   }, [endDate]);
 
-  const fetchBookings = useCallback(async () => {
-    // Don't fetch if date range is invalid (only when both dates are provided)
-    if (dateRangeError) return;
-    
-    setLoading(true);
-    try {
-      const response = await labBookingsApi.list({
-        page: currentPage,
-        page_size: pageSize,
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === "today") {
+      const today = getTodayDateLocal();
+      setStartDate(today);
+      setEndDate(today);
+    } else if (preset === "yesterday") {
+      const yesterday = getPastDateLocal(1);
+      setStartDate(yesterday);
+      setEndDate(yesterday);
+    } else if (preset === "3days") {
+      setStartDate(getPastDateLocal(2));
+      setEndDate(getTodayDateLocal());
+    } else if (preset === "all") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
+  // Enrich bookings with patient details using Redux cache (non-blocking per patient)
+  const enrichBookingsWithPatients = useCallback(
+    async (bookingsList: LabBooking[]): Promise<EnrichedLabBooking[]> => {
+      if (bookingsList.length === 0) return [];
+      const uniquePatientIds = Array.from(
+        new Set(bookingsList.map((b) => b.patient_id))
+      );
+      const tenantId =
+        typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+
+      const settled = await Promise.allSettled(
+        uniquePatientIds.map((patientId) =>
+          dispatch(
+            getPatientById({ patientId, tenantId: tenantId || undefined })
+          ).unwrap()
+        )
+      );
+
+      const patientsMap = new Map<
+        string,
+        {
+          name: string;
+          mobile: string;
+          gender: string;
+          age: number;
+          healthId: string;
+        }
+      >();
+      settled.forEach((result) => {
+        if (result.status === "fulfilled" && result.value) {
+          patientsMap.set(result.value.id, result.value);
+        }
       });
 
-      // Batch fetch patient details using Redux cache
-      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
+      return bookingsList.map((booking) => {
+        const patient = patientsMap.get(booking.patient_id);
+        if (!patient) {
+          return {
+            ...booking,
+            patient_name: "Unknown Patient",
+          };
+        }
+        const genderLower = (patient.gender || "").toLowerCase();
+        const apiGender =
+          genderLower === "female" ? "F" : genderLower === "male" ? "M" : "M";
+        return {
+          ...booking,
+          patient_name: patient.name,
+          patient_mobile: patient.mobile,
+          patient_gender: apiGender,
+          patient_gender_label: patient.gender,
+          patient_age: patient.age,
+          patient_uhid: patient.healthId || undefined,
+        };
+      });
+    },
+    [dispatch]
+  );
 
-      // Deduplicate bookings by ID to prevent duplicate key errors
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, pendingSubFilter, startDate, endDate, debouncedSearch]);
+
+  // Fetch accurate hospital-wide queue counts for the active date filter
+  const fetchKpiCounts = useCallback(async () => {
+    if (dateRangeError) return;
+    try {
+      const dateParams = {
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        page: 1,
+        page_size: 1,
+      };
+      const [scheduledRes, collectedRes, inProgressRes, completedRes] =
+        await Promise.all([
+          labBookingsApi.list({ ...dateParams, status: "scheduled" }),
+          labBookingsApi.list({ ...dateParams, status: "sample_collected" }),
+          labBookingsApi.list({ ...dateParams, status: "in_progress" }),
+          labBookingsApi.list({ ...dateParams, status: "completed" }),
+        ]);
+      setKpiCounts({
+        pending: scheduledRes.total + collectedRes.total,
+        draft: inProgressRes.total,
+        published: completedRes.total,
+      });
+    } catch {
+      // Non-fatal: keep previous counts if background count check fails
+    }
+  }, [startDate, endDate, dateRangeError]);
+
+  useEffect(() => {
+    fetchKpiCounts();
+  }, [fetchKpiCounts]);
+
+  const fetchBookings = useCallback(async () => {
+    if (dateRangeError) return;
+    setLoading(true);
+    try {
+      const serverBookingNum =
+        debouncedSearch.toUpperCase().startsWith("LAB-") ? debouncedSearch : undefined;
+
+      const baseParams = {
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        booking_number: serverBookingNum,
+      };
+
+      let rawItems: LabBooking[] = [];
+      let nextTotal = 0;
+      let nextTotalPages = 1;
+      const activeDraftIds = draftBookingIdsRef.current;
+
+      if (activeTab === "pending" && pendingSubFilter === "all") {
+        // Combine scheduled and sample_collected cleanly so pending items are never buried under completed items
+        const [scheduledRes, collectedRes] = await Promise.all([
+          labBookingsApi.list({
+            ...baseParams,
+            status: "scheduled",
+            page: 1,
+            page_size: 50,
+          }),
+          labBookingsApi.list({
+            ...baseParams,
+            status: "sample_collected",
+            page: 1,
+            page_size: 50,
+          }),
+        ]);
+        const merged = [...scheduledRes.items, ...collectedRes.items];
+        merged.sort((a, b) => {
+          const dateCmp = b.scheduled_date.localeCompare(a.scheduled_date);
+          if (dateCmp !== 0) return dateCmp;
+          return b.created_at.localeCompare(a.created_at);
+        });
+        nextTotal = merged.length;
+        nextTotalPages = Math.max(1, Math.ceil(nextTotal / PAGE_SIZE));
+        const safePage = Math.min(currentPage, nextTotalPages);
+        rawItems = merged.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+      } else if (activeTab === "draft") {
+        const [inProgressRes, collectedRes] = await Promise.all([
+          labBookingsApi.list({
+            ...baseParams,
+            status: "in_progress",
+            page: 1,
+            page_size: 50,
+          }),
+          activeDraftIds.size > 0
+            ? labBookingsApi.list({
+                ...baseParams,
+                status: "sample_collected",
+                page: 1,
+                page_size: 50,
+              })
+            : Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, total_pages: 1 }),
+        ]);
+
+        const localDraftCollected = collectedRes.items.filter((b) =>
+          activeDraftIds.has(b.id)
+        );
+        const mergedMap = new Map<string, LabBooking>();
+        [...inProgressRes.items, ...localDraftCollected].forEach((b) =>
+          mergedMap.set(b.id, b)
+        );
+        const merged = Array.from(mergedMap.values()).sort((a, b) => {
+          const dateCmp = b.scheduled_date.localeCompare(a.scheduled_date);
+          if (dateCmp !== 0) return dateCmp;
+          return b.created_at.localeCompare(a.created_at);
+        });
+        nextTotal = merged.length;
+        nextTotalPages = Math.max(1, Math.ceil(nextTotal / PAGE_SIZE));
+        const safePage = Math.min(currentPage, nextTotalPages);
+        rawItems = merged.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+      } else {
+        let statusParam: BookingStatus | undefined;
+        if (activeTab === "pending") {
+          statusParam =
+            pendingSubFilter === "scheduled" ? "scheduled" : "sample_collected";
+        } else if (activeTab === "published") {
+          statusParam = "completed";
+        } else if (activeTab === "cancelled") {
+          statusParam = "cancelled";
+        }
+
+        const response = await labBookingsApi.list({
+          ...baseParams,
+          page: currentPage,
+          page_size: PAGE_SIZE,
+          status: statusParam,
+        });
+        rawItems = response.items;
+        nextTotal = response.total;
+        nextTotalPages = Math.max(1, response.total_pages);
+      }
+
+      const enriched = await enrichBookingsWithPatients(rawItems);
       const uniqueBookings = Array.from(
-        new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
+        new Map(enriched.map((b) => [b.id, b])).values()
       );
 
       setBookings(uniqueBookings);
-      setTotalPages(response.total_pages);
-      setTotal(response.total);
-      // Clear any previous date range error if fetch succeeds
-      if (dateRangeError) {
-        setDateRangeError("");
+      setTotal(nextTotal);
+      setTotalPages(nextTotalPages);
+
+      // Keep selection valid or auto-select first booking on desktop
+      setSelectedBookingId((prev) => {
+        if (prev && uniqueBookings.some((b) => b.id === prev)) {
+          return prev;
+        }
+        return uniqueBookings[0]?.id ?? null;
+      });
+    } catch (error) {
+      const msg = getErrorMessage(error);
+      if (msg.includes("Date range") || msg.includes("90 days")) {
+        setDateRangeError(msg);
       }
-    } catch (error: any) {
-      console.error("Failed to fetch lab bookings:", error);
-      console.error("Error response:", error?.response?.data);
-      
-      // Extract error message
-      const errorMessage = getErrorMessage(error);
-      
-      // Check if it's a date range validation error from API
-      const isDateRangeError = 
-        errorMessage.includes("Date range cannot exceed 3 months") || 
-        errorMessage.includes("90 days") ||
-        errorMessage.includes("Date range") ||
-        error?.response?.data?.detail?.some?.((err: any) => 
-          err.type === "business_logic_error" && 
-          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
-        );
-      
-      if (isDateRangeError) {
-        // Set the date range error state to show validation message
-        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
-          err.type === "business_logic_error"
-        )?.msg || "Date range cannot exceed 3 months";
-        setDateRangeError(apiErrorMessage);
-        toast.error(apiErrorMessage);
-      } else {
-        // Show other errors as toast with full details
-        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to fetch lab bookings";
-        toast.error(fullErrorMessage);
-        console.error("Full error details:", {
-          status: error?.response?.status,
-          data: error?.response?.data,
-          message: errorMessage
-        });
-      }
-      
+      toast.error(msg || "Failed to load lab bookings");
       setBookings([]);
-      setTotalPages(1);
       setTotal(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, startDate, endDate, statusFilter, dateRangeError]);
-
-  useEffect(() => {
-    setCurrentPage(1); // Reset to first page when filter changes
-  }, [startDate, endDate, statusFilter]);
+  }, [
+    activeTab,
+    pendingSubFilter,
+    currentPage,
+    startDate,
+    endDate,
+    debouncedSearch,
+    dateRangeError,
+    enrichBookingsWithPatients,
+  ]);
 
   useEffect(() => {
     if (!dateRangeError) {
@@ -267,66 +413,128 @@ export function LabTechnicianPanel() {
     }
   }, [fetchBookings, dateRangeError]);
 
-  const getStatusColor = (status: BookingStatus) => {
-    switch (status) {
-      case "scheduled":
-        return "bg-sky-50 text-sky-700";
-      case "sample_collected":
-        return "bg-amber-50 text-amber-700";
-      case "in_progress":
-        return "bg-blue-50 text-blue-700";
-      case "completed":
-        return "bg-emerald-50 text-emerald-700";
-      case "cancelled":
-        return "bg-rose-50 text-rose-700";
-      default:
-        return "bg-slate-50 text-slate-700";
+  // Client-side instant search across patient name, UHID, mobile, booking #, sample ID
+  const filteredBookings = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return bookings;
+    return bookings.filter((b) => {
+      return (
+        b.booking_number.toLowerCase().includes(q) ||
+        (b.sample_id || "").toLowerCase().includes(q) ||
+        (b.patient_name || "").toLowerCase().includes(q) ||
+        (b.patient_uhid || "").toLowerCase().includes(q) ||
+        (b.patient_mobile || "").toLowerCase().includes(q)
+      );
+    });
+  }, [bookings, debouncedSearch]);
+
+  const selectedBooking = useMemo(
+    () =>
+      bookings.find((b) => b.id === selectedBookingId) ||
+      filteredBookings[0] ||
+      null,
+    [bookings, filteredBookings, selectedBookingId]
+  );
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchBookings(), fetchKpiCounts()]);
+  }, [fetchBookings, fetchKpiCounts]);
+
+  // Summary KPI counters (using accurate server counts + loaded urgent/STAT count)
+  const urgentStatCount = useMemo(() => {
+    return bookings.filter(
+      (b) =>
+        (b.priority === "stat" || b.priority === "urgent") &&
+        b.status !== "completed" &&
+        b.status !== "cancelled"
+    ).length;
+  }, [bookings]);
+
+  const handleProgressUpdate = useCallback(
+    (bookingId: string, testsWithResults: number, totalTests: number) => {
+      setBookingResultProgress((prev) => {
+        const existing = prev[bookingId];
+        if (
+          existing &&
+          existing.testsWithResults === testsWithResults &&
+          existing.totalTests === totalTests
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [bookingId]: { testsWithResults, totalTests },
+        };
+      });
+    },
+    []
+  );
+
+  // Server-generated PDF print support
+  const handleTriggerPrintReport = useCallback(async (booking: EnrichedLabBooking) => {
+    try {
+      toast.info("Preparing diagnostic report PDF...");
+      await printServerLabReportPdf(booking.id, {
+        onFallbackPreview: () => setSelectedReportBooking(booking),
+      });
+    } catch (error) {
+      toast.error(getErrorMessage(error) || "Failed to load diagnostic report PDF");
     }
-  };
+  }, []);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-rose-50 text-rose-700";
-      case "stat":
-        return "bg-red-50 text-red-700";
-      default:
-        return "bg-slate-50 text-slate-700";
-    }
-  };
-
-  const getValidNextStatuses = (currentStatus: BookingStatus): BookingStatus[] => {
-    switch (currentStatus) {
-      case "scheduled":
-        return ["sample_collected", "cancelled"];
-      case "sample_collected":
-        return ["in_progress", "cancelled"];
-      case "in_progress":
-        return ["completed", "cancelled"];
-      case "completed":
-      case "cancelled":
-        return [];
-      default:
-        return [];
-    }
-  };
-
-  const getStatusLabel = (status: BookingStatus): string => {
-    return status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
-  };
-
-  const formatStatus = (status: string) => {
-    return status.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-  };
-
-  const handleExportPDF = useCallback(async () => {
-    // Validate date range is selected
-    if (!startDate || !endDate) {
-      toast.error("Please select date range");
+  // Cancellation flow (preserving payment refund acknowledgment)
+  const handleRequestCancelBooking = useCallback(async (booking: EnrichedLabBooking) => {
+    if (booking.payment_id) {
+      let paymentAmount: number | undefined;
+      try {
+        const tenantId =
+          typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+        const apiTenantId = getTenantIdForApi(tenantId || undefined);
+        const payment = await paymentsApi.getById(booking.payment_id, apiTenantId);
+        paymentAmount = payment.amount;
+      } catch {
+        // Proceed with modal even if payment amount lookup fails
+      }
+      setPendingCancellation({
+        bookingId: booking.id,
+        bookingNumber: booking.booking_number,
+        paymentAmount,
+      });
+      setShowCancellationModal(true);
       return;
     }
-    
-    // Validate filters - only check date range error if dates are provided
+
+    setPendingCancellation({
+      bookingId: booking.id,
+      bookingNumber: booking.booking_number,
+    });
+    setShowCancellationModal(true);
+  }, []);
+
+  const handleConfirmCancellation = async () => {
+    if (!pendingCancellation) return;
+    setCancelling(true);
+    try {
+      await labBookingsApi.updateStatus(pendingCancellation.bookingId, "cancelled");
+      clearBookingDraft(pendingCancellation.bookingId);
+      toast.success("Booking cancelled");
+      setShowCancellationModal(false);
+      setPendingCancellation(null);
+      await fetchBookings();
+      await fetchKpiCounts();
+    } catch (error) {
+      toast.error(getErrorMessage(error) || "Failed to cancel booking");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  // Summary PDF Export
+  const handleExportPDF = useCallback(async () => {
+    if (!startDate || !endDate) {
+      toast.error("Select a date preset (e.g. Today or Last 3 Days) or custom date range to export PDF");
+      return;
+    }
     if (dateRangeError) {
       toast.error(dateRangeError);
       return;
@@ -334,919 +542,276 @@ export function LabTechnicianPanel() {
 
     setExporting(true);
     try {
-      // Fetch all bookings without pagination
+      let exportStatus: BookingStatus | undefined;
+      if (activeTab === "published") exportStatus = "completed";
+      else if (activeTab === "cancelled") exportStatus = "cancelled";
+      else if (activeTab === "draft") exportStatus = "in_progress";
+
       const response = await labBookingsApi.list({
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        // Omit page and page_size to get all results
+        start_date: startDate,
+        end_date: endDate,
+        status: exportStatus,
       });
 
-      // Batch fetch patient details using Redux cache
-      const bookingsWithPatients = await enrichBookingsWithPatients(response.items);
-
-      // Deduplicate bookings by ID to prevent duplicate key errors
+      const enriched = await enrichBookingsWithPatients(response.items);
       const allBookings = Array.from(
-        new Map(bookingsWithPatients.map((booking) => [booking.id, booking])).values()
+        new Map(enriched.map((b) => [b.id, b])).values()
       );
-      
+
       if (allBookings.length === 0) {
-        toast.error("No lab bookings found to export");
-        setExporting(false);
+        toast.error("No lab reports found in the selected range");
         return;
       }
 
-      // Format address similar to PrintHeader
-      const formatAddress = () => {
-        if (!tenant) return null;
-        const parts = [
-          tenant.address,
-          tenant.city,
-          tenant.state,
-          tenant.pincode,
-        ].filter(Boolean);
-        return parts.length > 0 ? parts.join(", ") : null;
-      };
-      const address = formatAddress();
-
-      // Create PDF
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const centerX = pageWidth / 2;
       let yPos = 15;
 
-      // Add logo if available (similar to PrintHeader)
       if (logoDataUrl) {
         try {
-          // Load image to get dimensions
           const img = new Image();
           await new Promise<void>((resolve, reject) => {
             img.onload = () => resolve();
             img.onerror = reject;
             img.src = logoDataUrl;
           });
-
-          // Calculate logo size (max 24mm height, maintain aspect ratio)
-          // Convert pixels to mm (assuming 96 DPI: 1px ≈ 0.264583mm)
           const pxToMm = 0.264583;
-          const maxHeightMm = 24; // 24mm (similar to max-h-24 which is 96px ≈ 25.4mm)
-          
-          let logoWidthMm = img.width * pxToMm;
-          let logoHeightMm = img.height * pxToMm;
-          
-          // Scale down if too large
-          if (logoHeightMm > maxHeightMm) {
-            const scale = maxHeightMm / logoHeightMm;
-            logoWidthMm = logoWidthMm * scale;
-            logoHeightMm = maxHeightMm;
+          let w = img.width * pxToMm;
+          let h = img.height * pxToMm;
+          if (h > 24) {
+            const scale = 24 / h;
+            w *= scale;
+            h = 24;
           }
-
-          // Center the logo horizontally
-          const logoX = centerX - (logoWidthMm / 2);
-          
-          // Detect image format from data URL
-          let imageFormat: string = 'PNG';
-          if (logoDataUrl.startsWith('data:image/jpeg') || logoDataUrl.startsWith('data:image/jpg')) {
-            imageFormat = 'JPEG';
-          } else if (logoDataUrl.startsWith('data:image/png')) {
-            imageFormat = 'PNG';
-          }
-          
-          // Add logo to PDF
-          doc.addImage(logoDataUrl, imageFormat, logoX, yPos, logoWidthMm, logoHeightMm);
-          yPos += logoHeightMm + 5; // Add space after logo
-        } catch (error) {
-          console.warn("Could not add logo to PDF:", error);
+          const format = logoDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+          doc.addImage(logoDataUrl, format, centerX - w / 2, yPos, w, h);
+          yPos += h + 5;
+        } catch {
           // Continue without logo
         }
       }
 
-      // Hospital Name (centered, bold, large) - matching PrintHeader style
-      doc.setFontSize(18);
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      const hospitalNameText = (tenant?.name || hospitalName || "HOSPITAL").toUpperCase();
-      doc.text(hospitalNameText, centerX, yPos, { align: "center" });
-      yPos += 8;
+      doc.text((tenant?.name || hospitalName || "HOSPITAL").toUpperCase(), centerX, yPos, {
+        align: "center",
+      });
+      yPos += 7;
 
-      // Address and Contact Information (centered, smaller text)
-      if (address || tenant?.phone_no || tenant?.email || tenant?.website) {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(55, 65, 81); // slate-700
-        
-        if (address) {
-          doc.text(address, centerX, yPos, { align: "center" });
-          yPos += 5;
-        }
-        
-        // Contact info
-        const contactParts: string[] = [];
-        if (tenant?.phone_no) contactParts.push(`Phone: ${tenant.phone_no}`);
-        if (tenant?.email) contactParts.push(`Email: ${tenant.email}`);
-        if (tenant?.website) contactParts.push(`Website: ${tenant.website}`);
-        
-        if (contactParts.length > 0) {
-          doc.text(contactParts.join(" | "), centerX, yPos, { align: "center" });
-          yPos += 6;
-        }
-      }
-
-      // Reset text color
-      doc.setTextColor(0, 0, 0);
-
-      // Document Type (centered) - matching PrintHeader style
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(71, 85, 105); // slate-600
-      doc.text("Lab Reports", centerX, yPos, { align: "center" });
-      yPos += 8;
+      doc.setTextColor(71, 85, 105);
+      doc.text("Laboratory Reports Summary", centerX, yPos, { align: "center" });
+      yPos += 6;
 
-      // Filter Details (left-aligned, similar to invoice number/date in PrintHeader)
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(0, 0, 0);
-      
-      // Add border line similar to PrintHeader
-      doc.setLineWidth(0.5);
-      doc.setDrawColor(30, 41, 59); // slate-800
+      doc.setDrawColor(30, 41, 59);
       doc.line(14, yPos, pageWidth - 14, yPos);
       yPos += 6;
 
-      // Filter details
       doc.setFontSize(8);
-      doc.setTextColor(71, 85, 105); // slate-600
-      if (startDate && endDate) {
-        doc.text("Date Range", 14, yPos);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
-        const dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
-        doc.text(dateRangeText, 14, yPos + 4);
-      }
-      
-      // Status filter on the right (if selected)
-      if (statusFilter !== "all") {
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(71, 85, 105);
-        doc.text("Status", pageWidth - 14, yPos, { align: "right" });
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
-        doc.text(formatStatus(statusFilter), pageWidth - 14, yPos + 4, { align: "right" });
-      }
-      
-      yPos += 8;
-      
-      // Export date and total
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(71, 85, 105);
-      doc.text(`Export Date: ${new Date().toLocaleString()}`, 14, yPos);
-      doc.text(`Total: ${allBookings.length} bookings`, pageWidth - 14, yPos, { align: "right" });
-      yPos += 8;
-
-      // Prepare table data
-      const tableData = allBookings.map((booking) => {
-        return [
-          formatDate(booking.scheduled_date), // Date as first column
-          booking.booking_number,
-          booking.patient_name || `Patient ${booking.patient_id.slice(0, 8)}...`,
-          booking.patient_mobile || "-",
-          formatStatus(booking.status),
-          booking.priority.charAt(0).toUpperCase() + booking.priority.slice(1),
-          `${booking.tests.length} test${booking.tests.length !== 1 ? "s" : ""}`,
-          formatCurrencyForPDF(booking.total_amount),
-        ];
+      doc.text(
+        `Range: ${formatDate(startDate)} to ${formatDate(endDate)}`,
+        14,
+        yPos
+      );
+      doc.text(`Total: ${allBookings.length} bookings`, pageWidth - 14, yPos, {
+        align: "right",
       });
+      yPos += 6;
 
-      // Calculate available width (page width minus margins)
-      const availableWidth = pageWidth - 28; // 14mm margin on each side
-
-      // Add table
       autoTable(doc, {
         startY: yPos,
-        head: [["Date", "Booking #", "Patient Name", "Mobile", "Status", "Priority", "Tests", "Amount"]],
-        body: tableData,
+        head: [["Date", "Booking #", "Patient Name", "Status", "Priority", "Tests", "Amount"]],
+        body: allBookings.map((b) => [
+          formatDate(b.scheduled_date),
+          b.booking_number,
+          b.patient_name || "Patient",
+          formatBookingSubStatus(b.status),
+          b.priority.toUpperCase(),
+          `${b.tests.length}`,
+          formatCurrencyForPDF(b.total_amount),
+        ]),
         theme: "striped",
-        headStyles: {
-          fillColor: [59, 130, 246], // Sky blue
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        styles: {
-          fontSize: 7,
-          cellPadding: 2,
-        },
-        columnStyles: {
-          0: { cellWidth: availableWidth * 0.12 }, // Date - 12%
-          1: { cellWidth: availableWidth * 0.15 }, // Booking # - 15%
-          2: { cellWidth: availableWidth * 0.20 }, // Patient Name - 20%
-          3: { cellWidth: availableWidth * 0.12 }, // Mobile - 12%
-          4: { cellWidth: availableWidth * 0.12 }, // Status - 12%
-          5: { cellWidth: availableWidth * 0.10 }, // Priority - 10%
-          6: { cellWidth: availableWidth * 0.09 }, // Tests - 9%
-          7: { cellWidth: availableWidth * 0.10 }, // Amount - 10%
-        },
+        headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: "bold" },
+        styles: { fontSize: 7.5, cellPadding: 2 },
         margin: { left: 14, right: 14 },
       });
 
-      // Generate filename
-      const filename = startDate && endDate
-        ? `lab_reports_${startDate}_to_${endDate}.pdf`
-        : `lab_reports_all_${getTodayDateLocal()}.pdf`;
-
-      // Save PDF
-      doc.save(filename);
-      
-      toast.success(`Exported ${allBookings.length} lab reports successfully`);
-    } catch (error: any) {
-      console.error("Failed to export lab reports:", error);
-      console.error("Error response:", error?.response?.data);
-      
-      // Extract error message
-      const errorMessage = getErrorMessage(error);
-      
-      // Check if it's a date range validation error from API
-      const isDateRangeError = 
-        errorMessage.includes("Date range cannot exceed 3 months") || 
-        errorMessage.includes("90 days") ||
-        errorMessage.includes("Date range") ||
-        error?.response?.data?.detail?.some?.((err: any) => 
-          err.type === "business_logic_error" && 
-          (err.msg?.includes("Date range") || err.msg?.includes("90 days"))
-        );
-      
-      if (isDateRangeError) {
-        // Set the date range error state to show validation message
-        const apiErrorMessage = error?.response?.data?.detail?.find?.((err: any) => 
-          err.type === "business_logic_error"
-        )?.msg || "Date range cannot exceed 3 months";
-        setDateRangeError(apiErrorMessage);
-        toast.error(apiErrorMessage);
-      } else {
-        // Show other errors as toast with full details
-        const fullErrorMessage = errorMessage || error?.response?.statusText || "Failed to export lab reports";
-        toast.error(fullErrorMessage);
-        console.error("Full error details:", {
-          status: error?.response?.status,
-          data: error?.response?.data,
-          message: errorMessage
-        });
-      }
+      doc.save(`lab_reports_${startDate}_to_${endDate}.pdf`);
+      toast.success(`Exported ${allBookings.length} lab reports`);
+    } catch (error) {
+      toast.error(getErrorMessage(error) || "Failed to export PDF");
     } finally {
       setExporting(false);
     }
-  }, [startDate, endDate, dateRangeError, statusFilter, tenant, hospitalName, logoDataUrl]);
-
-  const allTestsHaveResults = (booking: LabBookingWithPatient): boolean => {
-    if (booking.tests.length === 0) return false;
-    return booking.tests.every((test) => testsWithResults.has(test.id));
-  };
-
-  const handleStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
-    // If cancelling, check if payment exists and show acknowledgment modal
-    if (newStatus === "cancelled") {
-      try {
-        // Find booking in current list to check for payment
-        const booking = bookings.find((b) => b.id === bookingId);
-        
-        if (booking?.payment_id) {
-          // Fetch payment details to get amount
-          let paymentAmount: number | undefined;
-          try {
-            const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
-            const apiTenantId = getTenantIdForApi(tenantId || undefined);
-            const payment = await paymentsApi.getById(booking.payment_id, apiTenantId);
-            paymentAmount = payment.amount;
-          } catch (error) {
-            console.error("Failed to fetch payment details:", error);
-          }
-          
-          // Show acknowledgment modal
-          setPendingCancellation({
-            bookingId,
-            bookingNumber: booking.booking_number,
-            paymentAmount,
-          });
-          setShowCancellationModal(true);
-          return;
-        }
-      } catch (error: any) {
-        const errorMessage = getErrorMessage(error);
-        toast.error(errorMessage || "Failed to fetch booking details");
-        return;
-      }
-    }
-    
-    // Proceed with status update (non-cancellation or cancellation without payment)
-    await performStatusUpdate(bookingId, newStatus);
-  };
-
-  const performStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
-    setUpdatingStatus(bookingId);
-    try {
-      setCancelling(newStatus === "cancelled");
-      await labBookingsApi.updateStatus(bookingId, newStatus);
-      toast.success(`Status updated to ${getStatusLabel(newStatus)}`);
-      fetchBookings();
-    } catch (error: any) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage || "Failed to update status");
-    } finally {
-      setUpdatingStatus(null);
-      setCancelling(false);
-      setShowCancellationModal(false);
-      setPendingCancellation(null);
-    }
-  };
-
-  const handleConfirmCancellation = async () => {
-    if (!pendingCancellation) return;
-    await performStatusUpdate(pendingCancellation.bookingId, "cancelled");
-  };
-
-  const toggleBookingExpansion = async (bookingId: string) => {
-    const booking = bookings.find((b) => b.id === bookingId);
-    if (!booking) return;
-
-    setExpandedBookings((prev) => {
-      const newSet = new Set(prev);
-      const isExpanding = !newSet.has(bookingId);
-      
-      if (isExpanding) {
-        newSet.add(bookingId);
-        // Fetch results for all tests when expanding
-        fetchTestsResults(booking);
-      } else {
-        newSet.delete(bookingId);
-      }
-      return newSet;
-    });
-  };
-
-  const fetchTestsResults = async (booking: LabBookingWithPatient) => {
-    // Check which tests have published results
-    const testIdsToCheck = booking.tests.map((test) => test.id);
-    setLoadingResults((prev) => {
-      const newSet = new Set(prev);
-      testIdsToCheck.forEach((id) => newSet.add(id));
-      return newSet;
-    });
-
-    try {
-      const resultsPromises = booking.tests.map(async (test) => {
-        try {
-          const results = await labTestsApi.getResults(booking.id, test.id);
-          // Ensure results is an array
-          const resultsArray = Array.isArray(results) ? results : [];
-          return { testId: test.id, hasResults: resultsArray.length > 0 };
-        } catch {
-          return { testId: test.id, hasResults: false };
-        }
-      });
-
-      const results = await Promise.all(resultsPromises);
-      setTestsWithResults((prev) => {
-        const newSet = new Set(prev);
-        results.forEach(({ testId, hasResults }) => {
-          if (hasResults) {
-            newSet.add(testId);
-          } else {
-            newSet.delete(testId);
-          }
-        });
-        return newSet;
-      });
-    } catch (error) {
-      console.error("Failed to fetch test results:", error);
-    } finally {
-      setLoadingResults((prev) => {
-        const newSet = new Set(prev);
-        testIdsToCheck.forEach((id) => newSet.delete(id));
-        return newSet;
-      });
-    }
-  };
-
-  const handlePublishResults = (test: LabBookingTest, bookingId: string) => {
-    const booking = bookings.find((b) => b.id === bookingId);
-    setSelectedTestForResults({
-      labBookingId: bookingId,
-      bookingItemId: test.id,
-      testCode: test.test_code,
-      testName: test.test_name,
-      patientGender: booking?.patient_gender,
-      patientId: booking?.patient_id,
-    });
-  };
-
-  const handlePrintReport = useReactToPrint({
-    contentRef: printReportRef,
-    documentTitle: printReportData ? `TestReport_${printReportData.booking.booking_number}` : "Test Report",
-  });
-
-  useEffect(() => {
-    if (printReportData && shouldPrintReport && printReportRef.current) {
-      // Small delay to ensure DOM is updated
-      const timeoutId = setTimeout(() => {
-        handlePrintReport();
-        setShouldPrintReport(false);
-      }, 200);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [printReportData, shouldPrintReport, handlePrintReport]);
-
-  const handleDownloadReport = (booking: LabBookingWithPatient) => {
-    setSelectedReportBooking(booking);
-  };
-
-  const handleResultsPublished = async () => {
-    // Mark this test as having results immediately
-    if (selectedTestForResults) {
-      setTestsWithResults((prev) => {
-        const newSet = new Set(prev);
-        newSet.add(selectedTestForResults.bookingItemId);
-        return newSet;
-      });
-
-      // Refresh results for the entire booking to ensure all tests are checked
-      const booking = bookings.find((b) => b.id === selectedTestForResults.labBookingId);
-      if (booking) {
-        await fetchTestsResults(booking);
-      }
-    }
-    
-    // Refresh bookings list
-    fetchBookings();
-    setSelectedTestForResults(null);
-  };
+  }, [
+    startDate,
+    endDate,
+    dateRangeError,
+    activeTab,
+    enrichBookingsWithPatients,
+    logoDataUrl,
+    tenant?.name,
+    hospitalName,
+  ]);
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-4 flex items-end gap-3">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 flex-1">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                max={endDate ? (endDate < getTodayDateLocal() ? endDate : getTodayDateLocal()) : getTodayDateLocal()}
-                min={endDate ? getMinStartDate() : undefined}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                End Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate || undefined}
-                max={startDate ? getMaxEndDate() : getTodayDateLocal()}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-              />
+      {/* Workbench Header & KPI Summary Strip */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-teal-500 text-white shadow-xs">
+                <FlaskConical className="h-5 w-5" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">
+                  Lab Technician Workbench
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Enter results inline, auto-save drafts, review flagged values, and publish reports
+                </p>
+              </div>
             </div>
           </div>
-          <button
-            onClick={handleExportPDF}
-            disabled={!!dateRangeError || exporting}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-500/30 transition-all hover:from-sky-600 hover:to-teal-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-sky-500 disabled:hover:to-teal-500"
-            title="Export all lab reports to PDF"
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Exporting...</span>
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                <span>Export PDF</span>
-              </>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Compact Status Summary Pills */}
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:bg-amber-100/70 cursor-pointer"
+            >
+              <Clock className="h-3.5 w-3.5 text-amber-600" />
+              <span className="tabular-nums">{kpiCounts.pending}</span> Pending
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("draft")}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1.5 text-xs font-semibold text-sky-900 transition hover:bg-sky-100/70 cursor-pointer"
+            >
+              <FileEdit className="h-3.5 w-3.5 text-sky-600" />
+              <span className="tabular-nums">{kpiCounts.draft}</span> Draft
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("published")}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100/70 cursor-pointer"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="tabular-nums">{kpiCounts.published}</span> Published
+            </button>
+            {urgentStatCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800">
+                <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                <span className="tabular-nums">{urgentStatCount}</span> Urgent/STAT
+              </span>
             )}
-          </button>
-        </div>
 
-        {dateRangeError && (
-          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
-            <p className="text-sm text-rose-700">{dateRangeError}</p>
-          </div>
-        )}
+            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
-        {/* Status Tabs */}
-        <div className="border-b border-slate-200">
-          <div className="flex flex-wrap gap-2 -mb-px">
             <button
-              onClick={() => setStatusFilter("all")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
-                statusFilter === "all"
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-              }`}
+              type="button"
+              onClick={refreshAll}
+              disabled={loading}
+              title="Refresh worklist"
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
             >
-              <List className="h-4 w-4" />
-              All
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
             </button>
+
             <button
-              onClick={() => setStatusFilter("scheduled")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
-                statusFilter === "scheduled"
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-              }`}
+              type="button"
+              onClick={handleExportPDF}
+              disabled={!!dateRangeError || exporting}
+              title="Export filtered lab reports summary PDF"
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
-              <Calendar className="h-4 w-4" />
-              Scheduled
-            </button>
-            <button
-              onClick={() => setStatusFilter("sample_collected")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
-                statusFilter === "sample_collected"
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-              }`}
-            >
-              <FlaskConical className="h-4 w-4" />
-              Sample Collected
-            </button>
-            <button
-              onClick={() => setStatusFilter("in_progress")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
-                statusFilter === "in_progress"
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-              }`}
-            >
-              <Activity className="h-4 w-4" />
-              In Progress
-            </button>
-            <button
-              onClick={() => setStatusFilter("completed")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
-                statusFilter === "completed"
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-              }`}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Completed
-            </button>
-            <button
-              onClick={() => setStatusFilter("cancelled")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
-                statusFilter === "cancelled"
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
-              }`}
-            >
-              <XCircle className="h-4 w-4" />
-              Cancelled
+              {exporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              Export PDF
             </button>
           </div>
         </div>
       </div>
 
-      {/* Bookings List */}
-      {loading ? (
-        <SkeletonRow rows={5} />
-      ) : bookings.length === 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center">
-          <Beaker className="mx-auto h-12 w-12 text-slate-400" />
-          <p className="mt-4 text-slate-500">No lab test bookings found</p>
+      {/* Split Master-Detail Workbench */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+        {/* Left Queue */}
+        <div
+          className={`lg:col-span-4 xl:col-span-4 min-w-0 ${
+            mobileShowWorkspace ? "hidden lg:block" : "block"
+          }`}
+        >
+          <LabWorklistSidebar
+            bookings={filteredBookings}
+            loading={loading}
+            selectedBookingId={selectedBooking?.id ?? null}
+            onSelectBooking={(booking) => {
+              setSelectedBookingId(booking.id);
+              setMobileShowWorkspace(true);
+            }}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            pendingSubFilter={pendingSubFilter}
+            onPendingSubFilterChange={setPendingSubFilter}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            datePreset={datePreset}
+            onDatePresetChange={handleDatePresetChange}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={(val) => {
+              setDatePreset("custom");
+              setStartDate(val);
+            }}
+            onEndDateChange={(val) => {
+              setDatePreset("custom");
+              setEndDate(val);
+            }}
+            minStartDate={getMinStartDate()}
+            maxEndDate={getMaxEndDate()}
+            todayDate={getTodayDateLocal()}
+            dateRangeError={dateRangeError}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            bookingResultProgress={bookingResultProgress}
+            draftBookingIds={draftBookingIdsRefCurrent}
+          />
         </div>
-      ) : (
-        <div className="grid gap-3">
-          {bookings.map((booking) => {
-            const isExpanded = expandedBookings.has(booking.id);
-            const validNextStatuses = getValidNextStatuses(booking.status);
-            const isUpdating = updatingStatus === booking.id;
-            const allResultsPublished = allTestsHaveResults(booking);
 
-            return (
-              <div
-                key={booking.id}
-                className="rounded-xl border border-slate-100 bg-white shadow-sm transition hover:border-sky-200 hover:shadow-md"
-              >
-                {/* Booking Header */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <div className="flex min-w-[4rem] items-center justify-center rounded-lg bg-sky-100 px-3 py-2">
-                          <p className="text-xs font-bold text-sky-700 break-all text-center">
-                            {booking.booking_number.split("-").pop()}
-                          </p>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-slate-900">
-                              {booking.patient_name || `Patient ${booking.patient_id.slice(0, 8)}...`}
-                            </p>
-                            <span className="pill bg-sky-50 text-sky-700 px-2 py-0.5 text-xs font-mono">
-                              {booking.booking_number}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                            {booking.patient_mobile && (
-                              <span className="flex items-center gap-1">
-                                <User className="h-3 w-3 shrink-0" />
-                                <MaskedValue type="mobile" value={booking.patient_mobile} size="xs" />
-                              </span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(booking.scheduled_date)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className={`pill px-2 py-0.5 text-xs font-normal ${getStatusColor(booking.status)}`}>
-                          {getStatusLabel(booking.status)}
-                        </span>
-                        <span className={`pill px-2 py-0.5 text-xs font-normal ${getPriorityColor(booking.priority)}`}>
-                          {booking.priority}
-                        </span>
-                        <span className="pill bg-slate-50 text-slate-700 px-2 py-0.5 text-xs font-normal">
-                          {booking.tests.length} test{booking.tests.length !== 1 ? "s" : ""}
-                        </span>
-                        <span className="pill bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs font-normal">
-                          {currency(booking.total_amount)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Status Update Buttons and Download Report */}
-                    <div className="ml-4 flex flex-col gap-2">
-                      {validNextStatuses.length > 0 && (
-                        <>
-                          {validNextStatuses.map((nextStatus) => {
-                            // Disable "completed" button if not all tests have results
-                            const isCompletedButton = nextStatus === "completed";
-                            const isDisabled = isUpdating || (isCompletedButton && !allResultsPublished);
-                            const disabledReason = isCompletedButton && !allResultsPublished
-                              ? "All test results must be published before completing"
-                              : undefined;
-
-                            return (
-                              <button
-                                key={nextStatus}
-                                onClick={() => handleStatusUpdate(booking.id, nextStatus)}
-                                disabled={isDisabled}
-                                title={disabledReason}
-                                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                                  nextStatus === "cancelled"
-                                    ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
-                                    : nextStatus === "completed"
-                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                    : "bg-sky-50 text-sky-700 hover:bg-sky-100"
-                                } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                              >
-                                {nextStatus === "completed" && <CheckCircle2 className="h-3 w-3" />}
-                                {nextStatus === "cancelled" && <XCircle className="h-3 w-3" />}
-                                {(nextStatus === "sample_collected" || nextStatus === "in_progress") && (
-                                  <Clock className="h-3 w-3" />
-                                )}
-                                {isUpdating ? "Updating..." : getStatusLabel(nextStatus)}
-                              </button>
-                            );
-                          })}
-                        </>
-                      )}
-                      {booking.status === "completed" && (
-                        <button
-                          onClick={() => handleDownloadReport(booking)}
-                          title="View Test Report"
-                          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:from-sky-600 hover:to-teal-600 cursor-pointer"
-                        >
-                          <Eye className="h-3 w-3" />
-                          View Report
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expandable Tests Section */}
-                {booking.tests.length > 0 && (
-                  <div className="border-t border-slate-100">
-                    <button
-                      onClick={() => toggleBookingExpansion(booking.id)}
-                      className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <FlaskConical className="h-4 w-4" />
-                          Tests ({booking.tests.length})
-                        </span>
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </div>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="border-t border-slate-100 bg-slate-50 p-4">
-                        <div className="space-y-2">
-                          {booking.tests.map((test) => {
-                            const hasResults = testsWithResults.has(test.id);
-                            const isLoading = loadingResults.has(test.id);
-                            
-                            return (
-                              <div
-                                key={test.id}
-                                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
-                                  hasResults
-                                    ? "border-emerald-200 bg-emerald-50"
-                                    : "border-slate-200 bg-white"
-                                }`}
-                              >
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-semibold text-slate-900">{test.test_name}</p>
-                                    {hasResults && (
-                                      <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        Results Published
-                                      </span>
-                                    )}
-                                    {isLoading && (
-                                      <span className="text-xs text-slate-500">Loading...</span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-slate-500">
-                                    Code: {test.test_code} • Price: {currency(test.price)}
-                                  </p>
-                                </div>
-                                {booking.status === "in_progress" && (
-                                  <div className="ml-4 flex items-center gap-2">
-                                    {hasResults && (
-                                      <button
-                                        onClick={() => setSelectedTestForView({
-                                          labBookingId: booking.id,
-                                          bookingItemId: test.id,
-                                          testCode: test.test_code,
-                                          testName: test.test_name,
-                                        })}
-                                        className="flex items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
-                                      >
-                                        <Eye className="h-3 w-3" />
-                                        View
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => handlePublishResults(test, booking.id)}
-                                      className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${
-                                        hasResults
-                                          ? "bg-emerald-500 hover:bg-emerald-600"
-                                          : "bg-sky-500 hover:bg-sky-600"
-                                      }`}
-                                    >
-                                      <FlaskConical className="h-3 w-3" />
-                                      {hasResults ? "Update" : "Publish"}
-                                    </button>
-                                  </div>
-                                )}
-                                {booking.status === "completed" && (
-                                  <div className="ml-4 flex items-center gap-2">
-                                    <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5">
-                                      <Lock className="h-3 w-3 text-amber-600" />
-                                      <span className="text-xs font-semibold text-amber-700">Locked</span>
-                                    </div>
-                                    <button
-                                      onClick={() => setSelectedTestForView({
-                                        labBookingId: booking.id,
-                                        bookingItemId: test.id,
-                                        testCode: test.test_code,
-                                        testName: test.test_name,
-                                      })}
-                                      className="flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-600"
-                                    >
-                                      <Eye className="h-3 w-3" />
-                                      View Results
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {/* Right Report Workspace */}
+        <div
+          className={`lg:col-span-8 xl:col-span-8 min-w-0 ${
+            mobileShowWorkspace ? "block" : "hidden lg:block"
+          }`}
+        >
+          <LabReportWorkspace
+            booking={selectedBooking}
+            onBackToQueue={() => setMobileShowWorkspace(false)}
+            onBookingUpdated={refreshAll}
+            onRequestCancelBooking={handleRequestCancelBooking}
+            onPrintReport={handleTriggerPrintReport}
+            onOpenReportModal={(b) => setSelectedReportBooking(b)}
+            onProgressUpdate={handleProgressUpdate}
+            loadBookingDraft={loadBookingDraft}
+            saveBookingDraft={saveBookingDraft}
+            clearBookingDraft={clearBookingDraft}
+            hasLocalDraftForBooking={
+              selectedBooking ? draftBookingIds.has(selectedBooking.id) : false
+            }
+          />
         </div>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="text-sm text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-            <span className="font-semibold text-slate-900">
-              {Math.min(currentPage * pageSize, total)}
-            </span>{" "}
-            of <span className="font-semibold text-slate-900">{total}</span> bookings
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`min-w-[2.5rem] rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      currentPage === pageNum
-                        ? "bg-sky-500 text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Test Results Form Modal */}
-      {selectedTestForResults && (
-        <TestResultsForm
-          isOpen={!!selectedTestForResults}
-          onClose={() => setSelectedTestForResults(null)}
-          labBookingId={selectedTestForResults.labBookingId}
-          bookingItemId={selectedTestForResults.bookingItemId}
-          testCode={selectedTestForResults.testCode}
-          testName={selectedTestForResults.testName}
-          patientGender={selectedTestForResults.patientGender}
-          patientId={selectedTestForResults.patientId}
-          onSuccess={handleResultsPublished}
-        />
-      )}
-
-      {/* Test Results View Modal */}
-      {selectedTestForView && (
-        <TestResultsView
-          isOpen={!!selectedTestForView}
-          onClose={() => setSelectedTestForView(null)}
-          labBookingId={selectedTestForView.labBookingId}
-          bookingItemId={selectedTestForView.bookingItemId}
-          testCode={selectedTestForView.testCode}
-          testName={selectedTestForView.testName}
-        />
-      )}
-
-      {/* Hidden printable test report */}
-      {printReportData && (
-        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "210mm" }}>
-          <div ref={printReportRef} className="print-content">
-            <TestReportPrint
-              booking={printReportData.booking}
-              patientName={printReportData.patientName}
-              patientMobile={printReportData.patientMobile}
-              testResults={printReportData.testResults}
-            />
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Cancellation Refund Acknowledgment Modal */}
       <CancellationRefundAcknowledgmentModal
@@ -1262,7 +827,8 @@ export function LabTechnicianPanel() {
         loading={cancelling}
       />
 
-      <PreviousLabReportModal
+      {/* Server-Generated Diagnostic Report PDF Preview Modal */}
+      <LabReportPdfModal
         isOpen={selectedReportBooking !== null}
         onClose={() => setSelectedReportBooking(null)}
         booking={selectedReportBooking}
@@ -1270,4 +836,3 @@ export function LabTechnicianPanel() {
     </div>
   );
 }
-

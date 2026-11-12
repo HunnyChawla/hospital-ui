@@ -154,6 +154,33 @@ export interface LabTestResultsResponse {
   results: LabTestResult[];
 }
 
+export interface ParameterWithResult {
+  parameter_id: string;
+  tenant_id: string | null;
+  test_code: string;
+  parameter_code: string | null;
+  parameter_name: string | null;
+  unit: string | null;
+  normal_min: number | null;
+  normal_max: number | null;
+  normal_text: string | null;
+  gender: string;
+  age_min: number | null;
+  age_max: number | null;
+  method: string | null;
+  display_order: number | null;
+  is_active: boolean;
+  section_name: string | null;
+  parameter_type: "number" | "dropdown" | "text" | "image";
+  dropdown_options?: string[] | null;
+  is_published: boolean;
+  existing_result_value: string | null;
+  existing_result_numeric: number | null;
+  existing_notes: string | null;
+  existing_is_abnormal: boolean | null;
+  result_id: string | null;
+}
+
 export interface PublishResultsRequest {
   results: Array<{
     parameter_id: string;
@@ -279,6 +306,23 @@ export const labTestsApi = {
     const apiTenantId = getTenantIdForApi(tenantId);
     const params = apiTenantId ? { tenant_id: apiTenantId } : {};
     await apiClient.delete(`/lab-tests/${testCode}/parameters/${parameterId}`, { params });
+  },
+
+  async getParametersWithResults(
+    labBookingId: string,
+    bookingItemId: string,
+    gender?: string,
+    tenantId?: string
+  ): Promise<ParameterWithResult[]> {
+    const apiTenantId = getTenantIdForApi(tenantId);
+    const params: Record<string, string> = {};
+    if (apiTenantId) params.tenant_id = apiTenantId;
+    if (gender) params.gender = gender;
+    const response = await apiClient.get<ParameterWithResult[]>(
+      `/lab-tests/bookings/${labBookingId}/items/${bookingItemId}/parameters`,
+      { params }
+    );
+    return response.data;
   },
 
   async getResults(
