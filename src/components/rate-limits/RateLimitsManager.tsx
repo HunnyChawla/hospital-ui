@@ -11,12 +11,14 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Shield,
   Sliders,
   Sparkles,
   Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BridgeSecurityManager } from "./BridgeSecurityManager";
 import {
   rateLimitsApi,
   TenantRateLimitItem,
@@ -32,6 +34,7 @@ type FilterType = "all" | "custom" | "default";
 
 export function RateLimitsManager() {
   const queryClient = useQueryClient();
+  const [mainTab, setMainTab] = useState<"tenants" | "bridge">("tenants");
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [editingTenant, setEditingTenant] = useState<TenantRateLimitItem | null>(null);
@@ -190,29 +193,61 @@ export function RateLimitsManager() {
               <Gauge className="h-6 w-6 text-indigo-400" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white md:text-2xl">
-              Platform Rate Limiting
+              Platform Rate Limiting & Traffic Control
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              In-Memory Sliding Window
+              Live Defense Active
             </span>
           </div>
           <p className="text-sm text-slate-300">
-            Dynamically regulate API throughput per hospital tenant and clinical staff user without Redis overhead or restarts.
+            Regulate API throughput per hospital tenant, clinical staff, and manage ABDM Bridge GeoIP fencing &amp; DDoS rate limiting.
           </p>
         </div>
 
+        {mainTab === "tenants" && (
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading || isRefetching}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/20 active:scale-95 disabled:opacity-60 md:self-auto cursor-pointer"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+            {isRefetching ? "Refreshing..." : "Refresh"}
+          </button>
+        )}
+      </div>
+
+      {/* Main Tab Navigation */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
-          onClick={() => refetch()}
-          disabled={isLoading || isRefetching}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/20 active:scale-95 disabled:opacity-60 md:self-auto cursor-pointer"
+          onClick={() => setMainTab("tenants")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer ${
+            mainTab === "tenants"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
         >
-          <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
-          {isRefetching ? "Refreshing..." : "Refresh"}
+          <Building2 className="h-4 w-4" />
+          Hospital Tenants & Staff
+        </button>
+        <button
+          onClick={() => setMainTab("bridge")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer ${
+            mainTab === "bridge"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <Shield className="h-4 w-4" />
+          ABDM Bridge & DDoS Shield
         </button>
       </div>
 
-      {/* Metric / Baseline Overview Cards */}
+      {mainTab === "bridge" ? (
+        <BridgeSecurityManager />
+      ) : (
+        <>
+          {/* Metric / Baseline Overview Cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between text-slate-500">
@@ -626,6 +661,8 @@ export function RateLimitsManager() {
             </form>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
