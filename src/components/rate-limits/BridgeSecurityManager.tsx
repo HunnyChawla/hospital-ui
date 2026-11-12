@@ -1,23 +1,19 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertCircle,
   AlertTriangle,
   Ban,
   Building2,
   CheckCircle2,
   Edit2,
-  FileText,
   Gauge,
   Globe,
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Shield,
-  ShieldAlert,
   ShieldCheck,
   Sliders,
   Trash2,
@@ -40,6 +36,15 @@ export const bridgeSecurityKeys = {
   blockedIps: () => [...bridgeSecurityKeys.all, "blocked-ips"] as const,
   trustedIps: () => [...bridgeSecurityKeys.all, "trusted-ips"] as const,
 };
+
+function extractErrorMessage(err: any, fallback: string): string {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === "string" && detail) return detail;
+  if (Array.isArray(detail) && detail.length > 0 && typeof detail[0]?.msg === "string") {
+    return detail[0].msg;
+  }
+  return err?.message || fallback;
+}
 
 export function BridgeSecurityManager() {
   const queryClient = useQueryClient();
@@ -122,18 +127,18 @@ export function BridgeSecurityManager() {
       setIsConfigDirty(false);
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to update configuration");
+      toast.error(extractErrorMessage(err, "Failed to update configuration"));
     },
   });
 
   const uploadMmdbMutation = useMutation({
     mutationFn: (file: File) => bridgeSecurityApi.uploadGeoIPDatabase(file),
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success("GeoIP MMDB database uploaded and activated successfully");
       queryClient.invalidateQueries({ queryKey: bridgeSecurityKeys.all });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to upload MMDB file");
+      toast.error(extractErrorMessage(err, "Failed to upload MMDB file"));
     },
   });
 
@@ -144,7 +149,7 @@ export function BridgeSecurityManager() {
       queryClient.invalidateQueries({ queryKey: bridgeSecurityKeys.all });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to delete MMDB file");
+      toast.error(extractErrorMessage(err, "Failed to delete MMDB file"));
     },
   });
 
@@ -157,7 +162,7 @@ export function BridgeSecurityManager() {
       setEditingFacility(null);
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to update facility rate limit");
+      toast.error(extractErrorMessage(err, "Failed to update facility rate limit"));
     },
   });
 
@@ -173,7 +178,7 @@ export function BridgeSecurityManager() {
       setBlockReasonInput("");
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to block IP");
+      toast.error(extractErrorMessage(err, "Failed to block IP"));
     },
   });
 
@@ -185,7 +190,7 @@ export function BridgeSecurityManager() {
       queryClient.invalidateQueries({ queryKey: bridgeSecurityKeys.overview() });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to unblock IP");
+      toast.error(extractErrorMessage(err, "Failed to unblock IP"));
     },
   });
 
@@ -201,7 +206,7 @@ export function BridgeSecurityManager() {
       setTrustDescInput("");
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to add trusted IP");
+      toast.error(extractErrorMessage(err, "Failed to add trusted IP"));
     },
   });
 
@@ -213,7 +218,7 @@ export function BridgeSecurityManager() {
       queryClient.invalidateQueries({ queryKey: bridgeSecurityKeys.overview() });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || "Failed to remove trusted IP");
+      toast.error(extractErrorMessage(err, "Failed to remove trusted IP"));
     },
   });
 
@@ -225,7 +230,7 @@ export function BridgeSecurityManager() {
       const res = await bridgeSecurityApi.testIpLookup(testIpInput.trim());
       setTestIpResult(res);
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || err.message || "IP lookup failed");
+      toast.error(extractErrorMessage(err, "IP lookup failed"));
     } finally {
       setIsTestingIp(false);
     }
@@ -494,7 +499,7 @@ export function BridgeSecurityManager() {
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none"
                   placeholder="1200"
                 />
-                <p className="mt-1 text-[11px] text-slate-400">Default quota for facilities that don't have custom overrides.</p>
+                <p className="mt-1 text-[11px] text-slate-400">Default quota for facilities that don&apos;t have custom overrides.</p>
               </div>
 
               <div>
