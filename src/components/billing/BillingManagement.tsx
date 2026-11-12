@@ -41,6 +41,7 @@ import {
   List,
 } from "lucide-react";
 import { EnhancedStatCard } from "@/components/common/EnhancedStatCard";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 export type BillingStatusFilter =
   | "all"
@@ -67,6 +68,7 @@ export function BillingManagement({
   statusFilter,
   onStatusFilterChange
 }: BillingManagementProps) {
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -617,7 +619,11 @@ export function BillingManagement({
               handleClearPatient();
             }
           }}
-          placeholder="Search (UHID, mobile, name, ABHA)..."
+          placeholder={
+            abhaEnabled
+              ? "Search (UHID, mobile, name, ABHA)..."
+              : "Search (UHID, mobile, name)..."
+          }
           className="w-64 bg-transparent text-sm outline-none placeholder:text-slate-400"
         />
         {selectedPatientId && (
@@ -651,7 +657,7 @@ export function BillingManagement({
                       <span>{patient.mobile}</span>
                       <span>•</span>
                       <span>{patient.healthId}</span>
-                      {(patient.abhaAddress || patient.abhaNumber) && (
+                      {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                         <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                           ABHA: {patient.abhaAddress || patient.abhaNumber}
                         </span>
@@ -667,7 +673,7 @@ export function BillingManagement({
         </div>
       )}
     </div>
-  ), [searchTerm, selectedPatientId, showDropdown, isSearching, searchResults, handleClearPatient, handlePatientSelect]);
+  ), [abhaEnabled, searchTerm, selectedPatientId, showDropdown, isSearching, searchResults, handleClearPatient, handlePatientSelect]);
 
   // Status filter toggle component
   const filterToggle = useMemo(() => (

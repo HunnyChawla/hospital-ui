@@ -14,6 +14,7 @@ import {
     type ReopenEpisodeRequest,
 } from "@/services/healthRecordApi";
 import { useTenantContext } from "@/lib/tenant-context";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 import { getErrorMessage } from "@/utils/errorHandler";
 
 export const healthRecordKeys = {
@@ -236,6 +237,7 @@ export function useSendDeepLinkSms() {
 export function useRecordWellness(patientId: string) {
     const queryClient = useQueryClient();
     const tenant = useTenant();
+    const { enabled: abdmEnabled } = useAbdmFlags();
 
     return useMutation<Episode, Error, RecordWellnessPayload>({
         mutationFn: (payload: RecordWellnessPayload) =>
@@ -243,7 +245,11 @@ export function useRecordWellness(patientId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: healthRecordKeys.timeline(patientId) });
             queryClient.invalidateQueries({ queryKey: healthRecordKeys.all });
-            toast.success("Vitals & wellness recorded and linked to ABDM");
+            toast.success(
+                abdmEnabled
+                    ? "Vitals & wellness recorded and linked to ABDM"
+                    : "Vitals & wellness recorded"
+            );
         },
         onError: (error) =>
             toast.error(getErrorMessage(error) || "Could not record vitals"),

@@ -29,6 +29,7 @@ import { HistoryPrescriptionModal } from "@/components/optometrist/prescriptions
 import { PatientDetailView } from "@/components/patients/PatientDetailView";
 import { MaskedValue } from "@/components/common/MaskedValue";
 import { Beaker } from "lucide-react";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface OpdListProps {
   doctorId?: string;
@@ -653,6 +654,7 @@ export function OpdList({ doctorId, onPatientClick: externalOnPatientClick }: Op
   // Use Redux centralized doctors cache (fetched once in dashboard layout)
   const { list: doctors } = useAppSelector((s) => s.doctors);
   const { userRole } = usePermissions();
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const [bookingVisit, setBookingVisit] = useState<Visit | null>(null);
   // Visit whose read-only prescription is being previewed (same modal the patient detail view uses)
   const [prescriptionVisit, setPrescriptionVisit] = useState<Visit | null>(null);
@@ -1683,7 +1685,7 @@ export function OpdList({ doctorId, onPatientClick: externalOnPatientClick }: Op
                   id: printVisitData.patient.id,
                   name: formatPatientName(printVisitData.patient),
                   mobile: printVisitData.patient.mobile,
-                  healthId: printVisitData.patient.abha_id || "",
+                  healthId: (abhaEnabled ? printVisitData.patient.abha_id : "") || "",
                   age: printVisitData.patient.date_of_birth
                     ? Math.floor((new Date().getTime() - new Date(printVisitData.patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
                     : 0,

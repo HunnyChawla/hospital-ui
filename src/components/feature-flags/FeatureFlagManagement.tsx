@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { abhaApi, type TenantAbdmConfigDto } from "@/services/abhaApi";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useFeatureFlags, resolveAbdmEnabled } from "@/hooks/useFeatureFlags";
 import { tenantsApi, type Tenant } from "@/services/tenantsApi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/utils/errorHandler";
@@ -260,10 +260,7 @@ export function FeatureFlagManagement() {
                 allow_edit_after_visit_completed: allFlags.prescription.allow_edit_after_visit_completed as boolean,
             });
         }
-        const abdmActive =
-            allFlags?.abdm?.enabled === true ||
-            allFlags?.abha?.enabled === true ||
-            (allFlags?.abdm?.milestone != null && String(allFlags.abdm.milestone).toLowerCase() !== "none");
+        const abdmActive = resolveAbdmEnabled(allFlags);
         setIsAbdmEnabled(abdmActive);
         if (allFlags?.abdm?.m2_auto_invite_unlinked !== undefined) {
             setAutoInviteUnlinked(Boolean(allFlags.abdm.m2_auto_invite_unlinked));
@@ -397,8 +394,8 @@ export function FeatureFlagManagement() {
             flags: {
                 enabled: isAbdmEnabled,
                 milestone: isAbdmEnabled ? "m3" : "none",
-                auto_invite_unlinked: autoInviteUnlinked,
-                use_black_sms_for_otp: useBlackSmsForOtp,
+                auto_invite_unlinked: isAbdmEnabled ? autoInviteUnlinked : false,
+                use_black_sms_for_otp: isAbdmEnabled ? useBlackSmsForOtp : false,
             }
         });
         updateFlags({

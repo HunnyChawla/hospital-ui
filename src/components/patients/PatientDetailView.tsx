@@ -19,7 +19,7 @@ import { LabBookingFormModal } from "@/components/lab-bookings/LabBookingFormMod
 import { OpdFormModal } from "@/components/opd/OpdFormModal";
 import { AppointmentFormModal } from "@/components/opd/AppointmentFormModal";
 import { AbhaStatusBadge, AbhaEnrollmentModal, AbhaSyncModal, AbhaCardDownloadModal } from "@/components/abha";
-import { useAbhaFlags } from "@/hooks/useFeatureFlags";
+import { useAbhaFlags, useAbdmFlags } from "@/hooks/useFeatureFlags";
 import { abhaApi } from "@/services/abhaApi";
 import { usePatient, patientKeys } from "@/hooks/queries/usePatients";
 
@@ -106,6 +106,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
   const [mrdRefreshTrigger, setMrdRefreshTrigger] = useState(0);
 
   const { enabled: abhaEnabled } = useAbhaFlags();
+  const { enabled: abdmEnabled } = useAbdmFlags();
   const [isAbhaModalOpen, setIsAbhaModalOpen] = useState(false);
   const [isAbhaSyncModalOpen, setIsAbhaSyncModalOpen] = useState(false);
   const [isCardDownloadModalOpen, setIsCardDownloadModalOpen] = useState(false);
@@ -837,7 +838,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
           // many patients — see utils/abha.ts.
           // The patient's ABHA number, not our UHID. `abha_id` is a legacy
           // column holding UHIDs for many patients — see utils/abha.ts.
-          healthId: resolveAbhaNumber(patientData.abha_number, patientData.abha_id) || "",
+          healthId: (abhaEnabled ? resolveAbhaNumber(patientData.abha_number, patientData.abha_id) : "") || "",
           age: patientData.date_of_birth
             ? Math.floor((new Date().getTime() - new Date(patientData.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365))
             : 0,
@@ -1039,7 +1040,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
             </button>
             <div className="flex flex-1 items-center justify-between ml-4">
               <div className="flex items-start gap-4">
-                {isAbhaVerified && photoSrc && (
+                {abhaEnabled && isAbhaVerified && photoSrc && (
                   <div className="relative shrink-0 mt-0.5">
                     <img
                       src={photoSrc}
@@ -1856,7 +1857,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-slate-900">Medical Records & Documents</p>
-                        {patient?.abhaAddress && (
+                        {abhaEnabled && patient?.abhaAddress && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200">
                             <ShieldCheck className="h-3 w-3" />
                             ABHA Linked (Auto-synced)
@@ -1888,15 +1889,17 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                   </div>
 
                   {/* Banner explaining ABDM linking rule */}
-                  <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-4 text-xs text-sky-800 flex items-start gap-3">
-                    <ShieldCheck className="h-5 w-5 text-sky-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-sky-900">ABDM Health Document Linking</p>
-                      <p className="mt-0.5 text-sky-700">
-                        All clinical documents (discharge summaries, lab reports, medical certificates, etc.) uploaded for this patient are automatically linked to their ABDM Care Context as Health Documents. Administrative ID proofs (Aadhaar, PAN) are securely stored and strictly excluded from ABDM sharing.
-                      </p>
+                  {abdmEnabled && (
+                    <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-4 text-xs text-sky-800 flex items-start gap-3">
+                      <ShieldCheck className="h-5 w-5 text-sky-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-sky-900">ABDM Health Document Linking</p>
+                        <p className="mt-0.5 text-sky-700">
+                          All clinical documents (discharge summaries, lab reports, medical certificates, etc.) uploaded for this patient are automatically linked to their ABDM Care Context as Health Documents. Administrative ID proofs (Aadhaar, PAN) are securely stored and strictly excluded from ABDM sharing.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Document List */}
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -1929,7 +1932,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
                           onSuccess={() => {
                             setShowMrdUploadModal(false);
                             setMrdRefreshTrigger((prev) => prev + 1);
-                            toast.success("Document uploaded and linked successfully!");
+                            toast.success(abdmEnabled ? "Document uploaded and linked successfully!" : "Document uploaded successfully!");
                           }}
                         />
                       </div>
@@ -2394,7 +2397,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Enrollment Modal */}
-      {patient && (
+      {abhaEnabled && patient && (
         <AbhaEnrollmentModal
           isOpen={isAbhaModalOpen}
           onClose={() => setIsAbhaModalOpen(false)}
@@ -2420,7 +2423,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Sync Modal */}
-      {patient && (
+      {abhaEnabled && patient && (
         <AbhaSyncModal
           isOpen={isAbhaSyncModalOpen}
           onClose={() => setIsAbhaSyncModalOpen(false)}
@@ -2442,7 +2445,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Card Download Modal (already-linked patients) */}
-      {patient && resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
+      {abhaEnabled && patient && resolveAbhaNumber(patient.abhaNumber, patient.abhaId) && (
         <AbhaCardDownloadModal
           isOpen={isCardDownloadModalOpen}
           onClose={() => setIsCardDownloadModalOpen(false)}
@@ -2451,7 +2454,7 @@ export function PatientDetailView({ patientId, onClose }: PatientDetailViewProps
       )}
 
       {/* ABHA Profile Photo Full Preview Modal */}
-      {showPhotoPreview && photoSrc && (
+      {abhaEnabled && showPhotoPreview && photoSrc && (
         <Modal
           isOpen={showPhotoPreview}
           onClose={() => setShowPhotoPreview(false)}

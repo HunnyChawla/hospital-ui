@@ -97,6 +97,7 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
     const { data, isLoading, isFetching, refetch } = usePatientTimeline(patientId);
     const reopen = useReopenEpisode();
     const { isAdmin, userRole } = usePermissions();
+    const { enabled: abdmEnabled } = useAbdmFlags();
     const [confirming, setConfirming] = useState<{
         id: string;
         mode: "reopen";
@@ -121,9 +122,13 @@ export function PatientEpisodeTimeline({ patientId }: PatientEpisodeTimelineProp
         <div className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5">
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-900">Health Records & Care Contexts</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                        {abdmEnabled ? "Health Records & Care Contexts" : "Health Records & Encounters"}
+                    </h3>
                     <p className="text-xs text-slate-500">
-                        Chronological encounter history, clinical documents, and ABDM care contexts.
+                        {abdmEnabled
+                            ? "Chronological encounter history, clinical documents, and ABDM care contexts."
+                            : "Chronological encounter history and clinical documents."}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -270,11 +275,12 @@ function EpisodeRow({
                                 {episode.reference_number}
                             </span>
                             <StatusChip status={episode.status} />
-                            {/* ABDM status badge — always shown so staff know ABHA linking state */}
-                            <AbdmStatusChip
-                                status={episode.abdm_link_status ?? "unlinked"}
-                                linkedAt={episode.abdm_linked_at}
-                            />
+                            {abdmEnabled && (
+                                <AbdmStatusChip
+                                    status={episode.abdm_link_status ?? "unlinked"}
+                                    linkedAt={episode.abdm_linked_at}
+                                />
+                            )}
                         </div>
 
                         <p className="mt-0.5 text-xs text-slate-500">
@@ -299,7 +305,7 @@ function EpisodeRow({
                         )}
 
                         {/* ABDM error detail */}
-                        {episode.abdm_link_status === "failed" && episode.abdm_link_error && (
+                        {abdmEnabled && episode.abdm_link_status === "failed" && episode.abdm_link_error && (
                             <p className="mt-1.5 text-[11px] text-red-600">
                                 Error: {episode.abdm_link_error}
                             </p>

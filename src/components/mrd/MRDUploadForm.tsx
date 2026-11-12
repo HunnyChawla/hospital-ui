@@ -12,6 +12,7 @@ import { getErrorMessage } from "@/utils/errorHandler";
 import { getTenantIdForApi } from "@/utils/auth";
 import { Search, User, Upload, X, FileText, Loader2, BedDouble, FlaskConical, Activity, ShieldCheck, Sparkles, Info } from "lucide-react";
 import { formatDate } from "@/utils/format";
+import { useAbdmFlags, useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 const DOCUMENT_CATEGORIES: { value: MRDDocumentCategory; label: string }[] = [
   { value: "DISCHARGE_SUMMARY", label: "Discharge Summary" },
@@ -48,6 +49,8 @@ export function MRDUploadForm({
   onSuccess,
   onOpenPatientModal,
 }: MRDUploadFormProps) {
+  const { enabled: abdmEnabled } = useAbdmFlags();
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
   const [category, setCategory] = useState<MRDDocumentCategory>("OTHER");
@@ -107,7 +110,7 @@ export function MRDUploadForm({
       age,
       gender: (gender === "Male" || gender === "Female" ? gender : "Other") as "Male" | "Female" | "Other",
       mobile: apiPatient.mobile,
-      healthId: apiPatient.uhid || apiPatient.abha_id || "",
+      healthId: apiPatient.uhid || (abhaEnabled ? apiPatient.abha_id : "") || "",
       doctor: "",
       lastVisit: apiPatient.updated_at || apiPatient.created_at,
       outstanding: 0,
@@ -388,7 +391,7 @@ export function MRDUploadForm({
         setUploadProgress(progress);
       });
 
-      toast.success("Document uploaded and care context linked successfully!");
+      toast.success(abdmEnabled ? "Document uploaded and care context linked successfully!" : "Document uploaded successfully!");
 
       // Reset form
       setSelectedFile(null);
@@ -501,7 +504,11 @@ export function MRDUploadForm({
                 setShowDropdown(true);
               }
             }}
-            placeholder="Search patient by name, mobile, UHID, or ABHA..."
+            placeholder={
+              abhaEnabled
+                ? "Search patient by name, mobile, UHID, or ABHA..."
+                : "Search patient by name, mobile, or UHID..."
+            }
             className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 py-2 text-sm outline-none focus:border-sky-400"
             disabled={isUploading || !!defaultPatientId}
           />
@@ -540,7 +547,7 @@ export function MRDUploadForm({
                           <span>{patient.mobile}</span>
                           <span>•</span>
                           <span>{patient.healthId || "No Health ID"}</span>
-                          {(patient.abhaAddress || patient.abhaNumber) && (
+                          {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                             <span className="rounded bg-teal-50 px-1.5 py-0.5 font-medium text-teal-700 border border-teal-200">
                               ABHA: {patient.abhaAddress || patient.abhaNumber}
                             </span>
@@ -627,7 +634,7 @@ export function MRDUploadForm({
           <div className="flex flex-wrap items-center justify-between gap-1">
             <label className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-sky-600" />
-              Link to Hospital Encounter (Care Context)
+              {abdmEnabled ? "Link to Hospital Encounter (Care Context)" : "Link to Hospital Encounter (Optional)"}
             </label>
             <span className="text-[11px] text-slate-500">Mutually exclusive encounter linking</span>
           </div>
@@ -651,7 +658,9 @@ export function MRDUploadForm({
             >
               <Sparkles className="h-4 w-4 mb-1 text-sky-600" />
               <span>Independent</span>
-              <span className="text-[10px] text-slate-400 font-normal">New Care Context</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                {abdmEnabled ? "New Care Context" : "Standalone Record"}
+              </span>
             </button>
 
             <button
@@ -734,9 +743,11 @@ export function MRDUploadForm({
               <div>
                 <p className="font-semibold">Standalone Independent Document</p>
                 <p className="text-slate-600 mt-0.5">
-                  {category === "ID_PROOF"
-                    ? "Administrative ID proof will be stored securely. It is excluded from ABDM health records."
-                    : "This document will be assigned a new ABDM Care Context (DOC-...) and published directly to the patient's ABHA account."}
+                  {abdmEnabled
+                    ? category === "ID_PROOF"
+                      ? "Administrative ID proof will be stored securely. It is excluded from ABDM health records."
+                      : "This document will be assigned a new ABDM Care Context (DOC-...) and published directly to the patient's ABHA account."
+                    : "This document will be stored as a standalone hospital medical record."}
                 </p>
               </div>
             </div>
@@ -773,7 +784,9 @@ export function MRDUploadForm({
                 )}
               </select>
               <p className="text-[11px] text-slate-500">
-                Document will be linked to the OPD visit's Care Context (VN-...).
+                {abdmEnabled
+                  ? "Document will be linked to the OPD visit's Care Context (VN-...)."
+                  : "Document will be attached to the selected OPD Visit (VN-...)."}
               </p>
             </div>
           )}
@@ -809,7 +822,9 @@ export function MRDUploadForm({
                 )}
               </select>
               <p className="text-[11px] text-slate-500">
-                Document will be linked to the IPD Admission's Care Context (ADM-...).
+                {abdmEnabled
+                  ? "Document will be linked to the IPD Admission's Care Context (ADM-...)."
+                  : "Document will be attached to the selected IPD Admission (ADM-...)."}
               </p>
             </div>
           )}
@@ -845,7 +860,9 @@ export function MRDUploadForm({
                 )}
               </select>
               <p className="text-[11px] text-slate-500">
-                Document will be linked to the Lab Booking's Care Context (LB-...).
+                {abdmEnabled
+                  ? "Document will be linked to the Lab Booking's Care Context (LB-...)."
+                  : "Document will be attached to the selected Lab Booking (LB-...)."}
               </p>
             </div>
           )}

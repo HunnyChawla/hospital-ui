@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useRecordWellness } from "@/hooks/queries/useHealthRecord";
 import type { RecordWellnessPayload } from "@/services/healthRecordApi";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 
 interface RecordWellnessModalProps {
     isOpen: boolean;
@@ -28,6 +29,7 @@ export function RecordWellnessModal({
     patientId,
 }: RecordWellnessModalProps) {
     const recordWellness = useRecordWellness(patientId);
+    const { enabled: abdmEnabled } = useAbdmFlags();
 
     const [systolic, setSystolic] = useState<string>("");
     const [diastolic, setDiastolic] = useState<string>("");
@@ -139,7 +141,9 @@ export function RecordWellnessModal({
                                 Record Vitals & Wellness
                             </h2>
                             <p className="text-xs text-slate-500">
-                                Independent wellness encounter linked directly to ABDM
+                                {abdmEnabled
+                                    ? "Independent wellness encounter linked directly to ABDM"
+                                    : "Record standalone vitals & wellness observations"}
                             </p>
                         </div>
                     </div>
@@ -156,16 +160,18 @@ export function RecordWellnessModal({
                 {/* Form Body */}
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
                     {/* ABDM Informational Note */}
-                    <div className="flex items-start gap-3 rounded-xl border border-teal-200/80 bg-teal-50/60 p-3.5 text-xs text-teal-900">
-                        <ShieldCheck className="h-5 w-5 flex-shrink-0 text-teal-600 mt-0.5" />
-                        <div>
-                            <span className="font-semibold">ABDM Care Context Integration:</span>
-                            <p className="mt-0.5 text-teal-800">
-                                Saving creates a new standalone Care Context (<code className="font-mono text-[11px] bg-teal-100 px-1 py-0.5 rounded">WL-...</code>)
-                                and generates an ABDM-compliant Wellness Record for instant sharing.
-                            </p>
+                    {abdmEnabled && (
+                        <div className="flex items-start gap-3 rounded-xl border border-teal-200/80 bg-teal-50/60 p-3.5 text-xs text-teal-900">
+                            <ShieldCheck className="h-5 w-5 flex-shrink-0 text-teal-600 mt-0.5" />
+                            <div>
+                                <span className="font-semibold">ABDM Care Context Integration:</span>
+                                <p className="mt-0.5 text-teal-800">
+                                    Saving creates a new standalone Care Context (<code className="font-mono text-[11px] bg-teal-100 px-1 py-0.5 rounded">WL-...</code>)
+                                    and generates an ABDM-compliant Wellness Record for instant sharing.
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Section 1: Cardiovascular & Vitals */}
                     <div>
@@ -373,12 +379,12 @@ export function RecordWellnessModal({
                             {recordWellness.isPending ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span>Saving & Linking...</span>
+                                    <span>{abdmEnabled ? "Saving & Linking..." : "Saving..."}</span>
                                 </>
                             ) : (
                                 <>
                                     <HeartPulse className="h-4 w-4" />
-                                    <span>Save & Link to ABDM</span>
+                                    <span>{abdmEnabled ? "Save & Link to ABDM" : "Save Vitals & Wellness"}</span>
                                 </>
                             )}
                         </button>

@@ -6,6 +6,7 @@ import { patientsApi, PatientApiResponse } from "@/services/patientsApi";
 import { Patient } from "@/types";
 import { getTenantIdForApi } from "@/utils/auth";
 import { Search, X, Calendar, Loader2, User } from "lucide-react";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 const DOCUMENT_CATEGORIES: { value: MRDDocumentCategory | ""; label: string }[] = [
   { value: "", label: "All Categories" },
@@ -49,6 +50,7 @@ export function MRDFilters({
   onDateToChange,
   defaultPatientId,
 }: MRDFiltersProps) {
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
   const [dropdownResults, setDropdownResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -75,7 +77,7 @@ export function MRDFilters({
       age,
       gender: (gender === "Male" || gender === "Female" ? gender : "Other") as "Male" | "Female" | "Other",
       mobile: apiPatient.mobile,
-      healthId: apiPatient.uhid || apiPatient.abha_id || "",
+      healthId: apiPatient.uhid || (abhaEnabled ? apiPatient.abha_id : "") || "",
       doctor: "",
       lastVisit: apiPatient.updated_at || apiPatient.created_at,
       outstanding: 0,
@@ -232,7 +234,11 @@ export function MRDFilters({
                   setShowDropdown(true);
                 }
               }}
-              placeholder="Search patient (UHID, mobile, name, ABHA)..."
+              placeholder={
+                abhaEnabled
+                  ? "Search patient (UHID, mobile, name, ABHA)..."
+                  : "Search patient (UHID, mobile, name)..."
+              }
               className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-8 py-1.5 text-xs outline-none focus:border-sky-400"
               disabled={!!defaultPatientId}
             />
@@ -271,7 +277,7 @@ export function MRDFilters({
                             <span>{patient.mobile}</span>
                             <span>•</span>
                             <span>{patient.healthId || "No Health ID"}</span>
-                            {(patient.abhaAddress || patient.abhaNumber) && (
+                            {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                               <span className="rounded bg-teal-50 px-1 py-0.2 text-[11px] font-medium text-teal-700 border border-teal-200">
                                 ABHA: {patient.abhaAddress || patient.abhaNumber}
                               </span>

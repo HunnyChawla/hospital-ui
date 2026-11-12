@@ -4,8 +4,10 @@ import { searchPatients } from "@/redux/patientsSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { Search, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 export function PatientSearch() {
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const dispatch = useAppDispatch();
   const [term, setTerm] = useState("");
 
@@ -20,7 +22,11 @@ export function PatientSearch() {
         <input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search by UHID, mobile, name, ABHA number, or ABHA address..."
+          placeholder={
+            abhaEnabled
+              ? "Search by UHID, mobile, name, ABHA number, or ABHA address..."
+              : "Search by UHID, mobile, or name..."
+          }
           className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
         />
       </div>

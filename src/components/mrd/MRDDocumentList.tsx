@@ -271,7 +271,7 @@ export function MRDDocumentList({
       age: 0,
       gender: "Other",
       mobile: apiPatient.mobile,
-      healthId: apiPatient.uhid || apiPatient.abha_id || "",
+      healthId: apiPatient.uhid || (abdmEnabled ? apiPatient.abha_id : "") || "",
       doctor: "",
       lastVisit: apiPatient.updated_at || apiPatient.created_at,
       outstanding: 0,

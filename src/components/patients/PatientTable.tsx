@@ -8,6 +8,7 @@ import { Patient } from "@/types";
 import { useState, useEffect } from "react";
 import { Pagination } from "../common/Pagination";
 import { MaskedValue } from "../common/MaskedValue";
+import { useAbhaFlags } from "@/hooks/useFeatureFlags";
 
 interface PatientTableProps {
   onPatientClick?: (patientId: string) => void;
@@ -15,6 +16,7 @@ interface PatientTableProps {
 }
 
 export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps) {
+  const { enabled: abhaEnabled } = useAbhaFlags();
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -48,7 +50,11 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by UHID, mobile, name, ABHA number, or ABHA address..."
+            placeholder={
+              abhaEnabled
+                ? "Search by UHID, mobile, name, ABHA number, or ABHA address..."
+                : "Search by UHID, mobile, or name..."
+            }
             className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 placeholder:text-slate-400"
           />
           {searchTerm && (
@@ -133,7 +139,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                         UHID: <span className="font-medium text-slate-700">{patient.healthId}</span>
                       </div>
                     )}
-                    {(patient.abhaAddress || patient.abhaNumber) && (
+                    {abhaEnabled && (patient.abhaAddress || patient.abhaNumber) && (
                       <div className="flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-teal-800">
                         <ShieldCheck className="h-3.5 w-3.5 text-teal-600 shrink-0" />
                         <MaskedValue
@@ -166,7 +172,7 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                 <thead className="bg-slate-50 text-left uppercase tracking-wide text-xs text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Patient</th>
-                    <th className="px-4 py-3">ABHA Details</th>
+                    {abhaEnabled && <th className="px-4 py-3">ABHA Details</th>}
                     <th className="px-4 py-3">Contact</th>
                     <th className="px-4 py-3">Visit</th>
                     <th className="px-4 py-3 text-right">Actions</th>
@@ -193,25 +199,27 @@ export function PatientTable({ onPatientClick, onEditClick }: PatientTableProps)
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        {patient.abhaAddress || patient.abhaNumber ? (
-                          <div className="flex flex-col gap-0.5">
-                            {patient.abhaAddress && (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-700">
-                                <ShieldCheck className="h-3.5 w-3.5 text-teal-600 shrink-0" />
-                                <MaskedValue type="abha_address" value={patient.abhaAddress} size="xs" />
-                              </span>
-                            )}
-                            {patient.abhaNumber && (
-                              <span className="text-[11px] font-mono text-slate-500">
-                                <MaskedValue type="abha_number" value={patient.abhaNumber} size="xs" />
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
+                      {abhaEnabled && (
+                        <td className="px-4 py-3">
+                          {patient.abhaAddress || patient.abhaNumber ? (
+                            <div className="flex flex-col gap-0.5">
+                              {patient.abhaAddress && (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-700">
+                                  <ShieldCheck className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                                  <MaskedValue type="abha_address" value={patient.abhaAddress} size="xs" />
+                                </span>
+                              )}
+                              {patient.abhaNumber && (
+                                <span className="text-[11px] font-mono text-slate-500">
+                                  <MaskedValue type="abha_number" value={patient.abhaNumber} size="xs" />
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="flex flex-col text-slate-700">
                           <MaskedValue type="mobile" value={patient.mobile} size="xs" />

@@ -19,7 +19,8 @@ export function useFeatureFlags(featureKey?: string) {
     const { data: allFlags, isLoading, error, refetch } = useQuery({
         queryKey: ['feature-flags', tenantId],
         queryFn: getAllFeatureFlags,
-        staleTime: Infinity, // Prevent automatic refetching since we manage caching ourselves
+        staleTime: 60_000, // Periodically revalidate so Platform Owner flag changes propagate to active sessions
+        refetchOnWindowFocus: true,
     });
 
     // Save fetched feature flags to localStorage
@@ -144,19 +145,30 @@ export function usePrescriptionPermissions(options?: {
 }
 
 /**
+ * Resolve whether ABDM/ABHA features are enabled for a tenant.
+ * An explicit `abdm.enabled === false` always takes precedence over legacy/partial flags.
+ */
+export function resolveAbdmEnabled(allFlags?: Record<string, Record<string, any>>): boolean {
+    if (allFlags?.abdm?.enabled === false) {
+        return false;
+    }
+    if (allFlags?.abdm?.enabled === true) {
+        return true;
+    }
+    return allFlags?.abha?.enabled === true;
+}
+
+/**
  * Convenience hook for ABDM integration feature flags
  */
 export function useAbdmFlags() {
     const { allFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags();
 
-    const isAbdmEnabled =
-        allFlags?.abdm?.enabled === true ||
-        (allFlags?.abdm?.milestone != null && String(allFlags.abdm.milestone).toLowerCase() !== "none") ||
-        allFlags?.abha?.enabled === true;
+    const isAbdmEnabled = resolveAbdmEnabled(allFlags);
 
     return {
         enabled: isAbdmEnabled,
-        autoInviteUnlinked: (allFlags?.abdm?.auto_invite_unlinked as boolean) ?? false,
+        autoInviteUnlinked: isAbdmEnabled && ((allFlags?.abdm?.auto_invite_unlinked as boolean) ?? false),
         isLoading,
         updateFlags: (flags: FeatureFlagUpdate) => updateFlags({ feature: 'abdm', flags }),
         isUpdating,
@@ -169,10 +181,7 @@ export function useAbdmFlags() {
 export function useAbhaFlags() {
     const { allFlags, isLoading, updateFlags, isUpdating } = useFeatureFlags();
 
-    const isEnabled =
-        allFlags?.abdm?.enabled === true ||
-        allFlags?.abha?.enabled === true ||
-        (allFlags?.abdm?.milestone != null && String(allFlags.abdm.milestone).toLowerCase() !== "none");
+    const isEnabled = resolveAbdmEnabled(allFlags);
 
     return {
         enabled: isEnabled,

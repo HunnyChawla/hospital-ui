@@ -23,6 +23,7 @@ import {
   Ban,
 } from "lucide-react";
 import { formatDate as formatDateUtil } from "@/utils/format";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 
 const DOCUMENT_CATEGORIES: { value: MRDDocumentCategory; label: string }[] = [
   { value: "DISCHARGE_SUMMARY", label: "Discharge Summary" },
@@ -57,6 +58,7 @@ export function MRDDocumentModal({
   onUpdate,
   onDelete,
 }: MRDDocumentModalProps) {
+  const { enabled: abdmEnabled } = useAbdmFlags();
   const [document, setDocument] = useState<MRDDocument | null>(null);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -264,19 +266,21 @@ export function MRDDocumentModal({
                     <p className="text-sm font-medium text-slate-700">{document.mime_type || document.document_type}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="h-4 w-4 text-sky-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-500">Care Context Reference</p>
-                    <p className="text-sm font-medium font-mono text-slate-800">
-                      {document.category === "ID_PROOF" ? (
-                        <span className="text-slate-500 font-sans">Excluded (ID Proof)</span>
-                      ) : (
-                        document.care_context_reference || "Pending Assignment"
-                      )}
-                    </p>
+                {abdmEnabled && (
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="h-4 w-4 text-sky-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-500">Care Context Reference</p>
+                      <p className="text-sm font-medium font-mono text-slate-800">
+                        {document.category === "ID_PROOF" ? (
+                          <span className="text-slate-500 font-sans">Excluded (ID Proof)</span>
+                        ) : (
+                          document.care_context_reference || "Pending Assignment"
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="flex items-center gap-2.5">
                   <Activity className="h-4 w-4 text-teal-500 flex-shrink-0" />
                   <div>

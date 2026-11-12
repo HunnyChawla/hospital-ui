@@ -47,6 +47,7 @@ import type {
     HiType,
 } from "@/services/healthRecordApi";
 import { DocumentVersionHistory } from "./DocumentVersionHistory";
+import { useAbdmFlags } from "@/hooks/useFeatureFlags";
 
 interface CareContextPanelProps {
     patientId: string | null;
@@ -135,6 +136,7 @@ const ABDM_STATUS_CONFIG: Record<
  */
 export function CareContextPanel({ patientId }: CareContextPanelProps) {
     const { data, isLoading } = usePatientTimeline(patientId);
+    const { enabled: abdmEnabled } = useAbdmFlags();
 
     if (!patientId) return null;
 
@@ -157,9 +159,13 @@ export function CareContextPanel({ patientId }: CareContextPanelProps) {
         return (
             <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-10 text-center">
                 <FileText className="mx-auto h-10 w-10 text-slate-300" />
-                <p className="mt-3 text-sm font-semibold text-slate-600">No care contexts yet</p>
+                <p className="mt-3 text-sm font-semibold text-slate-600">
+                    {abdmEnabled ? "No care contexts yet" : "No health records yet"}
+                </p>
                 <p className="mt-1 text-xs text-slate-500">
-                    A care context opens automatically when a visit is registered.
+                    {abdmEnabled
+                        ? "A care context opens automatically when a visit is registered."
+                        : "A hospital encounter opens automatically when a visit is registered."}
                 </p>
             </div>
         );
@@ -168,13 +174,13 @@ export function CareContextPanel({ patientId }: CareContextPanelProps) {
     return (
         <div className="space-y-3">
             {episodes.map((episode) => (
-                <CareContextCard key={episode.id} episode={episode} />
+                <CareContextCard key={episode.id} episode={episode} abdmEnabled={abdmEnabled} />
             ))}
         </div>
     );
 }
 
-function CareContextCard({ episode }: { episode: Episode }) {
+function CareContextCard({ episode, abdmEnabled }: { episode: Episode; abdmEnabled: boolean }) {
     // Auto-expand for finalised and reopened episodes — those have actual
     // health records the user needs to see without any extra click.
     const [expanded, setExpanded] = useState(episode.status !== "open");
@@ -228,10 +234,12 @@ function CareContextCard({ episode }: { episode: Episode }) {
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
                             <Icon className="h-5 w-5" />
                         </div>
-                        <span
-                            className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white ${config.dot}`}
-                            title={config.label}
-                        />
+                        {abdmEnabled && (
+                            <span
+                                className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white ${config.dot}`}
+                                title={config.label}
+                            />
+                        )}
                     </div>
 
                     <div className="min-w-0">
@@ -269,28 +277,30 @@ function CareContextCard({ episode }: { episode: Episode }) {
                         )}
 
                         {/* ABDM status badge */}
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${config.badge}`}
-                            >
-                                <AbdmIcon className="h-3 w-3" />
-                                {config.label}
-                            </span>
-                            {episode.abdm_linked_at && (
-                                <span className="text-[11px] text-slate-400">
-                                    {new Date(episode.abdm_linked_at).toLocaleDateString("en-IN", {
-                                        day: "2-digit",
-                                        month: "short",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    })}
+                        {abdmEnabled && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span
+                                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${config.badge}`}
+                                >
+                                    <AbdmIcon className="h-3 w-3" />
+                                    {config.label}
                                 </span>
-                            )}
-                        </div>
+                                {episode.abdm_linked_at && (
+                                    <span className="text-[11px] text-slate-400">
+                                        {new Date(episode.abdm_linked_at).toLocaleDateString("en-IN", {
+                                            day: "2-digit",
+                                            month: "short",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                        })}
+                                    </span>
+                                )}
+                            </div>
+                        )}
 
                         {/* Error detail */}
-                        {abdmStatus === "failed" && episode.abdm_link_error && (
+                        {abdmEnabled && abdmStatus === "failed" && episode.abdm_link_error && (
                             <p className="mt-1 text-[11px] text-red-600">
                                 Error: {episode.abdm_link_error}
                             </p>
@@ -301,7 +311,7 @@ function CareContextCard({ episode }: { episode: Episode }) {
                 {/* Action buttons */}
                 <div className="flex flex-shrink-0 items-center gap-2">
                     {/* Manual ABDM link button */}
-                    {canLink && (
+                    {abdmEnabled && canLink && (
                         <button
                             id={`care-context-link-${episode.id}`}
                             onClick={() => linkCareContext.mutate(episode.id)}

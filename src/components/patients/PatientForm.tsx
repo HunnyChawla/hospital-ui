@@ -685,7 +685,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
 
   const onSubmit = async (values: CreatePatientRequest) => {
     // If mobile number changed on an ABHA-linked patient and hasn't been updated with ABHA yet, prompt staff with the option
-    if (defaultValues?.id && isAbhaLinked && isMobileChanged && !mobileUpdatedWithAbha) {
+    if (abhaEnabled && defaultValues?.id && isAbhaLinked && isMobileChanged && !mobileUpdatedWithAbha) {
       setPendingValues(values);
       setShowMobileUpdatePrompt(true);
       return;
@@ -715,7 +715,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
       )}
 
       {/* ABHA Profile Photo Banner */}
-      {(abhaProfile?.photo_base64 || apiData?.photo_base64) && (
+      {abhaEnabled && (abhaProfile?.photo_base64 || apiData?.photo_base64) && (
         <div className="flex items-center gap-3 rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50 to-indigo-50/40 p-3">
           <img
             src={(abhaProfile?.photo_base64 || apiData?.photo_base64).startsWith("data:")
@@ -829,7 +829,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
           )}
 
           {/* Inline Option to update mobile number with ABHA */}
-          {isAbhaLinked && isMobileChanged && !mobileUpdatedWithAbha && (
+          {abhaEnabled && isAbhaLinked && isMobileChanged && !mobileUpdatedWithAbha && (
             <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50/90 p-2.5 flex items-center justify-between gap-2 shadow-xs">
               <div className="flex items-start gap-2">
                 <div className="p-1 rounded-md bg-sky-100 text-sky-700 shrink-0 mt-0.5">
@@ -853,7 +853,7 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
             </div>
           )}
 
-          {isAbhaLinked && mobileUpdatedWithAbha && (
+          {abhaEnabled && isAbhaLinked && mobileUpdatedWithAbha && (
             <div className="mt-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] text-emerald-800">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
               <span>Mobile number successfully updated in ABHA!</span>
@@ -1210,31 +1210,33 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
       </div>
 
       {/* Optional ABHA Enrollment Modal */}
-      <AbhaEnrollmentModal
-        isOpen={isAbhaModalOpen}
-        onClose={() => setIsAbhaModalOpen(false)}
-        onSuccess={handleAbhaSuccess}
-        patientId={defaultValues?.id}
-        initialMobile={watch("mobile") || defaultValues?.mobile || ""}
-        initialName={`${watch("first_name") || ""} ${watch("last_name") || ""}`.trim() || defaultValues?.name || ""}
-        existingPatientDetails={
-          apiData
-            ? {
-                firstName: apiData.first_name,
-                lastName: apiData.last_name,
-                gender: apiData.gender,
-                dateOfBirth: apiData.date_of_birth,
-                address: apiData.address,
-                city: apiData.city,
-                state: apiData.state,
-                pincode: apiData.pincode,
-              }
-            : undefined
-        }
-      />
+      {abhaEnabled && (
+        <AbhaEnrollmentModal
+          isOpen={isAbhaModalOpen}
+          onClose={() => setIsAbhaModalOpen(false)}
+          onSuccess={handleAbhaSuccess}
+          patientId={defaultValues?.id}
+          initialMobile={watch("mobile") || defaultValues?.mobile || ""}
+          initialName={`${watch("first_name") || ""} ${watch("last_name") || ""}`.trim() || defaultValues?.name || ""}
+          existingPatientDetails={
+            apiData
+              ? {
+                  firstName: apiData.first_name,
+                  lastName: apiData.last_name,
+                  gender: apiData.gender,
+                  dateOfBirth: apiData.date_of_birth,
+                  address: apiData.address,
+                  city: apiData.city,
+                  state: apiData.state,
+                  pincode: apiData.pincode,
+                }
+              : undefined
+          }
+        />
+      )}
 
       {/* ABHA Mobile Update Modal */}
-      {defaultValues?.id && (
+      {abhaEnabled && defaultValues?.id && (
         <AbhaUpdateMobileModal
           isOpen={isUpdateMobileModalOpen}
           onClose={() => {
@@ -1261,67 +1263,69 @@ export function PatientForm({ defaultValues, onSuccess, initialAbhaData }: Patie
       )}
 
       {/* Pre-submit Prompt Modal */}
-      <Modal
-        isOpen={showMobileUpdatePrompt}
-        onClose={() => setShowMobileUpdatePrompt(false)}
-        title="Update Mobile with ABHA?"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-sky-100 text-sky-600 shrink-0 mt-0.5">
-              <Smartphone className="h-5 w-5" />
+      {abhaEnabled && (
+        <Modal
+          isOpen={showMobileUpdatePrompt}
+          onClose={() => setShowMobileUpdatePrompt(false)}
+          title="Update Mobile with ABHA?"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-sky-100 text-sky-600 shrink-0 mt-0.5">
+                <Smartphone className="h-5 w-5" />
+              </div>
+              <div className="text-xs text-slate-600 space-y-1.5">
+                <p className="font-semibold text-slate-800 text-sm">
+                  Mobile number changed for ABHA-linked patient
+                </p>
+                <p>
+                  The mobile number is being updated from{" "}
+                  <span className="font-mono font-medium text-slate-900">{cleanOriginalMobile}</span> to{" "}
+                  <span className="font-mono font-bold text-sky-700">{cleanCurrentMobile}</span>.
+                </p>
+                <p>
+                  Would you also like to update this mobile number in the patient&apos;s registered ABHA profile?
+                </p>
+              </div>
             </div>
-            <div className="text-xs text-slate-600 space-y-1.5">
-              <p className="font-semibold text-slate-800 text-sm">
-                Mobile number changed for ABHA-linked patient
-              </p>
-              <p>
-                The mobile number is being updated from{" "}
-                <span className="font-mono font-medium text-slate-900">{cleanOriginalMobile}</span> to{" "}
-                <span className="font-mono font-bold text-sky-700">{cleanCurrentMobile}</span>.
-              </p>
-              <p>
-                Would you also like to update this mobile number in the patient&apos;s registered ABHA profile?
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setShowMobileUpdatePrompt(false)}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowMobileUpdatePrompt(false);
-                if (pendingValues) {
-                  executeSave(pendingValues);
-                  setPendingValues(null);
-                }
-              }}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-            >
-              Save in HMS Only
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowMobileUpdatePrompt(false);
-                setIsUpdateMobileModalOpen(true);
-              }}
-              className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md transition flex items-center justify-center gap-1.5"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Update with ABHA</span>
-            </button>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowMobileUpdatePrompt(false)}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileUpdatePrompt(false);
+                  if (pendingValues) {
+                    executeSave(pendingValues);
+                    setPendingValues(null);
+                  }
+                }}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              >
+                Save in HMS Only
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileUpdatePrompt(false);
+                  setIsUpdateMobileModalOpen(true);
+                }}
+                className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md transition flex items-center justify-center gap-1.5"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Update with ABHA</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </form>
   );
 }
